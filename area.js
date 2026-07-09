@@ -210,6 +210,7 @@ const AREAS = {
       { type: 'stutterer', x: 620,  y: 362 },   // mid zone (ground, between barriers)
       { type: 'fractured', x: 960,  y: 362 },   // right zone (ground)
       { type: 'stutterer', x: 1100, y: 227 },   // right shelf: 255-28=227
+      { type: 'crystal_sentinel', x: 600, y: 320 },
     ],
     stillpoints: [
       { x: 180, y: 370, index: 0 },   // left of barrier 1, safe entry zone: 390-20=370

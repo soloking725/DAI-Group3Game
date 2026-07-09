@@ -45,8 +45,7 @@ class Enemy {
   }
 
   update(player, bounds, echoes) {
-    // ── Time scale for Stillpoint ──────────────────────────────────────
-    const _ts = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
 
     if (this.dead) { this.deathTimer++; return; }
 
@@ -279,8 +278,7 @@ class Stutterer extends Enemy {
   }
 
   update(player, bounds, echoes) {
-    // ── Time scale for Stillpoint ──────────────────────────────────────
-    const _ts = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
+      const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
 
     if (this.dead) { this.deathTimer++; return; }
 
@@ -527,8 +525,7 @@ class FracturedSlime {
   }
 
   update(player, bounds, echoes) {
-    // ── Time scale for Stillpoint ──────────────────────────────────────
-    const _ts = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
 
     if (this.dead) { this.deathTimer++; return; }
 
@@ -614,13 +611,16 @@ class FracturedSlime {
   }
 }
 
+if (typeof spawnParticles === 'undefined') {
+  var spawnParticles = function() {};
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // Crystal Sentinel — Ranged enemy with a directional shield
 // ─────────────────────────────────────────────────────────────────────────────
 const SENTINEL_HEALTH = 6;
 const SENTINEL_SHIELD_HP = 2;
 const SENTINEL_SPEED = 1.2;
-const SENTINEL_ATTACK_COOLDOWN = 90; // frames between shots (scaled by time)
+const SENTINEL_ATTACK_COOLDOWN = 90;
 
 class CrystalSentinel {
   constructor(x, y) {
@@ -629,7 +629,7 @@ class CrystalSentinel {
     this.width = 32;
     this.height = 40;
     this.facing = -1;
-    this.grounded = false; // it floats, so gravity doesn't apply, but we keep the variable for compatibility
+    this.grounded = false;
     this.health = SENTINEL_HEALTH;
     this.maxHealth = SENTINEL_HEALTH;
     this.shieldHp = SENTINEL_SHIELD_HP;
@@ -637,7 +637,6 @@ class CrystalSentinel {
     this.shieldRegenTimer = 0;
     this.shieldBroken = false;
     this.shieldBreakTimer = 0;
-
     this.vx = 0;
     this.vy = 0;
     this.flashTimer = 0;
@@ -648,12 +647,8 @@ class CrystalSentinel {
     this.windUpTimer = 0;
     this.attacking = false;
     this.attackTimer = 0;
-
-    // Distraction (echoes)
     this.distractionTimer = 0;
     this.distractionTarget = null;
-
-    // Patrol hover range
     this.patrolCenterX = x;
     this.patrolRange = 150;
   }
@@ -661,38 +656,43 @@ class CrystalSentinel {
   getBounds() {
     return { x: this.x, y: this.y, width: this.width, height: this.height };
   }
+  
+  getAttackHitbox() {
+    if (!this.attacking || this.attackTimer > 15) return null;
+    return {
+      x: this.facing === 1 ? this.x + this.width : this.x - 30,
+      y: this.y + 4,
+      width: 30,
+      height: this.height - 8
+    };
+  }
 
   takeDamage(amount, sourceX, sourceType) {
     if (this.dead) return;
 
-    // ── Shield logic ──────────────────────────────────────────────────────
-    // If shield is active and the hit comes from the FRONT, block it.
-    // sourceX < this.x means hit came from the left, so the boss is facing LEFT.
     const hitFromFront = (sourceX < this.x && this.facing === -1) ||
                          (sourceX > this.x + this.width && this.facing === 1);
 
+    // Shield blocks melee from front; ranged pierces through
     if (!this.shieldBroken && hitFromFront && sourceType !== 'ranged') {
-      // Melee from front: blocked! Shield takes 1 damage (if using Shard Shot, it pierces)
-      // Actually, let's make Shard Shot specifically deal DOUBLE shield damage.
       let shieldDamage = 1;
-      if (sourceType === 'ranged') shieldDamage = 2;
+      if (sourceType === 'ranged') shieldDamage = 2; // (not used here, but kept)
       this.shieldHp -= shieldDamage;
-      // Spawn spark particles (handled in draw via flash)
       this.flashTimer = 10;
       if (this.shieldHp <= 0) {
         this.shieldBroken = true;
-        this.shieldBreakTimer = 90; // 1.5 seconds of stunned vulnerability
+        this.shieldBreakTimer = 90;
         this.shieldHp = 0;
-        // Spawn particle burst
-        spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#2dd4bf', 12);
+        if (typeof spawnParticles !== 'undefined')
+          spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#2dd4bf', 12);
         if (typeof SFX !== 'undefined') SFX.shardHit();
       } else {
-        if (typeof SFX !== 'undefined') SFX.shardHit(); // clang sound
+        if (typeof SFX !== 'undefined') SFX.shardHit();
       }
-      return; // Damage blocked
+      return;
     }
 
-    // ── Health damage (only if shield is down or hit from behind/ranged) ──
+    // Health damage
     this.health -= amount;
     this.flashTimer = 6;
     if (sourceX !== undefined) {
@@ -703,31 +703,29 @@ class CrystalSentinel {
   }
 
   update(player, bounds, echoes) {
-    const _ts = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
-
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
     if (this.dead) { this.deathTimer++; return; }
 
-    // ── Shield regeneration ─────────────────────────────────────────────
+    // Shield regen
     if (this.shieldBroken) {
       this.shieldBreakTimer -= _ts;
-      // Regen shield fully after break timer expires
       if (this.shieldBreakTimer <= 0) {
         this.shieldBroken = false;
         this.shieldHp = this.maxShieldHp;
-        // Visual pop
-        spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#67e8f9', 6);
+        if (typeof spawnParticles !== 'undefined')
+          spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#67e8f9', 6);
       }
     } else if (this.shieldHp < this.maxShieldHp) {
       this.shieldRegenTimer -= _ts;
       if (this.shieldRegenTimer <= 0) {
         this.shieldHp = Math.min(this.maxShieldHp, this.shieldHp + 1);
-        this.shieldRegenTimer = 180; // 3 seconds per pip
+        this.shieldRegenTimer = 180;
       }
     } else {
       this.shieldRegenTimer = 0;
     }
 
-    // ── Distraction (Echoes) ────────────────────────────────────────────
+    // Distraction
     if (this.distractionTimer > 0) {
       this.distractionTimer -= _ts;
       if (this.distractionTimer <= 0) this.distractionTarget = null;
@@ -743,18 +741,14 @@ class CrystalSentinel {
     if (nearestEcho) {
       this.distractionTarget = nearestEcho;
       this.distractionTimer = 60;
-      // Stop attacking if distracted
       this.windingUp = false;
       this.attacking = false;
       this.flashTimer++;
       return;
     }
 
-    // ── Facing ───────────────────────────────────────────────────────────
     const dx = player.x - this.x;
     this.facing = dx > 0 ? 1 : -1;
-
-    // ── Movement ────────────────────────────────────────────────────────
     const dist = Math.abs(dx);
     const idealDist = 200;
 
@@ -765,12 +759,9 @@ class CrystalSentinel {
     } else {
       this.vx *= 0.9;
     }
-
-    // Clamp speed
     const maxSpeed = SENTINEL_SPEED * (this.shieldBroken ? 0.4 : 1.0);
     this.vx = Math.max(-maxSpeed, Math.min(maxSpeed, this.vx));
 
-    // Float vertically toward player's height (but not too aggressively)
     const dy = player.y - this.y;
     if (Math.abs(dy) > 40) {
       this.vy += Math.sign(dy) * 0.04 * _ts;
@@ -779,33 +770,34 @@ class CrystalSentinel {
     }
     this.vy = Math.max(-1.5, Math.min(1.5, this.vy));
 
-    // Apply movement (scaled)
     this.x += this.vx * _ts;
     this.y += this.vy * _ts;
 
-    // Clamp to bounds (keep it inside the room)
-    this.x = Math.max(bounds.left + 10, Math.min(this.x, bounds.right - this.width - 10));
-    this.y = Math.max(20, Math.min(this.y, bounds.groundY - 40));
+    // Clamp with safety
+    if (bounds && bounds.left !== undefined && bounds.right !== undefined) {
+      this.x = Math.max(bounds.left + 10, Math.min(this.x, bounds.right - this.width - 10));
+    }
+    if (bounds && bounds.groundY !== undefined) {
+      this.y = Math.max(20, Math.min(this.y, bounds.groundY - 40));
+    }
 
-    // ── Attack logic ─────────────────────────────────────────────────────
+    // Attack
     if (this.attackCooldown > 0) this.attackCooldown -= _ts;
     if (this.attackCooldown < 0) this.attackCooldown = 0;
 
-    // Windup if in range and cooldown is zero
     if (dist < 400 && this.attackCooldown <= 0 && !this.windingUp && !this.attacking && !this.shieldBroken) {
       this.windingUp = true;
-      this.windUpTimer = 35; // ~0.5 seconds telegraph
+      this.windUpTimer = 35;
     }
 
     if (this.windingUp) {
       this.windUpTimer -= _ts;
-      this.vx *= 0.9; // slow down while winding
+      this.vx *= 0.9;
       if (this.windUpTimer <= 0) {
         this.windingUp = false;
         this.attacking = true;
         this.attackTimer = 20;
         this.attackCooldown = SENTINEL_ATTACK_COOLDOWN;
-        // ── Fire the projectile ──────────────────────────────────────
         this.fireProjectile(player);
       }
     }
@@ -819,12 +811,6 @@ class CrystalSentinel {
   }
 
   fireProjectile(player) {
-    // Create a homing shard. We'll store it in a global array, but game.js
-    // doesn't know about Sentinel projectiles yet. I'll push to a custom array
-    // that game.js can optionally render, OR we can just use the standard
-    // `projectiles` array by adding a public method.
-    // Since we can't directly modify the `projectiles` array from here without
-    // a reference, I'll store it in a static array on the class.
     if (!CrystalSentinel.projectiles) CrystalSentinel.projectiles = [];
     const targetX = player.x + player.width / 2;
     const targetY = player.y + player.height / 2;
@@ -848,7 +834,7 @@ class CrystalSentinel {
       homingStrength: 0.03
     };
     CrystalSentinel.projectiles.push(proj);
-    if (typeof SFX !== 'undefined') SFX.shardShot(); // use shard shot sound as placeholder
+    if (typeof SFX !== 'undefined') SFX.shardShot();
   }
 
   draw(ctx) {
@@ -859,14 +845,12 @@ class CrystalSentinel {
     const cx = this.x + this.width / 2;
     const cy = this.y + this.height / 2;
 
-    // ── Glow (pulse) ─────────────────────────────────────────────────────
     const pulse = Math.sin(this.flashTimer * 0.05) * 0.2 + 0.8;
     ctx.fillStyle = `rgba(45, 212, 191, ${0.1 * pulse})`;
     ctx.beginPath();
     ctx.arc(cx, cy, 40, 0, Math.PI * 2);
     ctx.fill();
 
-    // ── Shield (visual front barrier) ──────────────────────────────────
     if (!this.shieldBroken && this.shieldHp > 0) {
       const shieldX = this.facing === 1 ? this.x + this.width - 4 : this.x - 12;
       const shieldAlpha = 0.3 + (this.shieldHp / this.maxShieldHp) * 0.5;
@@ -877,7 +861,6 @@ class CrystalSentinel {
       ctx.strokeRect(shieldX - 1, this.y + 2, 14, this.height - 4);
       ctx.lineWidth = 1;
 
-      // Shield HP pips (tiny dots)
       for (let i = 0; i < this.maxShieldHp; i++) {
         const px = this.facing === 1 ? this.x + this.width + 2 : this.x - 10;
         const py = this.y + 8 + i * 14;
@@ -888,13 +871,10 @@ class CrystalSentinel {
       }
     }
 
-    // ── Body (Crystal shape) ─────────────────────────────────────────────
     const color = this.flashTimer < 6 ? '#ffffff' :
                   this.shieldBroken ? '#4ade80' :
                   '#2dd4bf';
-
     ctx.fillStyle = color;
-    // Main diamond body
     ctx.beginPath();
     ctx.moveTo(cx, this.y);
     ctx.lineTo(this.x + this.width, cy);
@@ -903,7 +883,6 @@ class CrystalSentinel {
     ctx.closePath();
     ctx.fill();
 
-    // Inner core
     ctx.fillStyle = this.dead ? '#1a3a2e' : '#a7f3d0';
     ctx.beginPath();
     ctx.moveTo(cx, this.y + 12);
@@ -913,14 +892,12 @@ class CrystalSentinel {
     ctx.closePath();
     ctx.fill();
 
-    // ── Eye ──────────────────────────────────────────────────────────────
     ctx.fillStyle = '#0a0a0f';
     const eyeX = this.facing === 1 ? cx + 4 : cx - 8;
     ctx.fillRect(eyeX, cy - 3, 6, 6);
     ctx.fillStyle = '#fff';
     ctx.fillRect(this.facing === 1 ? eyeX + 3 : eyeX - 1, cy - 2, 2, 2);
 
-    // ── Windup telegraph ──────────────────────────────────────────────────
     if (this.windingUp) {
       const progress = 1 - this.windUpTimer / 35;
       const ringRadius = 20 + progress * 40;
@@ -930,8 +907,6 @@ class CrystalSentinel {
       ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.lineWidth = 1;
-
-      // "TARGET" warning
       ctx.fillStyle = `rgba(251, 191, 36, ${0.5 + progress * 0.5})`;
       ctx.font = `bold ${10 + Math.round(progress * 4)}px monospace`;
       ctx.textAlign = 'center';
@@ -942,7 +917,6 @@ class CrystalSentinel {
     ctx.globalAlpha = 1;
   }
 
-  // Static method to render sentinel projectiles (called from game.js)
   static drawProjectiles(ctx) {
     if (!CrystalSentinel.projectiles) return;
     for (const p of CrystalSentinel.projectiles) {
@@ -957,20 +931,17 @@ class CrystalSentinel {
     }
   }
 
-  // Static method to update sentinel projectiles (called from game.js)
   static updateProjectiles(player) {
     if (!CrystalSentinel.projectiles) return;
-    const _ts = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
     for (const p of CrystalSentinel.projectiles) {
       if (!p.alive) continue;
-      // Homing logic
       const dx = p.targetX - (p.x + p.width / 2);
       const dy = p.targetY - (p.y + p.height / 2);
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > 5) {
+      if (dist > 1) {
         p.vx += (dx / dist) * p.homingStrength * _ts;
         p.vy += (dy / dist) * p.homingStrength * _ts;
-        // Clamp speed
         const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
         if (speed > p.speed) {
           p.vx = (p.vx / speed) * p.speed;
@@ -982,7 +953,6 @@ class CrystalSentinel {
       p.life -= _ts;
       if (p.life <= 0) p.alive = false;
     }
-    // Clean up
     CrystalSentinel.projectiles = CrystalSentinel.projectiles.filter(p => p.alive);
   }
 }
