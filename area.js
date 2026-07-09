@@ -271,56 +271,43 @@ const AREAS = {
   // Section 3 has two enemies on the only platforms — use Stillpoint to
   // slow them, dash through, then attack.
   // ─────────────────────────────────────────────────────────────────────────
-  the_rift: {
+    the_rift: {
     id: 'the_rift',
     name: 'The Rift',
     width: 1960,
-    groundY: 900,   // no floor — fall = death
-    bgColor: '#060610',
-    bgTint: 'rgba(80, 40, 160, 0.07)',
+    groundY: 900,
+    bgColor: '#0a0a0f',
+    bgTint: 'rgba(80,40,160,0.07)',
     ambientColor: '#7c3aed',
     platforms: [
-      // === ENTRY (wide, safe spawn) ===
-      { x: 30,   y: 320, w: 200, h: 14 },
-
-      // === SECTION 1: rhythm gaps ~70px, normal jump ===
-      { x: 300,  y: 300, w: 100, h: 14 },
-      { x: 470,  y: 278, w: 100, h: 14 },   // enemy here
-      { x: 640,  y: 298, w: 100, h: 14 },
-
-      // === SECTION 2: Phase Dash mandatory (140px gap) ===
-      { x: 820,  y: 268, w: 160, h: 14 },   // wider so patrol enemy doesn't fall off
-      { x: 1060, y: 246, w: 100, h: 14 },   // gap 80 (Phase Dash recommended)
-      { x: 1220, y: 264, w: 120, h: 14 },
-
-      // === REST PLATFORM — Stillpoint, wide and isolated ===
-      { x: 1380, y: 246, w: 220, h: 14 },   // 40px gap from s2 p3 right edge (1340)
-
-      // === SECTION 3: two enemies block passage, use Stillpoint + Phase Dash ===
-      // 30px gap from rest platform right edge (1600) → enemies can't walk across
-      { x: 1630, y: 258, w: 260, h: 14 },   // 260px wide so patrol stays on platform
-
-      // === EXIT LEDGE — wide enough to actually land on ===
-      { x: 1900, y: 225, w: 120, h: 14 },   // 10px gap from s3 right (1890)
-    ],
-    transitions: [
-      { x: 0,    y: 258, w: 35, h: 80, to: 'the_vault',   toX: 828, toY: 348 },
-      { x: 1960, y: 158, w: 35, h: 80, to: 'antechamber', toX: 60,  toY: 348 },
-    ],
-    enemies: [
-      { type: 'fractured', x: 490,  y: 250 },   // s1 p2
-      { type: 'fractured', x: 880,  y: 240 },   // s2 p1 (Fractured, not Stutterer — no teleporting into void)
-      { type: 'fractured', x: 1700, y: 230 },   // s3 left: 258-28=230
-      { type: 'fractured', x: 1810, y: 230 },   // s3 right
-    ],
-    stillpoints: [
-      { x: 1450, y: 226, index: 0 },   // rest platform centre: 246-20=226
-    ],
-    loreFragments: [
-      { id: 'lore_tr1', x: 1450, y: 212,
-        text: '"The rift does not want to be crossed. It wants you to learn what crossing means. Every gap is a small surrender."' },
+      { x:30, y:320, w:200, h:14 },
+      { x:300, y:300, w:100, h:14 },
+      { x:470, y:278, w:100, h:14 },
+      { x:640, y:298, w:100, h:14 },
+      { x:820, y:268, w:160, h:14 },
+      { x:1060, y:246, w:100, h:14 },
+      { x:1220, y:264, w:120, h:14 },
+      { x:1380, y:246, w:220, h:14 },
+      { x:1630, y:258, w:260, h:14 },
+      { x:1900, y:225, w:120, h:14 }
     ],
     abilityReward: null,
+    transitions: [
+      { x:0, y:258, w:35, h:80, to:'the_vault', toX:828, toY:348 },
+      { x:1910, y:160, w:35, h:80, to:'antechamber', toX:60, toY:348 }
+    ],
+    enemies: [
+      { type:'fractured', x:490, y:250 },
+      { type:'fractured', x:880, y:240 },
+      { type:'fractured', x:1700, y:230 },
+      { type:'fractured', x:1810, y:230 }
+    ],
+    stillpoints: [
+      { x:1450, y:226, index:0 }
+    ],
+    loreFragments: [
+      { id:'lore_tr1', x:1450, y:212, text:"\"Every gap is a small surrender.\"" }
+    ],
   },
 
   // ─────────────────────────────────────────────────────────────────────────
