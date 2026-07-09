@@ -233,9 +233,11 @@ function spawnAreaEnemies(areaId) {
   for (const eDef of area.enemies) {
     if (eDef.type === 'stutterer') {
       areaEnemies[areaId].push(new Stutterer(eDef.x, eDef.y));
+    } else if (eDef.type === 'crystal_sentinel') {
+    areaEnemies[areaId].push(new CrystalSentinel(eDef.x, eDef.y));
     } else {
       areaEnemies[areaId].push(new Enemy(eDef.x, eDef.y, eDef.type));
-    }
+    } 
   }
 }
 
@@ -1009,6 +1011,9 @@ function update() {
     }
   }
 
+  // ── Crystal Sentinel projectiles ──────────────────────────────────────
+  CrystalSentinel.updateProjectiles(player);
+
   // Update enemies
   const enemies = areaEnemies[currentAreaId] || [];
   for (const enemy of enemies) {
@@ -1026,17 +1031,22 @@ function update() {
       if (enemy.dead) SFX.enemyDeath(); else SFX.attackHit();
     }
 
-    // Projectile hits enemy
+        // Projectile hits enemy
     for (let j = projectiles.length - 1; j >= 0; j--) {
       const proj = projectiles[j];
       const projBounds = proj.getBounds();
       if (!enemy.dead && rectsOverlap(projBounds, enemy)) {
-        enemy.takeDamage(proj.damage, proj.x);
+        // If it's a Crystal Sentinel, pass 'ranged' so the shield takes double damage
+        if (enemy instanceof CrystalSentinel) {
+          enemy.takeDamage(proj.damage, proj.x, 'ranged');
+        } else {
+          enemy.takeDamage(proj.damage, proj.x);
+        }
         spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 6);
         projectiles.splice(j, 1);
         screenShake = 4;
         screenShakeIntensity = 2;
-        hitstopTimer = 3; // hitstop on projectile hit
+        hitstopTimer = 3;
         if (enemy.dead) SFX.enemyDeath(); else SFX.shardHit();
         break;
       }
@@ -1573,6 +1583,9 @@ function draw() {
     boss.drawTelegraphs(ctx);
     drawBossProjectiles(ctx, bossProjectiles);
   }
+
+   // ── Crystal Sentinel projectiles ──────────────────────────────────────
+  CrystalSentinel.drawProjectiles(ctx);
 
   // Particles
   for (const p of particles) {

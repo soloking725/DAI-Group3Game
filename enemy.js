@@ -1,6 +1,6 @@
 // Enemies: Fractured (basic) and Stutterer (teleporting)
 
-const ENEMY_SPEED = 2;
+const ENEMY_SPEED = 1.5;
 const ENEMY_HEALTH = 3;
 const ENEMY_DAMAGE = 1;
 const ENEMY_ATTACK_RANGE = 40;
@@ -45,11 +45,14 @@ class Enemy {
   }
 
   update(player, bounds, echoes) {
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+
     if (this.dead) { this.deathTimer++; return; }
 
-    // Echo distraction
+    // Echo distraction — timer scales with game speed
     if (this.distractionTimer > 0) {
-      this.distractionTimer--;
+      this.distractionTimer -= _ts;
+      if (this.distractionTimer < 0) this.distractionTimer = 0;
     }
     if (this.distractionTimer > 0 && this.distractionTarget && this.distractionTarget.alive) {
       const echo = this.distractionTarget;
@@ -70,7 +73,7 @@ class Enemy {
     }
     if (nearestEcho) {
       this.distractionTarget = nearestEcho;
-      this.distractionTimer = 60;
+      this.distractionTimer = 60; // fixed duration (will be scaled down by _ts above)
       return;
     }
 
@@ -87,7 +90,7 @@ class Enemy {
     }
 
     if (this.windingUp) {
-      this.windUpTimer--;
+      this.windUpTimer -= _ts;
       this.vx = 0; // freeze during windup
       if (this.windUpTimer <= 0) {
         this.windingUp = false;
@@ -100,11 +103,12 @@ class Enemy {
     // ── Attack ───────────────────────────────────────────────────────────────
     if (this.attacking) {
       this.vx = 0;
-      this.attackTimer--;
+      this.attackTimer -= _ts;
       if (this.attackTimer <= 0) this.attacking = false;
     }
 
-    if (this.attackCooldown > 0) this.attackCooldown--;
+    if (this.attackCooldown > 0) this.attackCooldown -= _ts;
+    if (this.attackCooldown < 0) this.attackCooldown = 0;
 
     // ── Movement AI (only when not winding up or attacking) ──────────────────
     if (!this.windingUp && !this.attacking) {
@@ -118,7 +122,6 @@ class Enemy {
     }
 
     // Physics
-    const _ts = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
     // If airborne, stop horizontal movement — prevents enemies walking off platform edges into void
     if (!this.grounded) this.vx = 0;
     this.vy += GRAVITY * _ts;
@@ -144,7 +147,7 @@ class Enemy {
     if (this.x < bounds.left) this.x = bounds.left;
     if (this.x + this.width > bounds.right) this.x = bounds.right - this.width;
 
-    this.flashTimer++;
+    this.flashTimer++; // unscaled — visual flash stays snappy
   }
 
   getAttackHitbox() {
@@ -275,11 +278,13 @@ class Stutterer extends Enemy {
   }
 
   update(player, bounds, echoes) {
+      const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+
     if (this.dead) { this.deathTimer++; return; }
 
     // Distraction
     if (this.distractionTimer > 0) {
-      this.distractionTimer--;
+      this.distractionTimer -= _ts;
       if (this.distractionTimer <= 0) this.distractionTarget = null;
       this.flashTimer++;
       return;
@@ -293,7 +298,7 @@ class Stutterer extends Enemy {
     }
     if (nearestEcho) { this.distractionTarget = nearestEcho; this.distractionTimer = 60; return; }
 
-    this.teleportTimer++;
+    this.teleportTimer += _ts;
 
     if (this.teleportTimer >= this.teleportInterval) {
       this.teleportTimer = 0;
@@ -308,12 +313,12 @@ class Stutterer extends Enemy {
     }
 
     if (this.blinking) {
-      this.blinkTimer--;
+      this.blinkTimer -= _ts;
       if (this.blinkTimer <= 0) this.blinking = false;
     }
 
     for (let i = this.decoys.length - 1; i >= 0; i--) {
-      this.decoys[i].life--;
+      this.decoys[i].life -= _ts;
       if (this.decoys[i].life <= 0) this.decoys.splice(i, 1);
     }
 
@@ -328,7 +333,7 @@ class Stutterer extends Enemy {
     }
 
     if (this.windingUp) {
-      this.windUpTimer--;
+      this.windUpTimer -= _ts;
       if (this.windUpTimer <= 0) {
         this.windingUp = false;
         this.attacking = true;
@@ -338,17 +343,17 @@ class Stutterer extends Enemy {
     }
 
     if (this.attacking) {
-      this.attackTimer--;
+      this.attackTimer -= _ts;
       if (this.attackTimer <= 0) this.attacking = false;
     }
 
-    if (this.attackCooldown > 0) this.attackCooldown--;
+    if (this.attackCooldown > 0) this.attackCooldown -= _ts;
+    if (this.attackCooldown < 0) this.attackCooldown = 0;
 
-    const _tsS = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
     // Stop horizontal movement when airborne — prevents falling off platforms sideways in void areas
     if (!this.grounded) this.vx = 0;
-    this.vy += GRAVITY * _tsS;
-    this.y += this.vy * _tsS;
+    this.vy += GRAVITY * _ts;
+    this.y += this.vy * _ts;
 
     if (this.y + this.height > bounds.groundY) {
       this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
@@ -367,7 +372,7 @@ class Stutterer extends Enemy {
     }
 
     this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
-    this.flashTimer++;
+    this.flashTimer++; // unscaled
   }
 
   draw(ctx) {
@@ -520,13 +525,16 @@ class FracturedSlime {
   }
 
   update(player, bounds, echoes) {
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+
     if (this.dead) { this.deathTimer++; return; }
 
     const area = getCurrentArea();
     this.facing = player.x > this.x ? 1 : -1;
     this.flashTimer = Math.max(0, this.flashTimer - 1);
-    if (this.attackCooldown > 0) this.attackCooldown--;
-    this.stateTimer--;
+    if (this.attackCooldown > 0) this.attackCooldown -= _ts;
+    if (this.attackCooldown < 0) this.attackCooldown = 0;
+    this.stateTimer -= _ts;
 
     switch (this.state) {
       case 'idle':
@@ -553,9 +561,9 @@ class FracturedSlime {
         break;
     }
 
-    this.vy += GRAVITY;
-    this.y += this.vy;
-    this.x += this.vx;
+    this.vy += GRAVITY * _ts;
+    this.y += this.vy * _ts;
+    this.x += this.vx * _ts;
 
     if (this.y + this.height > bounds.groundY) {
       this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
@@ -602,3 +610,352 @@ class FracturedSlime {
     ctx.globalAlpha = 1;
   }
 }
+
+if (typeof spawnParticles === 'undefined') {
+  var spawnParticles = function() {};
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Crystal Sentinel — Ranged enemy with a directional shield
+// ─────────────────────────────────────────────────────────────────────────────
+const SENTINEL_HEALTH = 6;
+const SENTINEL_SHIELD_HP = 2;
+const SENTINEL_SPEED = 1.2;
+const SENTINEL_ATTACK_COOLDOWN = 90;
+
+class CrystalSentinel {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.width = 32;
+    this.height = 40;
+    this.facing = -1;
+    this.grounded = false;
+    this.health = SENTINEL_HEALTH;
+    this.maxHealth = SENTINEL_HEALTH;
+    this.shieldHp = SENTINEL_SHIELD_HP;
+    this.maxShieldHp = SENTINEL_SHIELD_HP;
+    this.shieldRegenTimer = 0;
+    this.shieldBroken = false;
+    this.shieldBreakTimer = 0;
+    this.vx = 0;
+    this.vy = 0;
+    this.flashTimer = 0;
+    this.dead = false;
+    this.deathTimer = 0;
+    this.attackCooldown = SENTINEL_ATTACK_COOLDOWN;
+    this.windingUp = false;
+    this.windUpTimer = 0;
+    this.attacking = false;
+    this.attackTimer = 0;
+    this.distractionTimer = 0;
+    this.distractionTarget = null;
+    this.patrolCenterX = x;
+    this.patrolRange = 150;
+  }
+
+  getBounds() {
+    return { x: this.x, y: this.y, width: this.width, height: this.height };
+  }
+  
+  getAttackHitbox() {
+    if (!this.attacking || this.attackTimer > 15) return null;
+    return {
+      x: this.facing === 1 ? this.x + this.width : this.x - 30,
+      y: this.y + 4,
+      width: 30,
+      height: this.height - 8
+    };
+  }
+
+  takeDamage(amount, sourceX, sourceType) {
+    if (this.dead) return;
+
+    const hitFromFront = (sourceX < this.x && this.facing === -1) ||
+                         (sourceX > this.x + this.width && this.facing === 1);
+
+    // Shield blocks melee from front; ranged pierces through
+    if (!this.shieldBroken && hitFromFront && sourceType !== 'ranged') {
+      let shieldDamage = 1;
+      if (sourceType === 'ranged') shieldDamage = 2; // (not used here, but kept)
+      this.shieldHp -= shieldDamage;
+      this.flashTimer = 10;
+      if (this.shieldHp <= 0) {
+        this.shieldBroken = true;
+        this.shieldBreakTimer = 90;
+        this.shieldHp = 0;
+        if (typeof spawnParticles !== 'undefined')
+          spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#2dd4bf', 12);
+        if (typeof SFX !== 'undefined') SFX.shardHit();
+      } else {
+        if (typeof SFX !== 'undefined') SFX.shardHit();
+      }
+      return;
+    }
+
+    // Health damage
+    this.health -= amount;
+    this.flashTimer = 6;
+    if (sourceX !== undefined) {
+      this.vx = (this.x > sourceX ? 1 : -1) * 3;
+      this.vy = -2;
+    }
+    if (this.health <= 0) { this.health = 0; this.dead = true; this.deathTimer = 0; }
+  }
+
+  update(player, bounds, echoes) {
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    if (this.dead) { this.deathTimer++; return; }
+
+    // Shield regen
+    if (this.shieldBroken) {
+      this.shieldBreakTimer -= _ts;
+      if (this.shieldBreakTimer <= 0) {
+        this.shieldBroken = false;
+        this.shieldHp = this.maxShieldHp;
+        if (typeof spawnParticles !== 'undefined')
+          spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#67e8f9', 6);
+      }
+    } else if (this.shieldHp < this.maxShieldHp) {
+      this.shieldRegenTimer -= _ts;
+      if (this.shieldRegenTimer <= 0) {
+        this.shieldHp = Math.min(this.maxShieldHp, this.shieldHp + 1);
+        this.shieldRegenTimer = 180;
+      }
+    } else {
+      this.shieldRegenTimer = 0;
+    }
+
+    // Distraction
+    if (this.distractionTimer > 0) {
+      this.distractionTimer -= _ts;
+      if (this.distractionTimer <= 0) this.distractionTarget = null;
+      this.flashTimer++;
+    }
+
+    let nearestEcho = null, nearestDist = ECHO_DISTRACT_RADIUS;
+    for (const echo of echoes) {
+      if (!echo.alive) continue;
+      const d = Math.abs((this.x + this.width / 2) - (echo.x + echo.width / 2));
+      if (d < nearestDist) { nearestDist = d; nearestEcho = echo; }
+    }
+    if (nearestEcho) {
+      this.distractionTarget = nearestEcho;
+      this.distractionTimer = 60;
+      this.windingUp = false;
+      this.attacking = false;
+      this.flashTimer++;
+      return;
+    }
+
+    const dx = player.x - this.x;
+    this.facing = dx > 0 ? 1 : -1;
+    const dist = Math.abs(dx);
+    const idealDist = 200;
+
+    if (dist > idealDist + 50) {
+      this.vx += (this.facing * 0.05) * _ts;
+    } else if (dist < idealDist - 50) {
+      this.vx -= (this.facing * 0.05) * _ts;
+    } else {
+      this.vx *= 0.9;
+    }
+    const maxSpeed = SENTINEL_SPEED * (this.shieldBroken ? 0.4 : 1.0);
+    this.vx = Math.max(-maxSpeed, Math.min(maxSpeed, this.vx));
+
+    const dy = player.y - this.y;
+    if (Math.abs(dy) > 40) {
+      this.vy += Math.sign(dy) * 0.04 * _ts;
+    } else {
+      this.vy *= 0.9;
+    }
+    this.vy = Math.max(-1.5, Math.min(1.5, this.vy));
+
+    this.x += this.vx * _ts;
+    this.y += this.vy * _ts;
+
+    // Clamp with safety
+    if (bounds && bounds.left !== undefined && bounds.right !== undefined) {
+      this.x = Math.max(bounds.left + 10, Math.min(this.x, bounds.right - this.width - 10));
+    }
+    if (bounds && bounds.groundY !== undefined) {
+      this.y = Math.max(20, Math.min(this.y, bounds.groundY - 40));
+    }
+
+    // Attack
+    if (this.attackCooldown > 0) this.attackCooldown -= _ts;
+    if (this.attackCooldown < 0) this.attackCooldown = 0;
+
+    if (dist < 400 && this.attackCooldown <= 0 && !this.windingUp && !this.attacking && !this.shieldBroken) {
+      this.windingUp = true;
+      this.windUpTimer = 35;
+    }
+
+    if (this.windingUp) {
+      this.windUpTimer -= _ts;
+      this.vx *= 0.9;
+      if (this.windUpTimer <= 0) {
+        this.windingUp = false;
+        this.attacking = true;
+        this.attackTimer = 20;
+        this.attackCooldown = SENTINEL_ATTACK_COOLDOWN;
+        this.fireProjectile(player);
+      }
+    }
+
+    if (this.attacking) {
+      this.attackTimer -= _ts;
+      if (this.attackTimer <= 0) this.attacking = false;
+    }
+
+    this.flashTimer++;
+  }
+
+  fireProjectile(player) {
+    if (!CrystalSentinel.projectiles) CrystalSentinel.projectiles = [];
+    const targetX = player.x + player.width / 2;
+    const targetY = player.y + player.height / 2;
+    const startX = this.x + this.width / 2;
+    const startY = this.y + this.height / 2;
+
+    const proj = {
+      x: startX - 6,
+      y: startY - 6,
+      width: 12,
+      height: 12,
+      vx: 0,
+      vy: 0,
+      targetX: targetX,
+      targetY: targetY,
+      speed: 3.5,
+      life: 120,
+      alive: true,
+      type: 'sentinel',
+      color: '#2dd4bf',
+      homingStrength: 0.03
+    };
+    CrystalSentinel.projectiles.push(proj);
+    if (typeof SFX !== 'undefined') SFX.shardShot();
+  }
+
+  draw(ctx) {
+    if (this.dead) {
+      ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 30);
+    }
+
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
+
+    const pulse = Math.sin(this.flashTimer * 0.05) * 0.2 + 0.8;
+    ctx.fillStyle = `rgba(45, 212, 191, ${0.1 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (!this.shieldBroken && this.shieldHp > 0) {
+      const shieldX = this.facing === 1 ? this.x + this.width - 4 : this.x - 12;
+      const shieldAlpha = 0.3 + (this.shieldHp / this.maxShieldHp) * 0.5;
+      ctx.fillStyle = `rgba(103, 232, 249, ${shieldAlpha})`;
+      ctx.fillRect(shieldX, this.y + 4, 12, this.height - 8);
+      ctx.strokeStyle = `rgba(103, 232, 249, ${shieldAlpha * 0.8})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(shieldX - 1, this.y + 2, 14, this.height - 4);
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i < this.maxShieldHp; i++) {
+        const px = this.facing === 1 ? this.x + this.width + 2 : this.x - 10;
+        const py = this.y + 8 + i * 14;
+        ctx.fillStyle = i < this.shieldHp ? '#67e8f9' : '#1a2a3e';
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    const color = this.flashTimer < 6 ? '#ffffff' :
+                  this.shieldBroken ? '#4ade80' :
+                  '#2dd4bf';
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx, this.y);
+    ctx.lineTo(this.x + this.width, cy);
+    ctx.lineTo(cx, this.y + this.height);
+    ctx.lineTo(this.x, cy);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = this.dead ? '#1a3a2e' : '#a7f3d0';
+    ctx.beginPath();
+    ctx.moveTo(cx, this.y + 12);
+    ctx.lineTo(this.x + this.width - 10, cy);
+    ctx.lineTo(cx, this.y + this.height - 12);
+    ctx.lineTo(this.x + 10, cy);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#0a0a0f';
+    const eyeX = this.facing === 1 ? cx + 4 : cx - 8;
+    ctx.fillRect(eyeX, cy - 3, 6, 6);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(this.facing === 1 ? eyeX + 3 : eyeX - 1, cy - 2, 2, 2);
+
+    if (this.windingUp) {
+      const progress = 1 - this.windUpTimer / 35;
+      const ringRadius = 20 + progress * 40;
+      ctx.strokeStyle = `rgba(251, 191, 36, ${0.3 + progress * 0.6})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.fillStyle = `rgba(251, 191, 36, ${0.5 + progress * 0.5})`;
+      ctx.font = `bold ${10 + Math.round(progress * 4)}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠', cx, this.y - 10);
+      ctx.textAlign = 'left';
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  static drawProjectiles(ctx) {
+    if (!CrystalSentinel.projectiles) return;
+    for (const p of CrystalSentinel.projectiles) {
+      const alpha = p.life / 120;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#2dd4bf';
+      ctx.shadowColor = '#2dd4bf';
+      ctx.shadowBlur = 10;
+      ctx.fillRect(p.x, p.y, p.width, p.height);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  static updateProjectiles(player) {
+    if (!CrystalSentinel.projectiles) return;
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    for (const p of CrystalSentinel.projectiles) {
+      if (!p.alive) continue;
+      const dx = p.targetX - (p.x + p.width / 2);
+      const dy = p.targetY - (p.y + p.height / 2);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 1) {
+        p.vx += (dx / dist) * p.homingStrength * _ts;
+        p.vy += (dy / dist) * p.homingStrength * _ts;
+        const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        if (speed > p.speed) {
+          p.vx = (p.vx / speed) * p.speed;
+          p.vy = (p.vy / speed) * p.speed;
+        }
+      }
+      p.x += p.vx * _ts;
+      p.y += p.vy * _ts;
+      p.life -= _ts;
+      if (p.life <= 0) p.alive = false;
+    }
+    CrystalSentinel.projectiles = CrystalSentinel.projectiles.filter(p => p.alive);
+  }
+}
+
+// Initialize the static projectile array
+CrystalSentinel.projectiles = [];
