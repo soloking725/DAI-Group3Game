@@ -8,6 +8,7 @@ const DASH_DURATION = 8;
 const DASH_COOLDOWN = 30;
 const MAX_HEALTH = 6;
 const INVINCIBLE_FRAMES = 150;
+const COYOTE_FRAMES = 6; // 6 frames (~100ms at 60fps) – the sweet spot
 
 // Attack
 const ATTACK_WIDTH = 40;
@@ -39,6 +40,7 @@ class Player {
     this.dashCooldown = 0;
     this.invincibleTimer = 0;
     this.flashTimer = 0;
+    this.coyoteTimer = 0;
 
     this.phaseDashing = false;
     this.phaseDashTimer = 0;
