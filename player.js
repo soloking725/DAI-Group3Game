@@ -2,6 +2,7 @@
 const GRAVITY = 0.6;
 const JUMP_FORCE = -12;
 const MOVE_SPEED = 4;
+const DUCK_SPEED = 2;
 const DASH_SPEED = 12;
 const DASH_DURATION = 8;
 const DASH_COOLDOWN = 30;
@@ -43,6 +44,11 @@ class Player {
     this.phaseDashTimer = 0;
     this.aimingUp = false;
     this.shardShotFired = false;
+
+    // Duck / crouch
+    this.ducking = false;
+    this.normalHeight = 32;
+    this.duckHeight = 16;
 
     // Stillpoint / Fracture meter
     this.fractureMeter = 0;        // 0-3 pips
@@ -91,19 +97,35 @@ class Player {
       this.fractureDrain = 0; // reset sub-pip counter when idle
     }
 
+    // ── Duck / Crouch ─────────────────────────────────────────────────────
+    const wantsDuck = (isPressed('ArrowDown') || isPressed('KeyS')) && this.grounded;
+    if (wantsDuck && !this.ducking) {
+      // Start ducking: shift y down so feet stay planted
+      this.y += this.normalHeight - this.duckHeight;
+      this.height = this.duckHeight;
+      this.ducking = true;
+    } else if (!wantsDuck && this.ducking) {
+      // Stand up: shift y up
+      this.y -= this.normalHeight - this.duckHeight;
+      this.height = this.normalHeight;
+      this.ducking = false;
+    }
+
     // ── Movement ───────────────────────────────────────────────────────────
     if (!this.dashing && !this.phaseDashing) {
+      const speed = this.ducking ? DUCK_SPEED : MOVE_SPEED;
       if (isPressed('ArrowLeft') || isPressed('KeyA')) {
-        this.vx = -MOVE_SPEED;
+        this.vx = -speed;
         this.facing = -1;
       } else if (isPressed('ArrowRight') || isPressed('KeyD')) {
-        this.vx = MOVE_SPEED;
+        this.vx = speed;
         this.facing = 1;
       } else {
         this.vx *= 0.7;
       }
 
-      if ((wasJustPressed('ArrowUp') || wasJustPressed('KeyW') || wasJustPressed('Space')) && this.grounded) {
+      // Block jumping while ducking
+      if ((wasJustPressed('ArrowUp') || wasJustPressed('KeyW') || wasJustPressed('Space')) && this.grounded && !this.ducking) {
         this.vy = JUMP_FORCE;
         this.grounded = false;
         if (typeof SFX !== 'undefined') SFX.jump();
@@ -145,9 +167,9 @@ class Player {
       if (this.phaseDashTimer <= 0) { this.phaseDashing = false; this.vx *= 0.4; }
     }
 
-    // ── Attack (blocked during Stillpoint) ────────────────────────────────
+    // ── Attack (blocked during Stillpoint and ducking) ─────────────────────
     if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
-        this.attackCooldown <= 0 && !this.stillpointActive) {
+        this.attackCooldown <= 0 && !this.stillpointActive && !this.ducking) {
       this.attacking = true;
       this.attackTimer = ATTACK_DURATION;
       this.attackCooldown = ATTACK_COOLDOWN;
@@ -263,6 +285,9 @@ class Player {
     } else if (this.justLanded) {
       const squash = 1 + Math.min(this.justLandedTimer * 0.02, 0.2);
       ctx.scale(squash, 1 / squash);
+    } else if (this.ducking) {
+      // Slight horizontal stretch when crouching to emphasize low profile
+      ctx.scale(1.15, 1);
     }
     ctx.translate(-cx, -cy);
 
@@ -288,13 +313,15 @@ class Player {
     // Glowing chest core (always present, brighter during Stillpoint)
     const coreAlpha = this.stillpointActive ? 0.95 : 0.55;
     const coreColor = this.stillpointActive ? '#67e8f9' : '#e0d7ff';
+    const coreY = this.ducking ? this.y + 4 : this.y + 12;
     ctx.fillStyle = `rgba(${this.stillpointActive ? '103,232,249' : '224,215,255'},${coreAlpha})`;
-    ctx.fillRect(this.x + 8, this.y + 12, 8, 8);
+    ctx.fillRect(this.x + 8, coreY, 8, 8);
 
     // Eyes
     ctx.fillStyle = '#0a0a0f';
     const eyeX = this.facing === 1 ? this.x + 14 : this.x + 4;
-    ctx.fillRect(eyeX, this.y + 8, 6, 6);
+    const eyeY = this.ducking ? this.y + 4 : this.y + 8;
+    ctx.fillRect(eyeX, eyeY, 6, 6);
 
     // ── Dash trail ────────────────────────────────────────────────────────
     if (this.dashing) {
