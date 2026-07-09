@@ -1,6 +1,6 @@
 // Enemies: Fractured (basic) and Stutterer (teleporting)
 
-const ENEMY_SPEED = 1.5;
+const ENEMY_SPEED = 2;
 const ENEMY_HEALTH = 3;
 const ENEMY_DAMAGE = 1;
 const ENEMY_ATTACK_RANGE = 40;
