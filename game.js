@@ -601,6 +601,59 @@ canvas.addEventListener('click', () => {
   }
 });
 
+// Unstuck button — teleport player to last stillpoint or area spawn
+function unstuckPlayer() {
+  if (gameState !== 'playing' || !player) return;
+
+  const area = getCurrentArea();
+
+  if (lastStillpoint && lastStillpoint.areaId === currentAreaId) {
+    // Teleport to last stillpoint in current area
+    player.x = lastStillpoint.x;
+    player.y = lastStillpoint.y - player.height;
+  } else if (lastStillpoint) {
+    // Switch back to the stillpoint's area
+    currentAreaId = lastStillpoint.areaId;
+    player.x = lastStillpoint.x;
+    player.y = lastStillpoint.y - player.height;
+    resetCamera();
+    spawnAreaEnemies(currentAreaId);
+    SFX.setAreaAmbient(currentAreaId);
+  } else {
+    // Fallback: find first safe platform or stillpoint in current area
+    const sp = area.stillpoints && area.stillpoints[0];
+    if (sp) {
+      player.x = sp.x;
+      player.y = sp.y - player.height;
+    } else if (area.platforms && area.platforms.length > 0) {
+      const plat = area.platforms[0];
+      player.x = plat.x + plat.w / 2 - player.width / 2;
+      player.y = plat.y - player.height - 2;
+    } else {
+      player.x = 100;
+      player.y = area.groundY - 60;
+    }
+  }
+
+  // Reset velocities and clear any stuck states
+  player.vx = 0;
+  player.vy = 0;
+  player.ducking = false;
+  player.height = player.normalHeight;
+  player.invincibleTimer = 30; // brief invincibility on teleport
+  spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 12);
+}
+
+// Unstuck button click
+document.getElementById('unstuck-btn').addEventListener('click', unstuckPlayer);
+
+// Keyboard shortcut: U key
+function handleUnstuckKey() {
+  if (wasJustPressed('KeyU') && gameState === 'playing') {
+    unstuckPlayer();
+  }
+}
+
 // Initialize game
 function init() {
   const area = getCurrentArea();
@@ -716,6 +769,9 @@ function update() {
     clearJustPressed();
     return;
   }
+
+  // Unstuck key (U)
+  handleUnstuckKey();
 
   // Menu state
   if (gameState === 'menu') {
