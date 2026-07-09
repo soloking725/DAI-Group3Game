@@ -1,0 +1,156 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0a0a0f;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+}
+
+canvas {
+  border: 1px solid #1a1a2e;
+  image-rendering: pixelated;
+}
+
+#ui {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  pointer-events: none;
+}
+
+#health-bar {
+  width: 200px;
+  height: 16px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3e;
+}
+
+#health-fill {
+  width: 100%;
+  height: 100%;
+  background: #c4b5fd;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+#area-name {
+  margin-top: 8px;
+  color: #6a6a8e;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+#checkpoint-indicator {
+  margin-top: 4px;
+  color: #4a4a6e;
+  font-size: 14px;
+  transition: color 0.3s ease;
+}
+
+#ability-bar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  pointer-events: none;
+}
+
+.ability-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 60px;
+}
+
+.ability-icon {
+  width: 40px;
+  height: 40px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3e;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+  color: #6a6a8e;
+  margin-bottom: 4px;
+  transition: all 0.3s ease;
+}
+
+.ability-slot.unlocked .ability-icon {
+  border-color: #c4b5fd;
+  color: #c4b5fd;
+  box-shadow: 0 0 10px rgba(196, 181, 253, 0.3);
+}
+
+.ability-name {
+  font-size: 9px;
+  color: #4a4a6e;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.ability-key {
+  font-size: 10px;
+  color: #3a3a5e;
+  margin-bottom: 2px;
+}
+
+.ability-cooldown {
+  font-size: 11px;
+  color: #c4b5fd;
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+
+#controls-hint {
+  position: absolute;
+  bottom: 8px;
+  right: 16px;
+  color: #2a2a3e;
+  font-size: 10px;
+  pointer-events: none;
+  letter-spacing: 0.5px;
+}
+
+/* Boss Health Bar */
+#boss-health-container {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+#boss-health-bar {
+  width: 320px;
+  height: 12px;
+  background: #1a1a2e;
+  border: 1px solid #7f1d1d;
+}
+
+#boss-health-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #dc2626, #f87171);
+  transition: width 0.2s ease;
+}
+
+#boss-name {
+  margin-top: 4px;
+  color: #f87171;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stillpoint</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="ui">
+    <div id="health-bar">
+      <div id="health-fill"></div>
+    </div>
+    <div id="area-name">Starting Fracture</div>
+    <div id="checkpoint-indicator" title="Last Stillpoint">○</div>
+  </div>
+  <div id="boss-health-container" style="display:none;">
+    <div id="boss-health-bar">
+      <div id="boss-health-fill"></div>
+    </div>
+    <div id="boss-name">The Fractured King</div>
+  </div>
+  <div id="ability-bar">
+    <div class="ability-slot" id="pd-slot" title="Phase Dash (C)">
+      <div class="ability-icon">◆</div>
+      <div class="ability-name">Phase Dash</div>
+      <div class="ability-key">C</div>
+      <div class="ability-cooldown" id="pd-cooldown">???</div>
+    </div>
+    <div class="ability-slot" id="ss-slot" title="Shard Shot (V)">
+      <div class="ability-icon">◇</div>
+      <div class="ability-name">Shard Shot</div>
+      <div class="ability-key">V</div>
+      <div class="ability-cooldown" id="ss-cooldown">???</div>
+    </div>
+  </div>
+  <div id="controls-hint">
+  ← → / A D: Move | ↑ / Space: Jump | X: Dash | Z / J: Attack | C: Phase Dash | V: Shard Shot | Q: Stillpoint | M: Map
+  </div>
+  <script src="audio.js"></script>
+  <script src="input.js"></script>
+  <script src="area.js"></script>
+  <script src="map.js"></script>
+  <script src="ability.js"></script>
+  <script src="boss.js"></script>
+  <script src="enemy.js"></script>
+  <script src="player.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
