@@ -1,8 +1,8 @@
 // Main game loop — multi-area Metroidvania
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const healthFill = document.getElementById('health-fill');
-const debugEl = document.getElementById('debug');
+
+
 
 // Canvas size
 const W = 800;
@@ -10,9 +10,47 @@ const H = 450;
 canvas.width = W;
 canvas.height = H;
 
+// ── Fullscreen / responsive scaling ─────────────────────────────────────
+// Internal render resolution always stays 800x450 (all game-logic coords
+// assume this). We only scale the canvas's on-screen CSS size to fill the
+// window/monitor, letterboxing to preserve aspect ratio. This works the
+// same whether the browser is windowed or the page is in real Fullscreen
+// API mode (F key or the ⛶ button).
+function resizeCanvasToFit() {
+  const availW = window.innerWidth;
+  const availH = window.innerHeight;
+  const scale = Math.min(availW / W, availH / H);
+  canvas.style.width = Math.floor(W * scale) + 'px';
+  canvas.style.height = Math.floor(H * scale) + 'px';
+}
+
+function isFullscreen() {
+  return !!document.fullscreenElement;
+}
+
+function toggleFullscreen() {
+  if (isFullscreen()) {
+    document.exitFullscreen();
+  } else {
+    // Fullscreen the whole page (not just the canvas) so the unstuck/fullscreen
+    // buttons stay usable while fullscreened.
+    document.documentElement.requestFullscreen().catch(() => {
+      // Some browsers/contexts (e.g. iframes without allow="fullscreen")
+      // reject this silently — nothing more we can do here.
+    });
+  }
+}
+
+window.addEventListener('resize', resizeCanvasToFit);
+document.addEventListener('fullscreenchange', resizeCanvasToFit);
+resizeCanvasToFit();
+
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
+
 // Game state
 let player;
-let currentAreaId = 'the_fracture';
+let currentAreaId = 'tutorial_area';
 let echoes = [];
 let projectiles = [];
 let particles = [];
@@ -69,9 +107,114 @@ let gameTimeScale = 1.0;
 let discoveredAreas = {};
 let mapOpen = false;
 
+// ── Canvas HUD state (Phase 0.1) ────────────────────────────────────────
+let hudVisible = false;       // whether the HUD should be drawn at all
+let playStartFrame = -1;      // frameCount when the run began, for the controls-hint fade
+const CONTROLS_HINT_FADE_START = 600;  // ~10s @ 60fps: hint begins fading
+const CONTROLS_HINT_FADE_END = 660;    // ~11s @ 60fps: hint fully gone
+
 // Lore fragments
+// Temporarily disabled — the literal "read a text popup" pickups didn't fit
+// the feel wanted (more environmental storytelling, less exposition dump).
+// The area data (area.loreFragments) and all the code that consumes it is
+// left intact; flip this back to true to bring pickups back while a more
+// environmental version is designed.
+const LORE_ENABLED = false;
 let collectedLore = {};
 let loreOverlay = null; // { text, timer, maxTimer }
+
+// ── Tutorial (Phase 0.2) ─────────────────────────────────────────────────
+let tutorialState = { moved: false, jumped: false, attacked: false, dashed: false };
+let tutorialDummyHp = 1; // resets each run; one hit is enough to teach the move
+let tutorialPhaseDashHintShown = false;
+
+function resetTutorial() {
+  tutorialState = { moved: false, jumped: false, attacked: false, dashed: false };
+  tutorialDummyHp = 1;
+  tutorialPhaseDashHintShown = false;
+}
+
+function isTutorialComplete() {
+  return tutorialState.moved && tutorialState.jumped && tutorialState.attacked && tutorialState.dashed;
+}
+
+// Escape in the tutorial room jumps straight to The Fracture, matching the
+// door's own destination coordinates so it feels the same as walking through.
+function skipTutorial() {
+  tutorialState = { moved: true, jumped: true, attacked: true, dashed: true };
+  switchArea('the_fracture', 60, 310);
+}
+
+// Per-frame tutorial bookkeeping — called only while currentAreaId === 'tutorial_area'.
+function updateTutorial(area) {
+  if (!player) return;
+
+  // MOVE — any real horizontal movement
+  if (!tutorialState.moved && Math.abs(player.vx) > 0.5) {
+    tutorialState.moved = true;
+  }
+
+  // JUMP — airborne with upward velocity, i.e. an actual jump (not just falling)
+  if (!tutorialState.jumped && !player.grounded && player.vy < -1) {
+    tutorialState.jumped = true;
+  }
+
+  // DASH — the normal dash (X) used at least once
+  if (!tutorialState.dashed && player.dashing) {
+    tutorialState.dashed = true;
+  }
+  if (tutorialState.dashed && !tutorialPhaseDashHintShown) {
+    tutorialPhaseDashHintShown = true;
+    addAbilityNotification('Later: Phase Dash crosses gaps like this mid-air');
+  }
+
+  // ATTACK — land a hit on the training dummy
+  if (!tutorialState.attacked && area.trainingDummy && tutorialDummyHp > 0) {
+    const dummy = area.trainingDummy;
+    const dummyRect = { x: dummy.x, y: dummy.y, width: dummy.w, height: dummy.h };
+    const playerAtk = player.getAttackHitbox();
+    if (playerAtk && rectsOverlap(playerAtk, dummyRect)) {
+      tutorialDummyHp = 0;
+      tutorialState.attacked = true;
+      spawnParticles(dummy.x + dummy.w / 2, dummy.y + dummy.h / 2, '#c4b5fd', 10);
+      screenShake = 4;
+      screenShakeIntensity = 2;
+      SFX.attackHit();
+    }
+  }
+}
+
+// A simple training dummy — a still, harmless practice target. Flashes and
+// shows a checkmark once the player has landed the tutorial's one required hit.
+function drawTrainingDummy(ctx, dummy, defeated) {
+  ctx.save();
+  ctx.translate(dummy.x, dummy.y);
+
+  ctx.fillStyle = defeated ? 'rgba(196, 181, 253, 0.35)' : 'rgba(106, 106, 142, 0.6)';
+  ctx.strokeStyle = defeated ? '#c4b5fd' : '#4a4a6e';
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(0, 0, dummy.w, dummy.h);
+  ctx.strokeRect(0, 0, dummy.w, dummy.h);
+
+  // Simple crossed-post "practice dummy" silhouette
+  ctx.strokeStyle = defeated ? 'rgba(196, 181, 253, 0.6)' : 'rgba(74, 74, 110, 0.8)';
+  ctx.beginPath();
+  ctx.moveTo(dummy.w / 2, 2);
+  ctx.lineTo(dummy.w / 2, dummy.h - 2);
+  ctx.moveTo(4, dummy.h * 0.35);
+  ctx.lineTo(dummy.w - 4, dummy.h * 0.35);
+  ctx.stroke();
+
+  ctx.restore();
+
+  if (defeated) {
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillStyle = '#c4b5fd';
+    ctx.textAlign = 'center';
+    ctx.fillText('\u2713', dummy.x + dummy.w / 2, dummy.y - 8);
+    ctx.textAlign = 'left';
+  }
+}
 
 // Default bounds (will be overridden per area)
 function getBounds(area) {
@@ -275,6 +418,8 @@ function switchArea(targetId, targetX, targetY) {
   // Transition effect
   transitioning = true;
   transitionAlpha = 1;
+
+  saveGame();
 }
 
 // Draw a platform
@@ -586,14 +731,13 @@ function drawAreaBackdrop(ctx, area, cam) {
   }
 }
 
-// Show/hide HUD elements based on game state
+// Show/hide HUD (health, ability icons, area name, controls hint) — all HUD
+// elements are now drawn directly on the canvas, so this just toggles a flag.
 function showUI(show) {
-  const ui = document.getElementById('ui');
-  const abilityBar = document.getElementById('ability-bar');
-  const controlsHint = document.getElementById('controls-hint');
-  if (ui) ui.style.display = show ? '' : 'none';
-  if (abilityBar) abilityBar.style.display = show ? '' : 'none';
-  if (controlsHint) controlsHint.style.display = show ? '' : 'none';
+  hudVisible = show;
+  if (show) {
+    playStartFrame = frameCount; // restart the controls-hint fade timer
+  }
 }
 
 // Canvas click for menu
@@ -656,6 +800,13 @@ function handleUnstuckKey() {
   }
 }
 
+// Keyboard shortcut: F key — toggle fullscreen (works in any state, like Escape)
+function handleFullscreenKey() {
+  if (wasJustPressed('KeyF')) {
+    toggleFullscreen();
+  }
+}
+
 // Initialize game
 function init() {
   const area = getCurrentArea();
@@ -664,12 +815,13 @@ function init() {
   projectiles = [];
   particles = [];
   gameState = 'menu';
-  currentAreaId = 'the_fracture';
+  currentAreaId = 'tutorial_area';
   areaEnemiesSpawned = {};
-  discoveredAreas = { the_fracture: true };
+  discoveredAreas = { tutorial_area: true };
   mapOpen = false;
   collectedLore = {};
   loreOverlay = null;
+  resetTutorial();
 
   // Reset destructible platforms in all areas
   for (const areaId in AREAS) {
@@ -706,6 +858,137 @@ function init() {
 }
 
 // Respawn at checkpoint
+// ═══════════════════════════════════════════════════════════════════════
+// SAVE / LOAD (Phase 0.4) — localStorage-backed persistence.
+// Auto-saves on: Stillpoint checkpoint activation, area transitions, and
+// ability pickups (see call sites: the Stillpoint-checkpoint block, the end
+// of switchArea(), and each branch of the ability-reward pickup logic).
+// All localStorage access is wrapped in try/catch — private browsing, quota
+// limits, or a locked-down environment should degrade to "no persistence"
+// rather than crash the game.
+// ═══════════════════════════════════════════════════════════════════════
+const SAVE_KEY = 'stillpoint_save_v1';
+
+function hasSaveGame() {
+  try {
+    return localStorage.getItem(SAVE_KEY) !== null;
+  } catch (e) {
+    return false;
+  }
+}
+
+function saveGame() {
+  if (!player) return;
+  try {
+    const data = {
+      version: 1,
+      currentAreaId,
+      player: {
+        x: player.x,
+        y: player.y,
+        health: player.health,
+        fractureMeter: player.fractureMeter,
+      },
+      abilityState: {
+        hasPhaseDash: abilityState.hasPhaseDash,
+        hasShardShot: abilityState.hasShardShot,
+        hasStillpoint: abilityState.hasStillpoint,
+      },
+      stillpointActivated,
+      lastStillpoint,
+      discoveredAreas,
+      collectedLore,
+      bossDefeated,
+      tutorialState,
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch (e) {
+    // Storage unavailable — fail silently; the run just won't persist.
+  }
+}
+
+// Returns true on success. Caller is responsible for setting gameState etc.
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || !data.currentAreaId || !AREAS[data.currentAreaId] || !data.player) return false;
+
+    currentAreaId = data.currentAreaId;
+    player = new Player(data.player.x || 100, data.player.y || 0);
+    player.health = typeof data.player.health === 'number' ? data.player.health : MAX_HEALTH;
+    player.fractureMeter = typeof data.player.fractureMeter === 'number' ? data.player.fractureMeter : 0;
+
+    abilityState.hasPhaseDash = !!(data.abilityState && data.abilityState.hasPhaseDash);
+    abilityState.hasShardShot = !!(data.abilityState && data.abilityState.hasShardShot);
+    abilityState.hasStillpoint = !!(data.abilityState && data.abilityState.hasStillpoint);
+    abilityState.phaseDashCooldown = 0;
+    abilityState.shardShotCooldown = 0;
+    abilityState.notifications = [];
+
+    stillpointActivated = data.stillpointActivated || {};
+    lastStillpoint = data.lastStillpoint || null;
+    discoveredAreas = data.discoveredAreas || { [currentAreaId]: true };
+    collectedLore = data.collectedLore || {};
+    bossDefeated = !!data.bossDefeated;
+    tutorialState = data.tutorialState || { moved: true, jumped: true, attacked: true, dashed: true };
+
+    echoes = [];
+    projectiles = [];
+    particles = [];
+    bossProjectiles = [];
+    boss = null;
+    areaEnemiesSpawned = {};
+    spawnAreaEnemies(currentAreaId);
+    resetCamera();
+    SFX.setAreaAmbient(currentAreaId);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function deleteSave() {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch (e) {
+    // ignore
+  }
+}
+
+// Fresh-run setup — used by the menu when there's no save, or when the
+// player explicitly presses N to start over with an existing one.
+function startNewGame() {
+  gameState = 'playing';
+  SFX.init();
+  currentAreaId = 'tutorial_area';
+  SFX.setAreaAmbient('tutorial_area');
+  const area = getCurrentArea();
+  player = new Player(100, area.groundY - 60);
+  echoes = [];
+  projectiles = [];
+  particles = [];
+  bossProjectiles = [];
+  boss = null;
+  areaEnemiesSpawned = {};
+  discoveredAreas = { tutorial_area: true };
+  stillpointActivated = {};
+  lastStillpoint = null;
+  collectedLore = {};
+  bossDefeated = false;
+  abilityState.hasPhaseDash = false;
+  abilityState.hasShardShot = false;
+  abilityState.hasStillpoint = false;
+  abilityState.phaseDashCooldown = 0;
+  abilityState.shardShotCooldown = 0;
+  abilityState.notifications = [];
+  resetTutorial();
+  spawnAreaEnemies('tutorial_area');
+  resetCamera();
+  showUI(true);
+}
+
 function respawnPlayer() {
   // Set fade state FIRST so the fade-in always starts, even if later ops fail
   gameState = 'reviving';
@@ -724,12 +1007,14 @@ function respawnPlayer() {
     spawnAreaEnemies(currentAreaId);
     resetCamera();
   } else {
+    // No checkpoint yet — respawn at the start of the CURRENT area rather
+    // than hard-coding a specific room, so this works correctly whether
+    // that's the tutorial or the_fracture (both are pre-Stillpoint).
     player.health = MAX_HEALTH;
     player.x = 100;
     player.y = getCurrentArea().groundY - 60;
     player.vx = 0;
     player.vy = 0;
-    currentAreaId = 'the_fracture';
     areaEnemiesSpawned = {};
     clearAreaEnemies(currentAreaId);
     spawnAreaEnemies(currentAreaId);
@@ -774,6 +1059,7 @@ function update() {
 
   // Unstuck key (U)
   handleUnstuckKey();
+  handleFullscreenKey();
 
   // Menu state
   if (gameState === 'menu') {
@@ -788,23 +1074,19 @@ function update() {
     }
 
     // Check for start input
-    if (wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
+    const saveExists = hasSaveGame();
+    if (saveExists && wasJustPressed('KeyN')) {
+      startNewGame();
+    } else if (wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
       menuClick = false;
-      gameState = 'playing';
-      SFX.init();
-      SFX.setAreaAmbient('the_fracture');
-      // Start game properly
-      const area = getCurrentArea();
-      player = new Player(100, area.groundY - 60);
-      echoes = [];
-      projectiles = [];
-      particles = [];
-      currentAreaId = 'the_fracture';
-      areaEnemiesSpawned = {};
-      discoveredAreas = { the_fracture: true };
-      spawnAreaEnemies('the_fracture');
-      resetCamera();
-      showUI(true);
+      if (saveExists && loadGame()) {
+        gameState = 'playing';
+        SFX.init();
+        SFX.setAreaAmbient(currentAreaId);
+        showUI(true);
+      } else {
+        startNewGame();
+      }
     }
     clearJustPressed();
     return;
@@ -848,7 +1130,6 @@ function update() {
       if (particles[i].life <= 0) particles.splice(i, 1);
     }
     updateCamera(player, getCurrentArea());
-    updateUI();
     // After cinematic, allow return
     if (victoryTimer <= 0 && wasJustPressed('KeyR')) {
       gameState = 'playing';
@@ -864,6 +1145,7 @@ function update() {
       victoryTimer = 0;
       areaAmbient = [];
       resetCamera();
+      saveGame();
     }
     clearJustPressed();
     return;
@@ -879,9 +1161,14 @@ function update() {
     return;
   }
 
-  // Toggle pause during gameplay
+  // Toggle pause during gameplay — except in the tutorial room, where Escape
+  // skips straight to The Fracture instead (tutorial is meant to be skippable).
   if (wasJustPressed('Escape')) {
-    gameState = 'paused';
+    if (currentAreaId === 'tutorial_area') {
+      skipTutorial();
+    } else {
+      gameState = 'paused';
+    }
     clearJustPressed();
     return;
   }
@@ -905,6 +1192,11 @@ function update() {
   if (!area.isBossArena && boss) {
     boss = null;
     bossProjectiles = [];
+  }
+
+  // Tutorial room: track move/jump/attack/dash steps, hit-test the dummy
+  if (currentAreaId === 'tutorial_area') {
+    updateTutorial(area);
   }
 
   // Transition effect
@@ -1184,6 +1476,7 @@ function update() {
       if (trans.requires === 'shard_shot' && !abilityState.hasShardShot) continue;
       if (trans.requires === 'stillpoint' && !abilityState.hasStillpoint) continue;
       if (trans.requires === 'boss_gate' && (!abilityState.hasPhaseDash || !abilityState.hasShardShot || !abilityState.hasStillpoint)) continue;
+      if (trans.requires === 'tutorial_complete' && !isTutorialComplete()) continue;
     }
 
     if (rectsOverlap(
@@ -1212,12 +1505,15 @@ function update() {
         spawnParticles(sp.x, sp.y - 30, '#c4b5fd', 12);
         SFX.stillpoint();
       }
-      // Save checkpoint position
+      // Save checkpoint position (only write if it's actually a new checkpoint —
+      // avoids hammering localStorage every frame while standing near one)
+      const isNewCheckpoint = !lastStillpoint || lastStillpoint.areaId !== currentAreaId || lastStillpoint.x !== sp.x || lastStillpoint.y !== sp.y;
       lastStillpoint = {
         areaId: currentAreaId,
         x: sp.x,
         y: sp.y,
       };
+      if (isNewCheckpoint) saveGame();
     }
   }
 
@@ -1235,6 +1531,7 @@ function update() {
         abilityFlashColor = '#a78bfa';
         abilityPopups.push({ text: '★ PHASE DASH', x: ab.x, y: ab.y - 20, life: 90, color: '#a78bfa' });
         SFX.abilityPickup();
+        saveGame();
       } else if (ab.id === 'shard_shot' && !abilityState.hasShardShot) {
         abilityState.hasShardShot = true;
         addAbilityNotification('ABILITY: Shard Shot — V to fire, W+V to tilt');
@@ -1243,6 +1540,7 @@ function update() {
         abilityFlashColor = '#67e8f9';
         abilityPopups.push({ text: '★ SHARD SHOT', x: ab.x, y: ab.y - 20, life: 90, color: '#67e8f9' });
         SFX.abilityPickup();
+        saveGame();
       } else if (ab.id === 'stillpoint' && !abilityState.hasStillpoint) {
         abilityState.hasStillpoint = true;
         player.fractureMeter = 1; // start with 1 pip so player can immediately try it
@@ -1252,12 +1550,13 @@ function update() {
         abilityFlashColor = '#67e8f9';
         abilityPopups.push({ text: '★ STILLPOINT', x: ab.x, y: ab.y - 20, life: 120, color: '#67e8f9' });
         SFX.abilityPickup();
+        saveGame();
       }
     }
   }
 
   // Check lore fragments (sparse environmental storytelling pickups)
-  if (area.loreFragments) {
+  if (LORE_ENABLED && area.loreFragments) {
     for (const lf of area.loreFragments) {
       if (collectedLore[lf.id]) continue;
       const dist = Math.abs((player.x + player.width / 2) - lf.x) +
@@ -1288,83 +1587,209 @@ function update() {
   // Update camera
   updateCamera(player, area);
 
-  // Update UI
-  updateUI();
-
   clearJustPressed();
 }
 
-// Update UI elements
-function updateUI() {
-  // Health bar
-  const healthPercent = Math.max(0, (player.health / MAX_HEALTH) * 100);
-  healthFill.style.width = healthPercent + '%';
+// NOTE: The HUD (health, boss health, ability cooldowns, area name, checkpoint
+// indicator) is drawn directly on the canvas by drawHUD() inside draw() — see
+// the "CANVAS HUD (Phase 0.1)" section near the bottom of this file. There is
+// no DOM-based UI left to update per-frame, so updateUI() has been removed.
 
-  // Health bar color change when low
-  if (player.health <= 2) {
-    healthFill.style.background = '#f87171';
-  } else if (player.health <= 4) {
-    healthFill.style.background = '#fbbf24';
-  } else {
-    healthFill.style.background = '#c4b5fd';
-  }
+// ═══════════════════════════════════════════════════════════════════════
+// CANVAS HUD (Phase 0.1) — health, ability icons + cooldown rings, area
+// name, checkpoint indicator, boss health bar, and the fading controls hint.
+// Everything used to live in HTML overlays (#ui, #ability-bar,
+// #boss-health-container, #controls-hint); those elements no longer exist
+// in index.html, so all of it is drawn straight onto the canvas here.
+// ═══════════════════════════════════════════════════════════════════════
 
-  // Boss health bar
-  const bossContainer = document.getElementById('boss-health-container');
+function drawHUD(ctx) {
+  if (!hudVisible || !player) return;
+
+  drawHealthHearts(ctx);
+  drawAreaLabel(ctx);
   if (boss && !boss.dead && gameState === 'playing') {
-    bossContainer.style.display = 'flex';
-    const bossPercent = Math.max(0, (boss.health / BOSS_MAX_HEALTH) * 100);
-    document.getElementById('boss-health-fill').style.width = bossPercent + '%';
+    drawBossHealthBar(ctx);
+  }
+  if (currentAreaId === 'tutorial_area') {
+    drawTutorialBanner(ctx);
+  }
+  drawControlsHint(ctx);
+}
+
+// Top-center checklist banner for the tutorial room: current objective
+// highlighted, completed ones checked off, plus a skip hint.
+function drawTutorialBanner(ctx) {
+  const steps = [
+    { done: tutorialState.moved, label: 'MOVE \u2190\u2192' },
+    { done: tutorialState.jumped, label: 'JUMP \u2191/SPACE' },
+    { done: tutorialState.attacked, label: 'ATTACK Z (hit the dummy)' },
+    { done: tutorialState.dashed, label: 'DASH X (cross the gap)' },
+  ];
+  // First not-yet-done step is the active one
+  let activeIndex = steps.findIndex(s => !s.done);
+
+  ctx.textAlign = 'center';
+  ctx.font = '9px "Courier New", monospace';
+  ctx.fillStyle = '#4a4a6e';
+  ctx.fillText('THRESHOLD', W / 2, 58);
+
+  ctx.font = '13px "Courier New", monospace';
+  if (activeIndex === -1) {
+    ctx.fillStyle = '#c4b5fd';
+    ctx.fillText('Door unlocked \u2014 head right', W / 2, 78);
   } else {
-    bossContainer.style.display = 'none';
+    ctx.fillStyle = '#e0d7ff';
+    ctx.fillText(steps[activeIndex].label, W / 2, 78);
   }
 
-  // Phase Dash cooldown UI
-  const pdEl = document.getElementById('pd-cooldown');
-  if (pdEl) {
-    if (!abilityState.hasPhaseDash) {
-      pdEl.textContent = '???';
-      pdEl.style.opacity = '0.3';
-    } else if (abilityState.phaseDashCooldown > 0) {
-      pdEl.textContent = Math.ceil(abilityState.phaseDashCooldown / 60 * 10) / 10;
-      pdEl.style.opacity = '0.6';
-    } else {
-      pdEl.textContent = 'RDY';
-      pdEl.style.opacity = '1';
-    }
+  // Small checklist row of dots beneath
+  const dotGap = 20;
+  const startX = W / 2 - ((steps.length - 1) * dotGap) / 2;
+  for (let i = 0; i < steps.length; i++) {
+    const x = startX + i * dotGap;
+    ctx.beginPath();
+    ctx.arc(x, 90, 3, 0, Math.PI * 2);
+    ctx.fillStyle = steps[i].done ? '#c4b5fd' : (i === activeIndex ? '#67e8f9' : '#3a3a5e');
+    ctx.fill();
   }
 
-  // Shard Shot cooldown UI
-  const ssEl = document.getElementById('ss-cooldown');
-  if (ssEl) {
-    if (!abilityState.hasShardShot) {
-      ssEl.textContent = '???';
-      ssEl.style.opacity = '0.3';
-    } else if (abilityState.shardShotCooldown > 0) {
-      ssEl.textContent = Math.ceil(abilityState.shardShotCooldown / 60 * 10) / 10;
-      ssEl.style.opacity = '0.6';
-    } else {
-      ssEl.textContent = 'RDY';
-      ssEl.style.opacity = '1';
-    }
-  }
+  ctx.font = '9px "Courier New", monospace';
+  ctx.fillStyle = '#3a3a5e';
+  ctx.fillText('ESC to skip', W / 2, 106);
+  ctx.textAlign = 'left';
+}
 
-  // Area name
-  const areaNameEl = document.getElementById('area-name');
-  if (areaNameEl) {
-    areaNameEl.textContent = getCurrentArea().name;
-  }
+// Top-left: one heart glyph per point of MAX_HEALTH.
+function drawHealthHearts(ctx) {
+  const size = 16;
+  const gap = 3;
+  const startX = 16;
+  const startY = 14;
 
-  // Checkpoint indicator
-  const cpEl = document.getElementById('checkpoint-indicator');
-  if (cpEl) {
-    if (lastStillpoint) {
-      cpEl.textContent = '●';
-      cpEl.style.color = '#c4b5fd';
-    } else {
-      cpEl.textContent = '○';
-      cpEl.style.color = '#4a4a6e';
-    }
+  ctx.font = `${size}px "Courier New", monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  // Colour shifts as health drops, mirroring the old CSS health-bar behavior.
+  const heartColor = player.health <= 2 ? '#f87171' : player.health <= 4 ? '#fbbf24' : '#c4b5fd';
+
+  for (let i = 0; i < MAX_HEALTH; i++) {
+    const x = startX + i * (size + gap);
+    const filled = i < player.health;
+    // Faint drop-shadow so hearts stay readable over any background.
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillText(filled ? '\u2665' : '\u2661', x + 1, startY + 1);
+    ctx.fillStyle = filled ? heartColor : '#3a3a5e';
+    ctx.fillText(filled ? '\u2665' : '\u2661', x, startY);
+  }
+  ctx.textBaseline = 'alphabetic';
+}
+
+// Area name + checkpoint indicator, just under the health hearts.
+function drawAreaLabel(ctx) {
+  const area = getCurrentArea();
+  ctx.font = '11px "Courier New", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#6a6a8e';
+  ctx.fillText(area.name, 16, 42);
+
+  const nameWidth = ctx.measureText(area.name).width;
+  ctx.fillStyle = lastStillpoint ? '#c4b5fd' : '#4a4a6e';
+  ctx.fillText(lastStillpoint ? '\u25cf' : '\u25cb', 16 + nameWidth + 8, 42);
+}
+
+// Top-center: boss health bar (drawn only while a boss is alive & active).
+function drawBossHealthBar(ctx) {
+  const barW = 320;
+  const barH = 12;
+  const x = W / 2 - barW / 2;
+  const y = 18;
+  const maxHp = boss.maxHealth || BOSS_MAX_HEALTH;
+  const percent = Math.max(0, boss.health / maxHp);
+
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(x, y, barW, barH);
+  const grad = ctx.createLinearGradient(x, y, x + barW, y);
+  grad.addColorStop(0, '#dc2626');
+  grad.addColorStop(1, '#f87171');
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y, barW * percent, barH);
+  ctx.strokeStyle = '#7f1d1d';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, barW, barH);
+
+  ctx.font = '12px "Courier New", monospace';
+  ctx.fillStyle = '#f87171';
+  ctx.textAlign = 'center';
+  ctx.fillText('THE FRACTURED KING', W / 2, y + barH + 15);
+  ctx.textAlign = 'left';
+}
+
+// Bottom-right: control reminders, fading out ~10s after the run starts.
+function drawControlsHint(ctx) {
+  if (playStartFrame < 0) return;
+  const elapsed = frameCount - playStartFrame;
+  if (elapsed >= CONTROLS_HINT_FADE_END) return;
+
+  let alpha = 1;
+  if (elapsed > CONTROLS_HINT_FADE_START) {
+    alpha = 1 - (elapsed - CONTROLS_HINT_FADE_START) / (CONTROLS_HINT_FADE_END - CONTROLS_HINT_FADE_START);
+  }
+  alpha = Math.max(0, Math.min(1, alpha));
+  if (alpha <= 0) return;
+
+  const lines = ['MOVE \u2190\u2192  JUMP SPACE  DASH X  ATTACK Z', 'MAP M  PAUSE ESC  FULLSCREEN F'];
+  ctx.globalAlpha = alpha;
+  ctx.font = '10px "Courier New", monospace';
+  ctx.fillStyle = '#2a2a3e';
+  ctx.textAlign = 'right';
+  let ly = H - 12 - (lines.length - 1) * 13;
+  for (const line of lines) {
+    ctx.fillText(line, W - 16, ly);
+    ly += 13;
+  }
+  ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
+}
+
+// Small recharge rings around the player's feet — one per ability that's
+// actually cooling down (world space, drawn while the camera transform is
+// still active). Nothing is shown for abilities that are ready or not yet
+// unlocked, so there's no permanent panel on screen — just a quiet pulse
+// under the player exactly when it matters.
+function drawDashCooldownRing(ctx) {
+  if (!player) return;
+  const cx = player.x + player.width / 2;
+  const cy = player.y + player.height + 3;
+
+  const rings = [];
+  if (player.dashCooldown > 0) {
+    rings.push({ frac: 1 - player.dashCooldown / DASH_COOLDOWN, color: '196, 181, 253' }); // violet
+  }
+  if (abilityState.hasPhaseDash && abilityState.phaseDashCooldown > 0) {
+    rings.push({ frac: 1 - abilityState.phaseDashCooldown / PHASE_DASH_COOLDOWN, color: '167, 139, 250' }); // purple
+  }
+  if (abilityState.hasShardShot && abilityState.shardShotCooldown > 0) {
+    rings.push({ frac: 1 - abilityState.shardShotCooldown / SHARD_SHOT_COOLDOWN, color: '45, 212, 191' }); // teal
+  }
+  if (rings.length === 0) return;
+
+  let r = 7;
+  for (const ring of rings) {
+    ctx.strokeStyle = `rgba(90, 90, 130, 0.35)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = `rgba(${ring.color}, 0.85)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + ring.frac * Math.PI * 2);
+    ctx.stroke();
+
+    r += 4; // stack additional rings a little further out
   }
 }
 
@@ -1425,7 +1850,14 @@ function drawMenu() {
   const promptAlpha = Math.sin(frameCount * 0.05) * 0.4 + 0.6;
   ctx.fillStyle = `rgba(203, 245, 255, ${promptAlpha})`;
   ctx.font = '16px "Courier New", monospace';
-  ctx.fillText('[ Space / Click to Begin ]', W / 2, H / 2 + 30);
+  if (hasSaveGame()) {
+    ctx.fillText('[ Space / Click to Continue ]', W / 2, H / 2 + 30);
+    ctx.font = '11px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(106, 106, 142, 0.7)';
+    ctx.fillText('N : New Game', W / 2, H / 2 + 50);
+  } else {
+    ctx.fillText('[ Space / Click to Begin ]', W / 2, H / 2 + 30);
+  }
 
   // Controls
   ctx.fillStyle = 'rgba(106, 106, 142, 0.6)';
@@ -1512,7 +1944,8 @@ function draw() {
     let blocked = false;
     if (trans.requires === 'phase_dash' && !abilityState.hasPhaseDash) blocked = true;
     if (trans.requires === 'shard_shot' && !abilityState.hasShardShot) blocked = true;
-      if (trans.requires === 'stillpoint' && !abilityState.hasStillpoint) blocked = true;
+    if (trans.requires === 'stillpoint' && !abilityState.hasStillpoint) blocked = true;
+    if (trans.requires === 'tutorial_complete' && !isTutorialComplete()) blocked = true;
 
     const pulse = Math.sin(frameCount * 0.03) * 0.15 + 0.15;
     if (blocked) {
@@ -1552,10 +1985,15 @@ function draw() {
   }
 
   // Lore fragments (sparse environmental storytelling pickups)
-  if (area.loreFragments) {
+  if (LORE_ENABLED && area.loreFragments) {
     for (const lf of area.loreFragments) {
       if (!collectedLore[lf.id]) drawLoreFragment(ctx, lf);
     }
+  }
+
+  // Training dummy (tutorial room only)
+  if (area.trainingDummy) {
+    drawTrainingDummy(ctx, area.trainingDummy, tutorialState.attacked);
   }
 
   // Enemies
@@ -1576,6 +2014,7 @@ function draw() {
 
   // Player
   player.draw(ctx);
+  drawDashCooldownRing(ctx);
 
   // Boss
   if (boss) {
@@ -1660,6 +2099,9 @@ function draw() {
       ctx.restore();
     }
   }
+
+  // ── HUD: health, ability icons, area name, boss bar, controls hint ───────
+  drawHUD(ctx);
 
   // Transition overlay
   if (transitioning && transitionAlpha > 0) {

@@ -13,6 +13,33 @@
 const AREAS = {
 
   // ─────────────────────────────────────────────────────────────────────────
+  // ROOM 0 — Threshold (tutorial)
+  // Small isolated room, guided prompts: move, jump, attack (dummy), dash.
+  // Door at the end stays sealed until all four are done. Skippable via Escape.
+  // ─────────────────────────────────────────────────────────────────────────
+  tutorial_area: {
+    id: 'tutorial_area',
+    name: 'Threshold',
+    width: 900,
+    groundY: 390,
+    bgColor: '#0a0a0f',
+    bgTint: 'rgba(196, 181, 253, 0.02)',
+    ambientColor: '#6a6a8e',
+    platforms: [
+      { x: 0,   y: 390, w: 260, h: 60 },  // start platform — MOVE
+      { x: 320, y: 390, w: 200, h: 60 },  // across a small jump gap — JUMP; dummy stands here — ATTACK
+      { x: 600, y: 390, w: 300, h: 60 },  // across a dash-width gap — DASH; door at the far right
+    ],
+    transitions: [
+      // Sealed until isTutorialComplete() — see game.js switchArea()/draw().
+      { x: 865, y: 320, w: 35, h: 70, to: 'the_fracture', toX: 60, toY: 310, requires: 'tutorial_complete' },
+    ],
+    trainingDummy: { x: 400, y: 362, w: 28, h: 28 },
+    enemies: [],
+    stillpoints: [],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
   // ROOM 1 — The Fracture  (tutorial, Phase Dash pickup)
   // Player enters from left. Phase Dash is on the high right platform.
   // One gap (70px) teaches jumping. Exit right leads to Echo Bridge.
