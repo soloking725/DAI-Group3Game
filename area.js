@@ -144,45 +144,35 @@ const AREAS = {
     name: 'Crystal Cavern',
     width: 1200,
     groundY: 700,
-    bgColor: '#080810',
-    bgTint: 'rgba(45, 212, 191, 0.05)',
+    bgColor: '#0a0a0f',
+    bgTint: 'rgba(45,212,191,0.05)',
     ambientColor: '#2dd4bf',
     platforms: [
-      { x: 30,   y: 130, w: 160, h: 14 },   // entry platform (spawn here)
-      { x: 280,  y: 218, w: 120, h: 14 },   // descent step 1
-      { x: 100,  y: 318, w: 130, h: 14 },   // descent step 2
-      { x: 370,  y: 398, w: 160, h: 14 },   // Shard Shot platform (central)
-      // Crystal wall — full-height barrier, blocks right passage until shot
-      { x: 680, y: 330, w: 24, h: 370, destructible: true, hp: 3 },
-      // Platforms right of wall (reachable after breaking it)
-      { x: 720,  y: 420, w: 160, h: 14 },
-      { x: 940,  y: 360, w: 140, h: 14 },
-      { x: 1060, y: 460, w: 140, h: 14 },
-      // Floor
-      { x: 0, y: 700, w: 1200, h: 60 },
+      { x:30, y:130, w:160, h:14 },
+      { x:280, y:218, w:120, h:14 },
+      { x:100, y:318, w:130, h:14 },
+      { x:370, y:398, w:160, h:14 },
+      { x:680, y:330, w:24, h:370, destructible:true, hp:3 },
+      { x:720, y:420, w:160, h:14 },
+      { x:940, y:360, w:140, h:14 },
+      { x:1060, y:460, w:140, h:14 },
+      { x:0, y:700, w:1200, h:60 }
     ],
-    abilityReward: {
-      id: 'shard_shot',
-      x: 415,
-      y: 376,   // 22px above platform at y:398
-      name: 'Shard Shot',
-      desc: 'V to fire a curved shard. W+V to aim upward. Shatters crystal barriers.',
-    },
+    abilityReward: { id:'shard_shot', x:415, y:376, name:'Shard Shot', desc:"V to fire. W+V upward. Shatters crystal walls." },
     transitions: [
-      { x: 0,    y: 68, w: 35, h: 82, to: 'echo_bridge', toX: 928, toY: 268 },
-      { x: 1165, y: 418, w: 35, h: 60, to: 'the_forge',  toX: 60,  toY: 348 },
+      { x:0, y:68, w:35, h:82, to:'echo_bridge', toX:928, toY:268 },
+      { x:1165, y:418, w:35, h:60, to:'the_forge', toX:60, toY:348 }
     ],
     enemies: [
-      { type: 'fractured', x: 308, y: 190 },   // descent step 1: 218-28=190
-      { type: 'stutterer', x: 490, y: 370 },   // Shard Shot platform: 398-28=370
-      { type: 'fractured', x: 990, y: 332 },   // right of wall: 360-28=332
+      { type:'fractured', x:308, y:190 },
+      { type:'stutterer', x:490, y:370 },
+      { type:'fractured', x:990, y:332 }
     ],
     stillpoints: [
-      { x: 80, y: 680, index: 0 },   // floor bottom-left, safe respawn: 700-20=680
+      { x:60, y:100, index:0 }
     ],
     loreFragments: [
-      { id: 'lore_cc1', x: 415, y: 358,
-        text: '"The crystals grew after the fracture. They are made of frozen time — not metaphor. Shoot one. Listen to what you hear."' },
+      { id:'lore_cc1', x:415, y:358, text:"\"The crystals are made of frozen time.\"" }
     ],
   },
 

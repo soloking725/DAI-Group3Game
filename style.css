@@ -154,3 +154,28 @@ canvas {
   letter-spacing: 2px;
   text-transform: uppercase;
 }
+
+/* Unstuck button */
+#unstuck-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(26, 26, 46, 0.85);
+  border: 1px solid #2a2a3e;
+  color: #6a6a8e;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  padding: 8px 14px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.2s ease;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+#unstuck-btn:hover {
+  background: rgba(196, 181, 253, 0.15);
+  border-color: #c4b5fd;
+  color: #c4b5fd;
+  box-shadow: 0 0 12px rgba(196, 181, 253, 0.25);
+}
