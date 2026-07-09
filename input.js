@@ -2,6 +2,7 @@
 const keys = {};
 const justPressed = {};
 
+//New change
 window.addEventListener('keydown', (e) => {
   if (!keys[e.code]) {
     justPressed[e.code] = true;
