@@ -112,7 +112,14 @@ PHASE 1 — Movement & Combat Overhaul
     - Charge glow (amber halo + expanding ring), pulsing when fully charged.
     - SFX: heavy attack (sawtooth + noise), charge full (ascending sine ping).
     - Partial charge scales damage/knockback proportionally (CHARGE_TAP to CHARGE_FULL).
-[ ] 1.7 Wall Jump / Wall Slide
+[x] 1.7 Wall Jump / Wall Slide
+    - Wall slide: hold toward wall while airborne → capped descent (WALL_SLIDE_SPEED=1.5),
+      violet glow on wall-facing side + sparks. wallNormal tracked in collision block.
+    - Wall jump: press jump while sliding/in coyote → perpendicular horizontal force
+      (WALL_JUMP_H_SPEED=7) + upward lift (WALL_JUMP_FORCE_Y=-11.5), brief I-frames.
+    - Natural 1-frame coyote via wallNormal persistence across update→collision ordering.
+    - SFX: wallJump() tone sweep + noise burst in audio.js. Visual: radial glow + sparks
+      in player.js draw, particle burst in game.js after player.update().
 [ ] 1.8 Dash Refund on Hit
 
 ─────────────────────────────────────────────────────────────────────────────
@@ -173,7 +180,7 @@ EXPLICITLY OUT OF SCOPE (by user request)
   - Procedural generation — all rooms hand-crafted
   - Multiplayer / online features
 
-CURRENTLY HERE: 0.1-0.6 done, Phase 1.1-1.6 done. Next: 1.7 (Wall Jump / Wall Slide).
+CURRENTLY HERE: 0.1-0.6 done, Phase 1.1-1.7 done. Next: 1.8 (Dash Refund on Hit).
 ═══════════════════════════════════════════════════════════════════════════
 -->
 <html lang="en">

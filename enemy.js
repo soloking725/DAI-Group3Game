@@ -1021,6 +1021,12 @@ class CrystalSentinel {
       p.y += p.vy * _ts;
       p.life -= _ts;
       if (p.life <= 0) p.alive = false;
+
+      // ── Hit player ──
+      if (p.alive && rectsOverlap(p, player) && player.invincibleTimer <= 0) {
+        player.takeDamage(12);
+        p.alive = false;
+      }
     }
     CrystalSentinel.projectiles = CrystalSentinel.projectiles.filter(p => p.alive);
   }

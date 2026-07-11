@@ -179,7 +179,7 @@ const AREAS = {
       { x:280, y:218, w:120, h:14 },
       { x:100, y:318, w:130, h:14 },
       { x:370, y:398, w:160, h:14 },
-      { x:680, y:330, w:24, h:370, destructible:true, hp:3 },
+      { x:680, y:330, w:24, h:370, destructible:true, hp:3, wall:true },
       { x:720, y:420, w:160, h:14 },
       { x:940, y:360, w:140, h:14 },
       { x:1060, y:460, w:140, h:14 },
@@ -388,8 +388,8 @@ const AREAS = {
     isBossArena: true,
     platforms: [
       { x: 0,   y: 390, w: 900, h: 60 },   // ground
-      { x: 0,   y: 0,   w: 16,  h: 390 },  // left wall (sealed during fight)
-      { x: 884, y: 0,   w: 16,  h: 390 },  // right wall
+      { x: 0,   y: 0,   w: 16,  h: 390, wall: true },  // left wall (sealed during fight)
+      { x: 884, y: 0,   w: 16,  h: 390, wall: true },  // right wall
       { x: 130, y: 295, w: 130, h: 14 },   // left platform
       { x: 640, y: 295, w: 130, h: 14 },   // right platform
       { x: 350, y: 210, w: 200, h: 14 },   // centre-high platform

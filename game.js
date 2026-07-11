@@ -288,7 +288,6 @@ function useShardShot(player, aimingUp) {
   const startX = (player.facing || 1) > 0 ? player.x + player.width : player.x - 8;
   const startY = aimingUp ? player.y - 4 : player.y + player.height / 2;
   const proj = new Projectile(startX, startY, vx, vy, 1, '#fbbf24');
-  projectiles.push(proj);
   return proj;
 }
 
@@ -1543,17 +1542,35 @@ function update() {
   // Update player
   player.update(bounds, area.platforms);
 
+  // ── Wall slide particles ──────────────────────────────────────────────
+  if (player.wallSliding && player.wallNormal !== 0) {
+    // Sparks at wall contact point
+    const sparkX = player.x + player.width / 2 + player.wallNormal * (player.width / 2);
+    const sparkY = player.y + player.height * (0.3 + Math.random() * 0.5);
+    spawnParticles(sparkX, sparkY, '#c4b5fd', 1);
+  }
+  // ── Wall jump burst ───────────────────────────────────────────────────
+  if (player.wallJumpJustFired) {
+    const burstX = player.x + player.width / 2 + player.wallNormal * (player.width / 2);
+    const burstY = player.y + player.height / 2;
+    spawnParticles(burstX, burstY, '#c4b5fd', 10);
+    spawnParticles(burstX, burstY, '#67e8f9', 6);
+    SFX.wallJump();
+    player.wallJumpJustFired = false;
+  }
+
   // Check player death or pit death (fell off the map)
   // Note: death at 0 HP should trigger regardless of invincibility timer
   const playerDead = player.health <= 0;
-  const pitDeath = player.y > 600;
+  const pitDeathY = bounds.groundY > 800 ? 600 : bounds.groundY + 100;
+  const pitDeath = player.y > pitDeathY;
   if ((playerDead || pitDeath) && (playerDead || player.invincibleTimer <= 0)) {
     screenShake = 15;
     screenShakeIntensity = 6;
     deathFadeDir = -1;
     deathFadeAlpha = 0;
     SFX.playerHurt();
-    if (player.y > 600) {
+    if (player.y > pitDeathY) {
       // Pit death — respawn at checkpoint or start
       spawnParticles(player.x + player.width / 2, H - 20, '#c4b5fd', 12);
     } else {
@@ -1611,6 +1628,12 @@ function update() {
       enemy.takeDamage(dmg, player.x, playerAtk.dir);
       spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#f87171', player.heavy ? 10 : 6);
       player.gainFracture(); // melee hit recharges Fracture meter
+
+      // Phase 1.8: Dash Refund on Hit — refund 50% of base dash cooldown (once per attack)
+      if (!player.dashRefundedThisAttack && player.dashCooldown > 0) {
+        player.dashCooldown = Math.max(0, player.dashCooldown - Math.floor(DASH_COOLDOWN * 0.5));
+        player.dashRefundedThisAttack = true;
+      }
 
       // Per-attack hitstop/shake variation (heavy = amplified)
       if (playerAtk.dir === 'down') {

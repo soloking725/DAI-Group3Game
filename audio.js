@@ -158,6 +158,11 @@ const SFX = (() => {
     },
     lorePickup() { tone(300, 0.6, { type: 'sine', sweepTo: 500, volume: 0.15 }); },
     bossHit() { noiseBurst(0.1, { filterFreq: 1800, volume: 0.25 }); },
+    wallJump() {
+      tone(500, 0.1, { type: 'square', sweepTo: 750, volume: 0.15 });
+      noiseBurst(0.08, { filterFreq: 2500, volume: 0.12 });
+    },
+    wallSlide() { noiseBurst(0.04, { filterFreq: 600, volume: 0.06 }); },
     bossPhase() { tone(80, 1.0, { type: 'sawtooth', sweepTo: 40, volume: 0.3 }); noiseBurst(0.6, { filterFreq: 2000, volume: 0.2 }); },
     bossDeath() { tone(100, 1.5, { type: 'sawtooth', sweepTo: 20, volume: 0.3 }); noiseBurst(1.0, { filterFreq: 1500, volume: 0.25 }); },
     uiSelect() { tone(500, 0.08, { type: 'square', volume: 0.15 }); },

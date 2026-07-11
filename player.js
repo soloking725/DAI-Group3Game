@@ -8,8 +8,14 @@ const DASH_DURATION = 8;
 const DASH_COOLDOWN = 30;
 const DASH_CHAIN_MAX = 3; // max consecutive dashes in a chain
 const MAX_HEALTH = 6;
-const INVINCIBLE_FRAMES = 150;
+const INVINCIBLE_FRAMES = 90; // ~1.5s at 60fps
 const COYOTE_FRAMES = 6; // 6 frames (~100ms at 60fps) – the sweet spot
+
+// Wall Jump / Wall Slide
+const WALL_SLIDE_SPEED = 1.5;     // reduced fall speed while sliding
+const WALL_JUMP_FORCE = -10;      // vertical component of wall jump
+const WALL_JUMP_H_SPEED = 7;      // horizontal away-from-wall component
+const WALL_JUMP_COYOTE = 8;       // frames you can still wall-jump after losing contact
 
 // Attack
 const ATTACK_WIDTH = 40;
@@ -92,6 +98,12 @@ class Player {
     this.charging = false;
     this.chargeTimer = 0;    // frames held (0-CHARGE_FULL)
     this.fullyCharged = false;
+
+    // Wall jump / wall slide
+    this.wallSliding = false;       // currently sliding down a wall
+    this.wallNormal = 0;            // -1 = touching left wall, 1 = touching right wall, 0 = none
+    this.wallJumpCoyote = 0;        // frames after losing wall contact where wall-jump still works
+    this.wallJumpJustFired = false; // prevent double-wall-jump mid-air
   }
 
   // Called by game.js when a melee hit lands
@@ -106,6 +118,7 @@ class Player {
     // ── Coyote Timer ────────────────────────────────────────────────────────
     if (this.grounded) {
       this.coyoteTimer = COYOTE_FRAMES;
+      this.wallJumpJustFired = false; // can wall-jump again after landing
     } else if (this.coyoteTimer > 0) {
       this.coyoteTimer--;
     }
@@ -165,12 +178,37 @@ class Player {
         this.vx *= 0.7;
       }
 
+      // ── Wall slide: slow descent when holding toward a wall ──
+      const holdingTowardWall = (this.wallNormal === 1 && (isPressed('ArrowRight') || isPressed('KeyD'))) ||
+                                (this.wallNormal === -1 && (isPressed('ArrowLeft') || isPressed('KeyA')));
+      if (!this.grounded && this.wallNormal !== 0 && holdingTowardWall && this.vy >= 0) {
+        this.wallSliding = true;
+        if (this.vy > WALL_SLIDE_SPEED) {
+          this.vy = WALL_SLIDE_SPEED;
+        }
+      } else {
+        this.wallSliding = false;
+      }
+
       // Block jumping while ducking
-      if ((wasJustPressed('ArrowUp') || wasJustPressed('KeyW') || wasJustPressed('Space')) && (this.grounded || this.coyoteTimer > 0)) {
+      const jumpPressed = wasJustPressed('ArrowUp') || wasJustPressed('KeyW') || wasJustPressed('Space');
+      if (jumpPressed && (this.grounded || this.coyoteTimer > 0)) {
+        // ── Normal jump ──
         this.vy = JUMP_FORCE;
         this.grounded = false;
         this.coyoteTimer = 0;
+        this.wallJumpJustFired = true;
         if (typeof SFX !== 'undefined') SFX.jump();
+      } else if (jumpPressed && !this.grounded && this.coyoteTimer <= 0 &&
+                 (this.wallSliding || this.wallJumpCoyote > 0) && !this.wallJumpJustFired) {
+        // ── Wall jump: launch away from the wall ──
+        this.vy = WALL_JUMP_FORCE;
+        this.vx = -this.wallNormal * WALL_JUMP_H_SPEED;
+        this.facing = -this.wallNormal; // face away from wall
+        this.wallJumpCoyote = 0;        // consume coyote
+        this.wallJumpJustFired = true;  // prevent double wall-jump
+        this.invincibleTimer = Math.max(this.invincibleTimer, 8); // brief i-frames
+        if (typeof SFX !== 'undefined') SFX.wallJump();
       }
     }
 
@@ -282,6 +320,7 @@ class Player {
         this.heavy = false;
         if (typeof SFX !== 'undefined') SFX.attack();
       }
+      this.dashRefundedThisAttack = false; // Phase 1.8: one dash refund per attack
       this.chargeTimer = 0;
       this.fullyCharged = false;
     }
@@ -326,6 +365,14 @@ class Player {
 
     // Platform collision
     this.grounded = false;
+
+    // ── Wall contact detection ──
+    // Detect wall contact each frame. wallNormal is NOT zeroed here —
+    // the movement block reads wallNormal from the previous frame (since
+    // collision runs after movement). We only overwrite it when we detect
+    // a new contact, otherwise it naturally decays (wall jump coyote).
+    let wallTouchThisFrame = false;
+
     if (platforms) {
       for (const plat of platforms) {
         if (plat.destructible && plat.hp <= 0) continue;
@@ -347,15 +394,40 @@ class Player {
             this.y = plat.y + plat.h; this.vy = 0;
           }
         }
+        // ── Horizontal collision + wall contact detection ──
+        // Detect wall when vertically overlapping the platform edge.
+        // Works even when vx==0 (standing against wall / sliding down).
         if (this.y + this.height > plat.y + 4 && this.y < plat.y + plat.h) {
-          if (this.x + this.width > plat.x && this.x + this.width < plat.x + 10 && this.vx > 0) {
-            this.x = plat.x - this.width; this.vx = 0;
+          // Right side of player touching left side of platform
+          if (this.x + this.width >= plat.x && this.x + this.width < plat.x + 10 && this.vx >= 0) {
+            this.x = plat.x - this.width;
+            if (this.vx > 0) this.vx = 0;
+            this.wallNormal = 1; // right side touching wall → wall is on right
+            wallTouchThisFrame = true;
           }
-          if (this.x < plat.x + plat.w && this.x > plat.x + plat.w - 10 && this.vx < 0) {
-            this.x = plat.x + plat.w; this.vx = 0;
+          // Left side of player touching right side of platform
+          if (this.x <= plat.x + plat.w && this.x > plat.x + plat.w - 10 && this.vx <= 0) {
+            this.x = plat.x + plat.w;
+            if (this.vx < 0) this.vx = 0;
+            this.wallNormal = -1; // left side touching wall → wall is on left
+            wallTouchThisFrame = true;
           }
         }
       }
+    }
+
+    // ── Wall jump coyote: preserve wall direction briefly after losing contact ──
+    // wallNormal persists from last contact until coyote expires. The movement
+    // block always reads the PREVIOUS frame's wallNormal (collision runs after
+    // movement), so there's a natural 1-frame coyote even without this logic.
+    // This extends it to WALL_JUMP_COYOTE frames for a forgiving window.
+    if (!wallTouchThisFrame && this.wallNormal !== 0) {
+      this.wallJumpCoyote--;
+      if (this.wallJumpCoyote <= 0) {
+        this.wallNormal = 0;
+      }
+    } else if (wallTouchThisFrame) {
+      this.wallJumpCoyote = WALL_JUMP_COYOTE;
     }
 
     if (this.y + this.height > bounds.groundY) {
@@ -548,13 +620,14 @@ class Player {
         const progress = 1 - this.attackTimer / ATTACK_DURATION;
 
         if (atk.dir === 'up') {
-          // ── Up-slash: vertical arc rising from player ──
+          // ── Up-slash: vertical arc in facing direction ──
           const originX = this.x + this.width / 2;
           const originY = this.y + this.height * 0.3;
           const arcLen = 50;
           const arcSpan = Math.PI * 0.65 * Math.min(1, progress * 1.5);
+          const facing = this.facing || 1;
 
-          const leadAngle = -Math.PI / 2 - arcSpan;
+          const leadAngle = -Math.PI / 2 + facing * arcSpan;
           ctx.strokeStyle = `rgba(255, 248, 255, ${0.9 - progress * 0.5})`;
           ctx.lineWidth = 3.5 - progress * 2;
           ctx.lineCap = 'round';
@@ -565,7 +638,7 @@ class Player {
 
           for (let i = 0; i < 6; i++) {
             const t = i / 6;
-            const a = -Math.PI / 2 + t * arcSpan;
+            const a = -Math.PI / 2 + t * facing * arcSpan;
             const lineAlpha = (0.12 + t * 0.35) * (1 - progress * 0.6);
             ctx.strokeStyle = `rgba(224, 215, 255, ${lineAlpha})`;
             ctx.lineWidth = 1 + t * 1.5;
@@ -682,6 +755,32 @@ class Player {
       }
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+
+    // ── Wall slide indicator ──────────────────────────────────────────────
+    if (this.wallSliding && this.wallNormal !== 0) {
+      // Glow on the wall-facing side of the player
+      const glowPulse = Math.sin(frameCount * 0.15) * 0.15 + 0.5;
+      ctx.save();
+      ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+      ctx.scale(this.facing > 0 ? -1 : 1, 1); // flip so glow is always toward wall
+      const gradient = ctx.createRadialGradient(
+        this.width / 2 + this.wallNormal * this.width * 0.3, this.height * 0.3, 0,
+        this.width / 2 + this.wallNormal * this.width * 0.3, this.height * 0.3, this.width * 1.5
+      );
+      gradient.addColorStop(0, `rgba(196, 181, 253, ${glowPulse})`);
+      gradient.addColorStop(1, 'rgba(196, 181, 253, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(-this.width * 1.5, -this.height, this.width * 3, this.height * 2.5);
+      ctx.restore();
+
+      // Small vertical sparks along the wall contact point
+      ctx.fillStyle = `rgba(203, 245, 255, ${glowPulse * 0.6})`;
+      for (let i = 0; i < 3; i++) {
+        const sparkX = this.x + this.width / 2 + this.wallNormal * (this.width / 2 - 1);
+        const sparkY = this.y + (i + 1) * (this.height / 4) + Math.sin(frameCount * 0.3 + i) * 2;
+        ctx.fillRect(sparkX - 1, sparkY, 2, 2);
+      }
     }
 
     ctx.restore();
