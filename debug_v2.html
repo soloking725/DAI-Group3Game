@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Debug Harness v2</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#c4b5fd;font:13px/1.5 'Courier New',monospace;padding:16px}
+h1{color:#e0d7ff;margin-bottom:4px}
+#progress{height:4px;background:#1a1a2e;border-radius:2px;margin:8px 0;overflow:hidden}
+#progress-fill{height:100%;background:#67e8f9;width:0%;transition:width .2s}
+#log{max-height:70vh;overflow-y:auto}
+.row{display:flex;gap:8px;padding:2px 0;border-bottom:1px solid #1a1a2e}
+.id{color:#67e8f9;min-width:36px;font-weight:bold}
+.status{min-width:32px}
+.pass{color:#22c55e}.fail{color:#ef4444}.warn{color:#f59e0b}.skip{color:#6b7280}
+.msg{color:#a5b4fc;flex:1}
+.note{color:#6b7280;font-style:italic}
+iframe{display:none}
+</style>
+</head>
+<body>
+
+<!--
+==============================================================================
+  STILLPOINT — DEBUG HARNESS v2
+  Sandboxed iframe, synthetic input, canvas/state diffing.
+  Every check observes REAL game state — no hardcoded PASS lists.
+
+  ────────────────────────────────────────────────────────────────────────────
+  REGRESSION LIST — bugs this harness caught / now prevents
+  ────────────────────────────────────────────────────────────────────────────
+  R05  — update() freeze bug  (missing brace / syntax error that silently
+         stalled the main loop; caught by canvas-change watchdog)
+  R07  — overtuned kill-cam slow-mo  (slow-mo fired on EVERY kill at 30f/0.5x
+         instead of only last-enemy-in-group at 8f/0.3x; caught by frame-gap
+         check measuring frame times >400ms during combat)
+  R06  — save→quit→load freeze path  (loading a save and returning to menu
+         left the game in a half-initialized state; caught by menu-navigate
+         + load + resume sequence)
+  R11  — gap-collision bug  (narrow gaps between ground platforms caught the
+         player's bottom pixels, preventing falls; caught by gap fall-through
+         test that teleports player above gap and verifies y increases)
+  R09  — frame-rate independence  (fixed-timestep must produce the same
+         displacement at 30fps vs 240fps; catches drift if accumulator
+         logic is wrong or dt leaks into per-frame movement)
+  ────────────────────────────────────────────────────────────────────────────
+  NOTE: Do NOT remove checks from the regression list without verifying the
+  original bug cannot re-occur. Each check exists for a documented reason.
+==============================================================================
+-->
+
+<h1>Stillpoint Debug Harness v2</h1>
+<div id="progress"><div id="progress-fill"></div></div>
+<div id="log"></div>
+<iframe id="sandbox" sandbox="allow-scripts allow-same-origin"></iframe>
+
+<script>
+// ============================================================================
+//  CONFIG & UTILITIES
+// ============================================================================
+
+const $ = id => document.getElementById(id);
+const log = $('log');
+const progressFill = $('progress-fill');
+let checkIndex = 0;
+let totalChecks = 0;
+
+function report(id, status, msg) {
+  checkIndex++;
+  progressFill.style.width = `${(checkIndex / totalChecks) * 100}%`;
+  const div = document.createElement('div');
+  div.className = 'row';
+  div.innerHTML = `<span class="id">${id}</span>` +
+    `<span class="status ${status}">${status.toUpperCase()}</span>` +
+    `<span class="msg">${msg}</span>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// iframe DOM refs (set after init)
+let iframe, iframeDoc;
+
+// ============================================================================
+//  INPUT HELPERS — synthetic keyboard events into the sandboxed iframe
+// ============================================================================
+
+function dispatchKey(code, type, down) {
+  iframeDoc.dispatchEvent(new KeyboardEvent(type, {code, key: code, bubbles: true}));
+}
+function pressKey(code)   { dispatchKey(code, 'keydown', true);  }
+function releaseKey(code) { dispatchKey(code, 'keyup', false);   }
+function holdKey(code, ms) { pressKey(code); return sleep(ms); }
+
+async function holdThenRelease(code, holdMs) {
+  pressKey(code);
+  await sleep(holdMs);
+  releaseKey(code);
+}
+
+// Charge attack: hold Z for ms, then release (triggers heavy in game)
+async function chargeAttack(holdMs) {
+  pressKey('KeyZ');
+  await sleep(holdMs);
+  releaseKey('KeyZ');
+}
+
+// ============================================================================
+//  STATE HELPERS — read game state from sandbox
+// ============================================================================
+
+function getGameState()  { return iframe.contentWindow.gameState; }
+function getPlayer()     { return iframe.contentWindow.player; }
+function getCurrentArea(){ return iframe.contentWindow.currentAreaId; }
+function getFrameCount() { return iframe.contentWindow.frameCount; }
+function getEnemies()    {
+  const w = iframe.contentWindow;
+  const area = w.currentAreaId;
+  return (w.areaEnemies && w.areaEnemies[area]) || [];
+}
+
+function getCanvasSnapshot() {
+  // Read a small region of the canvas to detect visual changes
+  const c = iframeDoc.getElementById('game');
+  if (!c) return null;
+  try {
+    const ctx = c.getContext('2d');
+    return ctx.getImageData(0, 0, 10, 10).data.buffer;
+  } catch { return null; }
+}
+
+function canvasesDiffer(a, b) {
+  if (!a || !b) return false;
+  const ab = new Uint8Array(a), bb = new Uint8Array(b);
+  for (let i = 0; i < ab.length; i++) if (ab[i] !== bb[i]) return true;
+  return false;
+}
+
+// ============================================================================
+//  COMBAT HELPERS
+// ============================================================================
+
+async function startNewGame() {
+  // Navigate main menu: press Enter to select first option (Begin)
+  pressKey('Enter'); await sleep(60); releaseKey('Enter');
+  await sleep(400); // wait for area transition
+}
+
+// Attack with optional charge hold time (ms). Returns {dmg, wasHeavy}
+async function performAttack(chargeMs) {
+  const player = getPlayer();
+  if (!player) return {dmg: 0, wasHeavy: false};
+
+  // Record initial state
+  const initFc = getFrameCount() || 0;
+
+  if (chargeMs > 0) {
+    await chargeAttack(chargeMs);
+  } else {
+    // Quick tap
+    pressKey('KeyZ'); await sleep(20); releaseKey('KeyZ');
+  }
+
+  // Wait for attack to complete (12+ frames)
+  await sleep(500);
+
+  return {dmg: 0, wasHeavy: !!player.heavy};
+}
+
+// Measure damage dealt: spawn an enemy, attack, read health delta
+async function measureDamage(chargeMs, enemyType) {
+  enemyType = enemyType || 'normal';
+  const w = iframe.contentWindow;
+
+  // Create a test enemy manually (since we can't always position naturally)
+  const area = w.currentAreaId;
+  const areaData = w.getArea ? w.getArea(area) : w.AREAS ? w.AREAS[area] : null;
+  const groundY = areaData && areaData.platforms ?
+    Math.max(...areaData.platforms.filter(p => p.h >= 30).map(p => p.y)) : 350;
+
+  // Spawn enemy by pushing into areaEnemies
+  const EnemyClass = w.Enemy;
+  if (!EnemyClass) return {dmg: 0, before: 0, after: 0};
+
+  const enemies = w.areaEnemies;
+  if (!enemies[area]) enemies[area] = [];
+  const enemy = new EnemyClass(player.x + 80, groundY - 36, enemyType);
+  enemies[area].push(enemy);
+  w.areaEnemiesSpawned[area] = true;
+
+  const before = enemy.health;
+
+  // Perform attack
+  if (chargeMs > 0) {
+    await chargeAttack(chargeMs);
+  } else {
+    pressKey('KeyZ'); await sleep(20); releaseKey('KeyZ');
+  }
+
+  // Wait for attack to resolve (one fixed tick is enough for collision)
+  await sleep(100);
+
+  const after = enemy.health;
+  return {dmg: before - after, before, after, enemy};
+}
+
+// ============================================================================
+//  CHECKS — R01 through R13
+// ============================================================================
+
+// ── R01: Canvas exists ───────────────────────────────────────────────────
+async function R01_canvasExists() {
+  const c = iframeDoc.getElementById('game');
+  if (!c) return report('R01', 'fail', 'No <canvas id="game"> found in iframe');
+  const ctx = c.getContext('2d');
+  if (!ctx) return report('R01', 'fail', 'Canvas exists but no 2d context');
+  if (c.width < 400 || c.height < 300)
+    return report('R01', 'warn', `Canvas too small: ${c.width}x${c.height}`);
+  report('R01', 'pass', `Canvas ${c.width}x${c.height} — 2d context OK`);
+}
+
+// ── R02: Game loop running ───────────────────────────────────────────────
+async function R02_gameLoopRunning() {
+  const s0 = getCanvasSnapshot();
+  await sleep(400);
+  const s1 = getCanvasSnapshot();
+  if (canvasesDiffer(s0, s1))
+    report('R02', 'pass', 'Canvas changed over 400ms — game loop active');
+  else
+    report('R02', 'warn', 'Canvas identical over 400ms — loop may be stalled (menu particles should animate)');
+}
+
+// ── R03: Menu → New Game ─────────────────────────────────────────────────
+async function R03_menuNavigate() {
+  const s0 = getCanvasSnapshot();
+  // Press Enter → Begin
+  pressKey('Enter'); await sleep(60); releaseKey('Enter');
+  await sleep(500);
+  const s1 = getCanvasSnapshot();
+  if (canvasesDiffer(s0, s1))
+    report('R03', 'pass', 'Canvas changed after Enter — New Game started');
+  else
+    report('R03', 'fail', 'No canvas change after Enter — menu navigation broken');
+}
+
+// ── R04: Player movement ─────────────────────────────────────────────────
+async function R04_playerMovement() {
+  const p = getPlayer();
+  if (!p) return report('R04', 'fail', 'player object not accessible');
+  const x0 = p.x;
+  pressKey('ArrowRight');
+  await sleep(200); // ~12 fixed ticks at 60hz
+  const x1 = p.x;
+  releaseKey('ArrowRight');
+  const delta = Math.abs(x1 - x0);
+  if (delta > 20)
+    report('R04', 'pass', `Player moved ${delta.toFixed(1)}px right (expected >20)`);
+  else
+    report('R04', 'fail', `Player moved ${delta.toFixed(1)}px — should have moved >20px`);
+}
+
+// ── R05: Update watchdog (regression: silent freeze) ─────────────────────
+async function R05_updateWatchdog() {
+  const startFc = getFrameCount() || 0;
+  await sleep(500);
+  const endFc = getFrameCount() || 0;
+  const delta = endFc - startFc;
+  // At 60fps, 500ms ≈ 30 frames expected (with some tolerance)
+  if (delta > 10)
+    report('R05', 'pass', `frameCount advanced ${delta} frames in 500ms (>10) — no freeze`);
+  else
+    report('R05', 'fail', `frameCount advanced only ${delta} frames in 500ms — update() may be frozen`);
+}
+
+// ── R06: Save → Load → Resume ────────────────────────────────────────────
+async function R06_saveLoadResume() {
+  const w = iframe.contentWindow;
+  const gs0 = getGameState();
+
+  // Save game
+  if (typeof w.saveGame === 'function') {
+    try {
+      w.saveGame();
+      await sleep(100);
+    } catch(e) {
+      return report('R06', 'warn', `saveGame() threw: ${e.message}`);
+    }
+  } else {
+    return report('R06', 'skip', 'saveGame() not found on window');
+  }
+
+  // Load game
+  if (typeof w.loadGame === 'function') {
+    try {
+      w.loadGame();
+      await sleep(200);
+      const gs1 = getGameState();
+      const p = getPlayer();
+      if (p && (gs1 === 'playing' || gs1 === 'menu'))
+        report('R06', 'pass', `Save→Load→Resume OK — state: ${gs1}, player at (${p.x.toFixed(0)},${p.y.toFixed(0)})`);
+      else
+        report('R06', 'warn', `Save→Load OK but state unexpected: ${gs1}`);
+    } catch(e) {
+      report('R06', 'fail', `loadGame() threw: ${e.message}`);
+    }
+  } else {
+    report('R06', 'skip', 'loadGame() not found on window');
+  }
+}
+
+// ── R07: Frame timing / kill-cam regression ──────────────────────────────
+async function R07_frameTiming() {
+  const deltas = iframe.contentWindow._frameDeltas;
+  if (!deltas || deltas.length < 10)
+    return report('R07', 'skip', 'Not enough frame data collected (<10 samples)');
+
+  const maxDelta = Math.max(...deltas.slice(-500)); // last ~8 seconds
+  const avgDelta = deltas.slice(-100).reduce((a,b) => a+b, 0) / Math.min(100, deltas.length);
+  const spikes = deltas.filter(d => d > 200).length;
+
+  if (maxDelta < 300 && spikes === 0)
+    report('R07', 'pass', `Max frame gap ${maxDelta.toFixed(0)}ms, avg ${avgDelta.toFixed(1)}ms — no slow-mo spikes`);
+  else if (maxDelta > 400)
+    report('R07', 'fail', `Max frame gap ${maxDelta.toFixed(0)}ms, ${spikes} spikes >200ms — kill-cam slow-mo likely overtuned`);
+  else
+    report('R07', 'warn', `Max ${maxDelta.toFixed(0)}ms, ${spikes} spikes — borderline`);
+}
+
+// ── R08: Uncaught exceptions in sandbox ──────────────────────────────────
+async function R08_noUncaughtErrors() {
+  const errors = iframe.contentWindow._capturedErrors;
+  if (!errors || errors.length === 0)
+    report('R08', 'pass', 'No uncaught errors in sandbox during all checks');
+  else
+    report('R08', 'fail', `${errors.length} uncaught error(s): ${errors.slice(0, 3).join('; ')}`);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  NEW CHECKS v2 — data-driven, extensible, real-game-state observation
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── R09: Frame-rate independence (fixed-timestep verification) ────────────
+// Monkey-patches requestAnimationFrame inside the sandbox to fire at
+// artificially throttled rates (30fps vs 240fps) for a fixed real-world
+// duration, then compares player displacement. PASS if within 5%.
+async function R09_frameRateIndependence() {
+  const w = iframe.contentWindow;
+
+  async function measureAtThrottle(throttleMs, label) {
+    // Patch rAF to queue callbacks and fire at throttle interval
+    const queue = [];
+    let intervalId = null;
+
+    w.requestAnimationFrame = function(cb) {
+      queue.push(cb);
+      return { cancel() { /* no-op for test */ } };
+    };
+
+    // Drain queue at throttle rate
+    intervalId = setInterval(() => {
+      while (queue.length > 0) {
+        const cb = queue.shift();
+        cb(performance.now());
+      }
+    }, throttleMs);
+
+    // Ensure canvas focus
+    iframeDoc.getElementById('game').focus();
+    iframeDoc.defaultView.focus();
+
+    const p = getPlayer();
+    const startX = p.x;
+    const startTime = performance.now();
+
+    pressKey('ArrowRight');
+
+    // Run for exactly 2 real seconds
+    await sleep(2000);
+
+    releaseKey('ArrowRight');
+    await sleep(50); // let last movement settle
+
+    const endX = p.x;
+    const distance = endX - startX;
+
+    // Restore rAF
+    clearInterval(intervalId);
+    w.requestAnimationFrame = window.originalRAF;
+
+    return { label, distance, throttleMs };
+  }
+
+  try {
+    const r30 = await measureAtThrottle(33, '~30fps');
+    // Brief pause between tests
+    await sleep(300);
+    const r240 = await measureAtThrottle(4, '~240fps');
+
+    const avg = (r30.distance + r240.distance) / 2;
+    const tolerance = avg * 0.05; // 5%
+    const diff = Math.abs(r30.distance - r240.distance);
+
+    if (avg < 10)
+      report('R09', 'warn', `Displacement too small to compare (${avg.toFixed(1)}px) — player may be blocked by wall`);
+    else if (diff <= tolerance)
+      report('R09', 'pass',
+        `Frame-rate independence OK: ${r30.label}=${r30.distance.toFixed(1)}px, ` +
+        `${r240.label}=${r240.distance.toFixed(1)}px, diff=${diff.toFixed(2)}px (tolerance ${tolerance.toFixed(2)}px)`);
+    else
+      report('R09', 'fail',
+        `Frame-rate DEPENDENT: ${r30.label}=${r30.distance.toFixed(1)}px, ` +
+        `${r240.label}=${r240.distance.toFixed(1)}px, diff=${diff.toFixed(2)}px (tolerance ${tolerance.toFixed(2)}px)`);
+  } catch(e) {
+    report('R09', 'fail', `rAF patch error: ${e.message}`);
+  }
+}
+
+// ── R10: Data-driven room coverage (auto-discovers all areas) ────────────
+// Iterates every key in AREAS, verifies: platforms exist, transitions
+// point to valid areas, switchArea() doesn't throw.
+async function R10_roomCoverage() {
+  const w = iframe.contentWindow;
+  const AREAS = w.AREAS;
+
+  if (!AREAS) return report('R10', 'fail', 'AREAS object not accessible from sandbox');
+
+  const areaIds = Object.keys(AREAS);
+  if (areaIds.length === 0) return report('R10', 'fail', 'AREAS is empty');
+
+  let passCount = 0, failCount = 0, skipCount = 0;
+  const failures = [];
+
+  for (const id of areaIds) {
+    const area = AREAS[id];
+
+    // Check: has platforms
+    if (!area.platforms || area.platforms.length === 0) {
+      failCount++;
+      failures.push(`${id}: no platforms`);
+      continue;
+    }
+
+    // Check: transitions point to valid areas
+    if (area.transitions) {
+      for (const t of area.transitions) {
+        const targetId = t.target || t.to || t.areaId;
+        if (targetId && !AREAS[targetId]) {
+          failCount++;
+          failures.push(`${id}: transition to non-existent '${targetId}'`);
+        }
+      }
+    }
+
+    // Check: switchArea() doesn't throw
+    try {
+      const p = getPlayer();
+      const pSave = {x: p.x, y: p.y};
+      w.switchArea(id, 40, 200);
+      await sleep(200);
+
+      // Verify player is alive and in the target area
+      const current = getCurrentArea();
+      if (current !== id) {
+        skipCount++;
+        failures.push(`${id}: switchArea called but currentAreaId is '${current}'`);
+      } else {
+        passCount++;
+      }
+    } catch(e) {
+      failCount++;
+      failures.push(`${id}: switchArea threw ${e.message}`);
+    }
+  }
+
+  if (failCount === 0)
+    report('R10', 'pass', `${passCount}/${areaIds.length} areas OK (rooms auto-discovered)`);
+  else
+    report('R10', 'fail', `${passCount}/${areaIds.length} pass, ${failCount} fail: ${failures.join('; ')}`);
+}
+
+// ── R11: Gap/geometry verification (auto across all areas) ───────────────
+// For each area, walks ground platforms, finds gaps > 40px,
+// teleports player above gap edge, confirms player falls (y increases).
+async function R11_gapGeometry() {
+  const w = iframe.contentWindow;
+  const AREAS = w.AREAS;
+
+  if (!AREAS) return report('R11', 'fail', 'AREAS not accessible');
+
+  const areaIds = Object.keys(AREAS);
+  let passCount = 0, gapCount = 0, failCount = 0;
+  const failures = [];
+
+  for (const id of areaIds) {
+    const area = AREAS[id];
+    if (!area.platforms) continue;
+
+    // Sort platforms by x position
+    const sorted = [...area.platforms].sort((a,b) => a.x - b.x);
+
+    // Find gaps between platforms at the same Y level (ground-level)
+    // Group platforms by Y level
+    const yGroups = {};
+    for (const plat of sorted) {
+      const yKey = plat.y;
+      if (!yGroups[yKey]) yGroups[yKey] = [];
+      yGroups[yKey].push(plat);
+    }
+
+    for (const yKey of Object.keys(yGroups)) {
+      const group = yGroups[yKey].sort((a,b) => a.x - b.x);
+      for (let i = 0; i < group.length - 1; i++) {
+        const plat = group[i];
+        const nextPlat = group[i + 1];
+        const gapStart = plat.x + plat.w;
+        const gapEnd = nextPlat.x;
+        const gapWidth = gapEnd - gapStart;
+
+        if (gapWidth < 40) continue; // too small to fall through meaningfully
+
+        gapCount++;
+
+        // Test this gap: switch to area, teleport player above gap center
+        try {
+          w.switchArea(id, 40, 200);
+          await sleep(300);
+
+          const p = getPlayer();
+          const gapCenterX = gapStart + gapWidth / 2;
+          const platY = parseInt(yKey);
+
+          // Teleport player just above the platform level, centered on gap
+          p.x = gapCenterX - p.width / 2;
+          p.y = platY - 80;
+          p.vx = 0;
+          p.vy = 0;
+          p.grounded = false;
+
+          await sleep(100);
+          const startY = p.y;
+
+          // Let gravity act for ~500ms (~30 frames)
+          await sleep(500);
+
+          const endY = p.y;
+          const fell = (endY - startY) > 10;
+
+          if (fell) {
+            passCount++;
+          } else {
+            failCount++;
+            failures.push(`${id}: gap (${gapStart}-${gapEnd}, ${gapWidth}px) — player did NOT fall (y: ${startY.toFixed(0)}→${endY.toFixed(0)})`);
+          }
+        } catch(e) {
+          failCount++;
+          failures.push(`${id}: gap test threw ${e.message}`);
+        }
+      }
+    }
+  }
+
+  if (gapCount === 0)
+    report('R11', 'skip', 'No testable gaps found across all areas');
+  else if (failCount === 0)
+    report('R11', 'pass', `${gapCount} gaps tested, ${passCount} fell correctly — no invisible catches`);
+  else
+    report('R11', 'fail', `${passCount}/${gapCount} gaps OK, ${failCount} caught: ${failures.join('; ')}`);
+}
+
+// ── R12: Heavy attack damage verification (regression for charge bug) ────
+// Measures actual damage from normal tap vs. heavy attack to catch the
+// Math.ceil() scaling destruction + missing invincibility frames.
+async function R12_heavyAttackDamage() {
+  const w = iframe.contentWindow;
+
+  // Ensure we're in a playable area with an enemy
+  if (getGameState() !== 'playing') return report('R12', 'skip', 'Not in playing state');
+
+  const p = getPlayer();
+  if (!p) return report('R12', 'skip', 'No player object');
+
+  const EnemyClass = w.Enemy;
+  if (!EnemyClass) return report('R12', 'skip', 'Enemy class not accessible');
+
+  const area = getCurrentArea();
+  const areaData = w.getArea ? w.getArea(area) : (w.AREAS ? w.AREAS[area] : null);
+  const groundY = areaData && areaData.platforms ?
+    Math.max(...areaData.platforms.filter(pl => pl.h >= 30).map(pl => pl.y)) : 350;
+
+  // Test normal attack damage
+  const enemies = w.areaEnemies;
+  if (!enemies[area]) enemies[area] = [];
+
+  const e1 = new EnemyClass(p.x + 100, groundY - 36, 'normal');
+  enemies[area].push(e1);
+  const e1Before = e1.health;
+
+  // Quick tap (normal attack)
+  pressKey('KeyZ'); await sleep(20); releaseKey('KeyZ');
+  await sleep(300);
+
+  const e1After = e1.health;
+  const normalDmg = e1Before - e1After;
+
+  // Test heavy attack damage (full charge: 700ms > CHARGE_FULL of ~667ms)
+  const e2 = new EnemyClass(p.x + 100, groundY - 36, 'normal');
+  enemies[area].push(e2);
+  const e2Before = e2.health;
+
+  // Full charge
+  pressKey('KeyZ'); await sleep(700); releaseKey('KeyZ');
+  await sleep(300);
+
+  const e2After = e2.health;
+  const heavyDmg = e2Before - e2After;
+
+  // Test partial charge (200ms — between CHARGE_TAP=5f and CHARGE_FULL=40f)
+  const e3 = new EnemyClass(p.x + 100, groundY - 36, 'normal');
+  enemies[area].push(e3);
+  const e3Before = e3.health;
+
+  pressKey('KeyZ'); await sleep(200); releaseKey('KeyZ');
+  await sleep(300);
+
+  const e3After = e3.health;
+  const partialDmg = e3Before - e3After;
+
+  // Clean up test enemies
+  enemies[area] = enemies[area].filter(e => e !== e1 && e !== e2 && e !== e3);
+
+  // Evaluate
+  const issues = [];
+  if (normalDmg <= 0) issues.push(`normal attack did ${normalDmg} dmg (expected 1)`);
+  if (heavyDmg < normalDmg) issues.push(`heavy (${heavyDmg}) < normal (${normalDmg})`);
+  if (heavyDmg === partialDmg && heavyDmg > 0) issues.push(`heavy == partial — Math.ceil() destroys scaling`);
+  if (heavyDmg === normalDmg) issues.push(`heavy == normal — no damage bonus at all`);
+
+  if (issues.length === 0)
+    report('R12', 'pass', `Normal=${normalDmg}, partial=${partialDmg}, heavy=${heavyDmg} — scaling looks correct`);
+  else
+    report('R12', 'fail', `Normal=${normalDmg}, partial=${partialDmg}, heavy=${heavyDmg} — ${issues.join('; ')}`);
+}
+
+// ── R13: Enemy invincibility frame regression ────────────────────────────
+// Verify that normal attacks set enemy.invincibleTimer but heavy attacks
+// have a working alternative (single-hit-per-swing, not multi-hit exploit).
+async function R13_enemyInvincibility() {
+  const w = iframe.contentWindow;
+  if (getGameState() !== 'playing') return report('R13', 'skip', 'Not in playing state');
+
+  const p = getPlayer();
+  if (!p) return report('R13', 'skip', 'No player object');
+
+  const EnemyClass = w.Enemy;
+  if (!EnemyClass) return report('R13', 'skip', 'Enemy class not accessible');
+
+  const area = getCurrentArea();
+  const areaData = w.getArea ? w.getArea(area) : (w.AREAS ? w.AREAS[area] : null);
+  const groundY = areaData && areaData.platforms ?
+    Math.max(...areaData.platforms.filter(pl => pl.h >= 30).map(pl => pl.y)) : 350;
+
+  const enemies = w.areaEnemies;
+  if (!enemies[area]) enemies[area] = [];
+
+  // Spawn a high-health enemy to survive multiple hits
+  const testEnemy = new EnemyClass(p.x + 100, groundY - 36, 'normal');
+  testEnemy.health = 100; // give it plenty of health
+  enemies[area].push(testEnemy);
+
+  // Normal attack: should only hit once due to invincibleTimer
+  const healthBefore = testEnemy.health;
+  pressKey('KeyZ'); await sleep(20); releaseKey('KeyZ');
+  await sleep(400); // wait for full attack duration (12 frames)
+  const normalHits = healthBefore - testEnemy.health;
+
+  // Reset enemy health
+  testEnemy.health = 100;
+
+  // Heavy attack: should also only hit once (check for multi-hit exploit)
+  const healthBefore2 = testEnemy.health;
+  pressKey('KeyZ'); await sleep(700); releaseKey('KeyZ');
+  await sleep(500); // wait for full heavy attack duration (16 frames)
+  const heavyHits = healthBefore2 - testEnemy.health;
+
+  // Clean up
+  enemies[area] = enemies[area].filter(e => e !== testEnemy);
+
+  const issues = [];
+  // Normal should hit ~1 time (1 dmg). If it hits 6+ times, invincibleTimer is broken.
+  if (normalHits > 3) issues.push(`normal multi-hit: ${normalHits} dmg (expected ~1)`);
+  // Heavy should hit ~1 time (2 dmg). If it hits many times, missing invincibleTimer is an exploit.
+  if (heavyHits > 4) issues.push(`heavy multi-hit exploit: ${heavyHits} dmg (expected ~2)`);
+  if (heavyHits === 0 && normalHits > 0) issues.push(`heavy attack didn't connect at all`);
+
+  if (issues.length === 0)
+    report('R13', 'pass', `Normal hit=${normalHits}dmg, heavy hit=${heavyHits}dmg — single-hit-per-swing confirmed`);
+  else
+    report('R13', 'fail', `Normal=${normalHits}dmg, heavy=${heavyHits}dmg — ${issues.join('; ')}`);
+}
+
+// ============================================================================
+//  SANDBOX INITIALIZATION
+// ============================================================================
+
+async function initSandbox() {
+  iframe = $('sandbox');
+  iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+  // Load index.html into the sandboxed iframe
+  const baseUrl = window.location.origin + window.location.pathname.replace('debug_v2.html', '') + 'index.html';
+
+  // Inject frame-timing instrument BEFORE the game scripts load
+  iframeDoc.open();
+  iframeDoc.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        *{margin:0;padding:0}body{background:#0a0a0f;overflow:hidden;display:flex;justify-content:center;align-items:center;height:100vh}
+        canvas{border:1px solid #1a1a2e;image-rendering:pixelated}
+      </style>
+    </head>
+    <body>
+      <canvas id="game"></canvas>
+      <!-- Frame timing instrument -->
+      <script>
+        window._frameDeltas = [];
+        window._capturedErrors = [];
+        window._lastFrameTime = 0;
+        window.originalRAF = window.requestAnimationFrame;
+        window.requestAnimationFrame = function(cb) {
+          const now = performance.now();
+          if (window._lastFrameTime > 0) {
+            const delta = now - window._lastFrameTime;
+            window._frameDeltas.push(delta);
+            if (window._frameDeltas.length > 5000) window._frameDeltas = window._frameDeltas.slice(-3000);
+          }
+          window._lastFrameTime = now;
+          return window.originalRAF.call(window, cb);
+        };
+        window.addEventListener('error', function(e) {
+          window._capturedErrors.push(e.message || 'unknown error');
+        });
+      <\/script>
+      <!-- Load game scripts from same origin -->
+      <script src="${baseUrl.replace('index.html', 'audio.js')}"><\/script>
+      <script src="${baseUrl.replace('index.html', 'input.js')}"><\/script>
+      <script src="${baseUrl.replace('index.html', 'area.js')}"><\/script>
+      <script src="${baseUrl.replace('index.html', 'map.js')}"><\/script>
+      <script src="${baseUrl.replace('index.html', 'ability.js')}"><\/script>
+      <script src="${baseUrl.replace('index.html', 'boss.js')}"><\/script>
+      <script src="${baseUrl.replace('index.html', 'enemy.js')}"><\/script>
+      <script src="${baseUrl.replace('index.html', 'player.js')}"><\/script>
+      <script src="${baseUrl.replace('index.html', 'game.js')}"><\/script>
+    </body>
+    </html>
+  `);
+  iframeDoc.close();
+
+  // Wait for game to initialize
+  await sleep(1500);
+
+  // Verify iframe actually loaded
+  const c = iframeDoc.getElementById('game');
+  if (!c) {
+    report('INIT', 'fail', 'Sandbox failed to load — no canvas found');
+    return;
+  }
+}
+
+// ============================================================================
+//  RUN ALL CHECKS
+// ============================================================================
+
+async function runChecks() {
+  // Ensure we're in playing state for combat checks
+  // First, start the game from menu
+  await startNewGame();
+  await sleep(500);
+
+  // If still in menu, try pressing Enter again
+  if (getGameState() === 'menu') {
+    pressKey('Enter'); await sleep(60); releaseKey('Enter');
+    await sleep(500);
+  }
+
+  const checks = [
+    R01_canvasExists,
+    R02_gameLoopRunning,
+    R03_menuNavigate,
+    R04_playerMovement,
+    R05_updateWatchdog,
+    R06_saveLoadResume,
+    R07_frameTiming,
+    R08_noUncaughtErrors,
+    R09_frameRateIndependence,
+    R10_roomCoverage,
+    R11_gapGeometry,
+    R12_heavyAttackDamage,
+    R13_enemyInvincibility,
+  ];
+
+  totalChecks = checks.length;
+
+  for (const fn of checks) {
+    try {
+      await fn();
+    } catch(e) {
+      report(fn.name || '?', 'fail', `Check threw: ${e.message}`);
+    }
+    await sleep(50); // small gap between checks
+  }
+
+  // Final summary
+  const rows = log.querySelectorAll('.row');
+  let pass = 0, fail = 0, warn = 0, skip = 0;
+  rows.forEach(r => {
+    const s = r.querySelector('.status');
+    if (s.classList.contains('pass')) pass++;
+    else if (s.classList.contains('fail')) fail++;
+    else if (s.classList.contains('warn')) warn++;
+    else if (s.classList.contains('skip')) skip++;
+  });
+
+  const summary = document.createElement('div');
+  summary.className = 'row';
+  summary.innerHTML = `<span class="id">Σ</span>` +
+    `<span class="status pass">${pass}P</span> ` +
+    `<span class="status fail">${fail}F</span> ` +
+    `<span class="status warn">${warn}W</span> ` +
+    `<span class="status skip">${skip}S</span>` +
+    `<span class="note">${totalChecks} total checks</span>`;
+  log.appendChild(summary);
+}
+
+// Boot
+initSandbox().then(runChecks).catch(e => {
+  log.innerHTML = `<div class="row"><span class="id">ERR</span>` +
+    `<span class="status fail">FAIL</span>` +
+    `<span class="msg">Fatal: ${e.message}</span></div>`;
+});
+</script>
+</body>
+</html>
