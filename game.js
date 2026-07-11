@@ -3044,9 +3044,26 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   ctx.fillText(line.trim(), x, yy);
 }
 
-// Main loop
-function gameLoop() {
-  update();
+// Main loop — fixed-timestep accumulator (60 Hz simulation, decoupled from display refresh)
+const FIXED_DT = 1000 / 60; // ms per simulation tick — matches all existing "N frames" tuning
+const MAX_ACCUMULATOR = 250; // cap elapsed to avoid spiral-of-death after tab throttle
+const MAX_TICKS_PER_FRAME = 5; // second safety net
+
+let lastTime = performance.now();
+let accumulator = 0;
+
+function gameLoop(now) {
+  const elapsed = Math.min(now - lastTime, MAX_ACCUMULATOR);
+  lastTime = now;
+  accumulator += elapsed;
+
+  let ticks = 0;
+  while (accumulator >= FIXED_DT && ticks < MAX_TICKS_PER_FRAME) {
+    update();
+    accumulator -= FIXED_DT;
+    ticks++;
+  }
+
   draw();
   requestAnimationFrame(gameLoop);
 }
@@ -3054,4 +3071,4 @@ function gameLoop() {
 // ── Entry point ─────────────────────────────────────────────────────────
 
 init();
-gameLoop();
+requestAnimationFrame(gameLoop);

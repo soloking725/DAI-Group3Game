@@ -4,6 +4,7 @@ const ENEMY_SPEED = 1.5;
 const ENEMY_HEALTH = 3;
 const ENEMY_DAMAGE = 1;
 const ENEMY_ATTACK_RANGE = 40;
+const ENEMY_DETECT_RANGE = 200; // how far the enemy notices the player (was 80 via ENEMY_ATTACK_RANGE * 2)
 const ENEMY_ATTACK_COOLDOWN = 90;
 
 // Windup (pre-attack telegraph) duration in frames
@@ -149,7 +150,7 @@ class Enemy {
 
     // ── Movement AI (only when not winding up or attacking) ──────────────────
     if (!this.windingUp && !this.attacking) {
-      if (dist < ENEMY_ATTACK_RANGE * 2) {
+      if (dist < ENEMY_DETECT_RANGE) {
         this.vx = this.facing * ENEMY_SPEED;
       } else {
         if (Math.abs(this.x - this.patrolCenter) > this.patrolRange) {
