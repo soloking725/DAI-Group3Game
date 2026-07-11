@@ -145,6 +145,28 @@ Tier 3 rewards are the ones that should feel like *the reason* a completionist e
 
 ---
 
+### 3.15 Big Rooms, Not Many Small Rooms (why Hollow Knight has so few doors)
+
+Right now the game's structure is: many small single-screen rooms, each connected to the next by a door/transition. Hollow Knight (and most well-regarded Metroidvanias) get the same or greater content density from the opposite approach: **a handful of large rooms per region, each spanning many screens both vertically and horizontally, with far fewer doors between them.** This isn't just aesthetic — it changes what a "region" actually is and how exploration feels. Do this deliberately for every new region below, not just as a stylistic nice-to-have:
+
+**Why fewer, bigger rooms are better here specifically:**
+- Every door is a loading/transition moment and a node the map-graph and compass-direction system has to track (see the map.js rework). Fewer doors means a simpler, more legible map, and it means the compass-graph validator has less surface area to get wrong.
+- A door hides what's on the other side. A big room lets the player SEE a destination (a ledge above, a passage below, a platform across a chasm) long before they can reach it — that's what actually creates "I'll remember to come back here" moments, far more than a closed door with a lock icon does. This is the mechanism Tier 3 upgrades (3.14) should lean on: put the reward somewhere visible-but-unreachable inside a big room, not behind another door in a different room.
+- One big room can contain an entire region's difficulty curve internally (an easy lower section, a harder upper section, a hidden basement) without needing new rooms/doors for each difficulty step.
+
+**How to actually build one (concrete pattern, buildable with your current canvas/camera system):**
+1. Define the room's full logical bounds much larger than one screen — e.g. `width: 3000-4000` and use vertical space too (multiple platform "floors" stacked well beyond a single screen height, with the camera scrolling to follow the player vertically as well as horizontally, not just horizontally as the current rooms do).
+2. Structure it as 3-6 loosely connected **sub-areas within the same room** rather than 3-6 separate room objects: e.g. an entry section, a branching upper path, a branching lower path, and a converging point near an exit. These sub-areas share one `AREAS` entry, one camera space, one continuous background — the player never sees a loading transition moving between them.
+3. Put actual gates INSIDE the room, not just at its edges: an ability-locked shortcut partway through the room that, once opened, lets you skip most of it on a return visit — this is what "big room" gives you that "many small rooms" can't: internal shortcuts that don't need to be modeled as separate compass-graph nodes at all.
+4. Reserve actual room-to-room DOORS (the compass-graph transitions) for genuine boundaries between differently-themed content — e.g. the edge of a region, or the hub. Within a region, prefer internal verticality/branching over new doors.
+5. Use verticality as content, not just traversal: a tall room can have an easy critical path along the bottom and optional, harder platforming climbing to a Tier 3 reward near the top — this is a single room doing the job that used to take 2-3 separate rooms (main path room + side room + secret room).
+
+**Sizing rule of thumb**: if you're about to create a new small room whose entire purpose is "a corridor with one gimmick and a door on each end," it's very likely that gimmick should be a section inside a bigger neighboring room instead, not its own `AREAS` entry.
+
+**When to still use a door**: a genuine region boundary (thematically different content, e.g. Static Field vs. Mirror Veil), or a checkpoint/save-adjacent transition where a hard loading break is actually welcome (e.g. right before a miniboss arena, so a death doesn't require re-traversing the whole region). Everything else should be a bigger room.
+
+---
+
 ## PHASE 4: MINIBOSSES (6)
 
 *Goal: Provide memorable, challenging boss fights that test specific mechanics.*
