@@ -89,21 +89,29 @@ PHASE 0 — Core UX & Quality of Life
         abilities/discoveredAreas correctly, ran 60 more frames with the
         restored state with no errors, then confirmed New Game resets
         everything back to a fresh tutorial run.
-[ ] 0.5 Quick Respawn / Pause Menu (Resume/Return to Stillpoint/Restart Room/
-        Quit to Menu options — currently pause is just an overlay with no menu
-        options, see gameState === 'paused' block in game.js)
-[ ] 0.6 Accessibility Toggles (screen shake / hitstop on-off, in pause menu
-        once 0.5 exists)
+[x] 0.5 Quick Respawn / Pause Menu (Resume/Return to Stillpoint/Restart Room/
+        Quit to Menu — menu panel with arrow key navigation + Enter select.
+        ESC to resume. Game over screen has R:Respawn and ESC:Quit to Menu.
+        "Quit to Menu" explicitly preserves saves — deleteSave() calls removed.)
+[x] 0.6 Accessibility Toggles (Screen Shake ON/OFF + Hitstop ON/OFF, wired
+        into the pause menu. Settings persist via localStorage key
+        'stillpoint_settings_v1'. Respected at both the draw (screen shake)
+        and update (hitstop) call sites.)
 
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 1 — Movement & Combat Overhaul
 ─────────────────────────────────────────────────────────────────────────────
-[ ] 1.1 Directional Melee Attacks (forward/up/down, pogo bounce on down-slam)
-[ ] 1.2 Chained Dash + Phase Dash Parkour (mid-air chaining, momentum carry)
-[ ] 1.3 Knockback & Aerial Juggling
-[ ] 1.4 Combat Feedback Polish (per-attack hitstop/shake, slow-mo kill cam)
-[ ] 1.5 Player Parry / Deflect
-[ ] 1.6 Charged Heavy Attack
+[x] 1.1 Directional Melee Attacks (forward/up/down, pogo bounce on down-slam)
+[x] 1.2 Chained Dash + Phase Dash Parkour (mid-air chaining, momentum carry)
+[x] 1.3 Knockback & Aerial Juggling
+[x] 1.4 Combat Feedback Polish (per-attack hitstop/shake, slow-mo kill cam)
+[x] 1.5 Player Parry / Deflect (tap Z during attack cooldown → 10-frame parry window.\n        Successful deflect stuns enemy 0.5s, grants player I-frames + Fracture pip.\n        Golden visual flash, dedicated SFX. Works on melee hitbox + body contact.)
+[x] 1.6 Charged Heavy Attack
+    - Hold Z/J to charge, release to fire. Quick tap (<5f) = normal attack.
+    - Full charge (40f / ~667ms) = 2x damage, extra knockback, amplified screen shake/hitstop.
+    - Charge glow (amber halo + expanding ring), pulsing when fully charged.
+    - SFX: heavy attack (sawtooth + noise), charge full (ascending sine ping).
+    - Partial charge scales damage/knockback proportionally (CHARGE_TAP to CHARGE_FULL).
 [ ] 1.7 Wall Jump / Wall Slide
 [ ] 1.8 Dash Refund on Hit
 
@@ -165,9 +173,7 @@ EXPLICITLY OUT OF SCOPE (by user request)
   - Procedural generation — all rooms hand-crafted
   - Multiplayer / online features
 
-CURRENTLY HERE: 0.1-0.4 done. Next untouched task is 0.5 (Quick Respawn / Pause
-Menu — Resume/Return to Last Stillpoint/Restart Room/Quit to Menu options).
-0.6 (Accessibility Toggles) depends on 0.5 existing first.
+CURRENTLY HERE: 0.1-0.6 done, Phase 1.1-1.6 done. Next: 1.7 (Wall Jump / Wall Slide).
 ═══════════════════════════════════════════════════════════════════════════
 -->
 <html lang="en">

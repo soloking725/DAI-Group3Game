@@ -6,6 +6,7 @@ const DUCK_SPEED = 2;
 const DASH_SPEED = 12;
 const DASH_DURATION = 8;
 const DASH_COOLDOWN = 30;
+const DASH_CHAIN_MAX = 3; // max consecutive dashes in a chain
 const MAX_HEALTH = 6;
 const INVINCIBLE_FRAMES = 150;
 const COYOTE_FRAMES = 6; // 6 frames (~100ms at 60fps) – the sweet spot
@@ -16,6 +17,24 @@ const ATTACK_HEIGHT = 30;
 const ATTACK_DURATION = 12;
 const ATTACK_COOLDOWN = 18;
 const ATTACK_DAMAGE = 1;
+
+// Directional attack hitbox sizes
+const ATK_FWD_W = 40; const ATK_FWD_H = 28;
+const ATK_UP_W  = 30; const ATK_UP_H  = 36;
+const ATK_DN_W  = 40; const ATK_DN_H  = 24;
+const ATK_POGO_VY = -11; // upward bounce on down-slam hit
+
+// Charged heavy attack (hold Z/J to charge, release to fire)
+const CHARGE_TAP = 5;       // frames under this counts as a tap (normal attack)
+const CHARGE_FULL = 40;     // frames to reach full charge (~667ms)
+const HEAVY_DAMAGE = 2;     // damage multiplier for full charge
+const HEAVY_KNOCKBACK = 2.5; // knockback multiplier for full charge
+
+// Parry (deflect enemy attacks with timed Z-tap during cooldown)
+const PARRY_WINDOW = 10;    // frames the parry is active (~167ms)
+const PARRY_COOLDOWN = 60;  // frames between parry attempts (1s)
+const PARRY_STUN = 30;      // frames the enemy is stunned (0.5s)
+const PARRY_IFRAMES = 20;   // player invincibility after successful parry
 
 // Stillpoint (time-slow)
 const FRACTURE_MAX = 3;
@@ -35,9 +54,12 @@ class Player {
     this.attacking = false;
     this.attackTimer = 0;
     this.attackCooldown = 0;
+    this.attackDirection = 'forward'; // 'forward', 'up', 'down'
     this.dashing = false;
     this.dashTimer = 0;
     this.dashCooldown = 0;
+    this.dashChain = 0;       // consecutive dash count (resets on ground/gap)
+    this.dashChainTimer = 0;  // frames since last dash (for chain reset)
     this.invincibleTimer = 0;
     this.flashTimer = 0;
     this.coyoteTimer = 0;
@@ -60,6 +82,16 @@ class Player {
     // Squash/stretch
     this.justLanded = false;
     this.justLandedTimer = 0;
+
+    // Parry
+    this.parrying = false;
+    this.parryTimer = 0;     // frames left in parry window
+    this.parryCooldown = 0;  // frames before next parry
+
+    // Charged heavy attack
+    this.charging = false;
+    this.chargeTimer = 0;    // frames held (0-CHARGE_FULL)
+    this.fullyCharged = false;
   }
 
   // Called by game.js when a melee hit lands
@@ -147,17 +179,32 @@ class Player {
         this.dashCooldown <= 0 && !this.dashing) {
       this.dashing = true;
       this.dashTimer = DASH_DURATION;
-      this.dashCooldown = DASH_COOLDOWN;
-      this.vx = this.facing * DASH_SPEED;
-      this.vy = 0;
+      this.dashChain = Math.min(this.dashChain + 1, DASH_CHAIN_MAX);
+      this.dashChainTimer = 0;
+      // Slight cooldown increase per chain (f0.5s per extra chain)
+      this.dashCooldown = DASH_COOLDOWN + (this.dashChain - 1) * 10;
+      // Momentum blend: preserve some existing velocity for curving/accelerating
+      const momentumBlend = 0.3 + this.dashChain * 0.1; // more momentum on higher chains
+      this.vx = this.facing * DASH_SPEED * (1 - momentumBlend) + this.vx * momentumBlend;
+      this.vy *= (1 - momentumBlend); // preserve some vertical momentum too
       if (typeof SFX !== 'undefined') SFX.dash();
     }
 
     if (this.dashing) {
       this.dashTimer--;
-      if (this.dashTimer <= 0) { this.dashing = false; this.vx *= 0.5; }
+      if (this.dashTimer <= 0) {
+        this.dashing = false;
+        // Preserve more momentum when chaining (parkour flow)
+        this.vx *= 0.6 + this.dashChain * 0.08;
+      }
     }
     if (this.dashCooldown > 0) this.dashCooldown--;
+    if (this.dashChainTimer > 0) this.dashChainTimer++;
+    // Reset chain after gap (120 frames = 2s) or on ground
+    if (this.dashChainTimer >= 120 || (this.grounded && this.dashChain > 0)) {
+      this.dashChain = 0;
+      this.dashChainTimer = 0;
+    }
 
     // ── Phase Dash ──────────────────────────────────────────────────────────
     if ((wasJustPressed('KeyC') || wasJustPressed('KeyK')) &&
@@ -177,20 +224,90 @@ class Player {
       if (this.phaseDashTimer <= 0) { this.phaseDashing = false; this.vx *= 0.4; }
     }
 
-    // ── Attack (blocked during Stillpoint and ducking) ─────────────────────
+    // ── Attack input: hold to charge, release to fire ──────────────────────
+    // Press Z/J with no cooldown → start charging (don't fire yet)
     if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
-        this.attackCooldown <= 0 && !this.stillpointActive && !this.ducking) {
-      this.attacking = true;
-      this.attackTimer = ATTACK_DURATION;
-      this.attackCooldown = ATTACK_COOLDOWN;
-      // Attacking cancels Stillpoint (handled above — stillpoint already blocks attack,
-      // but if player mashes Z the moment they toggle off, guard here)
-      if (typeof SFX !== 'undefined') SFX.attack();
+        this.attackCooldown <= 0 && !this.stillpointActive && !this.ducking &&
+        !this.charging && !this.parrying) {
+      this.charging = true;
+      this.chargeTimer = 0;
+      this.fullyCharged = false;
     }
+
+    // While holding, accumulate charge
+    if (this.charging && (isPressed('KeyZ') || isPressed('KeyJ'))) {
+      this.chargeTimer++;
+      if (this.chargeTimer >= CHARGE_FULL) {
+        this.chargeTimer = CHARGE_FULL;
+        if (!this.fullyCharged) {
+          this.fullyCharged = true;
+          if (typeof SFX !== 'undefined') SFX.chargeFull();
+        }
+      }
+    }
+
+    // Cancel charge if conditions no longer met
+    if (this.charging && (this.stillpointActive || this.ducking || this.attackCooldown > 0)) {
+      this.charging = false;
+      this.chargeTimer = 0;
+      this.fullyCharged = false;
+    }
+
+    // Release Z/J → fire attack
+    if (this.charging && !isPressed('KeyZ') && !isPressed('KeyJ')) {
+      this.charging = false;
+
+      // Directional attack based on input
+      if (isPressed('ArrowUp') || isPressed('KeyW')) {
+        this.attackDirection = 'up';
+      } else if (isPressed('ArrowDown') || isPressed('KeyS')) {
+        this.attackDirection = 'down';
+      } else {
+        this.attackDirection = 'forward';
+      }
+
+      if (this.chargeTimer >= CHARGE_TAP) {
+        // ── Heavy attack ──
+        this.attacking = true;
+        this.attackTimer = ATTACK_DURATION + 4; // slightly longer animation
+        this.attackCooldown = ATTACK_COOLDOWN + 8; // longer recovery
+        this.heavy = true;
+        this.heavyCharge = this.chargeTimer / CHARGE_FULL; // 0-1 charge ratio
+        if (typeof SFX !== 'undefined') SFX.heavyAttack();
+      } else {
+        // ── Normal attack (quick tap) ──
+        this.attacking = true;
+        this.attackTimer = ATTACK_DURATION;
+        this.attackCooldown = ATTACK_COOLDOWN;
+        this.heavy = false;
+        if (typeof SFX !== 'undefined') SFX.attack();
+      }
+      this.chargeTimer = 0;
+      this.fullyCharged = false;
+    }
+
+    // ── Parry: tap Z during cooldown (instead of attacking) ────────────────
+    if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
+        !this.attacking && this.attackCooldown > 0 && this.parryCooldown <= 0 &&
+        !this.stillpointActive && !this.ducking && !this.parrying) {
+      this.parrying = true;
+      this.parryTimer = PARRY_WINDOW; // 10 frames to deflect
+      this.parryCooldown = PARRY_COOLDOWN; // 60 frames between parries
+      if (typeof SFX !== 'undefined') SFX.parry();
+    }
+
+    if (this.parrying) {
+      this.parryTimer--;
+      if (this.parryTimer <= 0) { this.parrying = false; }
+    }
+    if (this.parryCooldown > 0) this.parryCooldown--;
 
     if (this.attacking) {
       this.attackTimer--;
-      if (this.attackTimer <= 0) this.attacking = false;
+      if (this.attackTimer <= 0) {
+        this.attacking = false;
+        this.heavy = false; // clear heavy flag after animation
+      }
     }
     if (this.attackCooldown > 0) this.attackCooldown--;
 
@@ -261,11 +378,32 @@ class Player {
 
   getAttackHitbox() {
     if (!this.attacking) return null;
+    const dir = this.attackDirection;
+    if (dir === 'up') {
+      return {
+        x: this.x - 5,
+        y: this.y - ATK_UP_H + 8,
+        width: ATK_UP_W + 10,
+        height: ATK_UP_H,
+        dir: 'up'
+      };
+    }
+    if (dir === 'down') {
+      return {
+        x: this.x - 5,
+        y: this.y + this.height - 4,
+        width: ATK_DN_W + 10,
+        height: ATK_DN_H,
+        dir: 'down'
+      };
+    }
+    // forward (default)
     return {
-      x: this.facing === 1 ? this.x + this.width : this.x - ATTACK_WIDTH,
-      y: this.y + 4,
-      width: ATTACK_WIDTH,
-      height: ATTACK_HEIGHT
+      x: this.facing === 1 ? this.x + this.width : this.x - ATK_FWD_W,
+      y: this.y + 6,
+      width: ATK_FWD_W,
+      height: ATK_FWD_H,
+      dir: 'forward'
     };
   }
 
@@ -315,6 +453,37 @@ class Player {
       ctx.lineWidth = 1;
     }
 
+    // ── Parry flash ──────────────────────────────────────────────────────
+    if (this.parrying) {
+      const pPulse = this.parryTimer / PARRY_WINDOW; // 1->0 over parry window
+      // Bright golden halo that fades as window closes
+      ctx.fillStyle = `rgba(251, 191, 36, ${0.3 * pPulse})`;
+      ctx.fillRect(this.x - 6, this.y - 6, this.width + 12, this.height + 12);
+      // Sharp ring
+      ctx.strokeStyle = `rgba(251, 191, 36, ${0.8 * pPulse})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(this.x - 2, this.y - 2, this.width + 4, this.height + 4);
+      ctx.lineWidth = 1;
+    }
+
+    // ── Charge glow ──────────────────────────────────────────────────────
+    if (this.charging) {
+      const chargeFrac = this.chargeTimer / CHARGE_FULL; // 0->1
+      const pulse = this.fullyCharged
+        ? Math.sin(typeof frameCount !== 'undefined' ? frameCount * 0.3 : 0) * 0.3 + 0.7
+        : 0.8;
+      // Expanding amber halo proportional to charge
+      const haloSize = 4 + chargeFrac * 8;
+      ctx.fillStyle = `rgba(251, 146, 60, ${0.15 * chargeFrac * pulse})`;
+      ctx.fillRect(this.x - haloSize, this.y - haloSize, this.width + haloSize * 2, this.height + haloSize * 2);
+      // Ring that fills with charge
+      ctx.strokeStyle = `rgba(251, 146, 60, ${0.5 * chargeFrac * pulse})`;
+      ctx.lineWidth = 1 + chargeFrac * 2;
+      ctx.strokeRect(this.x - 2 - chargeFrac * 3, this.y - 2 - chargeFrac * 3,
+        this.width + 4 + chargeFrac * 6, this.height + 4 + chargeFrac * 6);
+      ctx.lineWidth = 1;
+    }
+
     // ── Body ─────────────────────────────────────────────────────────────
     const bodyColor = this.stillpointActive ? '#a5f3fc' : '#c4b5fd';
     ctx.fillStyle = bodyColor;
@@ -333,10 +502,31 @@ class Player {
     const eyeY = this.ducking ? this.y + 4 : this.y + 8;
     ctx.fillRect(eyeX, eyeY, 6, 6);
 
-    // ── Dash trail ────────────────────────────────────────────────────────
+    // ── Dash trail (chain-aware) ───────────────────────────────────────────
     if (this.dashing) {
-      ctx.fillStyle = 'rgba(196, 181, 253, 0.3)';
-      ctx.fillRect(this.x - this.vx * 2, this.y, this.width, this.height);
+      const chainIntensity = this.dashChain / DASH_CHAIN_MAX; // 0-1
+      const trailCount = 2 + this.dashChain; // more ghosts on higher chains
+      const baseAlpha = 0.25 + chainIntensity * 0.25;
+      // Color shifts from purple → cyan as chain increases
+      const r = Math.round(196 - chainIntensity * 93);
+      const g = Math.round(181 + chainIntensity * 51);
+      const b = Math.round(253 - chainIntensity * 4);
+      const color = `rgba(${r}, ${g}, ${b}`;
+      for (let i = 1; i <= trailCount; i++) {
+        ctx.globalAlpha = baseAlpha - i * 0.05;
+        ctx.fillStyle = `${color}, ${baseAlpha - i * 0.05})`;
+        ctx.fillRect(this.x - this.vx * i * 1.2, this.y, this.width, this.height);
+      }
+      ctx.globalAlpha = 1;
+      // Chain sparkles at max chain
+      if (this.dashChain >= DASH_CHAIN_MAX) {
+        ctx.fillStyle = 'rgba(103, 232, 249, 0.6)';
+        for (let i = 0; i < 3; i++) {
+          const sx = this.x + Math.random() * this.width;
+          const sy = this.y + Math.random() * this.height;
+          ctx.fillRect(sx, sy, 2, 2);
+        }
+      }
     }
 
     // ── Phase Dash trail ──────────────────────────────────────────────────
@@ -351,65 +541,125 @@ class Player {
       ctx.fillRect(this.x - 5, this.y - 5, this.width + 10, this.height + 10);
     }
 
-    // ── Attack slash arc ─────────────────────────────────────────────────
+    // ── Attack slash arc (directional) ────────────────────────────────────
     if (this.attacking) {
       const atk = this.getAttackHitbox();
       if (atk) {
         const progress = 1 - this.attackTimer / ATTACK_DURATION;
-        const originX = this.facing === 1 ? this.x + this.width : this.x;
-        const originY = this.y + this.height * 0.42;
-        const arcLen = 48;
-        const arcSpan = Math.PI * 0.72 * Math.min(1, progress * 1.5);
-        const startAngle = this.facing === 1 ? -Math.PI * 0.62 : -Math.PI * 0.38;
 
-        // Bright leading-edge line (fattest, most opaque)
-        const leadAngle = startAngle + this.facing * arcSpan;
-        ctx.strokeStyle = `rgba(255, 248, 255, ${0.9 - progress * 0.5})`;
-        ctx.lineWidth = 3.5 - progress * 2;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(originX, originY);
-        ctx.lineTo(originX + Math.cos(leadAngle) * arcLen, originY + Math.sin(leadAngle) * arcLen);
-        ctx.stroke();
+        if (atk.dir === 'up') {
+          // ── Up-slash: vertical arc rising from player ──
+          const originX = this.x + this.width / 2;
+          const originY = this.y + this.height * 0.3;
+          const arcLen = 50;
+          const arcSpan = Math.PI * 0.65 * Math.min(1, progress * 1.5);
 
-        // Fan of trailing lines — fade off toward the origin
-        for (let i = 0; i < 6; i++) {
-          const t = i / 6;
-          const a = startAngle + t * this.facing * arcSpan;
-          const lineAlpha = (0.12 + t * 0.35) * (1 - progress * 0.6);
-          ctx.strokeStyle = `rgba(224, 215, 255, ${lineAlpha})`;
-          ctx.lineWidth = 1 + t * 1.5;
+          const leadAngle = -Math.PI / 2 - arcSpan;
+          ctx.strokeStyle = `rgba(255, 248, 255, ${0.9 - progress * 0.5})`;
+          ctx.lineWidth = 3.5 - progress * 2;
+          ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(originX, originY);
-          ctx.lineTo(originX + Math.cos(a) * arcLen, originY + Math.sin(a) * arcLen);
+          ctx.lineTo(originX + Math.cos(leadAngle) * arcLen, originY + Math.sin(leadAngle) * arcLen);
           ctx.stroke();
-        }
 
-        // Arc connecting the tips — curved trail
-        ctx.strokeStyle = `rgba(196, 181, 253, ${0.3 * (1 - progress)})`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (let i = 0; i <= 14; i++) {
-          const t = i / 14;
-          const a = startAngle + t * this.facing * arcSpan;
-          const len = arcLen * (0.7 + t * 0.3);
-          const px = originX + Math.cos(a) * len;
-          const py = originY + Math.sin(a) * len;
-          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-        }
-        ctx.stroke();
+          for (let i = 0; i < 6; i++) {
+            const t = i / 6;
+            const a = -Math.PI / 2 + t * arcSpan;
+            const lineAlpha = (0.12 + t * 0.35) * (1 - progress * 0.6);
+            ctx.strokeStyle = `rgba(224, 215, 255, ${lineAlpha})`;
+            ctx.lineWidth = 1 + t * 1.5;
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(originX + Math.cos(a) * arcLen, originY + Math.sin(a) * arcLen);
+            ctx.stroke();
+          }
 
-        // Impact flash at tip
-        if (progress > 0.35) {
-          const flashAlpha = Math.max(0, Math.sin(progress * Math.PI) * 1.2);
-          ctx.fillStyle = `rgba(255, 250, 255, ${flashAlpha * 0.9})`;
+          if (progress > 0.35) {
+            const flashAlpha = Math.max(0, Math.sin(progress * Math.PI) * 1.2);
+            ctx.fillStyle = `rgba(255, 250, 255, ${flashAlpha * 0.9})`;
+            ctx.beginPath();
+            ctx.arc(originX + Math.cos(leadAngle) * arcLen, originY + Math.sin(leadAngle) * arcLen, 4 + progress * 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+        } else if (atk.dir === 'down') {
+          // ── Down-slam: impact burst below player ──
+          const originX = this.x + this.width / 2;
+          const originY = this.y + this.height;
+          const burstRadius = 35 * Math.min(1, progress * 2);
+
+          // Radial impact lines
+          for (let i = 0; i < 10; i++) {
+            const a = (i / 10) * Math.PI * 2;
+            const lineAlpha = (0.3 - progress * 0.2) * (1 - progress * 0.4);
+            ctx.strokeStyle = `rgba(255, 248, 255, ${Math.max(0, lineAlpha)})`;
+            ctx.lineWidth = 2 - progress;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(originX + Math.cos(a) * burstRadius, originY + Math.sin(a) * burstRadius * 0.5);
+            ctx.stroke();
+          }
+
+          // Impact flash
+          if (progress < 0.6) {
+            const flashAlpha = Math.max(0, 1 - progress / 0.6) * 0.7;
+            ctx.fillStyle = `rgba(255, 250, 255, ${flashAlpha})`;
+            ctx.beginPath();
+            ctx.ellipse(originX, originY, burstRadius * 1.2, burstRadius * 0.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+        } else {
+          // ── Forward slash: horizontal arc (existing) ──
+          const originX = this.facing === 1 ? this.x + this.width : this.x;
+          const originY = this.y + this.height * 0.42;
+          const arcLen = 48;
+          const arcSpan = Math.PI * 0.72 * Math.min(1, progress * 1.5);
+          const startAngle = this.facing === 1 ? -Math.PI * 0.62 : -Math.PI * 0.38;
+
+          const leadAngle = startAngle + this.facing * arcSpan;
+          ctx.strokeStyle = `rgba(255, 248, 255, ${0.9 - progress * 0.5})`;
+          ctx.lineWidth = 3.5 - progress * 2;
+          ctx.lineCap = 'round';
           ctx.beginPath();
-          ctx.arc(
-            originX + Math.cos(leadAngle) * arcLen,
-            originY + Math.sin(leadAngle) * arcLen,
-            4 + progress * 5, 0, Math.PI * 2
-          );
-          ctx.fill();
+          ctx.moveTo(originX, originY);
+          ctx.lineTo(originX + Math.cos(leadAngle) * arcLen, originY + Math.sin(leadAngle) * arcLen);
+          ctx.stroke();
+
+          for (let i = 0; i < 6; i++) {
+            const t = i / 6;
+            const a = startAngle + t * this.facing * arcSpan;
+            const lineAlpha = (0.12 + t * 0.35) * (1 - progress * 0.6);
+            ctx.strokeStyle = `rgba(224, 215, 255, ${lineAlpha})`;
+            ctx.lineWidth = 1 + t * 1.5;
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(originX + Math.cos(a) * arcLen, originY + Math.sin(a) * arcLen);
+            ctx.stroke();
+          }
+
+          ctx.strokeStyle = `rgba(196, 181, 253, ${0.3 * (1 - progress)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          for (let i = 0; i <= 14; i++) {
+            const t = i / 14;
+            const a = startAngle + t * this.facing * arcSpan;
+            const len = arcLen * (0.7 + t * 0.3);
+            const px = originX + Math.cos(a) * len;
+            const py = originY + Math.sin(a) * len;
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+
+          if (progress > 0.35) {
+            const flashAlpha = Math.max(0, Math.sin(progress * Math.PI) * 1.2);
+            ctx.fillStyle = `rgba(255, 250, 255, ${flashAlpha * 0.9})`;
+            ctx.beginPath();
+            ctx.arc(originX + Math.cos(leadAngle) * arcLen, originY + Math.sin(leadAngle) * arcLen, 4 + progress * 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
 
         ctx.lineCap = 'butt';

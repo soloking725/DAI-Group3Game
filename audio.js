@@ -131,8 +131,17 @@ const SFX = (() => {
     dash() { noiseBurst(0.15, { filterFreq: 3000, volume: 0.2 }); tone(200, 0.12, { type: 'sawtooth', sweepTo: 60, volume: 0.12 }); },
     phaseDash() { noiseBurst(0.2, { filterFreq: 4000, volume: 0.25 }); tone(800, 0.2, { type: 'sine', sweepTo: 200, volume: 0.15 }); },
     attack() { tone(180, 0.08, { type: 'square', sweepTo: 90, volume: 0.2 }); },
+    heavyAttack() {
+      tone(100, 0.15, { type: 'sawtooth', sweepTo: 40, volume: 0.3 });
+      noiseBurst(0.12, { filterFreq: 800, volume: 0.35 });
+    },
+    chargeFull() { tone(440, 0.12, { type: 'sine', sweepTo: 880, volume: 0.15 }); },
     attackHit() { noiseBurst(0.1, { filterFreq: 1200, volume: 0.3 }); tone(120, 0.08, { type: 'square', sweepTo: 40, volume: 0.2 }); },
     playerHurt() { tone(220, 0.25, { type: 'sawtooth', sweepTo: 80, volume: 0.25 }); },
+    parry() {
+      tone(880, 0.15, { type: 'sine', sweepTo: 1760, volume: 0.28 });
+      noiseBurst(0.1, { filterFreq: 5000, volume: 0.2 });
+    },
     shardShot() { tone(900, 0.1, { type: 'sine', sweepTo: 1400, volume: 0.15 }); },
     shardHit() { noiseBurst(0.08, { filterFreq: 2500, volume: 0.2 }); },
     enemyDeath() { noiseBurst(0.2, { filterFreq: 1500, volume: 0.25 }); tone(300, 0.2, { type: 'sawtooth', sweepTo: 50, volume: 0.18 }); },

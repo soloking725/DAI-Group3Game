@@ -1,0 +1,256 @@
+//HOW TO USE:
+// python3 -m http.server 8000
+// http://localhost:8000/debug_new.html
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stillpoint — Live Debug Console</title>
+<style>
+  :root { --bg: #0d0d1a; --panel: #1a1a2e; --border: #2a2a4e; --text: #c4b5fd; --ok: #2dd4bf; --warn: #fbbf24; --err: #f87171; --dim: #6b6b8d; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; line-height: 1.5; }
+  h1 { color: var(--text); font-size: 1.4em; margin-bottom: 4px; }
+  h2 { color: var(--ok); font-size: 1.05em; margin: 16px 0 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .subtitle { color: var(--dim); font-size: 0.8em; margin-bottom: 16px; max-width: 900px; }
+  .status-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .stat { background: var(--panel); border: 1px solid var(--border); padding: 8px 14px; border-radius: 4px; font-size: 0.85em; }
+  .stat .label { color: var(--dim); }
+  .stat .value { font-weight: bold; } .stat .ok { color: var(--ok); } .stat .warn { color: var(--warn); } .stat .err { color: var(--err); }
+  .btn { background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 0.85em; margin: 4px 2px; }
+  .btn:hover { background: var(--border); } .btn.run { border-color: var(--ok); color: var(--ok); } .btn.clear { border-color: var(--warn); color: var(--warn); }
+  #log { background: #000; border: 1px solid var(--border); padding: 10px; border-radius: 4px; font-size: 0.8em; height: 320px; overflow-y: auto; margin: 12px 0; white-space: pre-wrap; }
+  #log .ok { color: var(--ok); } #log .warn { color: var(--warn); } #log .err { color: var(--err); } #log .dim { color: var(--dim); }
+  .progress { height: 4px; background: var(--border); border-radius: 2px; margin: 8px 0; }
+  .progress-fill { height: 100%; background: var(--ok); border-radius: 2px; transition: width 0.3s; }
+  .frame-wrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  iframe#sandbox { width: 800px; height: 450px; border: 1px solid var(--border); background: #000; }
+  .note { color: var(--dim); font-size: 0.75em; max-width: 900px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<h1>⚙ Stillpoint — Live Debug Console</h1>
+<p class="subtitle">
+  This actually runs the real game in a sandboxed iframe, simulates input, and checks the canvas
+  and frame timing for real problems — it doesn't just print a hardcoded list of "PASS". Every
+  check below either genuinely passes or genuinely fails based on what the game does.
+</p>
+
+<div class="status-bar">
+  <div class="stat"><span class="label">Checks Run:</span> <span class="value" id="stat-run">0</span>/<span id="stat-total">?</span></div>
+  <div class="stat"><span class="label">Passed:</span> <span class="value ok" id="stat-ok">0</span></div>
+  <div class="stat"><span class="label">Warnings:</span> <span class="value warn" id="stat-warn">0</span></div>
+  <div class="stat"><span class="label">Errors:</span> <span class="value err" id="stat-err">0</span></div>
+</div>
+<div class="progress"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+
+<div style="margin:8px 0;">
+  <button class="btn run" id="run-btn">▶ Run Live Checks</button>
+  <button class="btn clear" onclick="clearLog()">Clear Log</button>
+</div>
+
+<div class="frame-wrap">
+  <iframe id="sandbox" title="game sandbox"></iframe>
+  <div style="flex:1; min-width: 300px;">
+    <div id="log"></div>
+  </div>
+</div>
+<p class="note">
+  The iframe above is the actual game running live — you'll see it flash through menu → new
+  game → moving → save/quit/load while the checks run. Nothing here reads game.js's source code
+  or maintains a list of "known bugs"; every check either observes real canvas pixels changing
+  (or not) or measures real elapsed time between frames.
+</p>
+
+<script>
+const logEl = document.getElementById('log');
+let checksPassed = 0, checksWarn = 0, checksErr = 0, checksRun = 0, checksTotal = 0;
+
+function log(msg, cls) {
+  const ts = new Date().toLocaleTimeString();
+  logEl.innerHTML += '<span class="' + (cls||'') + '">[' + ts + '] ' + msg + '</span>\n';
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function clearLog() { logEl.innerHTML = ''; checksPassed = checksWarn = checksErr = checksRun = 0; updateStats(); }
+function updateStats() {
+  document.getElementById('stat-run').textContent = checksRun;
+  document.getElementById('stat-ok').textContent = checksPassed;
+  document.getElementById('stat-warn').textContent = checksWarn;
+  document.getElementById('stat-err').textContent = checksErr;
+  document.getElementById('progress-fill').style.width = (checksTotal ? (checksRun / checksTotal * 100) : 0) + '%';
+}
+function report(id, status, msg) {
+  checksRun++;
+  if (status === 'ok') { checksPassed++; log('\u2713 ' + id + ': PASS' + (msg ? ' \u2014 ' + msg : ''), 'ok'); }
+  else if (status === 'warn') { checksWarn++; log('\u26a0 ' + id + ': WARN' + (msg ? ' \u2014 ' + msg : ''), 'warn'); }
+  else { checksErr++; log('\u2717 ' + id + ': FAIL' + (msg ? ' \u2014 ' + msg : ''), 'err'); }
+  updateStats();
+}
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+// Dispatch a real keydown+keyup pair to the iframe's window, matching what
+// input.js listens for (e.code-based).
+function pressKey(win, code, holdMs) {
+  return new Promise(async (resolve) => {
+    win.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+    await sleep(holdMs || 40);
+    win.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true }));
+    resolve();
+  });
+}
+
+// Grab a snapshot of the canvas as a data URL for pixel-level diffing.
+function snap(doc) {
+  const canvas = doc.getElementById('game');
+  if (!canvas) return null;
+  return canvas.toDataURL();
+}
+
+async function loadSandbox() {
+  const iframe = document.getElementById('sandbox');
+
+  // Fetch index.html's markup and re-inject it via srcdoc so we can prepend a
+  // small instrumentation script (frame-timing hook) BEFORE game.js runs,
+  // without touching the real game files at all.
+  const html = await fetch('index.html').then((r) => r.text());
+  const patch = `
+    <script>
+      window.__frameLog = [];
+      const _raf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = function(cb) {
+        return _raf(function(ts) {
+          window.__frameLog.push(ts);
+          if (window.__frameLog.length > 4000) window.__frameLog.shift();
+          cb(ts);
+        });
+      };
+    <\/script>
+  `;
+  const patched = html.replace('<script src="audio.js">', patch + '<script src="audio.js">');
+
+  return new Promise((resolve) => {
+    iframe.onload = () => resolve(iframe);
+    iframe.srcdoc = patched;
+  });
+}
+
+async function runChecks() {
+  document.getElementById('run-btn').disabled = true;
+  clearLog();
+  checksTotal = 8;
+  updateStats();
+  log('Booting sandboxed game instance...', 'dim');
+
+  const iframe = await loadSandbox();
+  await sleep(400);
+  const win = iframe.contentWindow;
+  const doc = iframe.contentDocument;
+  win.__sawError = null;
+  win.addEventListener('error', (e) => { win.__sawError = e.message; });
+
+  // ── Check 1: canvas exists and has a 2D context ─────────────────────────
+  const canvas = doc.getElementById('game');
+  if (canvas && canvas.getContext('2d')) {
+    report('R01', 'ok', 'canvas#game present with 2D context');
+  } else {
+    report('R01', 'err', 'canvas#game missing or context unavailable — nothing else can be checked');
+    document.getElementById('run-btn').disabled = false;
+    return;
+  }
+
+  // ── Check 2: the game loop is actually alive at idle (menu particles) ───
+  const s1 = snap(doc);
+  await sleep(500);
+  const s2 = snap(doc);
+  report('R02', s1 !== s2 ? 'ok' : 'err',
+    s1 !== s2 ? 'canvas is animating at idle (menu)' : 'canvas identical after 500ms idle — render loop may be stalled');
+
+  // ── Check 3: menu navigation actually changes screens ───────────────────
+  await pressKey(win, 'Space'); await sleep(200); // Play
+  const s3 = snap(doc);
+  report('R03', s3 !== s2 ? 'ok' : 'err',
+    s3 !== s2 ? 'Space on main menu opened a different screen' : 'canvas unchanged after pressing Space on main menu');
+
+  // ── Check 4: starting a new game actually enters gameplay ──────────────
+  await pressKey(win, 'Space'); await sleep(300); // select slot -> new game
+  const s4 = snap(doc);
+  report('R04', s4 !== s3 ? 'ok' : 'err',
+    s4 !== s3 ? 'starting a new game changed the canvas' : 'canvas unchanged after starting new game');
+
+  // ── Check 5: THE FREEZE-BUG CHECK — does movement actually move anything? ──
+  // This is the one that would have caught the missing-brace bug: if update()
+  // silently stops running once gameState leaves 'menu', the canvas will be
+  // byte-identical before/after even though we're holding a movement key.
+  const beforeMove = snap(doc);
+  win.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight', bubbles: true }));
+  await sleep(600);
+  win.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowRight', bubbles: true }));
+  const afterMove = snap(doc);
+  report('R05', afterMove !== beforeMove ? 'ok' : 'err',
+    afterMove !== beforeMove
+      ? 'player actually moved when ArrowRight was held'
+      : 'canvas IDENTICAL after holding ArrowRight for 600ms — the game is frozen (update() likely not running for this game state)');
+
+  // ── Check 6: save → quit to menu → load doesn't freeze (the exact bug you hit) ──
+  await pressKey(win, 'Escape'); await sleep(400); // skip tutorial -> autosave
+  await pressKey(win, 'Escape'); await sleep(200); // open pause menu
+  for (let i = 0; i < 5; i++) { await pressKey(win, 'ArrowDown', 30); await sleep(60); } // navigate to Quit to Menu
+  await pressKey(win, 'Space'); await sleep(400); // confirm quit
+  await pressKey(win, 'Space'); await sleep(300); // open Play/select-save screen
+  await pressKey(win, 'Space'); await sleep(500); // load slot 1
+
+  const beforeMove2 = snap(doc);
+  win.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight', bubbles: true }));
+  await sleep(600);
+  win.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowRight', bubbles: true }));
+  const afterMove2 = snap(doc);
+  report('R06', afterMove2 !== beforeMove2 ? 'ok' : 'err',
+    afterMove2 !== beforeMove2
+      ? 'game still responds to input after a save/quit/load round trip'
+      : 'canvas IDENTICAL after loading a save and holding ArrowRight — save/load path is frozen');
+
+  // ── Check 7: frame delivery rate is sane (catches runaway hitstop/slow-mo) ──
+  // Attack repeatedly into whatever is nearby to trigger hit reactions, then
+  // look at real wall-clock gaps between animation frames. A single combat
+  // hit legitimately freezing the game for a long stretch (e.g. an overtuned
+  // kill-cam) shows up here as a large gap between two consecutive rAF timestamps.
+  win.__frameLog.length = 0;
+  for (let i = 0; i < 6; i++) {
+    await pressKey(win, 'KeyZ', 40);
+    win.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight', bubbles: true }));
+    await sleep(120);
+    win.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowRight', bubbles: true }));
+    await sleep(120);
+  }
+  const frames = win.__frameLog.slice();
+  let maxGap = 0;
+  for (let i = 1; i < frames.length; i++) maxGap = Math.max(maxGap, frames[i] - frames[i - 1]);
+  if (frames.length < 2) {
+    report('R07', 'warn', 'not enough frame samples captured to measure (try again / nothing was hit)');
+  } else if (maxGap > 400) {
+    report('R07', 'err', `longest gap between frames was ${maxGap.toFixed(0)}ms — something (hitstop/slow-mo/kill-cam) is freezing combat for way too long`);
+  } else if (maxGap > 150) {
+    report('R07', 'warn', `longest gap between frames was ${maxGap.toFixed(0)}ms — noticeable but not extreme; worth a look if it feels laggy`);
+  } else {
+    report('R07', 'ok', `longest gap between frames during combat was ${maxGap.toFixed(0)}ms`);
+  }
+
+  // ── Check 8: no uncaught exceptions were thrown anywhere in the run ─────
+  report('R08', win.__sawError ? 'err' : 'ok',
+    win.__sawError ? ('uncaught error during run: ' + win.__sawError) : 'no uncaught exceptions during the whole run');
+
+  log('Done. ' + checksPassed + ' pass, ' + checksWarn + ' warn, ' + checksErr + ' fail.', checksErr ? 'err' : checksWarn ? 'warn' : 'ok');
+  document.getElementById('run-btn').disabled = false;
+}
+
+document.getElementById('run-btn').addEventListener('click', () => { runChecks().catch((e) => { report('FATAL', 'err', e.message); document.getElementById('run-btn').disabled = false; }); });
+
+// Catch uncaught errors inside the iframe once it exists.
+window.addEventListener('message', () => {});
+</script>
+</body>
+</html>

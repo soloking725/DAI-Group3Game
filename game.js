@@ -48,7 +48,7 @@ resizeCanvasToFit();
 const fullscreenBtn = document.getElementById('fullscreen-btn');
 if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
 
-// Game state
+// ── Game state & globals ────────────────────────────────────────────────
 let player;
 let currentAreaId = 'tutorial_area';
 let echoes = [];
@@ -65,6 +65,12 @@ let transitioning = false;
 // Death/respawn FX
 let screenShake = 0; // frames of shake remaining
 let screenShakeIntensity = 0;
+// Accessibility toggles (Phase 0.6)
+let screenShakeEnabled = true;
+let hitstopEnabled = true;
+// Kill cam slow-mo
+let slowMoTimer = 0;    // frames remaining in slow-mo
+let slowMoSkip = 0;     // frame counter for skipping (0 = render, 1 = skip)
 let deathFadeAlpha = 0; // fade overlay during death/respawn transition
 let deathFadeDir = 0; // -1 = fade out, 1 = fade in, 0 = none
 
@@ -106,6 +112,15 @@ let gameTimeScale = 1.0;
 // Map system
 let discoveredAreas = {};
 let mapOpen = false;
+
+// ── Pause menu (Phase 0.5) ──────────────────────────────────────────────
+let pauseMenuIndex = 0;
+let pauseMenuItems = [];
+// ── Multi-screen menu navigation ─────────────────────────────────────────
+let menuScreen = 'main';       // 'main' | 'play' | 'controls' | 'settings'
+let menuSelection = 0;         // unified selection index per screen
+let menuSelectionPlay = 0;     // save slot selection
+let menuSelectionSettings = 0; // settings option index
 
 // ── Canvas HUD state (Phase 0.1) ────────────────────────────────────────
 let hudVisible = false;       // whether the HUD should be drawn at all
@@ -344,6 +359,8 @@ class Particle {
     ctx.globalAlpha = 1;
   }
 }
+
+// ── Particles, collision, area enemy management ─────────────────────────
 
 function spawnParticles(x, y, color, count) {
   count = count || 8;
@@ -790,8 +807,9 @@ function unstuckPlayer() {
   spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 12);
 }
 
-// Unstuck button click
-document.getElementById('unstuck-btn').addEventListener('click', unstuckPlayer);
+// Unstuck button click (if present)
+const unstuckBtn = document.getElementById('unstuck-btn');
+if (unstuckBtn) unstuckBtn.addEventListener('click', unstuckPlayer);
 
 // Keyboard shortcut: U key
 function handleUnstuckKey() {
@@ -815,6 +833,10 @@ function init() {
   projectiles = [];
   particles = [];
   gameState = 'menu';
+  menuScreen = 'main';
+  menuSelection = 0;
+  menuSelectionPlay = 0;
+  menuSelectionSettings = 0;
   currentAreaId = 'tutorial_area';
   areaEnemiesSpawned = {};
   discoveredAreas = { tutorial_area: true };
@@ -855,6 +877,52 @@ function init() {
   }
 
   showUI(false); // hide HUD until the player actually starts the game
+
+  // Load accessibility settings (Phase 0.6)
+  loadSettings();
+}
+
+// ── Settings persistence (Phase 0.6) ──────────────────────────────────
+const SETTINGS_KEY = 'stillpoint_settings_v1';
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      screenShakeEnabled = s.screenShake !== undefined ? s.screenShake : true;
+      hitstopEnabled = s.hitstop !== undefined ? s.hitstop : true;
+    }
+  } catch (e) { /* degrade silently */ }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      screenShake: screenShakeEnabled,
+      hitstop: hitstopEnabled,
+    }));
+  } catch (e) { /* degrade silently */ }
+}
+
+// Rebuild pause menu items (used after toggling a setting to update labels)
+function buildPauseMenu() {
+  pauseMenuItems = [
+    { label: 'Resume', action: () => { /* just close the menu */ } },
+    { label: 'Return to Stillpoint', action: () => returnToStillpoint(), disabled: !lastStillpoint },
+    { label: 'Restart Room', action: () => restartRoom() },
+    { label: `Screen Shake: ${screenShakeEnabled ? 'ON' : 'OFF'}`, action: () => {
+      screenShakeEnabled = !screenShakeEnabled;
+      saveSettings();
+      buildPauseMenu();
+    }},
+    { label: `Hitstop: ${hitstopEnabled ? 'ON' : 'OFF'}`, action: () => {
+      hitstopEnabled = !hitstopEnabled;
+      saveSettings();
+      buildPauseMenu();
+    }},
+    { label: 'Quit to Menu', action: () => { init(); } },
+  ];
 }
 
 // Respawn at checkpoint
@@ -867,18 +935,32 @@ function init() {
 // limits, or a locked-down environment should degrade to "no persistence"
 // rather than crash the game.
 // ═══════════════════════════════════════════════════════════════════════
-const SAVE_KEY = 'stillpoint_save_v1';
+const SAVE_SLOTS = 3;
+let currentSaveSlot = 0; // active slot index (0-based)
 
-function hasSaveGame() {
+function getSaveKey(slot) {
+  return `stillpoint_save_v1_slot_${slot}`;
+}
+
+function hasSaveGame(slot) {
   try {
-    return localStorage.getItem(SAVE_KEY) !== null;
+    return localStorage.getItem(getSaveKey(slot)) !== null;
   } catch (e) {
     return false;
   }
 }
 
-function saveGame() {
+// Check if ANY slot has a save (for menu "Continue" prompt)
+function hasAnySave() {
+  for (let i = 0; i < SAVE_SLOTS; i++) {
+    if (hasSaveGame(i)) return true;
+  }
+  return false;
+}
+
+function saveGame(slot) {
   if (!player) return;
+  const s = slot !== undefined ? slot : currentSaveSlot;
   try {
     const data = {
       version: 1,
@@ -901,16 +983,17 @@ function saveGame() {
       bossDefeated,
       tutorialState,
     };
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    localStorage.setItem(getSaveKey(s), JSON.stringify(data));
   } catch (e) {
     // Storage unavailable — fail silently; the run just won't persist.
   }
 }
 
 // Returns true on success. Caller is responsible for setting gameState etc.
-function loadGame() {
+function loadGame(slot) {
+  const s = slot !== undefined ? slot : currentSaveSlot;
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(getSaveKey(s));
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!data || !data.currentAreaId || !AREAS[data.currentAreaId] || !data.player) return false;
@@ -949,12 +1032,45 @@ function loadGame() {
   }
 }
 
-function deleteSave() {
+function deleteSave(slot) {
+  const s = slot !== undefined ? slot : currentSaveSlot;
   try {
-    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(getSaveKey(s));
   } catch (e) {
     // ignore
   }
+}
+
+// Get save slot info for menu display
+function getSlotInfo(slot) {
+  if (!hasSaveGame(slot)) return { empty: true };
+  try {
+    const raw = localStorage.getItem(getSaveKey(slot));
+    const data = JSON.parse(raw);
+    return {
+      empty: false,
+      areaId: data.currentAreaId,
+      health: data.player?.health,
+      hasPhaseDash: !!(data.abilityState && data.abilityState.hasPhaseDash),
+      hasShardShot: !!(data.abilityState && data.abilityState.hasShardShot),
+      hasStillpoint: !!(data.abilityState && data.abilityState.hasStillpoint),
+      bossDefeated: !!data.bossDefeated,
+    };
+  } catch (e) {
+    return { empty: true };
+  }
+}
+
+// Friendly area name for save slot display
+function getAreaDisplayName(areaId) {
+  const names = {
+    'tutorial_area': 'Tutorial',
+    'the_fracture': 'The Fracture',
+    'echoing_halls': 'Echoing Halls',
+    'shard_caverns': 'Shard Caverns',
+    'fractured_core': 'Fractured Core',
+  };
+  return names[areaId] || areaId;
 }
 
 // Fresh-run setup — used by the menu when there's no save, or when the
@@ -1025,6 +1141,63 @@ function respawnPlayer() {
   projectiles = [];
 }
 
+// Teleport to the most recent Stillpoint checkpoint (full health).
+// Used by the pause menu — does NOT trigger a fade if there's no checkpoint.
+function returnToStillpoint() {
+  if (!lastStillpoint) {
+    addAbilityNotification('No Stillpoint activated yet');
+    return;
+  }
+  // Safety: verify the checkpoint's area still exists (corrupt save or area removed)
+  if (!AREAS[lastStillpoint.areaId]) {
+    addAbilityNotification('Stillpoint area missing — respawning at room start');
+    restartRoom();
+    return;
+  }
+  currentAreaId = lastStillpoint.areaId;
+  player.x = lastStillpoint.x;
+  player.y = lastStillpoint.y - player.height;
+  player.vx = 0;
+  player.vy = 0;
+  player.health = MAX_HEALTH;
+  player.invincibleTimer = 30;
+  clearAreaEnemies(currentAreaId);
+  spawnAreaEnemies(currentAreaId);
+  resetCamera();
+  SFX.setAreaAmbient(currentAreaId);
+  echoes = [];
+  projectiles = [];
+  spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 12);
+  SFX.stillpoint();
+}
+
+// Reset the current room: player to area spawn, enemies respawn, destructibles heal.
+// Used by the pause menu — the player keeps their health/abilities.
+function restartRoom() {
+  const area = getCurrentArea();
+  player.x = 100;
+  player.y = area.groundY - 60;
+  player.vx = 0;
+  player.vy = 0;
+  player.invincibleTimer = 30;
+  // Heal the room's destructible platforms
+  for (const plat of area.platforms) {
+    if (plat.destructible && plat.hp !== undefined) {
+      plat.hp = plat.maxHp || 3;
+    }
+  }
+  // Respawn all enemies
+  clearAreaEnemies(currentAreaId);
+  spawnAreaEnemies(currentAreaId);
+  // Clear transient entities
+  echoes = [];
+  projectiles = [];
+  boss = null;
+  bossProjectiles = [];
+  resetCamera();
+  spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#67e8f9', 10);
+}
+
 // Update game state
 function update() {
   frameCount++;
@@ -1050,16 +1223,32 @@ function update() {
     }
   }
 
-  // Hitstop - freeze frame for impact feel
-  if (hitstopTimer > 0) {
+  // Hitstop - freeze frame for impact feel (respect accessibility toggle)
+  if (hitstopEnabled && hitstopTimer > 0) {
     hitstopTimer--;
     clearJustPressed();
     return;
   }
 
-  // Unstuck key (U)
-  handleUnstuckKey();
-  handleFullscreenKey();
+  // Slow-mo kill cam - skip frames for dramatic effect
+  if (slowMoTimer > 0) {
+    slowMoSkip++;
+    if (slowMoSkip >= 2) { // 0.5x speed (skip every other frame)
+      slowMoSkip = 0;
+      slowMoTimer--;
+    } else {
+      // Still render, but skip game logic
+      draw();
+      clearJustPressed();
+      return;
+    }
+  }
+
+  // Unstuck key (U) and fullscreen key (F) — only during active gameplay
+  if (gameState === 'playing') {
+    handleUnstuckKey();
+    handleFullscreenKey();
+  }
 
   // Menu state
   if (gameState === 'menu') {
@@ -1073,19 +1262,102 @@ function update() {
       if (p.x > W + 10) p.x = -10;
     }
 
-    // Check for start input
-    const saveExists = hasSaveGame();
-    if (saveExists && wasJustPressed('KeyN')) {
-      startNewGame();
-    } else if (wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
-      menuClick = false;
-      if (saveExists && loadGame()) {
-        gameState = 'playing';
-        SFX.init();
-        SFX.setAreaAmbient(currentAreaId);
-        showUI(true);
-      } else {
-        startNewGame();
+    if (menuScreen === 'main') {
+      // Main menu: Play, Controls, Settings
+      const mainItems = 3;
+      if (wasJustPressed('ArrowUp') || wasJustPressed('KeyW')) {
+        menuSelection = (menuSelection - 1 + mainItems) % mainItems;
+        SFX.uiSelect();
+      } else if (wasJustPressed('ArrowDown') || wasJustPressed('KeyS')) {
+        menuSelection = (menuSelection + 1) % mainItems;
+        SFX.uiSelect();
+      } else if (wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
+        menuClick = false;
+        if (menuSelection === 0) {
+          menuScreen = 'play';
+          menuSelectionPlay = menuSelectionPlay; // preserve slot selection
+          SFX.uiSelect();
+        } else if (menuSelection === 1) {
+          menuScreen = 'controls';
+          SFX.uiSelect();
+        } else if (menuSelection === 2) {
+          menuScreen = 'settings';
+          SFX.uiSelect();
+        }
+      }
+    } else if (menuScreen === 'play') {
+      // Play screen: navigate save slots, press N for new game, D to delete, Enter to load
+      // NOTE: Do NOT check menuClick here — a canvas click should attempt to load the
+      // selected slot (handled below with Enter), not blindly return to main menu.
+      if (wasJustPressed('Escape')) {
+          menuScreen = 'main';
+          menuSelection = 0;
+          SFX.uiSelect();
+        } else if (wasJustPressed('ArrowUp') || wasJustPressed('KeyW')) {
+          menuSelectionPlay = (menuSelectionPlay - 1 + SAVE_SLOTS) % SAVE_SLOTS;
+          SFX.uiSelect();
+        } else if (wasJustPressed('ArrowDown') || wasJustPressed('KeyS')) {
+          menuSelectionPlay = (menuSelectionPlay + 1) % SAVE_SLOTS;
+          SFX.uiSelect();
+        } else if (wasJustPressed('KeyN')) {
+          currentSaveSlot = menuSelectionPlay;
+          startNewGame();
+        } else if (wasJustPressed('KeyD')) {
+          if (hasSaveGame(menuSelectionPlay)) {
+            // Ask for confirmation — press D again to confirm, ESC to cancel
+            menuScreen = 'confirm_delete';
+            SFX.uiSelect();
+          }
+        } else if (wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
+          menuClick = false;
+          currentSaveSlot = menuSelectionPlay;
+          if (hasSaveGame(menuSelectionPlay) && loadGame(menuSelectionPlay)) {
+            gameState = 'playing';
+            SFX.init();
+            SFX.setAreaAmbient(currentAreaId);
+            showUI(true);
+          } else {
+            startNewGame();
+          }
+        }
+      } else if (menuScreen === 'confirm_delete') {
+        if (wasJustPressed('KeyD')) {
+          deleteSave(menuSelectionPlay);
+          menuScreen = 'play';
+          SFX.uiSelect();
+        } else if (wasJustPressed('Escape')) {
+          menuScreen = 'play';
+          SFX.uiSelect();
+        }
+      } else if (menuScreen === 'controls') {
+      // Controls screen: ESC to go back
+      if (wasJustPressed('Escape') || wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
+        menuClick = false;
+        menuScreen = 'main';
+        SFX.uiSelect();
+      }
+    } else if (menuScreen === 'settings') {
+      // Settings screen: Screen Shake, Hitstop
+      const settingsItems = 2;
+      if (wasJustPressed('Escape')) {
+        menuScreen = 'main';
+        SFX.uiSelect();
+      } else if (wasJustPressed('ArrowUp') || wasJustPressed('KeyW')) {
+        menuSelectionSettings = (menuSelectionSettings - 1 + settingsItems) % settingsItems;
+        SFX.uiSelect();
+      } else if (wasJustPressed('ArrowDown') || wasJustPressed('KeyS')) {
+        menuSelectionSettings = (menuSelectionSettings + 1) % settingsItems;
+        SFX.uiSelect();
+      } else if (wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
+        menuClick = false;
+        if (menuSelectionSettings === 0) {
+          screenShakeEnabled = !screenShakeEnabled;
+          saveSettings();
+        } else if (menuSelectionSettings === 1) {
+          hitstopEnabled = !hitstopEnabled;
+          saveSettings();
+        }
+        SFX.uiSelect();
       }
     }
     clearJustPressed();
@@ -1096,15 +1368,34 @@ function update() {
   if (gameState === 'gameover') {
     if (wasJustPressed('KeyR')) {
       respawnPlayer();
+    } else if (wasJustPressed('Escape')) {
+      // Quit to menu (don't delete save!)
+      init();
     }
     clearJustPressed();
     return;
   }
 
-  // Pause state
+  // Pause state — menu navigation (Phase 0.5)
   if (gameState === 'paused') {
     if (wasJustPressed('Escape')) {
+      // Close menu → resume
       gameState = 'playing';
+    } else if (wasJustPressed('ArrowUp')) {
+      pauseMenuIndex = (pauseMenuIndex - 1 + pauseMenuItems.length) % pauseMenuItems.length;
+      SFX.uiSelect();
+    } else if (wasJustPressed('ArrowDown')) {
+      pauseMenuIndex = (pauseMenuIndex + 1) % pauseMenuItems.length;
+      SFX.uiSelect();
+    } else if (wasJustPressed('Enter') || wasJustPressed('Space')) {
+      const action = pauseMenuItems[pauseMenuIndex].action;
+      if (action) {
+        action();
+        // Only resume if the action didn't change the game state (e.g. Quit to Menu calls init())
+        if (gameState === 'paused') {
+          gameState = 'playing';
+        }
+      }
     }
     clearJustPressed();
     return;
@@ -1168,6 +1459,8 @@ function update() {
       skipTutorial();
     } else {
       gameState = 'paused';
+      pauseMenuIndex = 0;
+      buildPauseMenu();
     }
     clearJustPressed();
     return;
@@ -1314,13 +1607,49 @@ function update() {
     // Player attack hits enemy
     const playerAtk = player.getAttackHitbox();
     if (playerAtk && !enemy.dead && rectsOverlap(playerAtk, enemy)) {
-      enemy.takeDamage(ATTACK_DAMAGE, player.x);
-      spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#f87171', 6);
-      screenShake = 6;
-      screenShakeIntensity = 3;
-      hitstopTimer = 4;
+      const dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
+      enemy.takeDamage(dmg, player.x, playerAtk.dir);
+      spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#f87171', player.heavy ? 10 : 6);
       player.gainFracture(); // melee hit recharges Fracture meter
-      if (enemy.dead) SFX.enemyDeath(); else SFX.attackHit();
+
+      // Per-attack hitstop/shake variation (heavy = amplified)
+      if (playerAtk.dir === 'down') {
+        player.vy = ATK_POGO_VY;
+        player.grounded = false;
+        screenShake = player.heavy ? 16 : 10; screenShakeIntensity = player.heavy ? 8 : 5;
+        hitstopTimer = player.heavy ? 12 : 7;
+      } else if (playerAtk.dir === 'up') {
+        screenShake = player.heavy ? 10 : 5; screenShakeIntensity = player.heavy ? 6 : 3;
+        hitstopTimer = player.heavy ? 9 : 5;
+      } else {
+        screenShake = player.heavy ? 12 : 6; screenShakeIntensity = player.heavy ? 6 : 3;
+        hitstopTimer = player.heavy ? 8 : 4;
+      }
+
+      // Extra knockback on heavy hit
+      if (player.heavy) {
+        const kb = player.facing * HEAVY_KNOCKBACK * 3;
+        enemy.vx = kb;
+        if (playerAtk.dir === 'down') enemy.vy = -6;
+        if (playerAtk.dir === 'up') enemy.vy = 6;
+      }
+
+      // Kill cam slow-mo — only on the LAST living enemy in the room (per design doc:
+      // "0.3x speed for 8 frames on the last enemy kill in a group"). Previously this
+      // fired on every single kill at 30 frames/0.5x, which is why combat felt like it
+      // lagged on almost every hit (most basic enemies die in 1-2 hits).
+      if (enemy.dead) {
+        SFX.enemyDeath();
+        const anyAlive = enemies.some((e) => e !== enemy && !e.dead);
+        if (!anyAlive) {
+          slowMoTimer = 8; slowMoSkip = 0; // ~0.3x for 8 frames, last-enemy-in-group only
+          screenShake = Math.max(screenShake, 12);
+          screenShakeIntensity = Math.max(screenShakeIntensity, 6);
+          hitstopTimer = Math.max(hitstopTimer, 8);
+        }
+      } else {
+        SFX.attackHit();
+      }
     }
 
         // Projectile hits enemy
@@ -1372,16 +1701,44 @@ function update() {
     // Enemy attack hits player
     const enemyAtk = enemy.getAttackHitbox();
     if (enemyAtk && rectsOverlap(enemyAtk, player)) {
-      player.takeDamage(ENEMY_DAMAGE);
-      spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
-      SFX.playerHurt();
+      if (player.parrying) {
+        // SUCCESSFUL PARRY — deflect and stun enemy
+        enemy.stunTimer = PARRY_STUN;
+        enemy.flashTimer = 10;
+        player.parrying = false;
+        player.parryTimer = 0;
+        player.invincibleTimer = PARRY_IFRAMES;
+        player.gainFracture();
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
+        screenShake = 4; screenShakeIntensity = 2;
+        hitstopTimer = 5;
+        SFX.parry();
+      } else {
+        player.takeDamage(ENEMY_DAMAGE);
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
+        SFX.playerHurt();
+      }
     }
 
     // Enemy body contact with player
     if (!enemy.dead && rectsOverlap(player, enemy) && player.invincibleTimer <= 0 && !player.phaseDashing) {
-      player.takeDamage(ENEMY_DAMAGE);
-      spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
-      SFX.playerHurt();
+      if (player.parrying) {
+        // SUCCESSFUL PARRY on body contact
+        enemy.stunTimer = PARRY_STUN;
+        enemy.flashTimer = 10;
+        player.parrying = false;
+        player.parryTimer = 0;
+        player.invincibleTimer = PARRY_IFRAMES;
+        player.gainFracture();
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
+        screenShake = 4; screenShakeIntensity = 2;
+        hitstopTimer = 5;
+        SFX.parry();
+      } else {
+        player.takeDamage(ENEMY_DAMAGE);
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
+        SFX.playerHurt();
+      }
     }
   }
 
@@ -1410,10 +1767,15 @@ function update() {
     // Player melee attack hits boss
     const playerAtk = player.getAttackHitbox();
     if (playerAtk && !boss.dead && rectsOverlap(playerAtk, boss)) {
-      boss.takeDamage(ATTACK_DAMAGE, player.x, 'melee');
-      spawnParticles(boss.x + boss.width / 2, boss.y + boss.height / 2, '#f87171', 6);
+      const dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
+      boss.takeDamage(dmg, player.x, 'melee');
+      spawnParticles(boss.x + boss.width / 2, boss.y + boss.height / 2, '#f87171', player.heavy ? 12 : 6);
       player.gainFracture();
       SFX.bossHit();
+      if (player.heavy) {
+        screenShake = 14; screenShakeIntensity = 7;
+        hitstopTimer = 10;
+      }
     }
 
     // Player projectiles hit boss
@@ -1433,18 +1795,46 @@ function update() {
       const bp = bossProjectiles[j];
       const bpBounds = { x: bp.x, y: bp.y, width: bp.width, height: bp.height };
       if (rectsOverlap(bpBounds, player) && player.invincibleTimer <= 0 && !player.phaseDashing) {
-        player.takeDamage(BOSS_DAMAGE);
-        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 4);
+        if (player.parrying) {
+          // Parry boss projectile
+          boss.stunTimer = PARRY_STUN;
+          boss.flashTimer = 10;
+          player.parrying = false;
+          player.parryTimer = 0;
+          player.invincibleTimer = PARRY_IFRAMES;
+          player.gainFracture();
+          spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
+          screenShake = 4; screenShakeIntensity = 2;
+          hitstopTimer = 5;
+          SFX.parry();
+        } else {
+          player.takeDamage(BOSS_DAMAGE);
+          spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 4);
+          SFX.playerHurt();
+        }
         bossProjectiles.splice(j, 1);
-        SFX.playerHurt();
       }
     }
 
     // Boss body contact with player
     if (!boss.dead && rectsOverlap(player, boss) && player.invincibleTimer <= 0 && !player.phaseDashing) {
-      player.takeDamage(BOSS_DAMAGE);
-      spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 4);
-      SFX.playerHurt();
+      if (player.parrying) {
+        // Parry boss body contact
+        boss.stunTimer = PARRY_STUN;
+        boss.flashTimer = 10;
+        player.parrying = false;
+        player.parryTimer = 0;
+        player.invincibleTimer = PARRY_IFRAMES;
+        player.gainFracture();
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
+        screenShake = 4; screenShakeIntensity = 2;
+        hitstopTimer = 5;
+        SFX.parry();
+      } else {
+        player.takeDamage(BOSS_DAMAGE);
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 4);
+        SFX.playerHurt();
+      }
     }
 
     // Boss death — trigger victory!
@@ -1589,7 +1979,6 @@ function update() {
 
   clearJustPressed();
 }
-
 // NOTE: The HUD (health, boss health, ability cooldowns, area name, checkpoint
 // indicator) is drawn directly on the canvas by drawHUD() inside draw() — see
 // the "CANVAS HUD (Phase 0.1)" section near the bottom of this file. There is
@@ -1602,6 +1991,7 @@ function update() {
 // #boss-health-container, #controls-hint); those elements no longer exist
 // in index.html, so all of it is drawn straight onto the canvas here.
 // ═══════════════════════════════════════════════════════════════════════
+// ── HUD rendering ───────────────────────────────────────────────────────
 
 function drawHUD(ctx) {
   if (!hudVisible || !player) return;
@@ -1753,6 +2143,9 @@ function drawControlsHint(ctx) {
   ctx.globalAlpha = 1;
 }
 
+
+
+
 // Small recharge rings around the player's feet — one per ability that's
 // actually cooling down (world space, drawn while the camera transform is
 // still active). Nothing is shown for abilities that are ready or not yet
@@ -1793,8 +2186,8 @@ function drawDashCooldownRing(ctx) {
   }
 }
 
-// Draw the start menu
-function drawMenu() {
+// Shared menu background (particles, grid, title glow, footer)
+function drawMenuBackground() {
   // Background
   ctx.fillStyle = '#0a0a0f';
   ctx.fillRect(0, 0, W, H);
@@ -1833,48 +2226,352 @@ function drawMenu() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W, H);
 
-  // Title
+  return titlePulse;
+}
+
+// ── Main Menu: Play, Controls, Settings ──────────────────────────────────
+function drawMainMenu() {
+  const titlePulse = drawMenuBackground();
+
   ctx.textAlign = 'center';
 
-  // Title text
+  // Title
   ctx.fillStyle = `rgba(196, 181, 253, ${titlePulse})`;
   ctx.font = 'bold 64px "Courier New", monospace';
-  ctx.fillText('STILLPOINT', W / 2, H / 2 - 50);
+  ctx.fillText('STILLPOINT', W / 2, H / 2 - 80);
 
   // Subtitle
   ctx.fillStyle = `rgba(103, 232, 249, ${titlePulse * 0.7})`;
   ctx.font = '14px "Courier New", monospace';
-  ctx.fillText('A world fractured in time', W / 2, H / 2 - 20);
+  ctx.fillText('A world fractured in time', W / 2, H / 2 - 55);
 
-  // Prompt
-  const promptAlpha = Math.sin(frameCount * 0.05) * 0.4 + 0.6;
-  ctx.fillStyle = `rgba(203, 245, 255, ${promptAlpha})`;
-  ctx.font = '16px "Courier New", monospace';
-  if (hasSaveGame()) {
-    ctx.fillText('[ Space / Click to Continue ]', W / 2, H / 2 + 30);
-    ctx.font = '11px "Courier New", monospace';
-    ctx.fillStyle = 'rgba(106, 106, 142, 0.7)';
-    ctx.fillText('N : New Game', W / 2, H / 2 + 50);
-  } else {
-    ctx.fillText('[ Space / Click to Begin ]', W / 2, H / 2 + 30);
+  // Menu items
+  const items = ['Play', 'Controls', 'Settings'];
+  const itemY = H / 2 - 10;
+  const itemHeight = 40;
+  const itemWidth = 220;
+  const itemX = W / 2 - itemWidth / 2;
+
+  for (let i = 0; i < items.length; i++) {
+    const y = itemY + i * (itemHeight + 6);
+    const isSelected = i === menuSelection;
+
+    // Item background
+    ctx.fillStyle = isSelected
+      ? 'rgba(196, 181, 253, 0.15)'
+      : 'rgba(30, 30, 50, 0.3)';
+    ctx.fillRect(itemX, y, itemWidth, itemHeight);
+
+    // Item border
+    ctx.strokeStyle = isSelected
+      ? 'rgba(196, 181, 253, 0.8)'
+      : 'rgba(58, 58, 94, 0.3)';
+    ctx.lineWidth = isSelected ? 2 : 1;
+    ctx.strokeRect(itemX, y, itemWidth, itemHeight);
+
+    // Item text
+    ctx.fillStyle = isSelected ? '#c4b5fd' : '#6a6a8e';
+    ctx.font = `${isSelected ? 'bold ' : ''}16px "Courier New", monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(items[i], W / 2, y + 26);
+
+    // Selection arrow
+    if (isSelected) {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#c4b5fd';
+      ctx.font = 'bold 14px "Courier New", monospace';
+      ctx.fillText('▶', itemX - 4, y + 26);
+    }
   }
 
-  // Controls
-  ctx.fillStyle = 'rgba(106, 106, 142, 0.6)';
-  ctx.font = '11px "Courier New", monospace';
-  ctx.fillText('\u2190 \u2192 / A D : Move  |  \u2191 / Space : Jump  |  X : Dash', W / 2, H / 2 + 75);
-  ctx.fillText('Z / J : Attack  |  C : Phase Dash  |  V : Shard Shot  |  W+V : Tilt', W / 2, H / 2 + 93);
-  ctx.fillText('M : Map', W / 2, H / 2 + 111);
+  // Hint
+  const promptAlpha = Math.sin(frameCount * 0.05) * 0.4 + 0.6;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = `rgba(203, 245, 255, ${promptAlpha})`;
+  ctx.font = '12px "Courier New", monospace';
+  ctx.fillText('↑↓ / WS : Select   |   Space / Enter : Choose', W / 2, itemY + items.length * (itemHeight + 6) + 16);
 
   // Footer
   ctx.fillStyle = 'rgba(58, 58, 94, 0.5)';
   ctx.font = '10px "Courier New", monospace';
-  ctx.fillText('Stillpoint \u2014 Phase 2', W / 2, H - 20);
+  ctx.fillText('Stillpoint — Phase 2', W / 2, H - 20);
+  ctx.textAlign = 'left';
+}
+
+// ── Play Menu: Save Slot Selection ────────────────────────────────────────
+function drawPlayMenu() {
+  const titlePulse = drawMenuBackground();
+
+  ctx.textAlign = 'center';
+
+  // Screen title
+  ctx.fillStyle = `rgba(196, 181, 253, ${titlePulse})`;
+  ctx.font = 'bold 36px "Courier New", monospace';
+  ctx.fillText('SELECT SAVE', W / 2, H / 2 - 90);
+
+  // Save slot selection
+  const slotY = H / 2 - 40;
+  const slotHeight = 38;
+  const slotWidth = 280;
+  const slotX = W / 2 - slotWidth / 2;
+
+  for (let i = 0; i < SAVE_SLOTS; i++) {
+    const y = slotY + i * (slotHeight + 8);
+    const isSelected = i === menuSelectionPlay;
+    const info = getSlotInfo(i);
+
+    // Slot background
+    ctx.fillStyle = isSelected
+      ? 'rgba(196, 181, 253, 0.15)'
+      : 'rgba(30, 30, 50, 0.5)';
+    ctx.fillRect(slotX, y, slotWidth, slotHeight);
+
+    // Slot border
+    ctx.strokeStyle = isSelected
+      ? 'rgba(196, 181, 253, 0.8)'
+      : 'rgba(58, 58, 94, 0.3)';
+    ctx.lineWidth = isSelected ? 2 : 1;
+    ctx.strokeRect(slotX, y, slotWidth, slotHeight);
+
+    // Slot number + label
+    ctx.textAlign = 'left';
+    ctx.fillStyle = isSelected ? '#c4b5fd' : '#6a6a8e';
+    ctx.font = `${isSelected ? 'bold ' : ''}13px "Courier New", monospace`;
+    ctx.fillText(`Slot ${i + 1}`, slotX + 12, y + 23);
+
+    // Slot info
+    ctx.textAlign = 'right';
+    if (info.empty) {
+      ctx.fillStyle = isSelected ? 'rgba(106, 106, 142, 0.8)' : 'rgba(58, 58, 94, 0.6)';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillText('[ Empty ]', slotX + slotWidth - 12, y + 23);
+    } else {
+      ctx.fillStyle = isSelected ? '#86efac' : '#4ade80';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillText(getAreaDisplayName(info.areaId), slotX + slotWidth - 12, y + 23);
+    }
+
+    // Selection arrow
+    if (isSelected) {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#c4b5fd';
+      ctx.font = 'bold 14px "Courier New", monospace';
+      ctx.fillText('▶', slotX - 4, y + 24);
+    }
+  }
+
+  // Prompt hints
+  const promptAlpha = Math.sin(frameCount * 0.05) * 0.4 + 0.6;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = `rgba(203, 245, 255, ${promptAlpha})`;
+  ctx.font = '13px "Courier New", monospace';
+  ctx.fillText('↑↓ / WS : Select Slot   |   Space / Enter : Load / New Game', W / 2, slotY + SAVE_SLOTS * (slotHeight + 8) + 16);
+  ctx.fillStyle = 'rgba(106, 106, 142, 0.7)';
+  ctx.font = '11px "Courier New", monospace';
+  ctx.fillText('N : New Game   |   D : Delete Save   |   ESC : Back', W / 2, slotY + SAVE_SLOTS * (slotHeight + 8) + 34);
+
+  // Footer
+  ctx.fillStyle = 'rgba(58, 58, 94, 0.5)';
+  ctx.font = '10px "Courier New", monospace';
+  ctx.fillText('Stillpoint — Phase 2', W / 2, H - 20);
+  ctx.textAlign = 'left';
+}
+
+// ── Confirm Delete Overlay ──────────────────────────────────────────────
+function drawConfirmDeleteScreen() {
+  // Draw the play screen underneath
+  drawPlayMenu();
+
+  // Dim overlay
+  ctx.fillStyle = 'rgba(10, 10, 20, 0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Confirmation box
+  const boxW = 340;
+  const boxH = 100;
+  const boxX = W / 2 - boxW / 2;
+  const boxY = H / 2 - boxH / 2;
+
+  ctx.fillStyle = 'rgba(15, 15, 30, 0.95)';
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+  ctx.strokeStyle = 'rgba(248, 113, 113, 0.6)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f87171';
+  ctx.font = 'bold 16px "Courier New", monospace';
+  ctx.fillText('DELETE SAVE?', W / 2, boxY + 32);
+
+  ctx.fillStyle = '#6a6a8e';
+  ctx.font = '13px "Courier New", monospace';
+  ctx.fillText(`Slot ${menuSelectionPlay + 1}`, W / 2, boxY + 54);
+
+  const promptAlpha = Math.sin(frameCount * 0.06) * 0.4 + 0.6;
+  ctx.fillStyle = `rgba(248, 113, 113, ${promptAlpha})`;
+  ctx.font = '13px "Courier New", monospace';
+  ctx.fillText('D : Confirm Delete', W / 2, boxY + 82);
+  ctx.fillStyle = `rgba(106, 106, 142, ${promptAlpha})`;
+  ctx.fillText('ESC : Cancel', W / 2, boxY + 96);
 
   ctx.textAlign = 'left';
 }
 
-// Render
+// ── Controls Screen ───────────────────────────────────────────────────────
+function drawControlsScreen() {
+  const titlePulse = drawMenuBackground();
+
+  ctx.textAlign = 'center';
+
+  // Screen title
+  ctx.fillStyle = `rgba(196, 181, 253, ${titlePulse})`;
+  ctx.font = 'bold 36px "Courier New", monospace';
+  ctx.fillText('CONTROLS', W / 2, 60);
+
+  // Controls panel
+  const panelX = W / 2 - 200;
+  const panelY = 80;
+  const panelW = 400;
+  const panelH = 280;
+
+  ctx.fillStyle = 'rgba(15, 15, 30, 0.8)';
+  ctx.fillRect(panelX, panelY, panelW, panelH);
+  ctx.strokeStyle = 'rgba(196, 181, 253, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+  ctx.textAlign = 'left';
+  const controls = [
+    ['MOVE', '← → / A D'],
+    ['JUMP', '↑ / W / Space'],
+    ['DASH', 'X'],
+    ['ATTACK', 'Z'],
+    ['MAP', 'M'],
+    ['PAUSE', 'ESC'],
+    ['FULLSCREEN', 'F'],
+    ['UNSTUCK', 'U'],
+  ];
+
+  const labelW = 110;
+  const lineH = 28;
+  let cy = panelY + 30;
+
+  for (const [label, key] of controls) {
+    ctx.fillStyle = '#c4b5fd';
+    ctx.font = 'bold 14px "Courier New", monospace';
+    ctx.fillText(label, panelX + 20, cy);
+
+    ctx.fillStyle = '#67e8f9';
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillText(key, panelX + 20 + labelW, cy);
+
+    cy += lineH;
+  }
+
+  // Hint
+  const promptAlpha = Math.sin(frameCount * 0.05) * 0.4 + 0.6;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = `rgba(203, 245, 255, ${promptAlpha})`;
+  ctx.font = '13px "Courier New", monospace';
+  ctx.fillText('ESC / Space / Enter : Back to Menu', W / 2, panelY + panelH + 30);
+
+  // Footer
+  ctx.fillStyle = 'rgba(58, 58, 94, 0.5)';
+  ctx.font = '10px "Courier New", monospace';
+  ctx.fillText('Stillpoint — Phase 2', W / 2, H - 20);
+  ctx.textAlign = 'left';
+}
+
+// ── Settings Screen ───────────────────────────────────────────────────────
+function drawSettingsScreen() {
+  const titlePulse = drawMenuBackground();
+
+  ctx.textAlign = 'center';
+
+  // Screen title
+  ctx.fillStyle = `rgba(196, 181, 253, ${titlePulse})`;
+  ctx.font = 'bold 36px "Courier New", monospace';
+  ctx.fillText('SETTINGS', W / 2, 60);
+
+  // Settings panel
+  const panelX = W / 2 - 200;
+  const panelY = 80;
+  const panelW = 400;
+  const itemH = 50;
+
+  ctx.fillStyle = 'rgba(15, 15, 30, 0.8)';
+  ctx.fillRect(panelX, panelY, panelW, 2 * itemH + 20);
+  ctx.strokeStyle = 'rgba(196, 181, 253, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(panelX, panelY, panelW, 2 * itemH + 20);
+
+  const settings = [
+    { label: 'Screen Shake', value: screenShakeEnabled },
+    { label: 'Hitstop', value: hitstopEnabled },
+  ];
+
+  ctx.textAlign = 'left';
+  for (let i = 0; i < settings.length; i++) {
+    const y = panelY + 10 + i * itemH;
+    const isSelected = i === menuSelectionSettings;
+
+    // Highlight
+    if (isSelected) {
+      ctx.fillStyle = 'rgba(196, 181, 253, 0.1)';
+      ctx.fillRect(panelX + 2, y, panelW - 4, itemH - 4);
+    }
+
+    // Label
+    ctx.fillStyle = isSelected ? '#c4b5fd' : '#6a6a8e';
+    ctx.font = `${isSelected ? 'bold ' : ''}16px "Courier New", monospace`;
+    ctx.fillText(settings[i].label, panelX + 20, y + 30);
+
+    // Toggle state
+    ctx.textAlign = 'right';
+    ctx.fillStyle = settings[i].value ? '#4ade80' : '#ef4444';
+    ctx.font = 'bold 16px "Courier New", monospace';
+    ctx.fillText(settings[i].value ? '[ ON ]' : '[ OFF ]', panelX + panelW - 20, y + 30);
+
+    // Selection arrow
+    if (isSelected) {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#c4b5fd';
+      ctx.font = 'bold 14px "Courier New", monospace';
+      ctx.fillText('▶', panelX - 4, y + 26);
+    }
+  }
+
+  // Hint
+  const promptAlpha = Math.sin(frameCount * 0.05) * 0.4 + 0.6;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = `rgba(203, 245, 255, ${promptAlpha})`;
+  ctx.font = '13px "Courier New", monospace';
+  ctx.fillText('↑↓ / WS : Select   |   Space / Enter : Toggle', W / 2, panelY + 2 * itemH + 50);
+  ctx.fillStyle = 'rgba(106, 106, 142, 0.7)';
+  ctx.font = '11px "Courier New", monospace';
+  ctx.fillText('ESC : Back to Menu', W / 2, panelY + 2 * itemH + 68);
+
+  // Footer
+  ctx.fillStyle = 'rgba(58, 58, 94, 0.5)';
+  ctx.font = '10px "Courier New", monospace';
+  ctx.fillText('Stillpoint — Phase 2', W / 2, H - 20);
+  ctx.textAlign = 'left';
+}
+
+// Draw the start menu — routes to the active sub-screen
+function drawMenu() {
+  switch (menuScreen) {
+    case 'main': drawMainMenu(); break;
+    case 'play': drawPlayMenu(); break;
+    case 'confirm_delete': drawConfirmDeleteScreen(); break;
+    case 'controls': drawControlsScreen(); break;
+    case 'settings': drawSettingsScreen(); break;
+    default: drawMainMenu(); break;
+  }
+}
+
+// ── Main draw function ──────────────────────────────────────────────────
+
 function draw() {
   // Menu screen
   if (gameState === 'menu') {
@@ -1899,8 +2596,8 @@ function draw() {
   ctx.save();
   applyCamera(ctx);
 
-  // Screen shake
-  if (screenShake > 0) {
+  // Screen shake (respect accessibility toggle)
+  if (screenShakeEnabled && screenShake > 0) {
     const shakeX = (Math.random() - 0.5) * screenShakeIntensity;
     const shakeY = (Math.random() - 0.5) * screenShakeIntensity;
     ctx.translate(shakeX, shakeY);
@@ -2131,27 +2828,94 @@ function draw() {
     ctx.fillStyle = '#f87171';
     ctx.font = '48px "Courier New", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('TIME COLLAPSED', W / 2, H / 2 - 60);
+    ctx.fillText('TIME COLLAPSED', W / 2, H / 2 - 80);
 
-    ctx.font = '16px "Courier New", monospace';
-    ctx.fillStyle = '#6a6a8e';
-    if (lastStillpoint) {
-      ctx.fillText('Press R to return to Stillpoint', W / 2, H / 2 - 10);
-    } else {
-      ctx.fillText('Press R to restart', W / 2, H / 2 - 10);
+    // Menu items
+    const gameOverItems = [
+      { label: 'R  Respawn', action: () => respawnPlayer() },
+      { label: 'ESC  Quit to Menu', action: () => { init(); } },
+    ];
+
+    const itemGap = 28;
+    let iy = H / 2 - 20;
+    for (let i = 0; i < gameOverItems.length; i++) {
+      ctx.font = '14px "Courier New", monospace';
+      ctx.fillStyle = '#e0d7ff';
+      ctx.fillText(gameOverItems[i].label, W / 2, iy);
+      iy += itemGap;
     }
 
     // Controls reminder
     ctx.font = '11px "Courier New", monospace';
     ctx.fillStyle = '#3a3a5e';
-    ctx.fillText('← → / A D: Move | ↑ / Space: Jump | X: Dash', W / 2, H / 2 + 30);
-    ctx.fillText('Z / J: Attack', W / 2, H / 2 + 48);
+    ctx.fillText('← → / A D: Move | ↑ / Space: Jump | X: Dash', W / 2, iy + 10);
+    ctx.fillText('Z / J: Attack', W / 2, iy + 28);
     if (abilityState.hasPhaseDash || abilityState.hasShardShot) {
       const abilities = [];
       if (abilityState.hasPhaseDash) abilities.push('C: Phase Dash');
       if (abilityState.hasShardShot) abilities.push('V: Shard Shot | W+V: Tilt');
-      ctx.fillText(abilities.join('  |  '), W / 2, H / 2 + 66);
+      ctx.fillText(abilities.join('  |  '), W / 2, iy + 46);
     }
+
+    ctx.textAlign = 'left';
+  }
+
+  // ── Pause menu overlay (Phase 0.5) ──────────────────────────────────────
+  if (gameState === 'paused') {
+    // Dim background
+    ctx.fillStyle = 'rgba(10, 10, 15, 0.75)';
+    ctx.fillRect(0, 0, W, H);
+
+    const menuItems = pauseMenuItems;
+
+    // Panel background
+    const panelW = 300;
+    const panelH = menuItems.length * 40 + 50;
+    const px = W / 2 - panelW / 2;
+    const py = H / 2 - panelH / 2;
+
+    ctx.fillStyle = 'rgba(10, 10, 18, 0.92)';
+    ctx.fillRect(px, py, panelW, panelH);
+    ctx.strokeStyle = '#2a2a4e';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px, py, panelW, panelH);
+
+    // Title
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#c4b5fd';
+    ctx.font = 'bold 22px "Courier New", monospace';
+    ctx.fillText('PAUSED', W / 2, py + 32);
+
+    // Menu items
+    ctx.font = '13px "Courier New", monospace';
+    for (let i = 0; i < menuItems.length; i++) {
+      const my = py + 54 + i * 40;
+      const isHover = i === pauseMenuIndex;
+
+      if (menuItems[i].disabled) {
+        ctx.fillStyle = '#3a3a5e';
+      } else if (isHover) {
+        // Highlight bar
+        ctx.fillStyle = 'rgba(196, 181, 253, 0.12)';
+        ctx.fillRect(px + 12, my - 14, panelW - 24, 24);
+        ctx.fillStyle = '#e0d7ff';
+      } else {
+        ctx.fillStyle = '#8a8aae';
+      }
+
+      // Arrow indicator on hover
+      if (isHover && !menuItems[i].disabled) {
+        ctx.fillStyle = '#c4b5fd';
+        ctx.fillText('▸', W / 2 - (ctx.measureText(menuItems[i].label).width / 2) - 14, my);
+      }
+
+      ctx.fillText(menuItems[i].label, W / 2, my);
+    }
+
+    // Footer hint
+    ctx.font = '10px "Courier New", monospace';
+    ctx.fillStyle = '#4a4a6e';
+    ctx.fillText('↑↓ Navigate  ·  ENTER Select  ·  ESC Resume', W / 2, py + panelH - 14);
 
     ctx.textAlign = 'left';
   }
@@ -2215,22 +2979,6 @@ function draw() {
   }
   ctx.textAlign = 'left';
 
-  // Pause overlay
-  if (gameState === 'paused') {
-    ctx.fillStyle = 'rgba(10, 10, 15, 0.7)';
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#c4b5fd';
-    ctx.font = 'bold 36px "Courier New", monospace';
-    ctx.fillText('PAUSED', W / 2, H / 2 - 20);
-
-    ctx.fillStyle = '#6a6a8e';
-    ctx.font = '14px "Courier New", monospace';
-    ctx.fillText('Press ESC to resume', W / 2, H / 2 + 20);
-    ctx.textAlign = 'left';
-  }
-
   // Lore reading overlay
   if (loreOverlay) {
     const fadeIn = loreOverlay.maxTimer - loreOverlay.timer;
@@ -2280,6 +3028,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// Start
+// ── Entry point ─────────────────────────────────────────────────────────
+
 init();
 gameLoop();

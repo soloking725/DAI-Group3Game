@@ -50,6 +50,9 @@ class Boss {
     this.shieldMaxHealth = 2;
     this.shieldCooldown = 0;
 
+    // Parry stun
+    this.stunTimer = 0;
+
     // Summon timer (phase 2+)
     this.summonCooldown = 0;
 
@@ -155,10 +158,18 @@ class Boss {
       return;
     }
 
+    // ── Time scale (must be defined before stun check below) ─────────────
+    const _globalTS = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
+
+    // Stunned by parry — skip all actions
+    if (this.stunTimer > 0) {
+      this.stunTimer -= _globalTS;
+      return;
+    }
+
     // ── Boss is ALWAYS immune to player Stillpoint in Phase 3 ────────────
     // In Phases 1-2 the boss IS slowed (gives player a good tool).
     // In Phase 3 the King "sees through" Stillpoint and responds with a lunge.
-    const _globalTS = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
     const myTimeScale = (this.phase >= 3) ? 1.0 : _globalTS;
 
     // ── Detect player activating Stillpoint — trigger lunge in Phase 3 ────

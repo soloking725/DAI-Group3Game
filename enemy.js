@@ -36,6 +36,8 @@ class Enemy {
     this.flashTimer = 0;
     this.dead = false;
     this.deathTimer = 0;
+    this.hitStun = 0;          // frames of hit stun remaining
+    this.juggling = false;     // airborne combo state
     this.patrolCenter = x;
     this.patrolRange = 120;
 
@@ -100,6 +102,41 @@ class Enemy {
       }
     }
 
+    // ── Hit stun ─────────────────────────────────────────────────────────────
+    if (this.hitStun > 0) {
+      this.hitStun--;
+      // Physics during hit stun (allow airborne movement for juggling)
+      this.vy += GRAVITY * _ts;
+      this.x += this.vx * _ts;
+      this.y += this.vy * _ts;
+
+      if (this.y + this.height > bounds.groundY) {
+        this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
+        this.juggling = false; // land ends juggle state
+      }
+
+      const area = getCurrentArea();
+      if (area) {
+        for (const plat of area.platforms) {
+          if (plat.destructible && plat.hp <= 0) continue;
+          if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
+            if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
+              this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
+              this.juggling = false;
+            }
+          }
+        }
+      }
+
+      if (this.x < bounds.left) this.x = bounds.left;
+      if (this.x + this.width > bounds.right) this.x = bounds.right - this.width;
+
+      this.flashTimer--;
+      if (this.flashTimer <= 0) this.flashTimer = -1;
+      if (this.dead) this.deathTimer++;
+      return; // skip AI during hit stun
+    }
+
     // ── Attack ───────────────────────────────────────────────────────────────
     if (this.attacking) {
       this.vx = 0;
@@ -122,14 +159,15 @@ class Enemy {
     }
 
     // Physics
-    // If airborne, stop horizontal movement — prevents enemies walking off platform edges into void
-    if (!this.grounded) this.vx = 0;
+    // If airborne and NOT juggling, stop horizontal movement — prevents enemies walking off platform edges into void
+    if (!this.grounded && !this.juggling) this.vx = 0;
     this.vy += GRAVITY * _ts;
     this.x += this.vx * _ts;
     this.y += this.vy * _ts;
 
     if (this.y + this.height > bounds.groundY) {
       this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
+      this.juggling = false; // landing ends juggle
     }
 
     const area = getCurrentArea();
@@ -139,6 +177,7 @@ class Enemy {
         if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
           if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
             this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
+            this.juggling = false;
           }
         }
       }
@@ -160,14 +199,28 @@ class Enemy {
     };
   }
 
-  takeDamage(dmg, sourceX) {
+  takeDamage(dmg, sourceX, attackDir = 'forward') {
     this.health -= dmg;
     this.flashTimer = 0;
     this.windingUp = false; // interrupt windup on hit — gives player a punish window
     this.windUpTimer = 0;
+    this.hitStun = 14; // base hit stun frames
+
     if (sourceX !== undefined) {
-      this.vx = (this.x > sourceX ? 1 : -1) * 4;
-      this.vy = -3;
+      const dir = (this.x > sourceX ? 1 : -1);
+      // Directional knockback scales with attack type
+      if (attackDir === 'up') {
+        this.vx = dir * 3;
+        this.vy = -12; // big launch
+        this.juggling = true;
+      } else if (attackDir === 'down') {
+        this.vx = dir * 6;
+        this.vy = 8; // slam down
+      } else {
+        this.vx = dir * 5;
+        this.vy = -4; // moderate pop-up for juggling
+        if (!this.grounded) this.juggling = true;
+      }
     }
     if (this.health <= 0) this.dead = true;
   }
@@ -500,6 +553,7 @@ class FracturedSlime {
     this.state = 'idle';
     this.stateTimer = 60 + Math.random() * 60;
     this.attackCooldown = 0;
+    this.stunTimer = 0; // parry stun
   }
 
   getBounds() {
@@ -528,6 +582,13 @@ class FracturedSlime {
     const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
 
     if (this.dead) { this.deathTimer++; return; }
+
+    // Stunned by parry — skip all actions
+    if (this.stunTimer > 0) {
+      this.stunTimer -= _ts;
+      this.flashTimer = Math.max(0, this.flashTimer - 1);
+      return;
+    }
 
     const area = getCurrentArea();
     this.facing = player.x > this.x ? 1 : -1;
@@ -651,6 +712,7 @@ class CrystalSentinel {
     this.distractionTarget = null;
     this.patrolCenterX = x;
     this.patrolRange = 150;
+    this.stunTimer = 0; // parry stun
   }
 
   getBounds() {
@@ -705,6 +767,13 @@ class CrystalSentinel {
   update(player, bounds, echoes) {
     const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
     if (this.dead) { this.deathTimer++; return; }
+
+    // Stunned by parry — skip all actions
+    if (this.stunTimer > 0) {
+      this.stunTimer -= _ts;
+      this.flashTimer = Math.max(0, this.flashTimer - 1);
+      return;
+    }
 
     // Shield regen
     if (this.shieldBroken) {
