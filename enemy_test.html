@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Enemy &amp; Miniboss Test Bench</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #06060e; color: #c4b5fd; font-family: 'Courier New', monospace; font-size: 12px;
+         display: flex; height: 100vh; overflow: hidden; }
+  #stage { position: relative; background: #000; }
+  canvas#game { display: block; image-rendering: pixelated; }
+  #unstuck-btn, #fullscreen-btn { position: absolute; top: 6px; font-size: 10px; padding: 3px 6px;
+    background: #141428; border: 1px solid #2e2e5e; color: #c4b5fd; cursor: pointer; }
+  #unstuck-btn { right: 90px; } #fullscreen-btn { right: 6px; }
+  #side { width: 340px; flex-shrink: 0; background: #0a0a18; border-left: 1px solid #1e1e3e;
+          overflow-y: auto; padding: 10px; }
+  h1 { font-size: 13px; margin: 0 0 4px; color: #e0d7ff; }
+  h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #4a4a7e;
+       border-bottom: 1px solid #1a1a2e; margin: 14px 0 6px; padding-bottom: 3px; }
+  p.note { color: #5a5a8e; font-size: 10.5px; line-height: 1.5; margin: 0 0 8px; }
+  select, button { width: 100%; background: #141428; border: 1px solid #2e2e5e; color: #c4b5fd;
+    font-family: inherit; font-size: 11px; padding: 5px; margin-bottom: 6px; cursor: pointer; }
+  button.primary { border-color: #2dd4bf; color: #2dd4bf; }
+  button:hover { background: #1e1e3e; }
+  #blurb { background: #04040a; border: 1px solid #1a1a2e; padding: 8px; font-size: 10.5px;
+    line-height: 1.5; min-height: 60px; margin-bottom: 8px; }
+  #blurb .tag { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; margin-bottom: 4px; }
+  .tag.built { background: rgba(45,212,191,0.18); color: #2dd4bf; }
+  .tag.planned { background: rgba(251,191,36,0.18); color: #fbbf24; }
+  .tag.needs-room { background: rgba(248,113,113,0.18); color: #f87171; }
+  #liveStats { background: #04040a; border: 1px solid #1a1a2e; padding: 8px; font-size: 10.5px; line-height: 1.6; }
+  #liveStats div { display: flex; justify-content: space-between; }
+  .region-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+  .region-table td { border-bottom: 1px solid #1a1a2e; padding: 3px 2px; vertical-align: top; }
+  .region-table td:first-child { color: #8888aa; white-space: nowrap; }
+  optgroup { color: #6a6a9e; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="game"></canvas>
+  <button id="unstuck-btn" title="Teleport to safe location (U)">⚑ Unstuck</button>
+  <button id="fullscreen-btn" title="Toggle fullscreen (F)">⛶ Fullscreen</button>
+</div>
+
+<div id="side">
+  <h1>⚔ Enemy / Miniboss Test Bench</h1>
+  <p class="note">
+    Spawns a real enemy instance (same class as the live game) in a flat, standard test arena
+    with a chosen ability loadout. Not a mock — this is the actual <code>enemy.js</code>/<code>boss.js</code> code.
+  </p>
+
+  <h2>1. Enemy / Miniboss</h2>
+  <select id="enemySelect"></select>
+  <div id="blurb">Pick an enemy above.</div>
+
+  <h2>2. Ability Loadout</h2>
+  <select id="presetSelect">
+    <option value="none">None (day 1)</option>
+    <option value="phase_dash">+ Phase Dash</option>
+    <option value="shard_shot">+ Shard Shot</option>
+    <option value="stillpoint">+ Stillpoint</option>
+    <option value="charged_attack" selected>+ Charged Attack (post-Crag, current full kit)</option>
+  </select>
+
+  <button class="primary" id="spawnBtn">▶ Spawn in Test Arena</button>
+  <button id="respawnPlayerBtn">↺ Reset Player Position/Health</button>
+
+  <h2>Live State</h2>
+  <div id="liveStats">Not spawned yet.</div>
+
+  <h2>Region Assignment Reference</h2>
+  <p class="note">Cross-checked against <code>Plans/expansion.md</code>'s enemy roster + per-region tables this session.
+    Crag of the Colossus (built) currently reuses only pre-existing basic enemies — no bespoke Crag-themed enemy
+    exists yet, unlike every planned region below, which is a real gap worth a future pass.</p>
+  <table class="region-table" id="regionTable"></table>
+
+  <h2>Bot Difficulty Scorer — planned, not built</h2>
+  <p class="note">
+    Not implemented this pass (real scope, not a quick add) — plan: a scripted agent with a simple reactive policy
+    (approach until in range, attack on cooldown-ready, retreat/jump when the target's <code>windingUp</code> flips
+    true) run for N seconds per enemy across each ability preset, scoring hits-taken vs. time-to-kill. Worth building
+    once more than ~5 enemies exist to test — with only 5 real classes right now, eyeballing it here is faster than
+    building a scorer for a roster that's still 90% unbuilt.
+  </p>
+</div>
+
+<!-- ─── Real game scripts — same as index.html ─────────────────────────── -->
+<script src="audio.js"></script>
+<script src="input.js"></script>
+<script src="area.js"></script>
+<script src="map.js"></script>
+<script src="ability.js"></script>
+<script src="boss.js"></script>
+<script src="enemy.js"></script>
+<script src="player.js"></script>
+<script src="game.js"></script>
+
+<script>
+// ─── Enemy roster — built (real, spawnable) + planned (from expansion.md) ───
+// `built` entries map directly to a real class in enemy.js. Everything else
+// is data only — selecting it shows the design blurb and disables Spawn.
+const ROSTER = [
+  // ── Built ──
+  { id: 'fractured', name: 'Fractured', group: 'Built', built: true,
+    blurb: 'Basic melee rusher — windup then a horizontal slash. The game\'s most common enemy.' },
+  { id: 'stutterer', name: 'Stutterer', group: 'Built', built: true,
+    blurb: 'Teleporting decoy enemy — blinks toward you periodically, leaves fading decoy images.' },
+  { id: 'crystal_sentinel', name: 'Crystal Sentinel', group: 'Built', built: true,
+    blurb: 'Ranged homing attacker with a directional shield — shield blocks melee from the front, ranged pierces it.' },
+  { id: 'fractured_slime', name: 'Fractured Slime', group: 'Built', built: true,
+    blurb: 'Summoned by the King — charges or hops at the player. Not normally placed standalone in a room.' },
+  { id: 'colossus_core', name: 'Colossus Core (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'Crag of the Colossus miniboss. Only Charged (heavy) attacks connect — normal attacks bounce off with no damage. Single telegraphed charge attack. Has a real designed arena already (crag_warden) — this test uses an equivalent flat open floor.' },
+  { id: 'void_lancer', name: 'Void Lancer', group: 'Built', built: true,
+    blurb: 'Telegraphed charging thrust (glowing spear tip). Perfect parry stuns it — the next hit lands for double damage. No home region built yet (The Void Expanse), so it has no placement in AREAS besides this test arena.' },
+
+  // ── Planned normal enemies (expansion.md §2.1, not built) ──
+  { id: 'temporal_shard', name: 'Temporal Shard', group: 'Planned — Normal', built: false, region: 'Timeline Crossroads',
+    blurb: 'Splits into two on death; both must be killed within 3s or they reform. Counter: parry the split to prevent division.' },
+  { id: 'echo_stalker', name: 'Echo Stalker', group: 'Planned — Normal', built: false, region: 'Mirror Veil',
+    blurb: 'Teleports behind you when you dash. Counter: phase-dash through its spawn point to stun it.' },
+  { id: 'phase_sentinel', name: 'Phase Sentinel', group: 'Planned — Normal', built: false, region: 'Chrono-Space Rift',
+    blurb: 'Fires delayed homing orbs that accelerate after 1s. Counter: Shard Shot the orbs to detonate them early.' },
+  { id: 'gravity_well', name: 'Gravity Well', group: 'Planned — Normal', built: false, region: 'Event Horizon / Inverted Spire',
+    blurb: 'Pulls you toward it within 200px. Counter: Graviton Surge to flip the pull, or phase-dash out.', needsRoom: true },
+  { id: 'rift_crawler', name: 'Rift Crawler', group: 'Planned — Normal', built: false, region: 'Warp Gate Nexus',
+    blurb: 'Burrows underground, erupts upward after a 1s tell. Counter: jump the eruption, attack from above.', needsRoom: true },
+  { id: 'crystal_arbiter', name: 'Crystal Arbiter', group: 'Planned — Normal', built: false, region: 'The Observatory',
+    blurb: 'Summons 3 homing crystals that orbit it. Counter: Shard Shot the crystals before they fire.' },
+  { id: 'stillpoint_revenant', name: 'Stillpoint Revenant', group: 'Planned — Normal', built: false, region: 'unassigned',
+    blurb: 'Emits a slow bubble that cancels your Stillpoint ability if you stand in it. Counter: stay mobile or Graviton Surge out.' },
+  { id: 'fractured_knight', name: 'Fractured Knight', group: 'Planned — Normal', built: false, region: 'The Void Expanse',
+    blurb: 'Front shield blocks melee and projectiles. Counter: phase-dash through it, attack from behind.' },
+  { id: 'shard_spitter', name: 'Shard Spitter', group: 'Planned — Normal', built: false, region: 'Chrono-Space Rift',
+    blurb: 'Fires bouncing projectiles that arc off walls. Counter: stay low, the arcs go high.' },
+  { id: 'timeworn_husk', name: 'Timeworn Husk', group: 'Planned — Normal', built: false, region: 'Paradox Engine',
+    blurb: 'Regenerates 1 HP/2s if undamaged. Counter: burst damage (heavy/Shard Shot) interrupts regen.' },
+  { id: 'kinetic_striker', name: 'Kinetic Striker', group: 'Planned — Normal', built: false, region: 'Static Field',
+    blurb: 'Dashes through you leaving a damaging spark trail. Counter: jump the dash, punish the recovery.' },
+  { id: 'phase_mage', name: 'Phase Mage', group: 'Planned — Normal', built: false, region: 'Chrono-Space Rift',
+    blurb: 'Teleports randomly, fires a 5-orb spread. Counter: stay close, the spread is wide.' },
+  { id: 'ruin_stalker', name: 'Ruin Stalker', group: 'Planned — Normal', built: false, region: 'The Inverted Spire',
+    blurb: 'Clings to walls/ceilings, drops on you. Counter: watch for the surface shimmer tell.', needsRoom: true },
+  { id: 'pulse_warden', name: 'Pulse Warden', group: 'Planned — Normal', built: false, region: 'The Observatory',
+    blurb: 'Emits expanding shockwave rings every 2s. Counter: jump the rings, they stay low.' },
+  { id: 'echoing_spectre', name: 'Echoing Spectre', group: 'Planned — Normal', built: false, region: 'Timeline Crossroads / Echoing Abyss',
+    blurb: 'Spawns a delayed self-copy that attacks 1s later. Counter: hit the original during its spawn animation.' },
+  { id: 'temporal_parasite', name: 'Temporal Parasite', group: 'Planned — Normal', built: false, region: 'Echoing Abyss',
+    blurb: 'Latches on, slows movement 30% for 3s. Counter: Graviton Surge shakes it off instantly.' },
+  { id: 'void_juggernaut', name: 'Void Juggernaut', group: 'Planned — Normal', built: false, region: 'Paradox Engine',
+    blurb: 'Charges through destructible walls; stunned if it hits one. Counter: lure it into a crystal wall.', needsRoom: true },
+  { id: 'shard_geyser', name: 'Shard Geyser', group: 'Planned — Normal', built: false, region: 'Warp Gate Nexus',
+    blurb: 'Stationary, sprays shards upward in a cone. Counter: approach from the side, or flip the spray with Graviton Surge.' },
+  { id: 'gravity_scavenger', name: 'Gravity Scavenger', group: 'Planned — Normal', built: false, region: 'Event Horizon',
+    blurb: 'On contact, halves your jump/dash distance for 3s. Counter: Shard Shot from range, or parry to reflect it.' },
+  { id: 'polarity_drone', name: 'Polarity Drone', group: 'Planned — Normal', built: false, region: 'The Polar Shift / Graviton Core',
+    blurb: 'Alternates push/pull polarity every 3s. Counter: hit it to flip polarity to your advantage.' },
+  { id: 'mirror_sprite', name: 'Mirror Sprite', group: 'Planned — Normal', built: false, region: 'Mirror Veil',
+    blurb: 'Only tangible in reflections; attacks from behind if you\'re not facing it. Counter: face it, parry to shatter.', needsRoom: true },
+  { id: 'warp_mite', name: 'Warp Mite', group: 'Planned — Normal', built: false, region: 'Static Field',
+    blurb: 'Tiny, fast, erratic. Contact teleports you nearby (no damage, disorienting). Counter: phase-dash through it.' },
+  { id: 'inertial_shieldbearer', name: 'Inertial Shieldbearer', group: 'Planned — Normal', built: false, region: 'The Polar Shift',
+    blurb: 'Runs in a straight line, gains speed, can\'t turn sharply. Counter: Graviton Surge flips it into a wall.' },
+  { id: 'fractured_kings_guard_normal', name: "Fractured King's Guard (elite normal)", group: 'Planned — Normal', built: false, region: 'unassigned',
+    blurb: 'Greatshield, 3 phases (bash / combos / enrage with adds). NOTE: this name duplicates miniboss 4.1 below — likely the same entity described twice in expansion.md, worth resolving which is canonical.' },
+
+  // ── Planned hard enemies (expansion.md §2.2) ──
+  { id: 'null_gravity_brute', name: 'Null-Gravity Brute', group: 'Planned — Hard', built: false, region: 'Graviton Core',
+    blurb: 'Weightless, dashes with super-armor, no-flinch except on Heavy Attack or a moving Shard Shot hit.', needsRoom: true },
+  { id: 'temporal_paradox', name: 'Temporal Paradox', group: 'Planned — Hard', built: false, region: 'Timeline Crossroads',
+    blurb: 'Splits into Past/Future silhouettes; only the green-flash "Present" one takes damage, swaps every 2s.' },
+
+  // ── Ability-countering enemies (expansion.md §2.3) ──
+  { id: 'anchor_wraith', name: 'Anchor Wraith', group: 'Planned — Ability Counter', built: false, region: 'Static Field / Polar Shift',
+    blurb: 'Counters Phase Dash — stasis field cancels a dash used inside it. Kill from outside the field first.', needsRoom: true },
+  { id: 'null_sentinel', name: 'Null Sentinel', group: 'Planned — Ability Counter', built: false, region: 'Mirror Veil / Warp Gate Nexus',
+    blurb: 'Counters Phase Dash — alternates phaseable/solid on a visible rhythm; dashing into it while solid punishes you.' },
+  { id: 'gravity_anchor', name: 'Gravity Anchor', group: 'Planned — Ability Counter', built: false, region: 'Graviton Core / Inverted Spire',
+    blurb: 'Counters Graviton Surge — nullifies it locally. Stationary, low HP, usually guarded.' },
+  { id: 'deflector_drone', name: 'Deflector Drone', group: 'Planned — Ability Counter', built: false, region: 'Polar Shift / Paradox Engine',
+    blurb: 'Counters Shard Shot — reflects a shot that hits its directional shield. Circle to its unshielded side.' },
+  { id: 'absorber_husk', name: 'Absorber Husk', group: 'Planned — Ability Counter', built: false, region: 'Paradox Engine / Void Expanse',
+    blurb: 'Counters Shard Shot — absorbs and heals from it. Vulnerable to melee or right after a Graviton Surge flip.' },
+  { id: 'debris_construct', name: 'Debris Construct', group: 'Planned — Ability Counter', built: false, region: 'Paradox Engine',
+    blurb: 'Self-assembles with a 1s telegraph (free punish window), then a slow wide shove. Exposed core takes 2x Shard Shot damage.' },
+
+  // ── Planned minibosses (expansion.md §4, not built — Colossus Core above is the only built one) ──
+  { id: 'kings_guard_miniboss', name: "The Fractured King's Guard (4.1)", group: 'Planned — Miniboss', built: false, region: 'origin spine (early)',
+    blurb: 'Shield bash + combos, enrage with shard adds. Parry the bash, punish shield recovery. Reward: +1 Max Health. Same design template as Colossus Core (this is the fight it was reskinned from).', needsRoom: true },
+  { id: 'mirror_king', name: 'The Mirror King (4.2)', group: 'Planned — Miniboss', built: false, region: 'Mirror Veil',
+    blurb: 'Reflects 50% damage, spawns a clone that copies your movement. Needs Stillpoint + Phase Dash to fight well.', needsRoom: true },
+  { id: 'gravity_collapse_core', name: 'Gravity Collapse Core (4.3)', group: 'Planned — Miniboss', built: false, region: 'Graviton Core',
+    blurb: 'Debris volleys + a massive pull toward ceiling spikes. Needs Graviton Surge to escape the pull.', needsRoom: true },
+  { id: 'electromagnetic_golem', name: 'Electromagnetic Golem (4.4)', group: 'Planned — Miniboss', built: false, region: 'The Polar Shift',
+    blurb: 'Repulsion fields + polarity-reversing slam. Needs the region\'s magnetic-wall pinball geometry to read.', needsRoom: true },
+  { id: 'quantum_pursuer', name: 'Quantum Pursuer (4.5)', group: 'Planned — Miniboss', built: false, region: 'unassigned',
+    blurb: 'Mirrors your moves with a 0.5s delay, then attacks independently. Stop-and-go rhythm fight.', needsRoom: true },
+  { id: 'temporal_warden', name: 'Temporal Warden (4.6)', group: 'Planned — Miniboss', built: false, region: 'unassigned',
+    blurb: 'Rewinds its own health every 10s unless interrupted. The one enemy with partial, narratively-justified Stillpoint resistance.', needsRoom: true },
+  { id: 'the_assembler', name: 'The Assembler (4.7)', group: 'Planned — Miniboss', built: false, region: 'Paradox Engine',
+    blurb: 'Summons Debris Constructs at 60% HP; clearing them fast exposes it for 2x melee damage. Needs the chase-zone arena.', needsRoom: true },
+  { id: 'warden_and_hollow', name: 'Warden & Hollow (4.8)', group: 'Planned — Miniboss', built: false, region: 'unassigned',
+    blurb: 'Duo fight — Warden parries melee, Hollow dodges ranged. Forces toolkit-switching. Needs a 2-target arena.', needsRoom: true },
+];
+
+// ─── Region assignment table (right sidebar) ───
+const REGION_ROWS = [
+  ['Event Horizon', 'Gravity Scavenger, Gravity Well'],
+  ['Mirror Veil', 'Mirror Sprite, Echo Stalker, Null Sentinel'],
+  ['Graviton Core', 'Null-Gravity Brute, Polarity Drone, Gravity Anchor'],
+  ['The Polar Shift', 'Polarity Drone, Inertial Shieldbearer, Anchor Wraith, Deflector Drone'],
+  ['Timeline Crossroads', 'Temporal Shard, Echoing Spectre, Temporal Paradox'],
+  ['Chrono-Space Rift', 'Phase Mage, Shard Spitter, Phase Sentinel'],
+  ['The Observatory', 'Crystal Arbiter, Pulse Warden'],
+  ['Paradox Engine', 'Void Juggernaut, Timeworn Husk, Deflector Drone, Absorber Husk, Debris Construct, The Assembler (miniboss)'],
+  ['Static Field', 'Kinetic Striker, Warp Mite, Anchor Wraith'],
+  ['The Inverted Spire', 'Ruin Stalker, Gravity Well, Gravity Anchor'],
+  ['Warp Gate Nexus', 'Rift Crawler, Shard Geyser, Null Sentinel'],
+  ['The Void Expanse', 'Fractured Knight, Void Lancer, Absorber Husk'],
+  ['Echoing Abyss', 'Echoing Spectre, Temporal Parasite'],
+  ['Crag of the Colossus (built)', 'Fractured, Stutterer, Crystal Sentinel (reused, no bespoke enemy yet) + Colossus Core (miniboss)'],
+];
+
+// ─── Correct the canvas sizing for this page's layout ───
+// game.js's own resizeCanvasToFit() sizes against the full window width,
+// which doesn't know about the 340px sidebar here — override it. Registered
+// after game.js's own resize listener, so it always runs second and wins.
+function fitCanvasToStage() {
+  const sideWidth = document.getElementById('side').offsetWidth;
+  const availW = window.innerWidth - sideWidth;
+  const availH = window.innerHeight;
+  const scale = Math.min(availW / W, availH / H);
+  canvas.style.width = Math.floor(W * scale) + 'px';
+  canvas.style.height = Math.floor(H * scale) + 'px';
+}
+window.addEventListener('resize', fitCanvasToStage);
+fitCanvasToStage();
+
+// ─── Wire up UI ───
+const enemySelect = document.getElementById('enemySelect');
+const groups = {};
+for (const e of ROSTER) {
+  if (!groups[e.group]) { groups[e.group] = document.createElement('optgroup'); groups[e.group].label = e.group; enemySelect.appendChild(groups[e.group]); }
+  const opt = document.createElement('option');
+  opt.value = e.id; opt.textContent = e.name;
+  groups[e.group].appendChild(opt);
+}
+
+function updateBlurb() {
+  const e = ROSTER.find(r => r.id === enemySelect.value);
+  if (!e) return;
+  let tags = `<span class="tag ${e.built ? 'built' : 'planned'}">${e.built ? 'BUILT — spawnable' : 'PLANNED — data only'}</span>`;
+  if (e.needsRoom) tags += ` <span class="tag needs-room">needs special room — coming later</span>`;
+  document.getElementById('blurb').innerHTML = `${tags}<br><br>${e.blurb}${e.region ? `<br><br><i>Region: ${e.region}</i>` : ''}`;
+  document.getElementById('spawnBtn').disabled = !e.built;
+  document.getElementById('spawnBtn').textContent = e.built ? '▶ Spawn in Test Arena' : '✗ Not implemented yet';
+}
+enemySelect.addEventListener('change', updateBlurb);
+updateBlurb();
+
+const regionTable = document.getElementById('regionTable');
+for (const [region, list] of REGION_ROWS) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${region}</td><td>${list}</td>`;
+  regionTable.appendChild(tr);
+}
+
+function applyPreset(preset) {
+  abilityState.hasPhaseDash = false;
+  abilityState.hasShardShot = false;
+  abilityState.hasStillpoint = false;
+  abilityState.hasChargedAttack = false;
+  if (preset === 'phase_dash' || preset === 'shard_shot' || preset === 'stillpoint' || preset === 'charged_attack') abilityState.hasPhaseDash = true;
+  if (preset === 'shard_shot' || preset === 'stillpoint' || preset === 'charged_attack') abilityState.hasShardShot = true;
+  if (preset === 'stillpoint' || preset === 'charged_attack') abilityState.hasStillpoint = true;
+  if (preset === 'charged_attack') abilityState.hasChargedAttack = true;
+}
+
+function ensureSession() {
+  if (gameState === 'playing' && currentAreaId === 'enemy_test_arena') return;
+  gameState = 'playing';
+  try { SFX.init(); } catch (e) {}
+  currentAreaId = 'enemy_test_arena';
+  try { SFX.setAreaAmbient('enemy_test_arena'); } catch (e) {}
+  const area = getCurrentArea();
+  player = new Player(200, area.groundY - 60);
+  echoes = []; projectiles = []; particles = []; bossProjectiles = [];
+  boss = null; miniboss = null; defeatedMinibosses = {};
+  areaEnemiesSpawned = {}; areaEnemies['enemy_test_arena'] = [];
+  discoveredAreas = { enemy_test_arena: true };
+  anchorActivated = {}; lastAnchor = null; collectedLore = {}; bossDefeated = false;
+  resetCamera();
+  showUI(true);
+}
+
+const CLASS_MAP = {
+  fractured: () => new Enemy(900, 472, 'fractured'),
+  stutterer: () => new Stutterer(900, 472),
+  crystal_sentinel: () => new CrystalSentinel(900, 460),
+  fractured_slime: () => new FracturedSlime(900, 476),
+  void_lancer: () => new VoidLancer(900, 472),
+};
+
+document.getElementById('spawnBtn').addEventListener('click', () => {
+  const e = ROSTER.find(r => r.id === enemySelect.value);
+  if (!e || !e.built) return;
+  applyPreset(document.getElementById('presetSelect').value);
+  ensureSession();
+  areaEnemies['enemy_test_arena'] = [];
+  miniboss = null;
+  player.x = 400; player.y = getCurrentArea().groundY - 60; player.health = MAX_HEALTH; player.vx = 0; player.vy = 0;
+
+  const testArea = getCurrentArea();
+  if (e.id === 'colossus_core') {
+    // game.js's own per-frame loop clears `miniboss` on any area that isn't
+    // flagged `isMinibossArena` (see the "Clear miniboss when leaving its
+    // arena" block) — enemy_test_arena isn't one in area.js, so without this
+    // flag the miniboss we just set below gets wiped again on the very next
+    // frame. Flip it on this in-memory area object only (never touches
+    // area.js on disk) so the test bench's spawn actually sticks.
+    testArea.isMinibossArena = true;
+    testArea.miniboss = 'colossus_core';
+    miniboss = new ColossusCore(900, 436);
+  } else if (CLASS_MAP[e.id]) {
+    testArea.isMinibossArena = false;
+    areaEnemies['enemy_test_arena'].push(CLASS_MAP[e.id]());
+  }
+});
+
+document.getElementById('respawnPlayerBtn').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  player.x = 400; player.y = getCurrentArea().groundY - 60; player.health = MAX_HEALTH; player.vx = 0; player.vy = 0; player.invincibleTimer = 30;
+});
+
+setInterval(() => {
+  const el = document.getElementById('liveStats');
+  if (gameState !== 'playing' || currentAreaId !== 'enemy_test_arena') { el.textContent = 'Not spawned yet.'; return; }
+  const list = areaEnemies['enemy_test_arena'] || [];
+  let html = `<div><span>Player HP</span><span>${player.health}/${MAX_HEALTH}</span></div>`;
+  if (miniboss) html += `<div><span>${miniboss.dead ? 'Miniboss (dead)' : 'Miniboss HP'}</span><span>${miniboss.health}/${miniboss.maxHealth}</span></div>`;
+  for (const en of list) html += `<div><span>${en.type || en.constructor.name}${en.dead ? ' (dead)' : ''}</span><span>HP ${en.health}</span></div>`;
+  if (!miniboss && list.length === 0) html += `<div>Nothing spawned</div>`;
+  el.innerHTML = html;
+}, 250);
+</script>

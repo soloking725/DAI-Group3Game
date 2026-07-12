@@ -5,7 +5,7 @@
 // COORDINATE RULES (verified per room):
 //   Enemy on ground:   y = groundY - 28              (28 = enemy height)
 //   Enemy on platform: y = platformY - 28
-//   Stillpoint:        y = groundY - 20              (well above floor surface)
+//   Anchor:            y = groundY - 20              (well above floor surface)
 //   Ability pickup:    y = platformY - 22            (floats just above platform)
 //   Spawn on ground:   toY = groundY - 80            (falls gently to ground)
 //   Spawn on platform: toY = platformY - 40          (falls onto platform)
@@ -42,7 +42,7 @@ const AREAS = {
     ],
     trainingDummy: { x: 400, y: 362, w: 28, h: 28 },
     enemies: [],
-    stillpoints: [],
+    anchors: [],
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ const AREAS = {
       { type: 'fractured', x: 700,  y: 362 },   // on right ground
       { type: 'fractured', x: 1150, y: 362 },   // near exit, teaches combat
     ],
-    stillpoints: [
+    anchors: [
       { x: 220, y: 370, index: 0 },   // left ground, safe spawn area
     ],
     loreFragments: [
@@ -139,7 +139,7 @@ const AREAS = {
     enemies: [
       { type: 'fractured', x: 530, y: 278 },   // p3: 306-28=278 (Fractured, not Stutterer — Stutterers teleport into void)
     ],
-    stillpoints: [
+    anchors: [
       { x: 90, y: 330, index: 0 },   // p1: 350-20=330
     ],
     loreFragments: [
@@ -181,7 +181,7 @@ const AREAS = {
     enemies: [
       { type: 'fractured', x: 390, y: 362 },
     ],
-    stillpoints: [],
+    anchors: [],
     loreFragments: [
       { id: 'lore_ur1', x: 150, y: 276,
         text: '"Before the fracture, these halls echoed with our voices. Now only the fracture echoes back."' },
@@ -220,7 +220,7 @@ const AREAS = {
       { x:1060, y:460, w:140, h:14 },
       { x:0, y:700, w:1200, h:60 }
     ],
-    abilityReward: { id:'shard_shot', x:415, y:376, name:'Shard Shot', desc:"V to fire. W+V upward. Shatters crystal walls." },
+    abilityReward: { id:'shard_shot', x:415, y:376, name:'Shard Shot', desc:"Hold V to aim, release to fire. Up/Down tilts the arc. Shatters crystal walls." },
     transitions: [
       { x:0, y:68, w:35, h:82, to:'echo_bridge', toX:928, toY:268 },
       { x:1165, y:418, w:35, h:60, to:'the_forge', toX:60, toY:348 }
@@ -234,7 +234,7 @@ const AREAS = {
       { type:'stutterer', x:490, y:370 },
       { type:'fractured', x:990, y:332 }
     ],
-    stillpoints: [
+    anchors: [
       { x:60, y:100, index:0 }
     ],
     loreFragments: [
@@ -262,6 +262,10 @@ const AREAS = {
       { x: 150,  y: 300, w: 120, h: 14 },  // left shelf — shooting angle for barrier 1
       { x: 560,  y: 270, w: 140, h: 14 },  // mid shelf — between barriers
       { x: 1060, y: 255, w: 140, h: 14 },  // right shelf — behind barrier 2
+      // Step up to the right shelf — it's a 135px rise straight off the
+      // floor (max jump apex is 120px) and was only reachable via an
+      // unintended wall-jump off barrier 2; found by the room layout linter.
+      { x: 980,  y: 330, w: 70,  h: 14 },
       // Barrier 1 — double-wide crystal wall (left of centre)
       { x: 430, y: 218, w: 22, h: 172, destructible: true, hp: 2 },
       { x: 452, y: 218, w: 22, h: 172, destructible: true, hp: 2 },
@@ -284,7 +288,7 @@ const AREAS = {
       { type: 'stutterer', x: 1100, y: 227 },   // right shelf: 255-28=227
       { type: 'crystal_sentinel', x: 600, y: 320 },
     ],
-    stillpoints: [
+    anchors: [
       { x: 180, y: 370, index: 0 },   // left of barrier 1, safe entry zone: 390-20=370
     ],
     loreFragments: [
@@ -296,7 +300,7 @@ const AREAS = {
 
   // ─────────────────────────────────────────────────────────────────────────
   // ROOM 5 — The Vault  (Stillpoint pickup, rest room, no enemies)
-  // Two Stillpoints — each heals 1 health when first activated.
+  // Two Anchors — each heals 1 health when first activated.
   // Ability altar at centre-high platform. Exit right requires Stillpoint.
   // ─────────────────────────────────────────────────────────────────────────
   the_vault: {
@@ -332,7 +336,7 @@ const AREAS = {
       { direction: 'east', to: 'the_rift', requires: 'stillpoint', oneWay: false, order: 0, doorIndex: 1 },
     ],
     enemies: [],   // rest room — no combat
-    stillpoints: [
+    anchors: [
       { x: 140, y: 370, index: 0 },   // entry side: 390-20=370
       { x: 730, y: 370, index: 1 },   // exit side (heals before The Rift)
     ],
@@ -388,7 +392,7 @@ const AREAS = {
       { type:'fractured', x:1700, y:230 },
       { type:'fractured', x:1810, y:230 }
     ],
-    stillpoints: [
+    anchors: [
       { x:1450, y:226, index:0 }
     ],
     loreFragments: [
@@ -398,7 +402,7 @@ const AREAS = {
 
   // ─────────────────────────────────────────────────────────────────────────
   // ROOM 7 — Antechamber  (pre-boss rest, final lore, no enemies ever)
-  // Stillpoint heals. Final two lore fragments reveal what the King is.
+  // Anchor heals. Final two lore fragments reveal what the King is.
   // ─────────────────────────────────────────────────────────────────────────
   antechamber: {
     id: 'antechamber',
@@ -424,7 +428,7 @@ const AREAS = {
       { direction: 'east', to: 'boss_arena', requires: null, oneWay: true, order: 0, doorIndex: 1 },
     ],
     enemies: [],
-    stillpoints: [
+    anchors: [
       { x: 330, y: 370, index: 0 },   // centre ground, full heal
     ],
     loreFragments: [
@@ -439,7 +443,7 @@ const AREAS = {
   // ─────────────────────────────────────────────────────────────────────────
   // ROOM 8 — Boss Arena  (The Fractured King)
   // Sealed walls. Three platforms for vertical mobility.
-  // Stillpoint in safe corner. No exit during fight.
+  // Anchor in safe corner. No exit during fight.
   // ─────────────────────────────────────────────────────────────────────────
   boss_arena: {
     id: 'boss_arena',
@@ -465,7 +469,7 @@ const AREAS = {
     transitions: [],
     connections: [],   // sealed arena — reached one-way from antechamber, no doors of its own
     enemies: [],
-    stillpoints: [
+    anchors: [
       { x: 430, y: 370, index: 0 },   // centre ground, last checkpoint: 390-20=370
     ],
     loreFragments: [],
@@ -566,7 +570,7 @@ const AREAS = {
       { type: 'stutterer',  x: 1880, y: 832 },
       { type: 'fractured', x: 2220, y: 772 },
     ],
-    stillpoints: [
+    anchors: [
       { x: 100, y: 500, index: 0 },   // entry ledge, safe first checkpoint in the region
     ],
     loreFragments: [
@@ -614,6 +618,10 @@ const AREAS = {
       // these just drops the player back onto the continuous lower floor,
       // never into a pit — the "optional detour, not a precision gauntlet"
       // rule from Crag Entrance applies here too.
+      // Step onto the upper route from the entry ledge — without it the
+      // first upper platform is a 160px rise (max jump apex is 120px) and
+      // the whole route was unreachable; found by the room layout linter.
+      { x: 120,  y: 330, w: 120, h: 20 },
       { x: 260,  y: 260, w: 180, h: 20 },
       { x: 560,  y: 200, w: 160, h: 20 },
       { x: 900,  y: 240, w: 160, h: 20 },
@@ -640,7 +648,7 @@ const AREAS = {
       { type: 'crystal_sentinel', x: 1810, y: 552 },
       { type: 'fractured', x: 2430, y: 532 },
     ],
-    stillpoints: [
+    anchors: [
       { x: 60, y: 400, index: 0 },
     ],
     loreFragments: [
@@ -653,7 +661,7 @@ const AREAS = {
   // ─────────────────────────────────────────────────────────────────────────
   // CRAG 3 — Crag Altar
   // Cathedral-like open chamber. Charged Attack sits on a central dais
-  // (Tier 1 — can't be missed). Stillpoint checkpoint before the exit to
+  // (Tier 1 — can't be missed). Anchor checkpoint before the exit to
   // Crag Warden, per the "checkpoint before a miniboss" door-use rule.
   // ─────────────────────────────────────────────────────────────────────────
   crag_altar: {
@@ -678,8 +686,13 @@ const AREAS = {
       { x: 1580, y: 700, w: 220, h: 30 },
       { x: 1880, y: 780, w: 260, h: 30 },   // approach to exit, past checkpoint
 
-      // Symmetrical high side ledges — decorative verticality + optional lore
+      // Symmetrical high side ledges — decorative verticality + optional lore.
+      // The two y:440 steps make them climbable from the dais — the ledges
+      // are a 180px rise from it (max jump apex is 120px) and were
+      // unreachable without them; found by the room layout linter.
+      { x: 700,  y: 440, w: 120, h: 20 },
       { x: 700,  y: 340, w: 160, h: 20 },
+      { x: 1420, y: 440, w: 120, h: 20 },
       { x: 1400, y: 340, w: 160, h: 20 },
     ],
     abilityReward: {
@@ -701,7 +714,7 @@ const AREAS = {
       { type: 'fractured', x: 660,  y: 672 },
       { type: 'fractured', x: 1600, y: 672 },
     ],
-    stillpoints: [
+    anchors: [
       { x: 1940, y: 758, index: 0 },   // last checkpoint before the miniboss
     ],
     loreFragments: [
@@ -734,7 +747,7 @@ const AREAS = {
     bgTint: 'rgba(217, 119, 87, 0.1)',
     ambientColor: '#fb923c',
     isMinibossArena: true,   // distinct from isBossArena (King-specific spawn logic in game.js) —
-                             // Colossus Core's own spawn/seal logic is Task 7, not wired up yet.
+                             // Colossus Core has its own parallel spawn/defeat-persistence path.
     miniboss: 'colossus_core',
     platforms: [
       { x: 0,    y: 500, w: 2000, h: 60 },   // open floor — the fight needs room to read
@@ -761,11 +774,39 @@ const AREAS = {
       { direction: 'south', to: 'crag_altar', requires: null, oneWay: false, order: 0, doorIndex: 0 },
       { direction: 'south', to: 'the_fracture', requires: null, oneWay: true, order: 1, doorIndex: 1, shortcut: true },
     ],
-    enemies: [],   // Colossus Core is spawned via bossSpawn/miniboss, not the generic enemies array — see Task 7
-    stillpoints: [],
+    enemies: [],   // Colossus Core is spawned via bossSpawn/miniboss, not the generic enemies array
+    anchors: [],
     loreFragments: [],
     abilityReward: null,
-    bossSpawn: { x: 950, y: 440 },   // groundY(500) - miniboss height, refine once Colossus Core's class exists (Task 7)
+    bossSpawn: { x: 950, y: 440 },   // groundY(500) - miniboss height
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DEV-ONLY — Enemy Test Arena. Not reachable via normal play (no
+  // transitions in or out, no col/row so validateAreaGraph() skips it).
+  // Used exclusively by enemy_test.html to spawn any enemy/miniboss in a
+  // flat, generous, standard room for isolated testing. Enemies are spawned
+  // dynamically by the tool, not listed here.
+  // ─────────────────────────────────────────────────────────────────────────
+  enemy_test_arena: {
+    id: 'enemy_test_arena',
+    name: 'Test Arena',
+    width: 2000,
+    groundY: 500,
+    bgColor: '#0a0a0f',
+    bgTint: 'rgba(120, 120, 140, 0.04)',
+    ambientColor: '#8888aa',
+    platforms: [
+      { x: 0, y: 500, w: 2000, h: 60 },   // full flat floor — enough room for a charge-attack miniboss too
+      { x: 400, y: 380, w: 200, h: 14 },  // a couple of low platforms, for enemies/tests that care about verticality
+      { x: 1400, y: 380, w: 200, h: 14 },
+    ],
+    transitions: [],
+    connections: [],
+    enemies: [],
+    anchors: [],
+    loreFragments: [],
+    abilityReward: null,
   },
 
 };
@@ -923,3 +964,342 @@ function validateAreaGraph() {
 }
 
 validateAreaGraph();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROOM LAYOUT LINTER — static reachability/safety checks per room.
+// See Plans/room_verification_tool_plan.md ("static layout linter"). This is
+// the tool that catches the Crag bug class BEFORE a human plays the room:
+// unreachable platforms/pickups, uncrossable gaps, doors embedded in solid
+// geometry or floating out of reach, and missing physical return doors.
+//
+// Pure data analysis: no DOM, no simulation — callable from Node (see
+// export_graph.js's vm sandbox) and from any of the debug pages. It runs
+// automatically once per page load (window 'load' hook at the bottom, AFTER
+// player.js has defined the real physics constants), wrapped in try/catch so
+// a linter bug can never take the game down with it.
+//
+// Known model limitations (under-flagging, never false-crashing):
+//   - Wall jumps aren't modeled. A room that REQUIRES wall-jumping to
+//     traverse will show false "unreachable" failures — none exist today;
+//     if one is built, extend _linterReach() rather than ignoring the report.
+//   - A wall standing ON a platform doesn't split that platform into two
+//     nodes, so items behind an on-floor barrier (the_forge) count as
+//     reachable on the first pass. Gated-secret verification still works via
+//     the second (all-abilities, walls-broken) pass.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Movement abilities assumed on a first pass through a room that doesn't
+// declare its own `expectedLoadout: { onEntry: [...] }`. Default = the full
+// current movement kit, so rooms built before the field existed don't
+// false-fail; declare the field on new rooms to lint them strictly.
+const ROOM_LINTER_DEFAULT_LOADOUT = ['phase_dash'];
+
+// Physics constants come from player.js/ability.js, which load AFTER area.js
+// — read them lazily with fallbacks matching those files' current values, so
+// standalone tools that only load area.js (worldmap.html, export_graph.js)
+// still get correct-enough numbers.
+function _linterPhysics() {
+  return {
+    gravity: (typeof GRAVITY !== 'undefined') ? GRAVITY : 0.6,
+    jump: Math.abs((typeof JUMP_FORCE !== 'undefined') ? JUMP_FORCE : -12),
+    moveSpeed: (typeof MOVE_SPEED !== 'undefined') ? MOVE_SPEED : 4,
+    dashSpeed: (typeof DASH_SPEED !== 'undefined') ? DASH_SPEED : 12,
+    dashFrames: (typeof DASH_DURATION !== 'undefined') ? DASH_DURATION : 8,
+    phaseDashSpeed: (typeof PHASE_DASH_SPEED !== 'undefined') ? PHASE_DASH_SPEED : 14,
+    phaseDashFrames: (typeof PHASE_DASH_DURATION !== 'undefined') ? PHASE_DASH_DURATION : 8,
+    playerW: 24,
+    playerH: 32,
+  };
+}
+
+function _linterJumpHeight(phys) {
+  // Apex height of a full jump: v^2 / 2g, minus a few px of clearance so the
+  // linter never approves a pixel-perfect-only ascent.
+  return (phys.jump * phys.jump) / (2 * phys.gravity) - 6;
+}
+
+// Max horizontal distance coverable while changing height by `dy`
+// (dy = targetTop - sourceTop; negative = climbing). Returns -1 if the rise
+// is beyond jump height. Adds the extra distance of one mid-air dash (core
+// kit) and one phase dash when the loadout has it.
+function _linterReach(phys, dy, loadout) {
+  const disc = phys.jump * phys.jump + 2 * phys.gravity * dy;
+  if (disc < 0) return -1; // target higher than a full jump can reach
+  const airFrames = (phys.jump + Math.sqrt(disc)) / phys.gravity;
+  let reach = phys.moveSpeed * airFrames;
+  reach += (phys.dashSpeed - phys.moveSpeed) * phys.dashFrames;
+  if (loadout.indexOf('phase_dash') !== -1) {
+    reach += (phys.phaseDashSpeed - phys.moveSpeed) * phys.phaseDashFrames;
+  }
+  return reach;
+}
+
+// Horizontal distance between two x-intervals (0 when they overlap).
+function _linterXGap(ax, aw, bx, bw) {
+  if (bx >= ax + aw) return bx - (ax + aw);
+  if (ax >= bx + bw) return ax - (bx + bw);
+  return 0;
+}
+
+// Can the player travel from standing on platform `a` to standing on `b`?
+// `blockers` = wall platforms that are solid on this pass.
+function _linterEdge(phys, a, b, loadout, blockers) {
+  const dy = b.y - a.y;
+  const reach = _linterReach(phys, dy, loadout);
+  if (reach < 0) return false;
+  const gap = _linterXGap(a.x, a.w, b.x, b.w);
+  if (gap > reach) return false;
+
+  // Wall in the corridor between the two platforms that can't be jumped
+  // over from the takeoff side and can't be walked under?
+  const jumpH = _linterJumpHeight(phys);
+  const corridorLo = Math.min(a.x + a.w / 2, b.x + b.w / 2);
+  const corridorHi = Math.max(a.x + a.w / 2, b.x + b.w / 2);
+  for (const w of blockers) {
+    if (w.x + w.w < corridorLo || w.x > corridorHi) continue;
+    const riseOverWall = a.y - w.y;              // feet must gain this much
+    const clearable = riseOverWall <= jumpH;
+    const walkUnder = (w.y + w.h) <= Math.min(a.y, b.y) - phys.playerH;
+    if (!clearable && !walkUnder) return false;
+  }
+  return true;
+}
+
+// Standable platforms only — walls and destructible panels aren't floors the
+// route may rely on (destructibles can be gone; thin walls aren't routes).
+function _linterStandable(room) {
+  return (room.platforms || []).filter((p) => !p.wall && !p.destructible);
+}
+
+// The platform a body dropped at (cx, fromY) lands on, or null (= void).
+function _linterDropTo(platforms, cx, fromY) {
+  let best = null;
+  for (const p of platforms) {
+    if (cx < p.x || cx > p.x + p.w) continue;
+    if (p.y < fromY - 2) continue; // platform is above the drop point
+    if (!best || p.y < best.y) best = p;
+  }
+  return best;
+}
+
+// Is point (px, py) touchable from standing on / jumping off platform `p`?
+// Used for doors, pickups, and lore positions. `h` extends the point into a
+// rect (0 for true points).
+function _linterPointReachable(phys, p, px, py, w, h, loadout) {
+  const bottom = py + h;
+  if (bottom < p.y - phys.playerH - _linterJumpHeight(phys)) return false; // too high above
+  if (py > p.y + 4) return false; // entirely below the standing surface
+  const dx = _linterXGap(p.x, p.w, px, w);
+  if (dx === 0) return true;
+  const reach = _linterReach(phys, Math.max(py - p.y, -_linterJumpHeight(phys)), loadout);
+  return reach >= 0 && dx <= reach;
+}
+
+// Flood-fill the set of reachable standable platforms from the given entry
+// platforms. O(n^2) over a room's platforms, run once — fine at 10-25
+// platforms/room; revisit with an x-sorted sweep if rooms ever get huge.
+function _linterFloodFill(phys, platforms, entrySet, loadout, blockers) {
+  const reachable = new Set(entrySet);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const a of platforms) {
+      if (!reachable.has(a)) continue;
+      for (const b of platforms) {
+        if (reachable.has(b)) continue;
+        if (_linterEdge(phys, a, b, loadout, blockers)) {
+          reachable.add(b);
+          grew = true;
+        }
+      }
+    }
+  }
+  return reachable;
+}
+
+// Entry points into `room`: every transition anywhere in AREAS that targets
+// it (toX/toY), tagged with where it comes from for readable reports.
+function _linterEntryPoints(roomId) {
+  const entries = [];
+  for (const otherId in AREAS) {
+    for (const t of (AREAS[otherId].transitions || [])) {
+      if (t.to === roomId) entries.push({ x: t.toX, y: t.toY, from: otherId });
+    }
+  }
+  return entries;
+}
+
+function validateRoomLayout(room) {
+  const phys = _linterPhysics();
+  const failures = [];
+  const loadout = (room.expectedLoadout && room.expectedLoadout.onEntry)
+    ? room.expectedLoadout.onEntry
+    : ROOM_LINTER_DEFAULT_LOADOUT;
+
+  const standable = _linterStandable(room);
+  const walls = (room.platforms || []).filter((p) => p.wall || p.destructible);
+  const permanentWalls = walls.filter((p) => !p.destructible);
+
+  // ── 1. Entry points land on real ground ────────────────────────────────
+  const entries = _linterEntryPoints(room.id);
+  const entryPlatforms = new Set();
+  for (const e of entries) {
+    const landing = _linterDropTo(standable, e.x + phys.playerW / 2, e.y);
+    if (!landing) {
+      failures.push(`entry from '${e.from}' spawns at (${e.x},${e.y}) with NO platform beneath — player falls into the void on arrival`);
+    } else {
+      entryPlatforms.add(landing);
+    }
+  }
+  // Start room / dev rooms: fall back to anchors, then the first platform.
+  if (entryPlatforms.size === 0 && entries.length === 0) {
+    for (const a of (room.anchors || [])) {
+      const landing = _linterDropTo(standable, a.x, a.y);
+      if (landing) entryPlatforms.add(landing);
+    }
+    if (entryPlatforms.size === 0 && standable.length) entryPlatforms.add(standable[0]);
+  }
+
+  // ── 2. Reachability flood fill — two passes ─────────────────────────────
+  // Pass 1: declared first-pass loadout, walls solid. Pass 2: everything
+  // unlocked, destructible walls broken. Unreachable in pass 1 but reachable
+  // in pass 2 = a legitimate gated secret; unreachable in BOTH = a bug.
+  const pass1 = _linterFloodFill(phys, standable, entryPlatforms, loadout, walls);
+  const pass2 = _linterFloodFill(phys, standable, entryPlatforms, ['phase_dash'], permanentWalls);
+
+  for (const p of standable) {
+    if (!pass1.has(p) && !pass2.has(p)) {
+      failures.push(`platform at (${p.x},${p.y}) ${p.w}x${p.h} is unreachable even with all abilities and destructible walls broken`);
+    }
+  }
+
+  // Things that must sit on/above a reachable platform.
+  const checkPoint = (label, px, py, w, h) => {
+    let firstPass = false, anyPass = false;
+    for (const p of standable) {
+      if (!_linterPointReachable(phys, p, px, py, w, h, ['phase_dash'])) continue;
+      if (pass2.has(p)) anyPass = true;
+      if (pass1.has(p) && _linterPointReachable(phys, p, px, py, w, h, loadout)) firstPass = true;
+      if (firstPass) break;
+    }
+    if (!anyPass) failures.push(`${label} at (${px},${py}) is unreachable even with all abilities and destructible walls broken`);
+    return firstPass;
+  };
+
+  if (room.abilityReward) {
+    // Ability pickups are critical-path — must be reachable on the FIRST pass.
+    const ok = checkPoint(`ability reward '${room.abilityReward.id}'`, room.abilityReward.x, room.abilityReward.y, 0, 0);
+    if (!ok && !failures[failures.length - 1]?.startsWith('ability reward')) {
+      failures.push(`ability reward '${room.abilityReward.id}' at (${room.abilityReward.x},${room.abilityReward.y}) is not reachable with the room's first-pass loadout [${loadout.join(', ')}]`);
+    }
+  }
+  for (const a of (room.anchors || [])) checkPoint(`anchor #${a.index}`, a.x, a.y, 0, 0);
+  for (const l of (room.loreFragments || [])) checkPoint(`lore fragment '${l.id}'`, l.x, l.y, 0, 0);
+  for (const e of (room.enemies || [])) checkPoint(`enemy '${e.type}'`, e.x, e.y, 28, 28);
+
+  // ── 3. Door checks: embedded in geometry / floating out of reach ───────
+  (room.transitions || []).forEach((t, i) => {
+    // Embedded: the door's entire vertical span sits at/below a solid
+    // platform's top surface (the exact Crag Entrance bug — see
+    // debug_v1.html R11, which this check supersedes but keeps passing).
+    for (const p of (room.platforms || [])) {
+      if (p.destructible) continue;
+      const xOverlap = t.x < p.x + p.w && t.x + t.w > p.x;
+      if (xOverlap && t.y >= p.y - 2 && t.y + t.h > p.y + 5 && t.y < p.y + p.h) {
+        failures.push(`transitions[${i}] (to '${t.to}') at (${t.x},${t.y}) ${t.w}x${t.h} is embedded inside the solid platform at (${p.x},${p.y}) — move it up so it overlaps the player's standing box (y: platformTop-${phys.playerH} to platformTop)`);
+        return;
+      }
+    }
+    // Touchable: overlaps the standing box of, or is jump-reachable from,
+    // at least one platform that is itself reachable.
+    let touchable = false;
+    for (const p of standable) {
+      if (pass2.has(p) && _linterPointReachable(phys, p, t.x, t.y, t.w, t.h, ['phase_dash'])) { touchable = true; break; }
+    }
+    if (!touchable) {
+      failures.push(`transitions[${i}] (to '${t.to}') at (${t.x},${t.y}) ${t.w}x${t.h} doesn't overlap any reachable player standing box and is beyond jump reach — physically untouchable`);
+    }
+  });
+
+  // ── 4. Gap coverage along the floor — every hole must be crossable ─────
+  // Union the standable platforms' x-intervals; every interior gap in that
+  // union is a column of pure void, which is only OK if some platform pair
+  // spans it within jump/dash range. In rooms without an explicit hazard
+  // (pitDeathY < groundY) this is exactly the fall-death class of bug.
+  if (standable.length > 1) {
+    const byX = standable.slice().sort((a, b) => a.x - b.x);
+    let coveredTo = byX[0].x + byX[0].w;
+    for (const p of byX) {
+      if (p.x > coveredTo) {
+        const g0 = coveredTo, g1 = p.x;
+        let crossable = false;
+        for (const a of byX) {
+          if (a.x + a.w < g0 - 1 || a.x + a.w > g0 + 1) continue; // touches gap's left lip
+          for (const b of byX) {
+            if (b.x < g1 - 1 || b.x > g1 + 1) continue;           // touches gap's right lip
+            if (_linterEdge(phys, a, b, loadout, walls) || _linterEdge(phys, b, a, loadout, walls)) { crossable = true; break; }
+          }
+          if (crossable) break;
+        }
+        if (!crossable) {
+          failures.push(`floor gap x:${g0}-${g1} (${g1 - g0}px) has zero platform coverage and no platform pair can cross it with loadout [${loadout.join(', ')}]`);
+        }
+      }
+      coveredTo = Math.max(coveredTo, p.x + p.w);
+    }
+  }
+
+  // ── 5. Two-way connections have a physical door back ────────────────────
+  // validateAreaGraph() checks the declared connection records; this checks
+  // the actual door hitboxes, which is what the player touches.
+  for (const conn of (room.connections || [])) {
+    if (conn.oneWay) continue;
+    const target = AREAS[conn.to];
+    if (!target) continue; // validateAreaGraph already errors on this
+    const hasBack = (target.transitions || []).some((t) => t.to === room.id);
+    if (!hasBack) {
+      failures.push(`two-way connection '${conn.direction}' to '${conn.to}' has no physical return door — '${conn.to}' has no transitions[] entry back to '${room.id}'`);
+    }
+  }
+
+  return { id: room.id, failures };
+}
+
+// Lint every real room (dev-only rooms without a compass position are
+// skipped, same rule the graph validator and debug tools use). Logs a plain
+// per-room report; returns true when every room passes.
+function validateAllRoomLayouts() {
+  let clean = 0, dirty = 0;
+  for (const roomId in AREAS) {
+    const room = AREAS[roomId];
+    if (typeof room.col !== 'number') continue;
+    const result = validateRoomLayout(room);
+    if (result.failures.length === 0) {
+      clean++;
+    } else {
+      dirty++;
+      console.error(`[room linter] ${roomId}: ${result.failures.length} issue(s)`);
+      for (const f of result.failures) console.error(`[room linter]   ✗ ${f}`);
+    }
+  }
+  if (dirty === 0) {
+    console.log(`[room linter] all ${clean} rooms passed layout checks`);
+  } else {
+    console.error(`[room linter] ${dirty} room(s) with layout issues, ${clean} clean`);
+  }
+  return dirty === 0;
+}
+
+// Auto-run once per page load, AFTER every script has loaded so the real
+// physics constants from player.js/ability.js are in scope. try/catch so a
+// linter defect can never crash the game; guarded for Node (export_graph.js
+// runs this file in a vm sandbox with no window).
+if (typeof window !== 'undefined') {
+  window.addEventListener('load', () => {
+    try {
+      validateAllRoomLayouts();
+    } catch (e) {
+      console.error('[room linter] crashed (game unaffected):', e);
+    }
+  });
+}

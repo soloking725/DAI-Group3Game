@@ -136,17 +136,29 @@ PHASE 1 — Movement & Combat Overhaul
     - Wall slide: hold toward wall while airborne → capped descent (WALL_SLIDE_SPEED=1.5),
       violet glow on wall-facing side + sparks. wallNormal tracked in collision block.
     - Wall jump: press jump while sliding/in coyote → perpendicular horizontal force
-      (WALL_JUMP_H_SPEED=7) + upward lift (WALL_JUMP_FORCE_Y=-11.5), brief I-frames.
+      (WALL_JUMP_H_SPEED=7) + upward lift (WALL_JUMP_FORCE=-10), brief I-frames.
     - Natural 1-frame coyote via wallNormal persistence across update→collision ordering.
     - SFX: wallJump() tone sweep + noise burst in audio.js. Visual: radial glow + sparks
       in player.js draw, particle burst in game.js after player.update().
-[ ] 1.8 Dash Refund on Hit
+[x] 1.8 Dash Refund on Hit
+    - Landing a melee hit refunds 50% of the base dash cooldown, once per
+      swing (`player.dashRefundedThisAttack`, reset wherever a new attack
+      starts in player.js; refund applied in game.js's enemy hit loop right
+      after gainFracture/hitstop). Rewards aggressive play without making
+      dash spam free — a whiffed swing refunds nothing.
 
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 2 — Enemies & Smarter AI
 ─────────────────────────────────────────────────────────────────────────────
 [ ] 2.1 Pit Avoidance (extend to all enemy types)
-[ ] 2.2 New Enemy: Lancer
+[x] 2.2 New Enemy: Lancer — built as **Void Lancer** per the expansion.md
+      roster note above. `VoidLancer` class in enemy.js (6 HP, slow approach,
+      34f glowing-spear-tip telegraph → 10px/f charging thrust, 2 dmg).
+      Perfect parry stuns it and the next hit while stunned deals double
+      damage (its designed counter). Spawnable via game.js's 'void_lancer'
+      type and testable in enemy_test.html. NOT yet placed in any room's
+      enemies[] — its home region (The Void Expanse) doesn't exist yet;
+      place it when that region (or any suitable room) gets built.
 [ ] 2.3 New Enemy: Mage
 [ ] 2.4 New Enemy: Tank
 [ ] 2.5 Group Coordination & Adaptive Aggression
@@ -458,7 +470,9 @@ EXPLICITLY OUT OF SCOPE (by user request)
   - Procedural generation — all rooms hand-crafted
   - Multiplayer / online features
 
-CURRENTLY HERE: 0.1-0.6 done, Phase 1.1-1.7 done. Next: 1.8 (Dash Refund on Hit).
+CURRENTLY HERE: 0.1-0.6 done, Phase 1.1-1.8 done, 2.2 (Void Lancer) done.
+See Phase 7/8 sections below for the Crag region, world-map work, and the
+room verification linter.
 ═══════════════════════════════════════════════════════════════════════════
 ```
 
@@ -510,10 +524,11 @@ PHASE 7 — Crag of the Colossus & the World Map (2026-07-11)
         true the block stops running entirely and `boss.deathTimer` (needed
         to hit exactly 1 to fire the victory transition) gets stuck at 0
         forever — confirmed live, `deathTimer` never advances past 0 once
-        dead. NOT fixed (out of scope, a bigger change to the King's win
-        flow) — flagging here since it means beating the King currently
-        cannot trigger victory through this code path. My own miniboss code
-        uses the correct pattern instead (`if (miniboss)`, not `if (miniboss
+        dead. SINCE FIXED: game.js's King block now gates on `boss` alone
+        (same pattern as the miniboss), with the damage-dealing checks
+        individually gated on `!boss.dead` — `deathTimer` advances and the
+        `deathTimer === 1` victory trigger fires normally. My own miniboss
+        code uses the correct pattern too (`if (miniboss)`, not `if (miniboss
         && !miniboss.dead)`, with individual collision checks gated on
         `!miniboss.dead` where needed).
       - Multi-hit-per-swing damage: player.getAttackHitbox() stays non-null
@@ -574,8 +589,8 @@ NEXT SESSION SHOULD:
   - Build the room verification tool per Plans/room_verification_tool_plan.md
     before the next region ships — it would have caught 3 of the 4 bugs
     found this session automatically instead of by hand.
-  - Decide whether to fix the King's stuck-deathTimer/victory bug (see
-    above) — currently beating the King cannot trigger the win screen.
+  - ~~Decide whether to fix the King's stuck-deathTimer/victory bug~~ —
+    DONE, fixed in game.js (gate on `boss` alone; see the Phase 7 note above).
   - When any of the 12 planned regions actually gets built, use the
     cross-link pattern from expansion.md §3.13b, not just a single parent
     edge — that's the whole point of this session's interconnectedness fix.

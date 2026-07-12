@@ -36,6 +36,11 @@ const CHARGE_FULL = 40;     // frames to reach full charge (~667ms)
 const HEAVY_DAMAGE = 2;     // damage multiplier for full charge
 const HEAVY_KNOCKBACK = 2.5; // knockback multiplier for full charge
 
+// Shard Shot aiming (hold V/N to aim, release to fire — expansion §0.1)
+const SHARD_AIM_TILT_RATE = 0.25;  // launch-vy change per frame while holding Up/Down
+const SHARD_AIM_VY_MIN = -7;       // steepest upward launch
+const SHARD_AIM_VY_MAX = 4;        // steepest downward launch (off-ledge shots)
+
 // Parry (deflect enemy attacks with timed Z-tap during cooldown)
 const PARRY_WINDOW = 10;    // frames the parry is active (~167ms)
 const PARRY_COOLDOWN = 60;  // frames between parry attempts (1s)
@@ -78,8 +83,10 @@ class Player {
 
     this.phaseDashing = false;
     this.phaseDashTimer = 0;
-    this.aimingUp = false;
     this.shardShotFired = false;
+    this.shardAiming = false;   // holding V/N — aiming arc visible (see draw())
+    this.shardAimTimer = 0;     // frames the aim has been held
+    this.shardAimVy = 0;        // vertical launch velocity of the aimed shot
 
     // Duck / crouch
     this.ducking = false;
@@ -128,8 +135,6 @@ class Player {
     } else if (this.coyoteTimer > 0) {
       this.coyoteTimer--;
     }
-
-    this.aimingUp = isPressed('ArrowUp') || isPressed('KeyW');
 
     // ── Stillpoint toggle (Q) ──────────────────────────────────────────────
     if ((wasJustPressed('KeyQ') || wasJustPressed('KeyU')) && abilityState.hasStillpoint) {
@@ -379,12 +384,30 @@ class Player {
     }
     if (this.attackCooldown > 0) this.attackCooldown--;
 
-    // ── Shard Shot ─────────────────────────────────────────────────────────
+    // ── Shard Shot — hold to aim, release to fire (expansion §0.1) ─────────
+    // Press V/N: start aiming; a glowing dotted arc appears (see draw()).
+    // Hold Up/W or Down/S while aiming: tilt the arc smoothly.
+    // Release: fire along the arc. A quick tap = instant forward shot.
+    this.shardShotFired = false;
     if ((wasJustPressed('KeyV') || wasJustPressed('KeyN')) &&
-        abilityState.hasShardShot && abilityState.shardShotCooldown <= 0) {
-      this.shardShotFired = true;
-    } else {
-      this.shardShotFired = false;
+        abilityState.hasShardShot && abilityState.shardShotCooldown <= 0 &&
+        !this.shardAiming) {
+      this.shardAiming = true;
+      this.shardAimTimer = 0;
+      this.shardAimVy = 0;
+    }
+    if (this.shardAiming) {
+      if (isPressed('KeyV') || isPressed('KeyN')) {
+        this.shardAimTimer++;
+        if (isPressed('ArrowUp') || isPressed('KeyW')) {
+          this.shardAimVy = Math.max(this.shardAimVy - SHARD_AIM_TILT_RATE, SHARD_AIM_VY_MIN);
+        } else if (isPressed('ArrowDown') || isPressed('KeyS')) {
+          this.shardAimVy = Math.min(this.shardAimVy + SHARD_AIM_TILT_RATE, SHARD_AIM_VY_MAX);
+        }
+      } else {
+        this.shardAiming = false;
+        this.shardShotFired = true; // game.js consumes this + shardAimVy
+      }
     }
 
     // ── Physics ─────────────────────────────────────────────────────────────
@@ -769,39 +792,48 @@ class Player {
       }
     }
 
-    // Aiming indicator
-    if (this.aimingUp && abilityState.hasShardShot && !this.attacking) {
-      ctx.strokeStyle = 'rgba(103, 232, 249, 0.5)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      if (this.facing === 1) {
-        ctx.moveTo(this.x + this.width, this.y + this.height / 2);
-        ctx.lineTo(this.x + this.width + 40, this.y - 10);
-      } else {
-        ctx.moveTo(this.x, this.y + this.height / 2);
-        ctx.lineTo(this.x - 40, this.y - 10);
+    // Shard Shot aiming arc — visible while holding V/N (expansion §0.1).
+    // Steps the REAL projectile math (same launch position, speed, and
+    // gravity as game.js's useShardShot/Projectile), so the dotted parabola
+    // shows exactly where the shot will fly.
+    if (this.shardAiming && abilityState.hasShardShot) {
+      let sx = (this.facing === 1 ? this.x + this.width : this.x - 8) + 4;
+      let sy = this.y + this.height / 2 + 4;
+      const svx = 8 * (this.facing || 1);
+      let svy = this.shardAimVy;
+      const pulse = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.25) * 0.2 + 0.7;
+      ctx.fillStyle = '#fbbf24';
+      ctx.shadowColor = '#fbbf24';
+      ctx.shadowBlur = 6;
+      for (let i = 0; i < 36; i++) {
+        sx += svx;
+        sy += svy;
+        svy += 0.15; // Projectile gravity in game.js
+        if (i % 3 !== 0) continue; // dotted, not solid
+        ctx.globalAlpha = pulse * (1 - i / 44);
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+        ctx.fill();
       }
-      ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
     }
 
     // ── Wall slide indicator ──────────────────────────────────────────────
+    // Positioned entirely in world space using wallNormal (which side the wall
+    // is on) — no translate/scale trick needed, since wallNormal already tells
+    // us the correct side regardless of which way the sprite is facing.
     if (this.wallSliding && this.wallNormal !== 0) {
       // Glow on the wall-facing side of the player
       const glowPulse = Math.sin(frameCount * 0.15) * 0.15 + 0.5;
-      ctx.save();
-      ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
-      ctx.scale(this.facing > 0 ? -1 : 1, 1); // flip so glow is always toward wall
-      const gradient = ctx.createRadialGradient(
-        this.width / 2 + this.wallNormal * this.width * 0.3, this.height * 0.3, 0,
-        this.width / 2 + this.wallNormal * this.width * 0.3, this.height * 0.3, this.width * 1.5
-      );
+      const cx = this.x + this.width / 2;
+      const gx = cx + this.wallNormal * this.width * 0.3;
+      const gy = this.y + this.height * 0.3;
+      const gradient = ctx.createRadialGradient(gx, gy, 0, gx, gy, this.width * 1.5);
       gradient.addColorStop(0, `rgba(196, 181, 253, ${glowPulse})`);
       gradient.addColorStop(1, 'rgba(196, 181, 253, 0)');
       ctx.fillStyle = gradient;
-      ctx.fillRect(-this.width * 1.5, -this.height, this.width * 3, this.height * 2.5);
-      ctx.restore();
+      ctx.fillRect(cx - this.width * 1.5, this.y - this.height * 0.5, this.width * 3, this.height * 2.5);
 
       // Small vertical sparks along the wall contact point
       ctx.fillStyle = `rgba(203, 245, 255, ${glowPulse * 0.6})`;

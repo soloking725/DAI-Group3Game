@@ -61,7 +61,7 @@ function isRequirementMet(requires) {
   return false; // unknown requirement string — treat as locked, not silently open
 }
 
-function drawMap(ctx, currentAreaId, discoveredAreas, stillpointActivated) {
+function drawMap(ctx, currentAreaId, discoveredAreas, anchorActivated) {
   ctx.fillStyle = 'rgba(8, 8, 14, 0.94)';
   ctx.fillRect(0, 0, W, H);
 
@@ -135,7 +135,7 @@ function drawMap(ctx, currentAreaId, discoveredAreas, stillpointActivated) {
     ctx.strokeRect(cx - rw / 2, cy - rh / 2, rw, rh);
 
     // Stillpoint pip inside room box
-    if (stillpointActivated[id]) {
+    if (anchorActivated[id]) {
       ctx.fillStyle = '#c4b5fd';
       ctx.beginPath();
       ctx.arc(cx - rw / 2 + 10, cy - rh / 2 + 10, 3, 0, Math.PI * 2);

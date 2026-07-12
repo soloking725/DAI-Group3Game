@@ -84,8 +84,8 @@ let abilityFlashColor = '#c4b5fd';
 let abilityPopups = []; // floating text popups
 
 // Checkpoint system
-let lastStillpoint = null; // { areaId, x, y }
-let stillpointActivated = {}; // track activated stillpoints per area
+let lastAnchor = null; // { areaId, x, y }
+let anchorActivated = {}; // track activated anchors per area
 
 // Spawned enemies (per area, reset on re-entry)
 let areaEnemies = {};
@@ -288,14 +288,16 @@ function addAbilityNotification(text) {
   abilityState.notifications.push({ text: text, timer: 180 });
 }
 
-// Fire shard shot projectile
-function useShardShot(player, aimingUp) {
+// Fire shard shot projectile along the aimed arc (expansion §0.1 — aimVy
+// comes from player.shardAimVy, set by the hold-to-aim input in player.js;
+// 0 = flat forward shot, the quick-tap default).
+function useShardShot(player, aimVy) {
   const speed = 8;
   const vx = speed * (player.facing || 1);
-  const vy = aimingUp ? -6 : 0;
   const startX = (player.facing || 1) > 0 ? player.x + player.width : player.x - 8;
-  const startY = aimingUp ? player.y - 4 : player.y + player.height / 2;
-  const proj = new Projectile(startX, startY, vx, vy, 1, '#fbbf24');
+  const startY = player.y + player.height / 2;
+  const proj = new Projectile(startX, startY, vx, aimVy || 0, 1, '#fbbf24');
+  proj.seekWalls = true; // slight magnetism toward destructible crystal walls
   return proj;
 }
 
@@ -315,6 +317,28 @@ class Projectile {
   }
 
   update() {
+    // Slight magnetism toward the nearest intact destructible wall
+    // (expansion §0.1 — reduces wasted shots at crystal barriers without
+    // turning the shot into a homing missile; gentle pull, short radius).
+    if (this.seekWalls) {
+      const area = getCurrentArea();
+      if (area) {
+        const cx = this.x + this.width / 2;
+        const cy = this.y + this.height / 2;
+        let pullX = 0, pullY = 0, bestD = 100; // seek radius in px
+        for (const plat of area.platforms) {
+          if (!plat.destructible || plat.hp === undefined || plat.hp <= 0) continue;
+          // Closest point on the wall's rect, not its centre — tall walls
+          // would otherwise pull shots toward their midpoint.
+          const px = Math.max(plat.x, Math.min(cx, plat.x + plat.w));
+          const py = Math.max(plat.y, Math.min(cy, plat.y + plat.h));
+          const d = Math.hypot(px - cx, py - cy);
+          if (d > 0 && d < bestD) { bestD = d; pullX = (px - cx) / d; pullY = (py - cy) / d; }
+        }
+        this.vx += pullX * 0.35;
+        this.vy += pullY * 0.35;
+      }
+    }
     this.x += this.vx;
     this.y += this.vy;
     this.vy += 0.15; // gravity
@@ -335,6 +359,25 @@ class Projectile {
     ctx.fillRect(this.x, this.y, this.width, this.height);
     ctx.shadowBlur = 0;
   }
+}
+
+// ── Stillpoint offensive buff (expansion §0.2) ─────────────────────────────
+// While Stillpoint is active, melee turns into a risk-reward recovery tool
+// instead of a purely defensive slowdown: hits deal 1.5x damage and every
+// landed melee hit restores 1 health pip (capped at MAX_HEALTH). Shared by
+// all three melee hit loops (enemies, the King, minibosses) so the numbers
+// can never drift apart between them.
+function playerMeleeDamage() {
+  let dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
+  if (player.stillpointActive && abilityState.hasStillpoint) dmg *= 1.5;
+  return dmg;
+}
+
+function applyStillpointLifeSteal() {
+  if (!player.stillpointActive || !abilityState.hasStillpoint) return;
+  if (player.health >= MAX_HEALTH) return;
+  player.health = Math.min(MAX_HEALTH, player.health + 1);
+  spawnParticles(player.x + player.width / 2, player.y + 4, '#2dd4bf', 6);
 }
 
 // Particle system
@@ -402,9 +445,11 @@ function spawnAreaEnemies(areaId) {
       areaEnemies[areaId].push(new Stutterer(eDef.x, eDef.y));
     } else if (eDef.type === 'crystal_sentinel') {
     areaEnemies[areaId].push(new CrystalSentinel(eDef.x, eDef.y));
+    } else if (eDef.type === 'void_lancer') {
+      areaEnemies[areaId].push(new VoidLancer(eDef.x, eDef.y));
     } else {
       areaEnemies[areaId].push(new Enemy(eDef.x, eDef.y, eDef.type));
-    } 
+    }
   }
 }
 
@@ -487,8 +532,8 @@ function drawPlatform(ctx, plat) {
   }
 }
 
-// Draw Stillpoint checkpoint
-function drawStillpoint(ctx, sp, area, activated) {
+// Draw Anchor checkpoint
+function drawAnchor(ctx, sp, area, activated) {
   const pulse = Math.sin(frameCount * 0.04) * 0.3 + 0.7;
   const x = sp.x;
   const y = sp.y;
@@ -777,21 +822,21 @@ function unstuckPlayer() {
 
   const area = getCurrentArea();
 
-  if (lastStillpoint && lastStillpoint.areaId === currentAreaId) {
+  if (lastAnchor && lastAnchor.areaId === currentAreaId) {
     // Teleport to last stillpoint in current area
-    player.x = lastStillpoint.x;
-    player.y = lastStillpoint.y - player.height;
-  } else if (lastStillpoint) {
+    player.x = lastAnchor.x;
+    player.y = lastAnchor.y - player.height;
+  } else if (lastAnchor) {
     // Switch back to the stillpoint's area
-    currentAreaId = lastStillpoint.areaId;
-    player.x = lastStillpoint.x;
-    player.y = lastStillpoint.y - player.height;
+    currentAreaId = lastAnchor.areaId;
+    player.x = lastAnchor.x;
+    player.y = lastAnchor.y - player.height;
     resetCamera();
     spawnAreaEnemies(currentAreaId);
     SFX.setAreaAmbient(currentAreaId);
   } else {
     // Fallback: find first safe platform or stillpoint in current area
-    const sp = area.stillpoints && area.stillpoints[0];
+    const sp = area.anchors && area.anchors[0];
     if (sp) {
       player.x = sp.x;
       player.y = sp.y - player.height;
@@ -917,7 +962,7 @@ function saveSettings() {
 function buildPauseMenu() {
   pauseMenuItems = [
     { label: 'Resume', action: () => { /* just close the menu */ } },
-    { label: 'Return to Stillpoint', action: () => returnToStillpoint(), disabled: !lastStillpoint },
+    { label: 'Return to Anchor', action: () => returnToAnchor(), disabled: !lastAnchor },
     { label: 'Restart Room', action: () => restartRoom() },
     { label: `Screen Shake: ${screenShakeEnabled ? 'ON' : 'OFF'}`, action: () => {
       screenShakeEnabled = !screenShakeEnabled;
@@ -936,8 +981,8 @@ function buildPauseMenu() {
 // Respawn at checkpoint
 // ═══════════════════════════════════════════════════════════════════════
 // SAVE / LOAD (Phase 0.4) — localStorage-backed persistence.
-// Auto-saves on: Stillpoint checkpoint activation, area transitions, and
-// ability pickups (see call sites: the Stillpoint-checkpoint block, the end
+// Auto-saves on: Anchor checkpoint activation, area transitions, and
+// ability pickups (see call sites: the Anchor-checkpoint block, the end
 // of switchArea(), and each branch of the ability-reward pickup logic).
 // All localStorage access is wrapped in try/catch — private browsing, quota
 // limits, or a locked-down environment should degrade to "no persistence"
@@ -985,8 +1030,8 @@ function saveGame(slot) {
         hasStillpoint: abilityState.hasStillpoint,
         hasChargedAttack: abilityState.hasChargedAttack,
       },
-      stillpointActivated,
-      lastStillpoint,
+      anchorActivated,
+      lastAnchor,
       discoveredAreas,
       collectedLore,
       bossDefeated,
@@ -1021,8 +1066,8 @@ function loadGame(slot) {
     abilityState.shardShotCooldown = 0;
     abilityState.notifications = [];
 
-    stillpointActivated = data.stillpointActivated || {};
-    lastStillpoint = data.lastStillpoint || null;
+    anchorActivated = data.anchorActivated || {};
+    lastAnchor = data.lastAnchor || null;
     discoveredAreas = data.discoveredAreas || { [currentAreaId]: true };
     collectedLore = data.collectedLore || {};
     bossDefeated = !!data.bossDefeated;
@@ -1105,8 +1150,8 @@ function startNewGame() {
   defeatedMinibosses = {};
   areaEnemiesSpawned = {};
   discoveredAreas = { tutorial_area: true };
-  stillpointActivated = {};
-  lastStillpoint = null;
+  anchorActivated = {};
+  lastAnchor = null;
   collectedLore = {};
   bossDefeated = false;
   abilityState.hasPhaseDash = false;
@@ -1129,10 +1174,10 @@ function respawnPlayer() {
   deathFadeAlpha = 1;
   player.invincibleTimer = INVINCIBLE_FRAMES;
 
-  if (lastStillpoint) {
-    currentAreaId = lastStillpoint.areaId;
-    player.x = lastStillpoint.x;
-    player.y = lastStillpoint.y - player.height;
+  if (lastAnchor) {
+    currentAreaId = lastAnchor.areaId;
+    player.x = lastAnchor.x;
+    player.y = lastAnchor.y - player.height;
     player.vx = 0;
     player.vy = 0;
     player.health = MAX_HEALTH;
@@ -1142,7 +1187,7 @@ function respawnPlayer() {
   } else {
     // No checkpoint yet — respawn at the start of the CURRENT area rather
     // than hard-coding a specific room, so this works correctly whether
-    // that's the tutorial or the_fracture (both are pre-Stillpoint).
+    // that's the tutorial or the_fracture (both are pre-Anchor).
     player.health = MAX_HEALTH;
     player.x = 100;
     player.y = getCurrentArea().groundY - 60;
@@ -1158,22 +1203,22 @@ function respawnPlayer() {
   projectiles = [];
 }
 
-// Teleport to the most recent Stillpoint checkpoint (full health).
+// Teleport to the most recent Anchor checkpoint (full health).
 // Used by the pause menu — does NOT trigger a fade if there's no checkpoint.
-function returnToStillpoint() {
-  if (!lastStillpoint) {
-    addAbilityNotification('No Stillpoint activated yet');
+function returnToAnchor() {
+  if (!lastAnchor) {
+    addAbilityNotification('No Anchor activated yet');
     return;
   }
   // Safety: verify the checkpoint's area still exists (corrupt save or area removed)
-  if (!AREAS[lastStillpoint.areaId]) {
-    addAbilityNotification('Stillpoint area missing — respawning at room start');
+  if (!AREAS[lastAnchor.areaId]) {
+    addAbilityNotification('Anchor area missing — respawning at room start');
     restartRoom();
     return;
   }
-  currentAreaId = lastStillpoint.areaId;
-  player.x = lastStillpoint.x;
-  player.y = lastStillpoint.y - player.height;
+  currentAreaId = lastAnchor.areaId;
+  player.x = lastAnchor.x;
+  player.y = lastAnchor.y - player.height;
   player.vx = 0;
   player.vy = 0;
   player.health = MAX_HEALTH;
@@ -1634,7 +1679,7 @@ function update() {
 
   // Shard Shot firing
   if (player.shardShotFired) {
-    const proj = useShardShot(player, player.aimingUp);
+    const proj = useShardShot(player, player.shardAimVy);
     if (proj) {
       projectiles.push(proj);
       spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 4);
@@ -1673,8 +1718,9 @@ function update() {
     const playerAtk = player.getAttackHitbox();
     if (playerAtk && !enemy.dead && rectsOverlap(playerAtk, enemy) && !player.hitTargetsThisSwing.has(enemy)) {
       player.hitTargetsThisSwing.add(enemy);
-      const dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
+      const dmg = playerMeleeDamage();
       enemy.takeDamage(dmg, player.x, playerAtk.dir);
+      applyStillpointLifeSteal();
       spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#f87171', player.heavy ? 10 : 6);
       player.gainFracture(); // melee hit recharges Fracture meter
 
@@ -1872,8 +1918,9 @@ function update() {
     const playerAtk = player.getAttackHitbox();
     if (playerAtk && !boss.dead && rectsOverlap(playerAtk, boss) && !player.hitTargetsThisSwing.has(boss)) {
       player.hitTargetsThisSwing.add(boss);
-      const dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
+      const dmg = playerMeleeDamage();
       boss.takeDamage(dmg, player.x, 'melee');
+      applyStillpointLifeSteal();
       spawnParticles(boss.x + boss.width / 2, boss.y + boss.height / 2, '#f87171', player.heavy ? 12 : 6);
       player.gainFracture();
       SFX.bossHit();
@@ -1976,9 +2023,12 @@ function update() {
     const playerAtk = player.getAttackHitbox();
     if (playerAtk && !miniboss.dead && rectsOverlap(playerAtk, miniboss) && !player.hitTargetsThisSwing.has(miniboss)) {
       player.hitTargetsThisSwing.add(miniboss);
-      const dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
+      const dmg = playerMeleeDamage();
       miniboss.takeDamage(dmg, player.x, 'melee', player.heavy);
       if (player.heavy) {
+        // Life steal only on hits that actually connect — normal attacks
+        // bounce off the Colossus shell without landing.
+        applyStillpointLifeSteal();
         spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#fb923c', 10);
         player.gainFracture();
         screenShake = 10; screenShakeIntensity = 5;
@@ -2059,27 +2109,27 @@ function update() {
     }
   }
 
-  // Check Stillpoint checkpoints
+  // Check Anchor checkpoints
   const spKey = currentAreaId;
-  for (const sp of area.stillpoints) {
+  for (const sp of area.anchors) {
     const dist = Math.abs(player.x - sp.x);
     if (dist < 40) {
-      if (!stillpointActivated[spKey]) {
-        stillpointActivated[spKey] = true;
-        // Heal 1 pip on first activation — the Stillpoint restores you
+      if (!anchorActivated[spKey]) {
+        anchorActivated[spKey] = true;
+        // Heal 1 pip on first activation — the Anchor restores you
         if (player.health < MAX_HEALTH) {
           player.health = Math.min(MAX_HEALTH, player.health + 1);
-          addAbilityNotification('STILLPOINT ACTIVATED — health restored');
+          addAbilityNotification('ANCHOR ACTIVATED — health restored');
         } else {
-          addAbilityNotification('STILLPOINT ACTIVATED');
+          addAbilityNotification('ANCHOR ACTIVATED');
         }
         spawnParticles(sp.x, sp.y - 30, '#c4b5fd', 12);
         SFX.stillpoint();
       }
       // Save checkpoint position (only write if it's actually a new checkpoint —
       // avoids hammering localStorage every frame while standing near one)
-      const isNewCheckpoint = !lastStillpoint || lastStillpoint.areaId !== currentAreaId || lastStillpoint.x !== sp.x || lastStillpoint.y !== sp.y;
-      lastStillpoint = {
+      const isNewCheckpoint = !lastAnchor || lastAnchor.areaId !== currentAreaId || lastAnchor.x !== sp.x || lastAnchor.y !== sp.y;
+      lastAnchor = {
         areaId: currentAreaId,
         x: sp.x,
         y: sp.y,
@@ -2105,7 +2155,7 @@ function update() {
         saveGame();
       } else if (ab.id === 'shard_shot' && !abilityState.hasShardShot) {
         abilityState.hasShardShot = true;
-        addAbilityNotification('ABILITY: Shard Shot — V to fire, W+V to tilt');
+        addAbilityNotification('ABILITY: Shard Shot — hold V to aim, release to fire');
         spawnParticles(ab.x, ab.y, '#67e8f9', 20);
         abilityFlash = 12;
         abilityFlashColor = '#67e8f9';
@@ -2275,8 +2325,8 @@ function drawAreaLabel(ctx) {
   ctx.fillText(area.name, 16, 42);
 
   const nameWidth = ctx.measureText(area.name).width;
-  ctx.fillStyle = lastStillpoint ? '#c4b5fd' : '#4a4a6e';
-  ctx.fillText(lastStillpoint ? '\u25cf' : '\u25cb', 16 + nameWidth + 8, 42);
+  ctx.fillStyle = lastAnchor ? '#c4b5fd' : '#4a4a6e';
+  ctx.fillText(lastAnchor ? '\u25cf' : '\u25cb', 16 + nameWidth + 8, 42);
 }
 
 // Top-center: boss health bar (drawn only while a boss is alive & active).
@@ -2860,10 +2910,10 @@ function draw() {
     }
   }
 
-  // Stillpoints (checkpoints)
-  for (const sp of area.stillpoints) {
-    const activated = stillpointActivated[currentAreaId] || false;
-    drawStillpoint(ctx, sp, area, activated);
+  // Anchors (checkpoints)
+  for (const sp of area.anchors) {
+    const activated = anchorActivated[currentAreaId] || false;
+    drawAnchor(ctx, sp, area, activated);
   }
 
   // Ability rewards
@@ -3048,7 +3098,7 @@ function draw() {
     if (abilityState.hasPhaseDash || abilityState.hasShardShot) {
       const abilities = [];
       if (abilityState.hasPhaseDash) abilities.push('C: Phase Dash');
-      if (abilityState.hasShardShot) abilities.push('V: Shard Shot | W+V: Tilt');
+      if (abilityState.hasShardShot) abilities.push('V (hold): Aim Shard Shot | ↑/↓: Tilt');
       ctx.fillText(abilities.join('  |  '), W / 2, iy + 46);
     }
 
@@ -3194,7 +3244,7 @@ function draw() {
 
   // Full-screen map overlay
   if (mapOpen) {
-    drawMap(ctx, currentAreaId, discoveredAreas, stillpointActivated);
+    drawMap(ctx, currentAreaId, discoveredAreas, anchorActivated);
   }
 }
 

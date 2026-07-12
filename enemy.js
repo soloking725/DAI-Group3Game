@@ -616,6 +616,237 @@ class Stutterer extends Enemy {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// VoidLancer — telegraphed charging thrust. Perfect parry stuns it and the
+// next hit lands for double damage (see takeDamage). Planned enemy from
+// expansion.md §2 (home region: The Void Expanse, not built yet) — built as
+// a standalone class per roadmap.md Phase 2.2 ("Lancer" -> "Void Lancer").
+// ─────────────────────────────────────────────────────────────────────────────
+const LANCER_HEALTH = 6;
+const LANCER_SPEED = 1.2;          // slower patrol/approach than Fractured — the payoff is the charge
+const LANCER_DAMAGE = 2;           // charge hits harder than a basic Fractured swing (ENEMY_DAMAGE=1)
+const LANCER_CHARGE_SPEED = 10;
+const LANCER_WINDUP_FRAMES = 34;   // slightly longer than ENEMY_WINDUP_FRAMES — glowing spear tip telegraph
+const LANCER_CHARGE_DURATION = 20;
+const LANCER_CHARGE_COOLDOWN = 130;
+
+class VoidLancer extends Enemy {
+  constructor(x, y) {
+    super(x, y, 'void_lancer');
+    this.health = LANCER_HEALTH;
+    this.attackCooldown = LANCER_CHARGE_COOLDOWN;
+    this.charging = false;       // mid-thrust, moving fast, hitbox live
+    this.chargeTimer = 0;
+    this.stunTimer = 0;          // parry stun — see takeDamage() for the double-damage payoff
+  }
+
+  update(player, bounds, echoes) {
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+
+    if (this.dead) { this.deathTimer++; return; }
+
+    // Parry stun — frozen in place, vulnerable to a follow-up double-damage hit.
+    if (this.stunTimer > 0) {
+      this.stunTimer -= _ts;
+      this.vx = 0;
+      this.flashTimer = Math.max(0, this.flashTimer - 1);
+      return;
+    }
+
+    // Echo distraction (same convention as the other enemy types)
+    if (this.distractionTimer > 0) {
+      this.distractionTimer -= _ts;
+      if (this.distractionTimer <= 0) this.distractionTarget = null;
+      this.flashTimer++;
+      return;
+    }
+    let nearestEcho = null, nearestDist = ECHO_DISTRACT_RADIUS;
+    for (const echo of echoes) {
+      if (!echo.alive) continue;
+      const d = Math.abs((this.x + this.width / 2) - (echo.x + echo.width / 2));
+      if (d < nearestDist) { nearestDist = d; nearestEcho = echo; }
+    }
+    if (nearestEcho) { this.distractionTarget = nearestEcho; this.distractionTimer = 60; return; }
+
+    const sight = this.canSeePlayer(player);
+    if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE && !this.windingUp && !this.charging) {
+      this.facing = sight.dx > 0 ? 1 : -1;
+    }
+
+    // ── Windup: begin the telegraph once the player is roughly in lane ──
+    if (sight.verticalOk && Math.abs(sight.dx) < ENEMY_ATTACK_RANGE * 6 &&
+        this.attackCooldown <= 0 && !this.windingUp && !this.charging) {
+      this.windingUp = true;
+      this.windUpTimer = LANCER_WINDUP_FRAMES;
+      this.vx = 0;
+    }
+
+    if (this.windingUp) {
+      this.windUpTimer -= _ts;
+      this.vx = 0;
+      if (this.windUpTimer <= 0) {
+        this.windingUp = false;
+        this.charging = true;
+        this.chargeTimer = LANCER_CHARGE_DURATION;
+        this.vx = this.facing * LANCER_CHARGE_SPEED;
+        this.attackCooldown = LANCER_CHARGE_COOLDOWN;
+      }
+    }
+
+    if (this.charging) {
+      this.chargeTimer -= _ts;
+      if (this.chargeTimer <= 0) {
+        this.charging = false;
+        this.vx = 0;
+      }
+    }
+
+    if (this.attackCooldown > 0) this.attackCooldown -= _ts;
+    if (this.attackCooldown < 0) this.attackCooldown = 0;
+
+    // ── Approach (only when not telegraphing/charging) ──
+    if (!this.windingUp && !this.charging) {
+      if (sight.inRange) {
+        this.vx = this.facing * LANCER_SPEED;
+        this.idleTimer = 0;
+      } else if (this.idleTimer > 0) {
+        this.idleTimer -= _ts;
+        this.vx = 0;
+      } else {
+        if (Math.abs(this.x - this.patrolCenter) > this.patrolRange) {
+          this.patrolDir = this.x > this.patrolCenter ? -1 : 1;
+        }
+        this.vx = this.patrolDir * PATROL_SPEED;
+      }
+    }
+
+    if (!this.grounded && !this.charging) this.vx = 0;
+    this.vy += GRAVITY * _ts;
+    this.x += this.vx * _ts;
+    this.y += this.vy * _ts;
+
+    if (this.y + this.height > bounds.groundY) {
+      this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
+    }
+
+    const area = getCurrentArea();
+    if (area) {
+      for (const plat of area.platforms) {
+        if (plat.destructible && plat.hp <= 0) continue;
+        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
+          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
+            this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
+          }
+        }
+      }
+    }
+
+    // Charging into a wall/bound ends the charge early rather than sliding along it
+    if (this.x < bounds.left) { this.x = bounds.left; if (this.charging) { this.charging = false; this.chargeTimer = 0; } }
+    if (this.x + this.width > bounds.right) { this.x = bounds.right - this.width; if (this.charging) { this.charging = false; this.chargeTimer = 0; } }
+
+    this.flashTimer++;
+  }
+
+  getAttackHitbox() {
+    if (!this.charging) return null;
+    return {
+      x: this.facing === 1 ? this.x + this.width : this.x - 22,
+      y: this.y + 6,
+      width: 22,
+      height: this.height - 12,
+    };
+  }
+
+  // Perfect parry (game.js sets `this.stunTimer = PARRY_STUN` on a successful
+  // deflect) leaves the Lancer stunned and open — the next hit that lands
+  // while it's still stunned deals double damage, per its design counter.
+  takeDamage(dmg, sourceX, attackDir = 'forward') {
+    const wasStunned = this.stunTimer > 0;
+    this.health -= wasStunned ? dmg * 2 : dmg;
+    this.flashTimer = 0;
+    this.windingUp = false;
+    this.windUpTimer = 0;
+    this.charging = false;
+    this.chargeTimer = 0;
+    this.stunTimer = 0;
+    this.hitStun = 14;
+
+    if (sourceX !== undefined) {
+      const dir = (this.x > sourceX ? 1 : -1);
+      if (attackDir === 'up') { this.vx = dir * 3; this.vy = -12; this.juggling = true; }
+      else if (attackDir === 'down') { this.vx = dir * 6; this.vy = 8; }
+      else { this.vx = dir * 5; this.vy = -4; if (!this.grounded) this.juggling = true; }
+    }
+    if (this.health <= 0) this.dead = true;
+  }
+
+  draw(ctx) {
+    if (this.dead) {
+      ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 20);
+    }
+
+    if (this.stunTimer > 0) {
+      ctx.fillStyle = '#60a5fa';
+    } else if (this.flashTimer < 6) {
+      ctx.fillStyle = '#ffffff';
+    } else if (this.distractionTimer > 0) {
+      ctx.fillStyle = '#818cf8';
+    } else if (this.windingUp) {
+      const t = 1 - this.windUpTimer / LANCER_WINDUP_FRAMES;
+      ctx.fillStyle = `rgb(${Math.round(80 + 100 * t)}, ${Math.round(60 + 40 * t)}, ${Math.round(180 + 60 * t)})`;
+    } else {
+      ctx.fillStyle = '#7c3aed';
+    }
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    // Eye
+    ctx.fillStyle = '#0a0a0f';
+    const eyeX = this.facing === 1 ? this.x + 18 : this.x + 4;
+    ctx.fillRect(eyeX, this.y + 8, 8, 6);
+
+    // Lance — extends further and brightens through windup/charge
+    const lanceLen = this.charging ? 30 : (this.windingUp ? 10 + (1 - this.windUpTimer / LANCER_WINDUP_FRAMES) * 18 : 6);
+    const lanceX = this.facing === 1 ? this.x + this.width : this.x - lanceLen;
+    ctx.fillStyle = this.windingUp ? `rgba(196, 181, 253, ${0.5 + (1 - this.windUpTimer / LANCER_WINDUP_FRAMES) * 0.5})` : '#c4b5fd';
+    ctx.fillRect(lanceX, this.y + this.height / 2 - 2, lanceLen, 4);
+
+    // Windup telegraph: glowing spear tip + "!"
+    if (this.windingUp) {
+      const progress = 1 - this.windUpTimer / LANCER_WINDUP_FRAMES;
+      const tipX = this.facing === 1 ? this.x + this.width + lanceLen : this.x - lanceLen;
+      ctx.fillStyle = `rgba(224, 208, 255, ${0.4 + progress * 0.6})`;
+      ctx.beginPath();
+      ctx.arc(tipX, this.y + this.height / 2, 3 + progress * 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e0d0ff';
+      ctx.font = `bold ${9 + Math.round(progress * 3)}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('!', this.x + this.width / 2, this.y - 6);
+      ctx.textAlign = 'left';
+    }
+
+    // Charge trail
+    if (this.charging) {
+      ctx.fillStyle = 'rgba(124, 58, 237, 0.35)';
+      for (let i = 1; i <= 3; i++) {
+        ctx.fillRect(this.x - this.facing * i * 10, this.y, this.width, this.height);
+      }
+    }
+
+    // Stun indicator
+    if (this.stunTimer > 0) {
+      ctx.fillStyle = '#bfdbfe';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('*', this.x + this.width / 2, this.y - 6);
+      ctx.textAlign = 'left';
+    }
+
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FracturedSlime — summoned miniboss by the Fractured King
 // ─────────────────────────────────────────────────────────────────────────────
 const SLIME_SPEED = 2.5;

@@ -1,0 +1,479 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns:y="http://www.yworks.com/xml/graphml"
+         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd">
+  
+    <key id="d_label" for="node" attr.name="label" attr.type="string"/>
+    <key id="d_region" for="node" attr.name="region" attr.type="string"/>
+    <key id="d_roomType" for="node" attr.name="roomType" attr.type="string"/>
+    <key id="d_ability" for="node" attr.name="abilityReward" attr.type="string"/>
+    <key id="d_miniboss" for="node" attr.name="miniboss" attr.type="string"/>
+    <key id="d_enemies" for="node" attr.name="enemies" attr.type="string"/>
+    <key id="d_ngraphics" for="node" yfiles.type="nodegraphics"/>
+    <key id="d_erequires" for="edge" attr.name="requires" attr.type="string"/>
+    <key id="d_oneway" for="edge" attr.name="oneWay" attr.type="boolean"/>
+    <key id="d_shortcut" for="edge" attr.name="shortcut" attr.type="boolean"/>
+    <key id="d_egraphics" for="edge" yfiles.type="edgegraphics"/>
+  <graph id="stillpoint_world" edgedefault="directed">
+    <node id="tutorial_area">
+      <data key="d_label">Threshold</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="0"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Threshold</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="the_fracture">
+      <data key="d_label">The Fracture</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Phase Dash</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="0"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Fracture</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="echo_bridge">
+      <data key="d_label">Echo Bridge</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="0"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Echo Bridge</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="upper_ruins">
+      <data key="d_label">Upper Ruins</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="-220"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Upper Ruins</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="crystal_cavern">
+      <data key="d_label">Crystal Cavern</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Shard Shot</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured, stutterer</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="0"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crystal Cavern</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="the_forge">
+      <data key="d_label">The Forge</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured, stutterer, crystal_sentinel</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="880" y="0"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Forge</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="the_vault">
+      <data key="d_label">The Vault</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Stillpoint</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="1100" y="0"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Vault</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="the_rift">
+      <data key="d_label">The Rift</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="1320" y="0"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Rift</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="antechamber">
+      <data key="d_label">Antechamber</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="1540" y="0"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Antechamber</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="boss_arena">
+      <data key="d_label">The Fractured King</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">boss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="1760" y="0"/>
+          <y:Fill color="#E24B4A" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Fractured King</y:NodeLabel>
+          <y:Shape type="octagon"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="crag_entrance">
+      <data key="d_label">Crag Entrance</data>
+      <data key="d_region">crag</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured, stutterer</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="-220"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crag Entrance</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="crag_breach">
+      <data key="d_label">Crag Breach</data>
+      <data key="d_region">crag</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured, stutterer, crystal_sentinel</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="-440"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crag Breach</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="crag_altar">
+      <data key="d_label">Crag Altar</data>
+      <data key="d_region">crag</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Charged Attack</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="-660"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crag Altar</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="crag_warden">
+      <data key="d_label">Crag Warden</data>
+      <data key="d_region">crag</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">colossus_core</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="-880"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crag Warden</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="enemy_test_arena">
+      <data key="d_label">Test Arena</data>
+      <data key="d_region">unassigned</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-660" y="0"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Test Arena</y:NodeLabel>
+          <y:Shape type="roundrectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <edge id="e0" source="tutorial_area" target="the_fracture" directed="true">
+      <data key="d_erequires">tutorial_complete</data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#5DCAA5" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">tutorial_complete</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e1" source="the_fracture" target="echo_bridge" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e2" source="the_fracture" target="crag_entrance" directed="true">
+      <data key="d_erequires">phase_dash</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#BA7517" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">phase_dash</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e3" source="crag_entrance" target="the_fracture" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e4" source="echo_bridge" target="crystal_cavern" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e5" source="echo_bridge" target="upper_ruins" directed="true">
+      <data key="d_erequires">phase_dash</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#BA7517" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">phase_dash</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e6" source="upper_ruins" target="echo_bridge" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e7" source="crystal_cavern" target="the_forge" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e8" source="the_forge" target="the_vault" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e9" source="the_vault" target="the_rift" directed="true">
+      <data key="d_erequires">stillpoint</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#7F77DD" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">stillpoint</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e10" source="the_rift" target="the_vault" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e11" source="the_rift" target="antechamber" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e12" source="antechamber" target="boss_arena" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e13" source="crag_entrance" target="crag_breach" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e14" source="crag_breach" target="crag_altar" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e15" source="crag_altar" target="crag_warden" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e16" source="crag_warden" target="the_fracture" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+  </graph>
+</graphml>
