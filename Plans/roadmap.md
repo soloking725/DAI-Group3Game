@@ -164,6 +164,48 @@ PHASE 2 — Enemies & Smarter AI
 [ ] 2.5 Group Coordination & Adaptive Aggression
 [ ] 2.6 Enemy Health Bars (toggle, only when damaged)
 [ ] 2.7 Enemy Windup "Ping" (audio cue)
+[ ] 2.8 Enemy Architecture Rework (component-based behaviors) — PLANNED,
+      discussed with the user 2026-07-12, not started
+      **Problem this solves**: every enemy today (9 built: Fractured,
+      Stutterer, Crystal Sentinel, Void Lancer, Null Sentinel, Anchor
+      Wraith, Deflector Drone, Mirror Sprite, Echo Stalker) is a bespoke
+      `extends Enemy` class that hand-rolls its own windup/attack/chase/
+      physics loop, even when 80% of that loop is identical to every other
+      enemy. Phase 10 (session 2026-07-12) added 5 more this way and
+      duplicated the same boilerplate a 5th time. With ~19 more enemies
+      still planned in expansion.md §2, that duplication only gets worse —
+      and 2.1 (pit avoidance) has to be hand-added to every one of those
+      ~28 classes individually under the current architecture, not written
+      once.
+      **Proposed shape**: a small composable-behavior system — movement
+      behaviors (ground-chase-with-pit-avoidance, hover, teleport-on-trigger,
+      stationary-drift) and attack behaviors (melee-windup-swing, ranged-
+      projectile, contact-field, shield-reflect) as independent, reusable
+      pieces an enemy definition picks from, instead of a full subclass.
+      Existing bespoke classes (Stutterer's teleport-decoy, Crystal
+      Sentinel's directional shield, Void Lancer's charge-thrust) would
+      become the first behaviors extracted into this system, proving it
+      works before any new enemy is required to use it.
+      **Direct benefits**:
+        - 2.1 (Pit Avoidance) becomes a single shared movement behavior
+          instead of ~28 individual patches — the actual motivating case.
+        - 2.3/2.4 (Mage, Tank) and the remaining ~19 expansion.md enemies
+          become compositions of existing behaviors in most cases, not new
+          full classes each time.
+        - Unlocks a real visual enemy *designer* later (picking/combining
+          behaviors in a UI) — the current `enemy_editor.html` only tunes
+          numeric stats on pre-existing classes because there's nothing
+          more granular than "a whole class" to expose yet.
+        - 2.5 (Group Coordination) is a system that reads much more
+          naturally as "behaviors that reference sibling enemies" than as
+          logic bolted onto N unrelated classes.
+      **Cost / risk — why this is its own session, not opportunistic**:
+        real architecture change touching all 9 built enemy classes plus
+        however boss.js's `Boss`/`ColossusCore` relate to the base `Enemy`
+        pattern; meaningful regression risk across every enemy currently in
+        the game. Per CLAUDE.md's standing rule, a refactor at this scale
+        should be proposed and confirmed before starting, not folded into a
+        content task.
 
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 3 — Final Boss Overhaul
@@ -567,17 +609,72 @@ PHASE 7 — Crag of the Colossus & the World Map (2026-07-11)
     into any AREA data (the 12 non-Crag regions don't exist as AREAS yet).
     Apply the cross-link pattern when any of those regions actually gets
     built, not just the single parent edge from the original tree layout.
-[ ] Room verification tool — planned, not built. See
-    `Plans/room_verification_tool_plan.md` for the full design (a headless
-    bot-driven room walker + static layout linter, meant to catch exactly
-    the class of bug found in Crag above — unreachable platforms, pits with
-    no safety net, doors embedded in solid geometry — before a human ever
-    plays the room).
+[~] Room verification tool — the **static layout linter** half is built (the
+    dynamic bot walker from the plan doc is not). `validateRoomLayout()` /
+    `validateAllRoomLayouts()` in area.js: flood-fills reachable platforms
+    from every real entry point using the actual physics constants (jump
+    arc, dash, phase dash), runs a second all-abilities/walls-broken pass so
+    legitimate gated secrets don't false-fail, and separately checks
+    ability rewards/anchors/lore/enemies for reachability, door-in-geometry
+    (supersedes debug_v1.html's R11), floor-gap crossability, and physical
+    two-way doors. Runs automatically on page load (after `validateAreaGraph()`,
+    same pattern) wrapped in try/catch, and is also Node-safe for
+    export_graph.js-style tooling. Caught 3 real bugs on first run, all
+    fixed: crag_breach's entire upper Tier-2 route (5 platforms + its lore
+    fragment) was unreachable — a 160px rise from the entry ledge vs. a
+    ~120px max jump apex, missing a step platform; crag_altar's two
+    symmetrical high side ledges + a lore fragment were unreachable off the
+    dais for the same reason; the_forge's right shelf (behind barrier 2)
+    needed an unintended wall-jump off the barrier to reach, not a real
+    route. All 14 rooms pass clean now. See
+    `Plans/room_verification_tool_plan.md` for the still-unbuilt dynamic bot
+    walker half — worth doing before the next big region ships, same as the
+    linter was.
 [x] worldmap.html — a real, git-committed, self-contained diagram tool
     (distinct from the Artifact shown mid-session, which only lived in that
     chat) generating the same graph from live `area.js` data plus a
     hand-maintained `PLANNED_REGIONS` list for the 12 unbuilt regions. Lives
     at the repo root alongside `debug_v1.html`/`levelEditor.html`.
+
+─────────────────────────────────────────────────────────────────────────────
+PHASE 8 — Core Ability Reworks (expansion.md §0) — first 2 items
+─────────────────────────────────────────────────────────────────────────────
+[x] 0.1 Shard Shot — Hold to Aim
+      - Removed the old W+V instant-fire scheme. Press V/N to start aiming
+        (player.shardAiming), hold Up/W or Down/S to smoothly tilt the
+        launch angle (shardAimVy, ramped by SHARD_AIM_TILT_RATE between
+        SHARD_AIM_VY_MIN/MAX in player.js), release to fire along that arc.
+        A quick tap still fires an instant flat shot (aimVy stays 0).
+      - Visible aiming arc: player.js's draw() steps the REAL projectile
+        math (same start position/speed/gravity as game.js's
+        useShardShot()/Projectile) to draw a glowing dotted parabola, so
+        what you see is exactly where the shot will land, not an
+        approximation.
+      - Slight magnetism toward destructible crystal walls: Projectile.update()
+        in game.js pulls gently (0.35/frame) toward the closest point on the
+        nearest intact destructible wall within 100px, reducing wasted shots
+        without turning it into a homing missile — real walls only, dead
+        (hp<=0) ones are ignored.
+      - Updated the in-room ability description (area.js), the pickup
+        notification, and the HUD controls hint to match; no leftover
+        references to the old `aimingUp`/W+V scheme anywhere in the codebase.
+[x] 0.2 Stillpoint — Offensive Buff & Life Steal
+      - While Stillpoint is active: melee hits deal 1.5x damage and restore
+        1 health pip (capped at MAX_HEALTH), turning it from a pure
+        defensive slowdown into a risk-reward recovery tool per the design
+        doc. Implemented as two shared helpers in game.js
+        (playerMeleeDamage(), applyStillpointLifeSteal()) called from all
+        three melee-hit sites (regular enemies, the King, Colossus Core) so
+        the numbers can't drift apart between them. For the miniboss, life
+        steal only triggers on hits that actually connect (heavy attacks —
+        normal attacks bounce off its shell without landing), matching its
+        existing "only heavy attacks deal damage" rule.
+      - NOT done from the design doc's audio note ("audio gets a deeper,
+        resonant hum" during Stillpoint) — that's audio.js scope, left for
+        the 5.2/5.2a audio pass.
+      - Balance not playtested by a human yet — numbers match the design
+        doc's spec exactly (1.5x / +1 hp per hit) but haven't been felt out
+        in a real fight against the King or a miniboss.
 
 NEXT SESSION SHOULD:
   - Doors still render as a floating trigger box, not a natural cave-mouth
@@ -586,7 +683,19 @@ NEXT SESSION SHOULD:
     rendering change to game.js's transition-drawing code, touching every
     region, not just Crag — worth its own pass rather than bolting onto the
     next task.
-  - Build the room verification tool per Plans/room_verification_tool_plan.md
+  - Build the dynamic bot-walker half of the room verification tool per
+    Plans/room_verification_tool_plan.md — the static linter half is done
+    (see Phase 7 above).
+  - debug_v1.html's R10 check throws "Cannot convert undefined or null to
+    object" — pre-existing, not caused by this session's changes. Root
+    cause: `const AREAS = {...}` in area.js is a top-level const, which
+    (unlike `var`/function declarations) never becomes a `window` property,
+    so `win.AREAS` from the parent frame is undefined. R09 works because it
+    calls `win.validateAreaGraph()`, a function declaration, which does
+    attach to `window`. Fix would be adding `window.AREAS = AREAS;` (or
+    similar) at the bottom of area.js, or having debug_v1.html read AREAS
+    some other way — not done this session since it's a debug-tool-only
+    issue, not a gameplay bug.
     before the next region ships — it would have caught 3 of the 4 bugs
     found this session automatically instead of by hand.
   - ~~Decide whether to fix the King's stuck-deathTimer/victory bug~~ —
@@ -594,3 +703,464 @@ NEXT SESSION SHOULD:
   - When any of the 12 planned regions actually gets built, use the
     cross-link pattern from expansion.md §3.13b, not just a single parent
     edge — that's the whole point of this session's interconnectedness fix.
+
+PHASE 9 — Debug Tool Fix + Map Skeleton: 3 Anchor Regions (2026-07-12)
+─────────────────────────────────────────────────────────────────────────────
+[x] Debug tooling: window.abilityState fix
+      - Added `if (typeof window !== 'undefined') window.abilityState =
+        abilityState;` at the bottom of ability.js — same guard pattern as
+        area.js's `window.AREAS = AREAS`. Fixes debug_v1.html's R10 check
+        ("win.abilityState is undefined"), which needs to force-grant
+        abilities on the sandboxed iframe's `win` before teleporting into
+        each room.
+      - Also hardened debug_v1.html itself: wrapped the R10 (teleport-survival)
+        and R11 (embedded-door) check bodies in their own try/catch, each
+        reporting its own failure and letting the run continue instead of
+        one uncaught exception aborting every later check with a bare
+        "FATAL". R09–R11 now always run to completion and report
+        independently.
+      - Not verified live in a browser this session (see NEXT SESSION note
+        below) — confirmed only that ability.js's syntax is valid and the
+        pattern matches area.js's proven fix. Ask a human to hard-refresh
+        debug_v1.html and click "Run Live Checks" to confirm R10/R11 both
+        report green.
+[x] Map skeleton: 3 anchor regions, empty rooms, ability redistribution
+      - Built the first 3 of the 13 expansion.md regions as real `AREAS`
+        entries: **Mirror Veil** (mirror_veil_gate/_reflection/_hollow/_sanctum,
+        col 2 rows -2..-5, branches north off Upper Ruins), **Event Horizon**
+        (event_horizon_gate/_pull/_drift/_core, col 5 rows -1..-4, branches
+        north off The Vault, gated on `phase_dash` per expansion.md's table
+        3.1), and **Chrono-Space Rift** (chrono_rift_gate/_loop/_echo/_sanctum,
+        col 4 rows -1..-4, branches north off The Forge). 12 new rooms total,
+        each an empty skeleton (one full-width floor platform + doors only —
+        no enemies, no lore, no decoration) per this task's spec, except the
+        two sanctum rooms below.
+      - **Ability redistribution — deviated from the literal example in
+        session_priorities.md ("Phase Dash → Event Horizon, Shard Shot →
+        Mirror Veil") for a structural reason**: Event Horizon's own
+        expansion.md entry requires Phase Dash to enter, so Phase Dash can't
+        also be its reward (chicken-and-egg — you'd need the ability to
+        reach the room that gives it to you). Actual redistribution:
+        - `phase_dash` moved from The Fracture → **Mirror Veil's sanctum**
+          (Mirror Veil is expansion.md's stated "no ability required, good
+          first region" — and it sits earlier in the spine than Event
+          Horizon, so by the time a player reaches Event Horizon's
+          phase-dash-gated door, Mirror Veil is already reachable).
+        - `stillpoint` moved from The Vault → **Chrono-Space Rift's
+          sanctum** (branches off The Forge, one spine room before The
+          Vault, so it's always obtainable before The Vault's own
+          `stillpoint`-gated east door is encountered).
+        - `shard_shot` was deliberately left in Crystal Cavern — that room's
+          own destructible wall puzzle requires the player to find Shard
+          Shot before reaching that same wall, in the same room; moving it
+          out would break Crystal Cavern's internal logic. Not one of this
+          session's 3 anchor regions needs it as an entry requirement, so
+          there's no forced reason to relocate it yet.
+        - `charged_attack` (Crag Altar) is unchanged — Crag is already a
+          proper side-region, not part of the "spine-linear layout" this
+          task was about.
+        - The Fracture's and The Vault's own north/east ability-gated doors
+          (crag_entrance, the_rift) are untouched and still carry their
+          original `requires` — they're just satisfiable later now, forcing
+          a deliberate backtrack once the player fetches the ability from
+          its new home. This is intentional non-linear design (expansion.md
+          §3.14's whole point), not a bug.
+      - Validated headlessly (see NEXT SESSION note — no browser available
+        this session): wrote a throwaway Node harness that loads area.js in
+        a `vm` sandbox (same technique export_graph.js already uses) and
+        calls `validateAreaGraph()` + `validateAllRoomLayouts()` directly.
+        Both pass clean: **27 rooms, 0 graph errors, 0 layout failures**.
+        The two sanctum rooms initially failed the layout linter (their
+        altar platform was a 194px unbroken rise from the floor, beyond max
+        jump height) until stepping-stone platforms matching The Vault's
+        original altar approach were added — same shape, reused
+        deliberately for consistency.
+      - Updated worldmap.html's hand-maintained `PLANNED_REGIONS` /
+        `PLANNED_EDGES` / `CROSS_LINKS` lists per this file's own
+        documented convention ("move built regions out of the placeholder
+        list"): removed the single-node `event_horizon`, `mirror_veil`, and
+        `chrono_space_rift` placeholders, and re-pointed the edges/cross-links
+        that referenced them at the real built room ids (e.g.
+        `event_horizon_gate`/`event_horizon_core`, `mirror_veil_sanctum`,
+        `chrono_rift_gate`/`chrono_rift_sanctum`) so the planner doesn't show
+        stale duplicate nodes.
+      - NOT done: enemies, lore, decoration, or Tier 2/3 secret rewards in
+        any of the 12 new rooms (out of scope for this "empty skeleton"
+        pass — that's priorities #4/#5 in session_priorities.md). No new
+        ability (Graviton Surge) was added — Event Horizon's deepest room
+        (event_horizon_core) has an inert locked stub door toward
+        `graviton_core`, same convention as Crag Warden's existing stub.
+        Non-linearity is currently just 3 parallel branches off the origin
+        spine (Mirror Veil off Upper Ruins, Event Horizon off The Vault,
+        Chrono-Space Rift off The Forge) — no cross-links between the new
+        regions themselves yet; expansion.md §3.13b's cross-link lattice
+        applies once more of the 13 regions exist.
+[x] Bug fix: unrecognized `requires` values silently passed doors as unlocked
+      - Found by hand-testing Event Horizon Core's stub door (`requires:
+        'graviton_surge'`): walking through it froze the game. Root cause —
+        game.js's transition-requires check (both the actual traversal gate
+        in the update loop, and the separate locked/unlocked door-tint check
+        in the draw loop) was a manual if-chain that only recognized
+        `phase_dash`/`shard_shot`/`stillpoint`/`boss_gate`/`tutorial_complete`.
+        Any other `requires` value (e.g. `graviton_surge`, or `charged_attack`
+        on a transition) matched none of those ifs and fell through as
+        *unblocked* — the opposite of "safely inert." The player then walked
+        into `switchArea('graviton_core', ...)`, a room that doesn't exist in
+        `AREAS`, and the next frame's read of `undefined.groundY` (etc.)
+        threw an uncaught exception that silently killed the rAF loop —
+        exactly what "the game just freezes" looks like from the outside;
+        the debug `unstuck` command can't fix it because the loop itself is
+        dead, not the player's position.
+      - This bug was already latent at Crag Warden's identical
+        `requires: 'graviton_surge'` stub door (pre-existing, not introduced
+        this session) — just far harder to reach, so it was never hit.
+      - Fix: added a single shared `hasAbilityRequirement(requires)` helper
+        (game.js) used by both the traversal check and the draw-tint check,
+        which explicitly returns `false` (blocked) for any unrecognized
+        value instead of implicitly passing through. Re-ran the Node linter
+        harness afterward — still 26/26 rooms clean, no regressions.
+      - Also fixed the same silent-passthrough gap for `charged_attack` as a
+        transition `requires` value (previously unhandled the same way,
+        just never hit yet since no built transition uses it — Crag's
+        rubble wall gates via a destructible-platform check, not a
+        transition).
+[x] Bug fix: Phase Dash echoes survived room transitions
+      - `switchArea()` never cleared the `echoes` array (it's cleared on 6
+        other reset paths — new game, load, respawn, checkpoint reset — but
+        not on a plain room change), so an echo left behind before walking
+        through a door reappeared in the new room at the same raw (x,y)
+        coordinates, which is almost always meaningless in a different
+        room's layout. Added `echoes = [];` to `switchArea()` in game.js.
+[x] Cross-links between the 3 anchor regions (less linear, per direct
+    feedback that 3 independent spokes off one spine still feels linear)
+      - Realized while discussing this with the user that expansion.md
+        §3.13b's compact 3-column cluster grid assumes each region is a
+        SINGLE node — it has no room for a region's own 4-7-room depth
+        without colliding with a neighboring region's reserved cell. So
+        "moving the 3 anchor regions to their exact atlas col/row" isn't
+        actually a coherent fix once a region has real interior rooms (Crag
+        already sidesteps this the same way — a private column, not a
+        shared grid cell). Repositioning them wasn't done; cross-linking
+        them was, which is the concrete lever expansion.md itself names for
+        "feels like a web, not a tree."
+      - Added two real (not planned-only) cross-links:
+        - Mirror Veil Sanctum <-> Event Horizon Gate (two-way,
+          `shortcut: true`). The moment a player has Phase Dash (picked up
+          in this exact room), they can walk straight into Event Horizon
+          (which requires Phase Dash to enter) instead of backtracking the
+          entire origin spine to The Vault.
+        - Chrono-Space Rift Sanctum -> The Fracture (one-way shortcut,
+          same convention as Crag Warden's existing shortcut and the
+          planned Echoing Abyss -> Crystal Cavern link). Getting Stillpoint
+          also earns a fast lane back to The Fracture's Crag gate,
+          symmetric with the Mirror Veil link above.
+      - Re-validated: still 27 rooms / 0 graph errors / 26 rooms / 0 layout
+        failures after adding both.
+[x] Task 4 — Room Aesthetics: generative visual identity + cave-mouth doors
+      - Added `REGION_STYLES` (game.js) — a palette (primary/secondary/glow)
+        keyed by `room.region`, covering the 3 built anchor regions:
+        Mirror Veil (violet, reflection motif), Event Horizon (indigo,
+        gravity-well motif), Chrono-Space Rift (purple, clock/loop motif).
+        A region with no entry (origin, crag, any future region) just
+        renders with the plain pre-existing look — no regression.
+      - `decorateRoomForRegion(ctx, room, region)` — one room-wide ambient
+        effect per region, drawn once per frame under the platforms: Mirror
+        Veil gets a horizontal "mirror seam" with a scattered diamond
+        motif; Event Horizon gets a radial gravity-well vignette anchored
+        off-screen left (visual read for the region's leftward-pull
+        mechanic, which isn't physically simulated yet) plus slow-pulsing
+        concentric rings; Chrono-Space Rift gets a slow-rotating
+        clock-spoke hub.
+      - `decoratePlatformForRegion(ctx, plat, region)` — per-platform edge
+        treatment, called right after the existing `drawPlatform()`: Mirror
+        Veil gets a faint upside-down "reflection ghost" of the platform;
+        Event Horizon gets inward-curving corner glows (lensing cue);
+        Chrono-Space Rift gets ruler-style tick marks along the top edge.
+        Destructible/crystal platforms are skipped — they keep their own
+        dedicated crackling-crystal look everywhere, unchanged.
+      - `drawDoor(ctx, trans, area, blocked)` replaces the old flat
+        rectangle for every transition in every room (not just the 3
+        decorated regions — this is a plain shape swap, low risk): a
+        glowing portal ellipse for ability-gated doors, a one-way arrow
+        in a plain frame for shortcut/oneWay doors, an arched stone
+        cave-mouth (rounded top, not a rectangle) for everything else.
+        Tinted per-room via `mapAccent`/`ambientColor`, red-shifted the
+        same way the old blocked-door tint was. The existing direction
+        arrow overlay is kept as-is on top, since none of the three new
+        shapes imply direction on their own.
+      - **Design decision, confirmed with the user before building**: this
+        is a pure rendering layer keyed off `room.region` / `mapAccent` /
+        `ambientColor` — fields that already exist on every room. It adds
+        NO new fields to platforms/transitions and changes nothing about
+        the saved room JSON shape, so `levelEditor.html`'s exported rooms
+        get the new look automatically the moment their `region` matches a
+        `REGION_STYLES` key — zero editor changes needed, by design, not
+        by accident.
+      - Verified: `node --check` passes, and the Node linter harness still
+        reports 27/0/26/0 (no regressions — decoration is drawing-only,
+        doesn't touch any data the linters read).
+      - NOT done: a live visual tuning tool (level_designer.html) for
+        picking region palettes/decoration parameters interactively — asked
+        the user to confirm scope before starting since it's a second tool
+        comparable in size to levelEditor.html itself, not a quick add-on.
+
+NEXT SESSION SHOULD (updated after Phase 10 — see that section for detail):
+  - **Highest priority — two flagged balance issues need a deliberate pass
+    before more content is built on top of them**: BUG-013 (Stillpoint
+    blocks attacking, so its own offensive buff can't trigger) and BAL-001
+    (Phase Dash is too strong) in BUG_ANALYSIS_AND_QA_PLAN.md. Both affect
+    core traversal/combat that everything else (Crag, the 3 anchor regions,
+    all 9 built enemies) is tuned around, so fixing them later risks
+    re-tuning multiple already-built rooms.
+  - Playtest the 5 new enemies from Phase 10 in `enemy_test.html` (each
+    against 2-3 loadouts) — this session validated them headlessly
+    (`node --check` + the Node linter harness) but never confirmed they
+    feel right or that Deflector Drone's reflection is fair.
+  - Confirm debug_v1.html's R10 and R11 pass in a real browser (hard-refresh
+    first — browser caching was suspected during this session). This
+    session's Node-only validation confirms the underlying data is correct;
+    it does not confirm the live iframe harness sees it correctly.
+  - Confirm the Task 4 decoration/doors actually look good in a real
+    browser (this session validated data/syntax only, not the visual
+    result — genuinely can't be judged without eyes on a canvas).
+  - Populate enemies/lore/Tier 2-3 rewards per session_priorities.md #5, and
+    add real cross-links between Mirror Veil/Event Horizon/Chrono-Space Rift
+    once more of the 13-region lattice exists (currently 3 independent
+    spine branches, not yet a web).
+  - See Plans/regions.md for the planned-region room/effect breakdown and
+    the 25-physics-concept brainstorm for 5 additional regions beyond the
+    13 — nothing there is built or wired in yet, purely a planning doc.
+  - The newest ability in any design doc is **Void Tether** (`story.md`
+    §4, key `T`, 1 Fracture Pip) — a grapple-hook ability (hit an enemy to
+    pull them toward you; hit a wall/ceiling to pull yourself toward it),
+    tied to the not-yet-built companion/story system (a miniboss dilemma in
+    The Polar Shift). Not implemented anywhere in code; newer conceptually
+    than Graviton Surge (expansion.md Phase 1), which is itself still
+    unbuilt.
+  - **PLANNED: `level_designer.html`** (not built yet — noted per the user's
+    request, build when they're ready). Purpose: a live visual tuning tool
+    for the Task 4 decoration system, so the user can adjust a region's
+    look without hand-editing `REGION_STYLES`/`decorateRoomForRegion()` in
+    game.js. Rough shape, to keep it consistent with this codebase's "live
+    data, not a hardcoded mockup" convention (same spirit as
+    `export_graph.js` reusing area.js's real functions):
+      - Load `area.js` for real room data (like `worldmap.html` already
+        does) plus the real `REGION_STYLES`/`decorateRoomForRegion()`/
+        `decoratePlatformForRegion()`/`drawDoor()` functions from game.js
+        (via a `<script>` include, same load pattern `index.html` uses —
+        NOT a re-typed copy, to avoid the two drifting apart).
+      - A room/region picker (dropdown), a `<canvas>` that renders the
+        picked room using the REAL decoration functions (so what you see
+        is exactly what the game draws, not an approximation).
+      - Editable controls per region: primary/secondary/glow colors (color
+        pickers), and whatever numeric knobs make sense per effect (e.g.
+        Mirror Veil's diamond spacing, Event Horizon's ring count/spacing,
+        Chrono-Rift's spoke count/rotation speed) — bound to a local copy
+        of `REGION_STYLES` the tool mutates live, not the loaded one.
+      - A door-style preview strip (all 3 door kinds side-by-side, tinted
+        by the selected region) since `drawDoor()`'s shapes aren't
+        parameterized per-region yet (they're purely shape/tint), but
+        should be visually confirmed together with the rest of a region's
+        look.
+      - An "Export" button that serializes the tool's working style object
+        back into a paste-ready `REGION_STYLES = {...}` JS block (matching
+        `levelEditor.html`'s existing "Export JSON" pattern) — the user
+        pastes it into game.js by hand, same as `levelEditor.html`'s output
+        gets pasted into area.js. No live write-back to game.js itself.
+      - Scope explicitly does NOT include editing room geometry (platforms/
+        transitions) — that stays `levelEditor.html`'s job. This tool only
+        edits the presentation layer.
+    Suggested build order: do this once the user has picked their 5 new
+    regions from `regions.md`'s brainstorm list, so the tool's region
+    picker covers everything that'll actually need a look, not just the 3
+    built so far.
+
+PHASE 10 — Task 5: 5 New Enemies + Enemy Editor (2026-07-12)
+─────────────────────────────────────────────────────────────────────────────
+[x] 5 new enemies, all in enemy.js, chosen to work with abilities already
+    built (Phase Dash, Shard Shot) rather than the unbuilt Graviton Surge:
+      - **Null Sentinel** (Phase Dash counter, expansion.md 2.3 #29) —
+        extends Enemy, reuses the base chase/patrol/attack AI via
+        `super.update()`. Alternates phaseable (dim, 30% alpha) / solid
+        (bright) every ~1s; dashing into it while solid cancels the dash
+        (`player.phaseDashing=false`), deals 1 damage, strips i-frames.
+        While phaseable, no interaction at all — a free pass-through.
+      - **Anchor Wraith** (Phase Dash counter, 2.3 #28) — floats
+        (`ignoreVertical`), drifts slowly toward the player (doesn't chase
+        aggressively), draws a visible ~120px stasis-field ring. Dashing
+        anywhere inside the ring cancels the dash the same way Null
+        Sentinel does. Low HP (2) and no melee attack of its own
+        (`getAttackHitbox()` returns null) — meant to be killed from
+        outside the field, not fought head-on, per its own design brief.
+      - **Deflector Drone** (Shard Shot counter, 2.3 #31) — hovers in
+        place, its directional shield always faces the player. This is the
+        one enemy whose counter couldn't be made fully self-contained in
+        enemy.js: reflecting a shot requires touching game.js's
+        projectile/enemy collision loop (`game.js` ~line 1975) since
+        `projectiles[]` lives there, not on the enemy. Added a
+        `shieldFacesPoint()` check there — a shot hitting the shielded side
+        gets `vx *= -1` and is tagged `reflected: true` instead of being
+        destroyed; a new, separate check right after the projectile update
+        loop lets a `reflected` shot hit the player back (dodgeable). This
+        is the ONLY new system-level game.js change this task needed —
+        confirmed no other enemy required one.
+      - **Mirror Sprite** (expansion.md §2 #22, Mirror Veil flavor) — only
+        tangible when the player is facing toward it (`takeDamage()`
+        no-ops while intangible); attacks from behind otherwise
+        (`getAttackHitbox()` stays live regardless of tangibility — that's
+        the actual threat). Reuses base chase/attack AI via
+        `super.update()`.
+      - **Echo Stalker** (expansion.md §2 #2, Mirror Veil flavor) —
+        teleports to just behind the player's current facing the instant a
+        Phase Dash ends (`wasDashing && !player.phaseDashing`), on a ~0.75s
+        cooldown between blinks so it can't chain-teleport every frame.
+        Reuses Stutterer's decoy-blink visual convention. Doesn't chase on
+        foot at all — positioning is entirely via the teleport.
+      - Populated Mirror Veil's `mirror_veil_reflection` and
+        `mirror_veil_hollow` rooms with one Mirror Sprite and one Echo
+        Stalker respectively (previously empty `enemies: []` skeletons
+        since Phase 9) — the region's first real content, and both enemies
+        make direct thematic sense there ("reflection"/"echo" match the
+        region's own name).
+      - Registered all 5 in `spawnAreaEnemies()`'s type dispatch (game.js)
+        so they're spawnable from real `AREAS` data, not just the test
+        bench.
+[x] `enemy_test.html` updates
+      - Added the 5 new classes to `CLASS_MAP` (was missing them — without
+        this the roster entries would have looked spawnable but silently
+        done nothing when clicked).
+      - Moved all 5 from the "Planned" roster sections to "Built" with
+        updated blurbs; removed the now-stale duplicate "Planned" entries
+        for the same 5 ids so the roster has exactly one entry each.
+      - Added an editor-handoff mechanism: `enemy_editor.html`'s "Test"
+        button writes `{enemyId, loadout, overrides}` to
+        `localStorage['stillpoint_enemy_editor_test']` and opens this page;
+        on load, if that key is present, it auto-selects the enemy/loadout,
+        spawns it, applies the stat overrides to the live instance, then
+        deletes the key so a manual reload doesn't re-trigger it.
+[x] New `enemy_editor.html` (per session_priorities.md #5's spec)
+      - Enemy picker (the 9 real built classes — the 4 pre-existing plus
+        the 5 new ones), numeric stat overrides (Max HP, Attack Cooldown,
+        Patrol Range — the three plain instance fields every enemy class
+        already exposes; no new per-class fields were invented for this),
+        ability-loadout picker (same 5 presets as enemy_test.html), a small
+        live canvas preview (body color + size scaling with HP + patrol
+        range indicator — a UI preview, not a physics simulation), a "Test
+        in Arena" button using the handoff above, and a "Save JSON" export
+        matching `levelEditor.html`'s existing textarea-export convention.
+      - Does NOT edit enemy.js itself, room placement, or AI/geometry logic
+        — scoped strictly to the numeric knobs + loadout + a hand-off to
+        the real test bench, per the task's own spec ("set its stats...
+        assign an ability loadout, hit Test").
+[ ] NOT done: actual playtesting/balance passes. This session validated
+    everything headlessly (`node --check` on all 4 touched files, plus the
+    Node linter harness — still 27/0/26/0, no regressions) but could not
+    play the game in a browser to confirm the 5 new enemies feel right,
+    verify the Deflector Drone reflection is dodgeable/fair, or tune any of
+    the placeholder stats above. This is the single biggest open item from
+    this task — needs a human pass in `enemy_test.html` (each enemy against
+    2-3 loadouts) before treating the balance as settled.
+
+PHASE 11 — Critical Fix: Phase Dash Was Unobtainable (2026-07-12)
+─────────────────────────────────────────────────────────────────────────────
+[x] Found by the user's own playtesting (not any linter): after Phase 9
+    moved Phase Dash's pickup from The Fracture to Mirror Veil, it became
+    completely unreachable. Root cause: Echo Bridge's p3→p4 gap is
+    explicitly designed to require Phase Dash ("160px — Phase Dash only,"
+    per that room's own long-standing comment), and that gap gates the
+    ONLY other path into Mirror Veil (via Upper Ruins). Result: a hard
+    circular lock — Phase Dash was needed to reach the room that grants
+    Phase Dash. This is exactly the class of bug the (still-skipped) task 3
+    dynamic bot-walker exists to catch — `validateAreaGraph()` only checks
+    door topology, and `validateRoomLayout()` only checks reachability
+    *within* one room assuming a default loadout that already includes
+    `phase_dash` — neither can see a cross-region ability-order softlock
+    like this, so this session's Node-only validation gave false confidence
+    throughout Phase 9/10.
+    Fix: added a direct, always-open shortcut door between The Fracture
+    (right where the Phase Dash pickup used to physically sit) and Mirror
+    Veil's Gate room — two-way, `shortcut: true`, no `requires`. Verified:
+    `validateAreaGraph()` and `validateAllRoomLayouts()` both pass (27
+    rooms / 0 graph errors / 26 rooms / 0 layout failures).
+    **This is a strong argument for actually building task 3's bot-walker
+    before any further ability/region redistribution** — this exact bug
+    class will keep recurring otherwise.
+[x] Added a permanent design rule to CLAUDE.md per the user's explicit
+    request: no lock-and-key gating, ever — only ability/toolkit gates
+    (Hollow Knight's mantis-jump-ledge model, not a literal key-behind-a-
+    door). Flagged a real conflict: expansion.md's Warp Gate Nexus (§3.11)
+    is planned around literal "3 Keystones," which needs to be revisited
+    with the user before it's ever built.
+[x] Follow-up correction, same session: the user pointed out Echo Bridge's
+    p3->p4 gap (165px) is actually crossable with a plain dash — it never
+    needed Phase Dash at all. The room's own long-standing comment
+    ("Phase Dash mandatory") and the door's `requires: 'phase_dash'` tag
+    were both simply wrong, predating this session. Removed the
+    `requires: 'phase_dash'` from that door (transitions + connections) and
+    corrected the stale comment. This makes Echo Bridge -> Upper Ruins ->
+    Mirror Veil a SECOND always-open route to Phase Dash, alongside the new
+    direct shortcut from The Fracture — redundant, but harmless, and
+    actually welcome given the stated preference for the map to read as a
+    web rather than a single path. Re-verified: 27/0/26/0, still clean.
+
+PLANNED (not started) — Pacing / Sequence-Break Fixes, requested 2026-07-12
+─────────────────────────────────────────────────────────────────────────────
+Three related pacing/critical-path concerns raised by the user in one go,
+docs-only for now (nothing implemented):
+
+[ ] Charged-Attack-only wall gating the path to the boss fight, immune to
+    Phase Dash bypass. Purpose: stop a player from sequence-breaking
+    straight to the King without engaging with Crag/Charged Attack content.
+    Design constraints for whoever builds this:
+      - Must be a genuine destructible wall (`destructible: true`, gated by
+        the existing heavy-attack-only rule already used for Crag's rubble
+        wall), not a `requires` flag on a transition — per the no-lock-and-
+        key rule added this session, the block should be a real obstacle
+        the toolkit can't get around, not an arbitrary check.
+      - Must span the FULL vertical extent of whatever corridor it sits in
+        (floor to ceiling, or floor to the room's practical jump-apex
+        ceiling) — a partial wall that Phase Dash (14px/frame over 8
+        frames = 112px of extra reach) or a jump can go over/around
+        defeats the entire point.
+      - Placement candidate: somewhere on the direct route The Rift ->
+        Antechamber -> Boss Arena (the true, un-branching critical path to
+        the King) — that route currently has zero ability gates at all, so
+        a sufficiently practiced player could reach it having skipped Crag
+        (and therefore Charged Attack) entirely. No specific room/position
+        chosen yet; needs a look at actual room geometry in The Rift or
+        Antechamber to find a spot that reads as a natural obstacle, not an
+        arbitrary wall dropped into open space.
+      - Validate with the Node linter harness (`validateAreaGraph()` +
+        `validateAllRoomLayouts()`) after placement, same as every other
+        room change this session.
+[ ] Colossus Core miniboss (Crag Warden) is currently skippable and
+    pointless to fight: Charged Attack is granted in Crag Altar, the room
+    BEFORE the miniboss arena, so a player already has the reward Charged
+    Attack exists to lead toward before ever meeting the thing it's
+    balanced around fighting — nothing stops them from just turning around
+    and leaving Crag once they have it. Proposed fix (not yet implemented,
+    needs confirmation before building): **reverse the order** — make
+    defeating Colossus Core the thing that grants Charged Attack, instead
+    of a pickup in Crag Altar beforehand. That makes the miniboss a
+    mandatory gate to obtain the ability (standard "boss guards the
+    reward" pattern) rather than an optional fight after the reward's
+    already in hand. This also directly feeds the wall above: if Charged
+    Attack now comes FROM beating the miniboss, the wall gating the path to
+    the King becomes a real, unavoidable checkpoint — you can't have
+    Charged Attack without having fought Colossus Core, and you can't reach
+    the King without Charged Attack. Needs area.js changes to crag_altar
+    (remove the ability pickup) and crag_warden (add it, likely on
+    Colossus Core's defeat, mirroring how the King's own defeat is handled
+    in game.js) — not done, this is the plan only.
+[ ] "More sparse Stillpoints" — flagged by the user, exact scope worth
+    confirming next session since "Stillpoint" is both the ability name and
+    could refer to Anchor checkpoints (the actual save/heal points scattered
+    through nearly every room — 27 of area.js's ~28 real rooms have at
+    least one `anchors[]` entry currently). Given this was raised alongside
+    two other critical-path-difficulty concerns (boss-skip wall, miniboss
+    being trivially avoidable), the most likely reading is: **reduce Anchor
+    checkpoint density** so death/failure carries more weight and healing
+    is a real resource, not a per-room guarantee — not a change to the
+    Stillpoint ability's own mechanics (already covered separately by
+    BUG-013/its lifesteal balance in BUG_ANALYSIS_AND_QA_PLAN.md). Confirm
+    this reading with the user before touching any room's `anchors[]`.

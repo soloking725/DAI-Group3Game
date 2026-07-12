@@ -447,6 +447,16 @@ function spawnAreaEnemies(areaId) {
     areaEnemies[areaId].push(new CrystalSentinel(eDef.x, eDef.y));
     } else if (eDef.type === 'void_lancer') {
       areaEnemies[areaId].push(new VoidLancer(eDef.x, eDef.y));
+    } else if (eDef.type === 'null_sentinel') {
+      areaEnemies[areaId].push(new NullSentinel(eDef.x, eDef.y));
+    } else if (eDef.type === 'anchor_wraith') {
+      areaEnemies[areaId].push(new AnchorWraith(eDef.x, eDef.y));
+    } else if (eDef.type === 'deflector_drone') {
+      areaEnemies[areaId].push(new DeflectorDrone(eDef.x, eDef.y));
+    } else if (eDef.type === 'mirror_sprite') {
+      areaEnemies[areaId].push(new MirrorSprite(eDef.x, eDef.y));
+    } else if (eDef.type === 'echo_stalker') {
+      areaEnemies[areaId].push(new EchoStalker(eDef.x, eDef.y));
     } else {
       areaEnemies[areaId].push(new Enemy(eDef.x, eDef.y, eDef.type));
     }
@@ -463,6 +473,12 @@ function clearAreaEnemies(areaId) {
 function switchArea(targetId, targetX, targetY) {
   // Clear current area enemies
   clearAreaEnemies(currentAreaId);
+
+  // Echoes are world-space (x,y) snapshots of the room being left — carrying
+  // them into a new room's coordinate space puts them at a meaningless
+  // position (a different layout entirely), so they must not survive a
+  // room transition, unlike echoes surviving a plain respawn-in-place.
+  echoes = [];
 
   // Switch
   currentAreaId = targetId;
@@ -674,6 +690,22 @@ function mulberry32(seed) {
   };
 }
 
+// Single source of truth for "does the player satisfy this transition's
+// `requires` gate" — used both to actually block traversal (update loop)
+// and to draw the locked/unlocked door tint (draw loop). Any `requires`
+// value not listed here (e.g. `graviton_surge`, or any other ability not
+// implemented yet) returns false — a deliberately-inert stub door must
+// never be treated as open just because its ability doesn't exist yet.
+function hasAbilityRequirement(requires) {
+  if (requires === 'phase_dash') return abilityState.hasPhaseDash;
+  if (requires === 'shard_shot') return abilityState.hasShardShot;
+  if (requires === 'stillpoint') return abilityState.hasStillpoint;
+  if (requires === 'charged_attack') return abilityState.hasChargedAttack;
+  if (requires === 'boss_gate') return abilityState.hasPhaseDash && abilityState.hasShardShot && abilityState.hasStillpoint;
+  if (requires === 'tutorial_complete') return isTutorialComplete();
+  return false;
+}
+
 function areaSeed(id) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
@@ -694,6 +726,175 @@ function hexToRgba(hex, alpha) {
   const g = parseInt(h.substr(2, 2), 16) || 0;
   const b = parseInt(h.substr(4, 2), 16) || 0;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// REGION VISUAL IDENTITY (Task 4, session_priorities.md #4) — pure
+// rendering, derived entirely from `room.region`. No new fields on
+// platforms/transitions and nothing the level editor needs to author —
+// this is a presentation layer on top of the existing geometry data, not
+// part of the saved room shape. A region with no entry in REGION_STYLES
+// (origin, crag, or any future region not decorated yet) just renders with
+// the plain look it always had.
+// ═══════════════════════════════════════════════════════════════════════
+const REGION_STYLES = {
+  mirror_veil:   { primary: '#c084fc', secondary: '#7c3aed', glow: '#e9d5ff' },
+  event_horizon: { primary: '#818cf8', secondary: '#4338ca', glow: '#c7d2fe' },
+  chrono_rift:   { primary: '#a78bfa', secondary: '#6d28d9', glow: '#ddd6fe' },
+};
+
+// Room-wide ambient effect — called once per frame, drawn under the
+// platforms (before the platforms loop in draw()) so it reads as
+// background depth, not an overlay on top of the player.
+function decorateRoomForRegion(ctx, room, region) {
+  const style = REGION_STYLES[region];
+  if (!style) return;
+
+  ctx.save();
+  if (region === 'mirror_veil') {
+    // Reflection seam — a soft horizontal mirror line at room mid-height,
+    // with a scattered diamond motif along it (upside-down-world cue).
+    const midY = room.groundY - 140;
+    ctx.strokeStyle = hexToRgba(style.glow, 0.08);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, midY);
+    ctx.lineTo(room.width, midY);
+    ctx.stroke();
+    ctx.fillStyle = hexToRgba(style.primary, 0.06);
+    for (let x = 40; x < room.width; x += 140) {
+      ctx.save();
+      ctx.translate(x, midY);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-5, -5, 10, 10);
+      ctx.restore();
+    }
+  } else if (region === 'event_horizon') {
+    // Gravitational pull vignette — radial glow anchored off-screen left
+    // (visual read for the region's "constant leftward pull" mechanic),
+    // plus slow-pulsing concentric event-horizon rings.
+    const midY = room.groundY / 2;
+    const grad = ctx.createRadialGradient(-200, midY, 50, -200, midY, 700);
+    grad.addColorStop(0, hexToRgba(style.primary, 0.10));
+    grad.addColorStop(1, hexToRgba(style.primary, 0));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, room.width, room.groundY);
+    ctx.strokeStyle = hexToRgba(style.glow, 0.06);
+    ctx.lineWidth = 1.5;
+    for (let r = 80; r < 500; r += 90) {
+      const pulseR = r + Math.sin(frameCount * 0.01 + r) * 6;
+      ctx.beginPath();
+      ctx.arc(-200, midY, pulseR, -Math.PI / 2, Math.PI / 2);
+      ctx.stroke();
+    }
+  } else if (region === 'chrono_rift') {
+    // Clock-face ghost — slow-rotating spokes from a fixed hub, evoking
+    // the region's looping/wrap-around time mechanic.
+    const hubX = room.width / 2, hubY = room.groundY - 160;
+    ctx.strokeStyle = hexToRgba(style.glow, 0.06);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(hubX, hubY, 90, 0, Math.PI * 2);
+    ctx.stroke();
+    const spokeCount = 8;
+    for (let i = 0; i < spokeCount; i++) {
+      const angle = (i / spokeCount) * Math.PI * 2 + frameCount * 0.003;
+      ctx.beginPath();
+      ctx.moveTo(hubX, hubY);
+      ctx.lineTo(hubX + Math.cos(angle) * 90, hubY + Math.sin(angle) * 90);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+// Per-platform edge decoration — called after drawPlatform() for each
+// platform. No geometry change, purely a visual layer on top.
+function decoratePlatformForRegion(ctx, plat, region) {
+  const style = REGION_STYLES[region];
+  if (!style || plat.destructible) return; // crystal walls keep their own dedicated look
+
+  ctx.save();
+  if (region === 'mirror_veil') {
+    // Reflection ghost — a faint upside-down copy of the platform below it.
+    ctx.fillStyle = hexToRgba(style.primary, 0.12);
+    ctx.fillRect(plat.x, plat.y + plat.h + 4, plat.w, plat.h);
+  } else if (region === 'event_horizon') {
+    // Inward-curving corner glows, suggesting gravitational lensing at the edges.
+    ctx.strokeStyle = hexToRgba(style.glow, 0.35);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(plat.x, plat.y, 10, 0, Math.PI / 2);
+    ctx.arc(plat.x + plat.w, plat.y, 10, Math.PI / 2, Math.PI);
+    ctx.stroke();
+  } else if (region === 'chrono_rift') {
+    // Tick marks along the top edge, like a timeline ruler.
+    ctx.strokeStyle = hexToRgba(style.glow, 0.3);
+    ctx.lineWidth = 1;
+    for (let tx = plat.x + 8; tx < plat.x + plat.w - 4; tx += 16) {
+      ctx.beginPath();
+      ctx.moveTo(tx, plat.y);
+      ctx.lineTo(tx, plat.y - 4);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+// Cave-mouth door rendering, replacing the old flat rectangle for every
+// transition in every room (region-agnostic shape logic — tinted per-room
+// via mapAccent/ambientColor so undecorated regions still look distinct
+// from each other, just without the extra ambient/platform treatment
+// above). Three shapes: glowing portal (ability-gated), one-way arrow
+// (shortcut/oneWay), arched stone entrance (everything else).
+function drawDoor(ctx, trans, area, blocked) {
+  const tint = area.mapAccent || area.ambientColor || '#c4b5fd';
+  const color = blocked ? '#946060' : tint;
+  const cx = trans.x + trans.w / 2, cy = trans.y + trans.h / 2;
+  const pulse = Math.sin(frameCount * 0.03) * 0.15 + 0.15;
+
+  ctx.save();
+  if (trans.requires) {
+    // Ability gate — glowing portal.
+    ctx.fillStyle = hexToRgba(color, blocked ? pulse * 0.6 : pulse + 0.15);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, trans.w / 2, trans.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = hexToRgba(color, 0.6);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  } else if (trans.shortcut || trans.oneWay) {
+    // Shortcut — a one-way arrow set inside a plain frame.
+    ctx.strokeStyle = hexToRgba(color, 0.5);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(trans.x, trans.y, trans.w, trans.h);
+    ctx.fillStyle = hexToRgba(color, pulse + 0.2);
+    ctx.beginPath();
+    const dir = trans.toX > trans.x + trans.w ? 1 : -1;
+    ctx.moveTo(cx - dir * 6, cy - 8);
+    ctx.lineTo(cx + dir * 8, cy);
+    ctx.lineTo(cx - dir * 6, cy + 8);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    // Regular door — arched stone entrance (rounded top, not a rectangle).
+    const archTop = trans.y;
+    const radius = Math.min(trans.w / 2, 18);
+    ctx.fillStyle = hexToRgba(color, pulse + 0.12);
+    ctx.beginPath();
+    ctx.moveTo(trans.x, trans.y + trans.h);
+    ctx.lineTo(trans.x, archTop + radius);
+    ctx.arcTo(trans.x, archTop, trans.x + radius, archTop, radius);
+    ctx.lineTo(trans.x + trans.w - radius, archTop);
+    ctx.arcTo(trans.x + trans.w, archTop, trans.x + trans.w, archTop + radius, radius);
+    ctx.lineTo(trans.x + trans.w, trans.y + trans.h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = hexToRgba(color, 0.4);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 // Backdrop elements are generated once per area and cached on the area object
@@ -1703,6 +1904,22 @@ function update() {
     }
   }
 
+  // Reflected Shard Shots (Deflector Drone, expansion.md 2.3 #31) can hit
+  // the player back — dodgeable, but punishes reflexive spam-firing. Only
+  // player projectiles ever reach `projectiles[]` (enemy-fired shots use
+  // separate arrays — see CrystalSentinel.updateProjectiles/bossProjectiles),
+  // so `reflected` is the only thing gating this from being a self-damage
+  // bug on every normal shot.
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const proj = projectiles[i];
+    if (proj.reflected && player.invincibleTimer <= 0 && rectsOverlap(proj.getBounds(), player)) {
+      player.takeDamage(proj.damage);
+      spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#67e8f9', 6);
+      SFX.playerHurt();
+      projectiles.splice(i, 1);
+    }
+  }
+
   // ── Crystal Sentinel projectiles ──────────────────────────────────────
   CrystalSentinel.updateProjectiles(player);
 
@@ -1775,6 +1992,18 @@ function update() {
       const proj = projectiles[j];
       const projBounds = proj.getBounds();
       if (!enemy.dead && rectsOverlap(projBounds, enemy)) {
+        // Deflector Drone (expansion.md 2.3 #31) — a shot hitting its
+        // currently-shielded side is reflected back instead of damaging it,
+        // punishing reflexive spam-firing from safe range. Doesn't consume
+        // the shot; it keeps flying, now able to hit the player (see the
+        // reflected-projectile-vs-player check below).
+        if (enemy instanceof DeflectorDrone && !proj.reflected && enemy.shieldFacesPoint(proj.x)) {
+          proj.vx *= -1;
+          proj.reflected = true;
+          spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 8);
+          SFX.shardHit();
+          continue;
+        }
         // If it's a Crystal Sentinel, pass 'ranged' so the shield takes double damage
         if (enemy instanceof CrystalSentinel) {
           enemy.takeDamage(proj.damage, proj.x, 'ranged');
@@ -2091,14 +2320,15 @@ function update() {
 
   // Check transitions
   for (const trans of area.transitions) {
-    // Check ability requirement
-    if (trans.requires) {
-      if (trans.requires === 'phase_dash' && !abilityState.hasPhaseDash) continue;
-      if (trans.requires === 'shard_shot' && !abilityState.hasShardShot) continue;
-      if (trans.requires === 'stillpoint' && !abilityState.hasStillpoint) continue;
-      if (trans.requires === 'boss_gate' && (!abilityState.hasPhaseDash || !abilityState.hasShardShot || !abilityState.hasStillpoint)) continue;
-      if (trans.requires === 'tutorial_complete' && !isTutorialComplete()) continue;
-    }
+    // Check ability requirement. Any `requires` value not recognized below
+    // (e.g. `graviton_surge` on inert stub doors toward not-yet-built
+    // regions — see Crag Warden / Event Horizon Core) is treated as an
+    // always-fail gate, not a no-op. Without this, an unrecognized
+    // `requires` silently passed through as unlocked and let the player
+    // walk into `switchArea()` for a target that doesn't exist in AREAS,
+    // crashing the game loop (uncaught exception on the next frame reading
+    // properties off `undefined` — looks exactly like a freeze).
+    if (trans.requires && !hasAbilityRequirement(trans.requires)) continue;
 
     if (rectsOverlap(
       { x: player.x, y: player.y, width: player.width, height: player.height },
@@ -2369,7 +2599,7 @@ function drawControlsHint(ctx) {
   alpha = Math.max(0, Math.min(1, alpha));
   if (alpha <= 0) return;
 
-  const lines = ['MOVE \u2190\u2192  JUMP SPACE  DASH X  ATTACK Z', 'MAP M  PAUSE ESC  FULLSCREEN F'];
+  const lines = ['MOVE \u2190\u2192  JUMP SPACE  DASH X  ATTACK Z', 'SHARD: V + R(up)/T(down)  MAP M  PAUSE ESC'];
   ctx.globalAlpha = alpha;
   ctx.font = '10px "Courier New", monospace';
   ctx.fillStyle = '#2a2a3e';
@@ -2870,34 +3100,27 @@ function draw() {
   ctx.lineTo(area.width, area.groundY);
   ctx.stroke();
 
+  // Region-wide ambient decoration (Task 4) — drawn under the platforms so
+  // it reads as background depth. No-op for regions without a REGION_STYLES
+  // entry (origin, crag, dev rooms).
+  decorateRoomForRegion(ctx, area, area.region);
+
   // Platforms
   for (const plat of area.platforms) {
     drawPlatform(ctx, plat);
+    decoratePlatformForRegion(ctx, plat, area.region);
   }
 
-  // Transitions (subtle indicators)
+  // Transitions — cave-mouth doors (Task 4), tinted per-room, shaped by
+  // door kind (portal/shortcut-arrow/arch). See drawDoor().
   for (const trans of area.transitions) {
-    // Check if player can access this transition
-    let blocked = false;
-    if (trans.requires === 'phase_dash' && !abilityState.hasPhaseDash) blocked = true;
-    if (trans.requires === 'shard_shot' && !abilityState.hasShardShot) blocked = true;
-    if (trans.requires === 'stillpoint' && !abilityState.hasStillpoint) blocked = true;
-    if (trans.requires === 'tutorial_complete' && !isTutorialComplete()) blocked = true;
+    const blocked = !!trans.requires && !hasAbilityRequirement(trans.requires);
+    drawDoor(ctx, trans, area, blocked);
 
-    const pulse = Math.sin(frameCount * 0.03) * 0.15 + 0.15;
-    if (blocked) {
-      ctx.fillStyle = `rgba(100, 60, 60, ${pulse})`;
-      ctx.strokeStyle = 'rgba(150, 80, 80, 0.3)';
-    } else {
-      ctx.fillStyle = `rgba(196, 181, 253, ${pulse})`;
-      ctx.strokeStyle = 'rgba(196, 181, 253, 0.3)';
-    }
-    ctx.fillRect(trans.x, trans.y, trans.w, trans.h);
-    ctx.lineWidth = 1;
-    ctx.strokeRect(trans.x, trans.y, trans.w, trans.h);
-
-    // Arrow indicator
+    // Arrow indicator (kept from the original flat-door rendering — the
+    // arch/portal shapes above don't imply direction on their own).
     if (!blocked) {
+      const pulse = Math.sin(frameCount * 0.03) * 0.15 + 0.15;
       ctx.fillStyle = `rgba(196, 181, 253, ${pulse + 0.1})`;
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';

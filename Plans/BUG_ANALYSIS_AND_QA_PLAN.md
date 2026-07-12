@@ -65,6 +65,16 @@
 | **Symptom** | Player can be hit before the enemy visually attacks. Unfair damage windows. |
 | **Fix** | Add active-frame window: only return hitbox when `attackTimer` is within a specific range (e.g., last 6 of 16 frames). |
 
+#### BUG-013: Stillpoint blocks attacking, so its own offensive buff can (almost) never trigger — FIXED 2026-07-12, rebalance still open
+| Field | Value |
+|-------|-------|
+| **Severity** | HIGH (flagged by user 2026-07-12) |
+| **Files** | `player.js:282`, `player.js:302`, `player.js:343`, `player.js:365` |
+| **Root Cause** | All four attack/charge/parry start-conditions required `!this.stillpointActive`. This predated Phase 0.2, which reworked Stillpoint into an offensive buff — melee attacks during Stillpoint deal 1.5x damage and life-steal 1 HP per hit (`playerMeleeDamage()`/`applyStillpointLifeSteal()` in game.js). The old defensive-tool guard was never removed when that buff was added. |
+| **Symptom** | Pressing Z/J to attack (or charge, or parry) while Stillpoint was active did nothing — the buff could basically never trigger through normal play. |
+| **Fix** | `!this.stillpointActive` removed from all four gates — attacking, charging, and parrying now all work normally during Stillpoint, matching the Phase 0.2 design intent. Verified: `node --check` passes, Node linter harness still 27/0/26/0 (no data regressions — this is pure player-input logic, untouched by either linter). |
+| **Balance risk — NOT resolved, needs a human playtest** | Stillpoint now stacks unlimited free attacking + 1.5x damage + full lifesteal + the existing slow-time/damage-immunity utility, with no new drawback besides the existing Fracture-meter drain. This may well be overpowered now that it's actually usable as designed — needs a real fight (King + a miniboss) to judge before calling it balanced. If it's too strong, likely levers: reduce the 1.5x multiplier, cap lifesteal frequency (e.g. once per swing instead of per hit-connect), or shorten Stillpoint's duration per pip. |
+
 ---
 
 ### MEDIUM (Quality/Polish)
@@ -132,6 +142,19 @@
 | **Files** | `boss.js:607` |
 | **Root Cause** | Same as BUG-002 but for visual effect only. |
 | **Fix** | Same as BUG-002 — frame-based timer. |
+
+---
+
+## Balance Notes (not bugs — flagged for a future tuning pass)
+
+#### BAL-001: Phase Dash is too strong — PARTIALLY ADDRESSED 2026-07-12
+| Field | Value |
+|-------|-------|
+| **Flagged** | 2026-07-12, by the user |
+| **Files** | `ability.js`, `enemy.js` |
+| **Symptom** | User clarified the specific problem: not spam (the 90-frame cooldown was fine), but the Echo's enemy-distraction effect — 60 frames (1 full second) of a distracted enemy being fully frozen (no movement, no attack) within a 150px radius. That's a strong "make every nearby enemy stop existing for a second" panic button, usable defensively any time a fight gets hard, independent of whether Phase Dash was used for its intended traversal purpose. |
+| **Fix** | Added `ECHO_DISTRACT_DURATION = 30` (ability.js) and replaced all 4 hardcoded `distractionTimer = 60` assignments in enemy.js (base `Enemy`, `Stutterer`, `VoidLancer`, `CrystalSentinel`) with it — distraction duration halved, 60 → 30 frames. Deliberately the only number changed (not radius, not the dash's own i-frames/cooldown/speed) so the effect of this one lever can be judged in isolation before touching anything else. Verified: `node --check` on both files, linter harness still 27/0/26/0. |
+| **Status** | Needs a human playtest to confirm 30 frames actually fixes the "crutch" feeling without breaking the echo's intended traversal use (buying a moment to slip past one enemy). If still too strong, next lever to try is `ECHO_DISTRACT_RADIUS` (150px, ability.js) — not the dash's own speed/cooldown/i-frames, which the user confirmed are NOT the problem. |
 
 ---
 

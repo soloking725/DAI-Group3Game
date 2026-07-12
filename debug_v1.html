@@ -1,6 +1,6 @@
 //HOW TO USE:
 // python3 -m http.server 8000
-// http://localhost:8000/debug_new.html
+// http://localhost:8000/debug_v1.html
 
 
 <!DOCTYPE html>
@@ -263,23 +263,27 @@ async function runChecks() {
   // see, since the canvas legitimately changes either way. Walks every room
   // that declares a compass position, teleports in, runs 90 real frames, and
   // fails if the player dies or the game state leaves 'playing'.
-  const allAreaIds = Object.keys(win.AREAS).filter((id) => typeof win.AREAS[id].col === 'number');
-  const deaths = [];
-  for (const areaId of allAreaIds) {
-    win.abilityState.hasPhaseDash = true;
-    win.abilityState.hasShardShot = true;
-    win.abilityState.hasStillpoint = true;
-    win.switchArea(areaId, 60, Math.max(40, win.AREAS[areaId].groundY - 400));
-    let t = performance.now();
-    for (let i = 0; i < 90; i++) { t += 16.7; win.gameLoop(t); }
-    if (win.gameState !== 'playing' || win.player.health <= 0) {
-      deaths.push(areaId + ' (gameState=' + win.gameState + ', health=' + win.player.health + ')');
+  try {
+    const allAreaIds = Object.keys(win.AREAS).filter((id) => typeof win.AREAS[id].col === 'number');
+    const deaths = [];
+    for (const areaId of allAreaIds) {
+      win.abilityState.hasPhaseDash = true;
+      win.abilityState.hasShardShot = true;
+      win.abilityState.hasStillpoint = true;
+      win.switchArea(areaId, 60, Math.max(40, win.AREAS[areaId].groundY - 400));
+      let t = performance.now();
+      for (let i = 0; i < 90; i++) { t += 16.7; win.gameLoop(t); }
+      if (win.gameState !== 'playing' || win.player.health <= 0) {
+        deaths.push(areaId + ' (gameState=' + win.gameState + ', health=' + win.player.health + ')');
+      }
     }
+    report('R10', deaths.length === 0 ? 'ok' : 'err',
+      deaths.length === 0
+        ? `all ${allAreaIds.length} rooms survived a 90-frame teleport-in test`
+        : `died/gameover in: ${deaths.join(', ')} — likely a bad spawn Y or pitDeathY mismatch for that room`);
+  } catch (e) {
+    report('R10', 'err', 'R10 threw and was skipped: ' + e.message);
   }
-  report('R10', deaths.length === 0 ? 'ok' : 'err',
-    deaths.length === 0
-      ? `all ${allAreaIds.length} rooms survived a 90-frame teleport-in test`
-      : `died/gameover in: ${deaths.join(', ')} — likely a bad spawn Y or pitDeathY mismatch for that room`);
 
   // ── Check 11: no door is embedded inside the platform it sits next to ──
   // Static check, no simulation needed. Catches the exact bug found while
@@ -290,26 +294,30 @@ async function runChecks() {
   // practice even though it loads and renders with no errors. See
   // Plans/room_verification_tool_plan.md for the fuller version of this idea
   // (this is a lightweight permanent regression guard, not that full tool).
-  const embeddedDoors = [];
-  for (const id in win.AREAS) {
-    const room = win.AREAS[id];
-    (room.transitions || []).forEach((t, i) => {
-      for (const p of room.platforms || []) {
-        if (p.destructible) continue; // walls aren't floor references
-        const xOverlap = t.x < p.x + p.w && t.x + t.w > p.x;
-        if (!xOverlap) continue;
-        // Embedded = the door's entire vertical span sits at/below the
-        // platform's own top surface with no part reaching above it.
-        if (t.y >= p.y - 2 && (t.y + t.h) > p.y + 5) {
-          embeddedDoors.push(`${id}.transitions[${i}] (to '${t.to}') inside platform at (${p.x},${p.y})`);
+  try {
+    const embeddedDoors = [];
+    for (const id in win.AREAS) {
+      const room = win.AREAS[id];
+      (room.transitions || []).forEach((t, i) => {
+        for (const p of room.platforms || []) {
+          if (p.destructible) continue; // walls aren't floor references
+          const xOverlap = t.x < p.x + p.w && t.x + t.w > p.x;
+          if (!xOverlap) continue;
+          // Embedded = the door's entire vertical span sits at/below the
+          // platform's own top surface with no part reaching above it.
+          if (t.y >= p.y - 2 && (t.y + t.h) > p.y + 5) {
+            embeddedDoors.push(`${id}.transitions[${i}] (to '${t.to}') inside platform at (${p.x},${p.y})`);
+          }
         }
-      }
-    });
+      });
+    }
+    report('R11', embeddedDoors.length === 0 ? 'ok' : 'err',
+      embeddedDoors.length === 0
+        ? 'no transition hitboxes found embedded inside solid platform geometry'
+        : `possibly embedded doors: ${embeddedDoors.join('; ')}`);
+  } catch (e) {
+    report('R11', 'err', 'R11 threw and was skipped: ' + e.message);
   }
-  report('R11', embeddedDoors.length === 0 ? 'ok' : 'err',
-    embeddedDoors.length === 0
-      ? 'no transition hitboxes found embedded inside solid platform geometry'
-      : `possibly embedded doors: ${embeddedDoors.join('; ')}`);
 
   log('Done. ' + checksPassed + ' pass, ' + checksWarn + ' warn, ' + checksErr + ' fail.', checksErr ? 'err' : checksWarn ? 'warn' : 'ok');
   document.getElementById('run-btn').disabled = false;

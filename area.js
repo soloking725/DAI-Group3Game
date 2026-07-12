@@ -67,25 +67,35 @@ const AREAS = {
       { x: 400, y: 245, w: 140, h: 14 },   // mid platform (moved closer to Phase Dash)
       { x: 650, y: 195, w: 160, h: 14 },   // Phase Dash platform — 110px gap from mid, 50px higher
     ],
-    abilityReward: {
-      id: 'phase_dash',
-      x: 695,
-      y: 173,   // 22px above platform at y:195
-      name: 'Phase Dash',
-      desc: 'C — dash through space. Leaves an echo that distracts enemies.',
-    },
+    // Phase Dash used to be picked up on this room's high platform — moved to
+    // Mirror Veil (see Plans/roadmap.md Phase 9) per expansion.md's non-linear
+    // redistribution. The platform stays (decorative/traversal), the crag
+    // door below still gates on `phase_dash`, so Crag stays locked here until
+    // the player finds it in Mirror Veil and backtracks — intentional.
+    abilityReward: null,
     transitions: [
       // Exit right → Echo Bridge
       { x: 1365, y: 320, w: 35, h: 70, to: 'echo_bridge', toX: 60, toY: 312 },
       // North branch → Crag of the Colossus, reached from the same high
-      // platform as the Phase Dash pickup (placed at the far end of it so
-      // it doesn't overlap the pickup's own trigger radius at x:695).
+      // platform Phase Dash used to sit on (placed at the far end of it so
+      // it doesn't overlap that old pickup spot at x:695).
       { x: 760, y: 173, w: 40, h: 22, to: 'crag_entrance', toX: 60, toY: 480, requires: 'phase_dash' },
+      // BUGFIX 2026-07-12: direct shortcut to Mirror Veil, right where the
+      // Phase Dash pickup used to sit. Without this, Phase Dash was
+      // completely unobtainable — Echo Bridge's own p3->p4 gap ("160px —
+      // Phase Dash only," see that room's comment) gates the ONLY other
+      // path to Mirror Veil (via Upper Ruins), creating a hard circular
+      // lock: you needed Phase Dash to reach the room that gives you Phase
+      // Dash. Found by the user's own playtesting — no linter catches
+      // cross-region ability-order softlocks like this (that's exactly
+      // what the not-yet-built dynamic bot-walker, task 3, is for).
+      { x: 670, y: 173, w: 40, h: 22, to: 'mirror_veil_gate', toX: 60, toY: 310 },
     ],
     connections: [
       { direction: 'east', to: 'echo_bridge', requires: null, oneWay: false, order: 0, doorIndex: 0 },
       { direction: 'north', to: 'crag_entrance', requires: 'phase_dash', oneWay: false, order: 0, doorIndex: 1,
         edgeExempt: true, edgeExemptReason: 'Reached via a jump to the high mid-room Phase Dash platform, not a side-edge door — same convention as Echo Bridge → Upper Ruins.' },
+      { direction: 'south', to: 'mirror_veil_gate', requires: null, oneWay: false, order: 0, doorIndex: 2, shortcut: true },
     ],
     enemies: [
       { type: 'fractured', x: 700,  y: 362 },   // on right ground
@@ -120,20 +130,29 @@ const AREAS = {
       { x: 30,  y: 350, w: 200, h: 14 },   // p1 — entry (wide, safe)
       { x: 295, y: 328, w: 110, h: 14 },   // p2 — gap 65, normal jump
       { x: 465, y: 306, w: 100, h: 14 },   // p3 — gap 60, enemy here
-      //   GAP 165px (x:565 → x:730) — Phase Dash mandatory
+      //   GAP 165px (x:565 → x:730) — crossable with a plain dash (jump +
+      //   dash reach covers it); corrected 2026-07-12, this comment used to
+      //   say "Phase Dash mandatory" but that was never actually true —
+      //   confirmed by the user's own playtesting, not a physics recalc.
       { x: 730, y: 322, w: 140, h: 14 },   // p4 — landing pad post-dash
       { x: 915, y: 298, w: 85,  h: 14 },   // p5 — exit platform
     ],
     transitions: [
       { x: 0,   y: 284, w: 35, h: 82, to: 'the_fracture', toX: 1330, toY: 348 },
       { x: 965, y: 233, w: 35, h: 80, to: 'crystal_cavern', toX: 60, toY: 92 },
-      // Optional — Upper Ruins (Phase Dash required, from p4)
-      { x: 740, y: 258, w: 80, h: 30, to: 'upper_ruins', toX: 100, toY: 348, requires: 'phase_dash' },
+      // Optional — Upper Ruins, from p4. Was gated `requires: 'phase_dash'`;
+      // removed 2026-07-12 — the jump to reach p4 doesn't actually need
+      // Phase Dash (a plain dash covers the gap, confirmed by the user's
+      // playtesting), so the requirement was gating on nothing real. This
+      // also makes it a second, always-open route into Mirror Veil
+      // alongside the direct shortcut added in The Fracture — consistent
+      // with wanting the map to read as a web, not a single path.
+      { x: 740, y: 258, w: 80, h: 30, to: 'upper_ruins', toX: 100, toY: 348 },
     ],
     connections: [
       { direction: 'west', to: 'the_fracture', requires: null, oneWay: false, order: 0, doorIndex: 0 },
       { direction: 'east', to: 'crystal_cavern', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'upper_ruins', requires: 'phase_dash', oneWay: false, order: 0, doorIndex: 2,
+      { direction: 'north', to: 'upper_ruins', requires: null, oneWay: false, order: 0, doorIndex: 2,
         edgeExempt: true, edgeExemptReason: 'Reached by jumping up from a mid-air platform (room has no floor, groundY=900) — not a side-edge door.' },
     ],
     enemies: [
@@ -173,10 +192,13 @@ const AREAS = {
     ],
     transitions: [
       { x: 0, y: 326, w: 35, h: 64, to: 'echo_bridge', toX: 750, toY: 292 },
+      // North branch → Mirror Veil, reached from the highest platform here.
+      { x: 700, y: 210, w: 40, h: 22, to: 'mirror_veil_gate', toX: 60, toY: 310 },
     ],
     connections: [
       { direction: 'south', to: 'echo_bridge', requires: null, oneWay: false, order: 0, doorIndex: 0,
         edgeExempt: true, edgeExemptReason: 'Drops back down to Echo Bridge; placed on the west wall for level-design convenience — this room has its own floor, not a literal bottom edge.' },
+      { direction: 'north', to: 'mirror_veil_gate', requires: null, oneWay: false, order: 0, doorIndex: 1 },
     ],
     enemies: [
       { type: 'fractured', x: 390, y: 362 },
@@ -276,10 +298,13 @@ const AREAS = {
     transitions: [
       { x: 0,    y: 325, w: 35, h: 65, to: 'crystal_cavern', toX: 1130, toY: 428 },
       { x: 1265, y: 325, w: 35, h: 65, to: 'the_vault',      toX: 60,   toY: 348 },
+      // North branch → Chrono-Space Rift, reached from the left shelf.
+      { x: 190, y: 278, w: 40, h: 22, to: 'chrono_rift_gate', toX: 60, toY: 310 },
     ],
     connections: [
       { direction: 'west', to: 'crystal_cavern', requires: null, oneWay: false, order: 0, doorIndex: 0 },
       { direction: 'east', to: 'the_vault', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+      { direction: 'north', to: 'chrono_rift_gate', requires: null, oneWay: false, order: 0, doorIndex: 2 },
     ],
     enemies: [
       { type: 'fractured', x: 250,  y: 362 },   // left zone (ground)
@@ -319,21 +344,26 @@ const AREAS = {
       { x: 570, y: 290, w: 130, h: 14 },   // right elevated
       { x: 360, y: 196, w: 180, h: 14 },   // altar (centre-high)
     ],
-    abilityReward: {
-      id: 'stillpoint',
-      x: 420,
-      y: 174,   // 22px above altar at y:196
-      name: 'Stillpoint',
-      desc: 'Q — slow the world to 15% speed. Recharges by hitting enemies.',
-    },
+    // Stillpoint used to be picked up on the altar here — moved to Chrono-Space
+    // Rift (branches off The Forge, reached BEFORE this room) per expansion.md's
+    // non-linear redistribution — see Plans/roadmap.md Phase 9. The east door
+    // below still gates on `stillpoint`, so a player who skipped that branch
+    // hits a locked door here and has to backtrack — intentional.
+    abilityReward: null,
     transitions: [
       { x: 0,   y: 325, w: 35, h: 65, to: 'the_forge', toX: 1230, toY: 348 },
       // Exit requires Stillpoint — the door is locked until you pick it up
       { x: 865, y: 325, w: 35, h: 65, to: 'the_rift',  toX: 60,   toY: 282, requires: 'stillpoint' },
+      // North branch → Event Horizon, gated on Phase Dash per expansion.md
+      // §3 (table 3.1) — Mirror Veil (reached earlier, off Upper Ruins)
+      // grants Phase Dash, so it's always available by the time a player
+      // reaches this door.
+      { x: 610, y: 268, w: 40, h: 22, to: 'event_horizon_gate', toX: 60, toY: 310, requires: 'phase_dash' },
     ],
     connections: [
       { direction: 'west', to: 'the_forge', requires: null, oneWay: false, order: 0, doorIndex: 0 },
       { direction: 'east', to: 'the_rift', requires: 'stillpoint', oneWay: false, order: 0, doorIndex: 1 },
+      { direction: 'north', to: 'event_horizon_gate', requires: 'phase_dash', oneWay: false, order: 0, doorIndex: 2 },
     ],
     enemies: [],   // rest room — no combat
     anchors: [
@@ -781,6 +811,420 @@ const AREAS = {
     bossSpawn: { x: 950, y: 440 },   // groundY(500) - miniboss height
   },
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // MIRROR VEIL — anchor region #1 of the 13-region expansion (see
+  // Plans/expansion.md §3.2, §3.13b). Branches north off Upper Ruins
+  // (col 2, row -1). Open — no ability required to enter, per expansion.md's
+  // "good first region" note. Empty room skeletons only (flat floor + doors,
+  // no enemies/pickups yet) except the sanctum, which now holds the Phase
+  // Dash reward relocated from The Fracture — see Plans/roadmap.md Phase 9.
+  // ═══════════════════════════════════════════════════════════════════════
+  mirror_veil_gate: {
+    id: 'mirror_veil_gate',
+    name: 'Mirror Veil — Gate',
+    region: 'mirror_veil',
+    mapAccent: '#c084fc',
+    col: 2, row: -2,
+    width: 900,
+    groundY: 390,
+    bgColor: '#0a0a12',
+    bgTint: 'rgba(192, 132, 252, 0.05)',
+    ambientColor: '#c084fc',
+    platforms: [
+      { x: 0,   y: 390, w: 900, h: 60 },
+      { x: 380, y: 300, w: 140, h: 14 },   // mid ledge — holds the direct shortcut door back to The Fracture
+    ],
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'upper_ruins',        toX: 700, toY: 310 },
+      { x: 865, y: 326, w: 35, h: 64, to: 'mirror_veil_reflection', toX: 60, toY: 310 },
+      // BUGFIX 2026-07-12 — see the matching note in the_fracture's
+      // transitions[]: this is the real, always-open entry point into
+      // Mirror Veil (the old south-via-Upper-Ruins route is gated behind
+      // Phase Dash at Echo Bridge, which is circular since Phase Dash lives
+      // here now).
+      { x: 420, y: 278, w: 60, h: 22, to: 'the_fracture', toX: 690, toY: 150 },
+    ],
+    connections: [
+      { direction: 'south', to: 'upper_ruins', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'mirror_veil_reflection', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+      { direction: 'north', to: 'the_fracture', requires: null, oneWay: false, order: 1, doorIndex: 2, shortcut: true },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  mirror_veil_reflection: {
+    id: 'mirror_veil_reflection',
+    name: 'Mirror Veil — Reflection',
+    region: 'mirror_veil',
+    mapAccent: '#c084fc',
+    col: 2, row: -3,
+    width: 900,
+    groundY: 390,
+    bgColor: '#0a0a12',
+    bgTint: 'rgba(192, 132, 252, 0.06)',
+    ambientColor: '#c084fc',
+    platforms: [
+      { x: 0, y: 390, w: 900, h: 60 },
+    ],
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'mirror_veil_gate',  toX: 830, toY: 310 },
+      { x: 865, y: 326, w: 35, h: 64, to: 'mirror_veil_hollow', toX: 60, toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'mirror_veil_gate', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'mirror_veil_hollow', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [
+      { type: 'mirror_sprite', x: 450, y: 362 },
+    ],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  mirror_veil_hollow: {
+    id: 'mirror_veil_hollow',
+    name: 'Mirror Veil — Hollow',
+    region: 'mirror_veil',
+    mapAccent: '#c084fc',
+    col: 2, row: -4,
+    width: 900,
+    groundY: 390,
+    bgColor: '#0a0a12',
+    bgTint: 'rgba(192, 132, 252, 0.07)',
+    ambientColor: '#c084fc',
+    platforms: [
+      { x: 0, y: 390, w: 900, h: 60 },
+    ],
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'mirror_veil_reflection', toX: 830, toY: 310 },
+      { x: 865, y: 326, w: 35, h: 64, to: 'mirror_veil_sanctum',    toX: 60,  toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'mirror_veil_reflection', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'mirror_veil_sanctum', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [
+      { type: 'echo_stalker', x: 450, y: 362 },
+    ],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  mirror_veil_sanctum: {
+    id: 'mirror_veil_sanctum',
+    name: 'Mirror Veil — Sanctum',
+    region: 'mirror_veil',
+    mapAccent: '#c084fc',
+    col: 2, row: -5,
+    width: 900,
+    groundY: 390,
+    bgColor: '#0a0a12',
+    bgTint: 'rgba(192, 132, 252, 0.08)',
+    ambientColor: '#c084fc',
+    platforms: [
+      { x: 0,   y: 390, w: 900, h: 60 },
+      { x: 190, y: 290, w: 130, h: 14 },   // left elevated — same stepping-stone shape as The Vault's former altar approach
+      { x: 570, y: 290, w: 130, h: 14 },   // right elevated
+      { x: 360, y: 196, w: 180, h: 14 },   // altar (centre-high)
+    ],
+    abilityReward: {
+      id: 'phase_dash',
+      x: 420,
+      y: 174,   // 22px above altar at y:196
+      name: 'Phase Dash',
+      desc: 'C — dash through space. Leaves an echo that distracts enemies.',
+    },
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'mirror_veil_hollow', toX: 830, toY: 310 },
+      // Cross-link (expansion.md §3.13b lattice pattern) — the moment the
+      // player has Phase Dash, a direct route opens into Event Horizon
+      // (which requires Phase Dash to enter) instead of forcing a full
+      // backtrack across the whole origin spine to The Vault. Non-adjacent
+      // on the compass grid, so `shortcut: true` skips the col/row check —
+      // same mechanism as the atlas's Echoing Abyss -> Crystal Cavern link.
+      { x: 865, y: 326, w: 35, h: 64, to: 'event_horizon_gate', toX: 60, toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'mirror_veil_hollow', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'east', to: 'event_horizon_gate', requires: null, oneWay: false, order: 0, doorIndex: 1, shortcut: true },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // EVENT HORIZON — anchor region #2 (Plans/expansion.md §3.1, §3.13b,
+  // gravity cluster). Branches north off The Vault (col 5, row 0). Gated on
+  // Phase Dash to enter (per expansion.md's table) — always satisfiable by
+  // this point since Mirror Veil (reached earlier, off Upper Ruins) grants
+  // it. Empty room skeletons only. No ability reward here (none listed for
+  // this region in expansion.md — Graviton Surge belongs to Graviton Core,
+  // not yet built); the deepest room ends in an inert locked stub door
+  // toward that future region, same convention as Crag Warden's stub toward
+  // Graviton Core.
+  // ═══════════════════════════════════════════════════════════════════════
+  event_horizon_gate: {
+    id: 'event_horizon_gate',
+    name: 'Event Horizon — Gate',
+    region: 'event_horizon',
+    mapAccent: '#818cf8',
+    col: 5, row: -1,
+    width: 900,
+    groundY: 390,
+    bgColor: '#07070f',
+    bgTint: 'rgba(129, 140, 248, 0.06)',
+    ambientColor: '#818cf8',
+    platforms: [
+      { x: 0,   y: 390, w: 900, h: 60 },
+      { x: 380, y: 300, w: 140, h: 14 },   // mid ledge — holds the Mirror Veil cross-link door
+    ],
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'the_vault', toX: 630, toY: 310 },
+      { x: 865, y: 326, w: 35, h: 64, to: 'event_horizon_pull', toX: 60, toY: 310 },
+      // Cross-link back to Mirror Veil's Sanctum — see the note there.
+      { x: 420, y: 278, w: 60, h: 22, to: 'mirror_veil_sanctum', toX: 830, toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'the_vault', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'event_horizon_pull', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+      { direction: 'west', to: 'mirror_veil_sanctum', requires: null, oneWay: false, order: 0, doorIndex: 2, shortcut: true },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  event_horizon_pull: {
+    id: 'event_horizon_pull',
+    name: 'Event Horizon — Pull',
+    region: 'event_horizon',
+    mapAccent: '#818cf8',
+    col: 5, row: -2,
+    width: 900,
+    groundY: 390,
+    bgColor: '#07070f',
+    bgTint: 'rgba(129, 140, 248, 0.07)',
+    ambientColor: '#818cf8',
+    platforms: [
+      { x: 0, y: 390, w: 900, h: 60 },
+    ],
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'event_horizon_gate', toX: 830, toY: 310 },
+      { x: 865, y: 326, w: 35, h: 64, to: 'event_horizon_drift', toX: 60, toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'event_horizon_gate', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'event_horizon_drift', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  event_horizon_drift: {
+    id: 'event_horizon_drift',
+    name: 'Event Horizon — Drift',
+    region: 'event_horizon',
+    mapAccent: '#818cf8',
+    col: 5, row: -3,
+    width: 900,
+    groundY: 390,
+    bgColor: '#07070f',
+    bgTint: 'rgba(129, 140, 248, 0.08)',
+    ambientColor: '#818cf8',
+    platforms: [
+      { x: 0, y: 390, w: 900, h: 60 },
+    ],
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'event_horizon_pull', toX: 830, toY: 310 },
+      { x: 865, y: 326, w: 35, h: 64, to: 'event_horizon_core', toX: 60, toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'event_horizon_pull', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'event_horizon_core', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  event_horizon_core: {
+    id: 'event_horizon_core',
+    name: 'Event Horizon — Core',
+    region: 'event_horizon',
+    mapAccent: '#818cf8',
+    col: 5, row: -4,
+    width: 900,
+    groundY: 390,
+    bgColor: '#07070f',
+    bgTint: 'rgba(129, 140, 248, 0.09)',
+    ambientColor: '#818cf8',
+    platforms: [
+      { x: 0, y: 390, w: 900, h: 60 },
+    ],
+    transitions: [
+      { x: 0, y: 326, w: 35, h: 64, to: 'event_horizon_drift', toX: 830, toY: 310 },
+      // Locked door toward the next planned region (Graviton Core cluster).
+      // Deliberately NOT in `connections[]` — that region doesn't exist yet
+      // and the compass validator requires connection targets to exist.
+      // Inert until both Graviton Surge and Graviton Core are built, same
+      // convention as Crag Warden's stub door.
+      { x: 865, y: 326, w: 35, h: 64, to: 'graviton_core', toX: 60, toY: 310, requires: 'graviton_surge' },
+    ],
+    connections: [
+      { direction: 'south', to: 'event_horizon_drift', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // CHRONO-SPACE RIFT — anchor region #3 (Plans/expansion.md §3.6). Branches
+  // north off The Forge (col 4, row 0), reached before The Vault. Open — no
+  // ability required to enter. Empty room skeletons only, except the
+  // sanctum, which now holds the Stillpoint reward relocated from The Vault
+  // — see Plans/roadmap.md Phase 9. The Vault's own `stillpoint`-gated east
+  // door stays satisfiable because this branch is reached earlier in the
+  // spine.
+  // ═══════════════════════════════════════════════════════════════════════
+  chrono_rift_gate: {
+    id: 'chrono_rift_gate',
+    name: 'Chrono-Space Rift — Gate',
+    region: 'chrono_rift',
+    mapAccent: '#a78bfa',
+    col: 4, row: -1,
+    width: 900,
+    groundY: 390,
+    bgColor: '#0a0a10',
+    bgTint: 'rgba(167, 139, 250, 0.05)',
+    ambientColor: '#a78bfa',
+    platforms: [
+      { x: 0, y: 390, w: 900, h: 60 },
+    ],
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'the_forge', toX: 210, toY: 310 },
+      { x: 865, y: 326, w: 35, h: 64, to: 'chrono_rift_loop', toX: 60, toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'the_forge', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'chrono_rift_loop', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  chrono_rift_loop: {
+    id: 'chrono_rift_loop',
+    name: 'Chrono-Space Rift — Loop',
+    region: 'chrono_rift',
+    mapAccent: '#a78bfa',
+    col: 4, row: -2,
+    width: 900,
+    groundY: 390,
+    bgColor: '#0a0a10',
+    bgTint: 'rgba(167, 139, 250, 0.06)',
+    ambientColor: '#a78bfa',
+    platforms: [
+      { x: 0, y: 390, w: 900, h: 60 },
+    ],
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'chrono_rift_gate', toX: 830, toY: 310 },
+      { x: 865, y: 326, w: 35, h: 64, to: 'chrono_rift_echo', toX: 60, toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'chrono_rift_gate', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'chrono_rift_echo', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  chrono_rift_echo: {
+    id: 'chrono_rift_echo',
+    name: 'Chrono-Space Rift — Echo',
+    region: 'chrono_rift',
+    mapAccent: '#a78bfa',
+    col: 4, row: -3,
+    width: 900,
+    groundY: 390,
+    bgColor: '#0a0a10',
+    bgTint: 'rgba(167, 139, 250, 0.07)',
+    ambientColor: '#a78bfa',
+    platforms: [
+      { x: 0, y: 390, w: 900, h: 60 },
+    ],
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'chrono_rift_loop', toX: 830, toY: 310 },
+      { x: 865, y: 326, w: 35, h: 64, to: 'chrono_rift_sanctum', toX: 60, toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'chrono_rift_loop', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'chrono_rift_sanctum', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+    abilityReward: null,
+  },
+
+  chrono_rift_sanctum: {
+    id: 'chrono_rift_sanctum',
+    name: 'Chrono-Space Rift — Sanctum',
+    region: 'chrono_rift',
+    mapAccent: '#a78bfa',
+    col: 4, row: -4,
+    width: 900,
+    groundY: 390,
+    bgColor: '#0a0a10',
+    bgTint: 'rgba(167, 139, 250, 0.08)',
+    ambientColor: '#a78bfa',
+    platforms: [
+      { x: 0,   y: 390, w: 900, h: 60 },
+      { x: 190, y: 290, w: 130, h: 14 },   // left elevated — same stepping-stone shape as The Vault's former altar approach
+      { x: 570, y: 290, w: 130, h: 14 },   // right elevated
+      { x: 360, y: 196, w: 180, h: 14 },   // altar (centre-high)
+    ],
+    abilityReward: {
+      id: 'stillpoint',
+      x: 420,
+      y: 174,   // 22px above altar at y:196
+      name: 'Stillpoint',
+      desc: 'Q — slow the world to 15% speed. Recharges by hitting enemies.',
+    },
+    transitions: [
+      { x: 0,   y: 326, w: 35, h: 64, to: 'chrono_rift_echo', toX: 830, toY: 310 },
+      // One-way reward shortcut straight back to the origin spine, same
+      // convention as Crag Warden's shortcut to The Fracture and the
+      // atlas's planned Echoing Abyss -> Crystal Cavern link: getting
+      // Stillpoint also earns a fast lane back to The Fracture's Crag gate,
+      // symmetric with Mirror Veil's Phase Dash cross-link into Event
+      // Horizon above.
+      { x: 865, y: 326, w: 35, h: 64, to: 'the_fracture', toX: 220, toY: 310 },
+    ],
+    connections: [
+      { direction: 'south', to: 'chrono_rift_echo', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'east', to: 'the_fracture', requires: null, oneWay: true, order: 0, doorIndex: 1, shortcut: true },
+    ],
+    enemies: [],
+    anchors: [ { x: 140, y: 370, index: 0 } ],
+    loreFragments: [],
+  },
+
   // ─────────────────────────────────────────────────────────────────────────
   // DEV-ONLY — Enemy Test Arena. Not reachable via normal play (no
   // transitions in or out, no col/row so validateAreaGraph() skips it).
@@ -964,6 +1408,16 @@ function validateAreaGraph() {
 }
 
 validateAreaGraph();
+
+// `const AREAS = {...}` above is a top-level script-scope binding, not a
+// `window` property (unlike `var`/function declarations) — every in-page
+// script can still read it directly by name, but debug/tooling pages that
+// reach into a sandboxed iframe via `win.AREAS` (debug_v1.html's R10 check,
+// worldmap.html, etc.) got `undefined` and crashed with "Cannot convert
+// undefined or null to object". Attach it explicitly so that external
+// access keeps working; guarded for Node (export_graph.js's vm sandbox has
+// no `window`).
+if (typeof window !== 'undefined') window.AREAS = AREAS;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ROOM LAYOUT LINTER — static reachability/safety checks per room.

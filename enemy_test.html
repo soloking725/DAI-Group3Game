@@ -115,12 +115,20 @@ const ROSTER = [
     blurb: 'Crag of the Colossus miniboss. Only Charged (heavy) attacks connect — normal attacks bounce off with no damage. Single telegraphed charge attack. Has a real designed arena already (crag_warden) — this test uses an equivalent flat open floor.' },
   { id: 'void_lancer', name: 'Void Lancer', group: 'Built', built: true,
     blurb: 'Telegraphed charging thrust (glowing spear tip). Perfect parry stuns it — the next hit lands for double damage. No home region built yet (The Void Expanse), so it has no placement in AREAS besides this test arena.' },
+  { id: 'null_sentinel', name: 'Null Sentinel', group: 'Built — Ability Counter', built: true, region: 'Mirror Veil / Warp Gate Nexus',
+    blurb: 'Counters Phase Dash — alternates phaseable/solid every ~1s; dashing into it while solid cancels the dash and deals a small hit. Not yet placed in Mirror Veil\'s AREAS entry (task 5 built the class, not the room population).' },
+  { id: 'anchor_wraith', name: 'Anchor Wraith', group: 'Built — Ability Counter', built: true, region: 'Static Field / Polar Shift',
+    blurb: 'Counters Phase Dash — drifts slowly toward you, projects a visible ~120px stasis field. Dashing inside it cancels the dash. Low HP (2) by design — meant to be killed before it matters.' },
+  { id: 'deflector_drone', name: 'Deflector Drone', group: 'Built — Ability Counter', built: true, region: 'Polar Shift / Paradox Engine',
+    blurb: 'Counters Shard Shot — shield always faces you; a shot hitting the shielded side reflects straight back (dodgeable). Circle to its unshielded side or bait-and-dodge.' },
+  { id: 'mirror_sprite', name: 'Mirror Sprite', group: 'Built', built: true, region: 'Mirror Veil',
+    blurb: 'Only tangible when you\'re facing it (takeDamage no-ops otherwise) — attacks from behind when you\'re not. Not yet placed in Mirror Veil\'s AREAS entry.' },
+  { id: 'echo_stalker', name: 'Echo Stalker', group: 'Built', built: true, region: 'Mirror Veil',
+    blurb: 'Teleports to just behind you the instant a Phase Dash ends (real teleport, ~0.75s cooldown between blinks). Not yet placed in Mirror Veil\'s AREAS entry.' },
 
   // ── Planned normal enemies (expansion.md §2.1, not built) ──
   { id: 'temporal_shard', name: 'Temporal Shard', group: 'Planned — Normal', built: false, region: 'Timeline Crossroads',
     blurb: 'Splits into two on death; both must be killed within 3s or they reform. Counter: parry the split to prevent division.' },
-  { id: 'echo_stalker', name: 'Echo Stalker', group: 'Planned — Normal', built: false, region: 'Mirror Veil',
-    blurb: 'Teleports behind you when you dash. Counter: phase-dash through its spawn point to stun it.' },
   { id: 'phase_sentinel', name: 'Phase Sentinel', group: 'Planned — Normal', built: false, region: 'Chrono-Space Rift',
     blurb: 'Fires delayed homing orbs that accelerate after 1s. Counter: Shard Shot the orbs to detonate them early.' },
   { id: 'gravity_well', name: 'Gravity Well', group: 'Planned — Normal', built: false, region: 'Event Horizon / Inverted Spire',
@@ -157,8 +165,6 @@ const ROSTER = [
     blurb: 'On contact, halves your jump/dash distance for 3s. Counter: Shard Shot from range, or parry to reflect it.' },
   { id: 'polarity_drone', name: 'Polarity Drone', group: 'Planned — Normal', built: false, region: 'The Polar Shift / Graviton Core',
     blurb: 'Alternates push/pull polarity every 3s. Counter: hit it to flip polarity to your advantage.' },
-  { id: 'mirror_sprite', name: 'Mirror Sprite', group: 'Planned — Normal', built: false, region: 'Mirror Veil',
-    blurb: 'Only tangible in reflections; attacks from behind if you\'re not facing it. Counter: face it, parry to shatter.', needsRoom: true },
   { id: 'warp_mite', name: 'Warp Mite', group: 'Planned — Normal', built: false, region: 'Static Field',
     blurb: 'Tiny, fast, erratic. Contact teleports you nearby (no damage, disorienting). Counter: phase-dash through it.' },
   { id: 'inertial_shieldbearer', name: 'Inertial Shieldbearer', group: 'Planned — Normal', built: false, region: 'The Polar Shift',
@@ -173,14 +179,8 @@ const ROSTER = [
     blurb: 'Splits into Past/Future silhouettes; only the green-flash "Present" one takes damage, swaps every 2s.' },
 
   // ── Ability-countering enemies (expansion.md §2.3) ──
-  { id: 'anchor_wraith', name: 'Anchor Wraith', group: 'Planned — Ability Counter', built: false, region: 'Static Field / Polar Shift',
-    blurb: 'Counters Phase Dash — stasis field cancels a dash used inside it. Kill from outside the field first.', needsRoom: true },
-  { id: 'null_sentinel', name: 'Null Sentinel', group: 'Planned — Ability Counter', built: false, region: 'Mirror Veil / Warp Gate Nexus',
-    blurb: 'Counters Phase Dash — alternates phaseable/solid on a visible rhythm; dashing into it while solid punishes you.' },
   { id: 'gravity_anchor', name: 'Gravity Anchor', group: 'Planned — Ability Counter', built: false, region: 'Graviton Core / Inverted Spire',
-    blurb: 'Counters Graviton Surge — nullifies it locally. Stationary, low HP, usually guarded.' },
-  { id: 'deflector_drone', name: 'Deflector Drone', group: 'Planned — Ability Counter', built: false, region: 'Polar Shift / Paradox Engine',
-    blurb: 'Counters Shard Shot — reflects a shot that hits its directional shield. Circle to its unshielded side.' },
+    blurb: 'Counters Graviton Surge — nullifies it locally. Stationary, low HP, usually guarded. Not built — depends on the not-yet-built Graviton Surge ability to be meaningfully testable.' },
   { id: 'absorber_husk', name: 'Absorber Husk', group: 'Planned — Ability Counter', built: false, region: 'Paradox Engine / Void Expanse',
     blurb: 'Counters Shard Shot — absorbs and heals from it. Vulnerable to melee or right after a Graviton Surge flip.' },
   { id: 'debris_construct', name: 'Debris Construct', group: 'Planned — Ability Counter', built: false, region: 'Paradox Engine',
@@ -301,9 +301,27 @@ const CLASS_MAP = {
   crystal_sentinel: () => new CrystalSentinel(900, 460),
   fractured_slime: () => new FracturedSlime(900, 476),
   void_lancer: () => new VoidLancer(900, 472),
+  null_sentinel: () => new NullSentinel(900, 472),
+  anchor_wraith: () => new AnchorWraith(900, 400),
+  deflector_drone: () => new DeflectorDrone(900, 400),
+  mirror_sprite: () => new MirrorSprite(900, 472),
+  echo_stalker: () => new EchoStalker(900, 472),
 };
 
-document.getElementById('spawnBtn').addEventListener('click', () => {
+// ─── Enemy Editor handoff (enemy_editor.html "Test in Arena" button) ───
+// enemy_editor.html writes {enemyId, loadout, overrides} to localStorage and
+// opens this page in a new tab. On load, if that key is present, auto-select
+// the enemy + loadout and apply the numeric overrides to the spawned
+// instance — then clear the key so a manual reload doesn't re-trigger it.
+const EDITOR_HANDOFF_KEY = 'stillpoint_enemy_editor_test';
+function applyEditorOverrides(instance, overrides) {
+  if (!overrides) return;
+  for (const key of ['health', 'attackCooldown', 'patrolRange']) {
+    if (typeof overrides[key] === 'number' && !isNaN(overrides[key])) instance[key] = overrides[key];
+  }
+}
+
+function spawnSelected(overrides) {
   const e = ROSTER.find(r => r.id === enemySelect.value);
   if (!e || !e.built) return;
   applyPreset(document.getElementById('presetSelect').value);
@@ -323,11 +341,32 @@ document.getElementById('spawnBtn').addEventListener('click', () => {
     testArea.isMinibossArena = true;
     testArea.miniboss = 'colossus_core';
     miniboss = new ColossusCore(900, 436);
+    applyEditorOverrides(miniboss, overrides);
   } else if (CLASS_MAP[e.id]) {
     testArea.isMinibossArena = false;
-    areaEnemies['enemy_test_arena'].push(CLASS_MAP[e.id]());
+    const instance = CLASS_MAP[e.id]();
+    applyEditorOverrides(instance, overrides);
+    areaEnemies['enemy_test_arena'].push(instance);
   }
-});
+}
+
+document.getElementById('spawnBtn').addEventListener('click', () => spawnSelected(null));
+
+// Auto-run a handoff from enemy_editor.html, if one is waiting.
+(function runEditorHandoffIfPresent() {
+  const raw = localStorage.getItem(EDITOR_HANDOFF_KEY);
+  if (!raw) return;
+  localStorage.removeItem(EDITOR_HANDOFF_KEY); // consume once — a manual reload shouldn't re-spawn it
+  try {
+    const handoff = JSON.parse(raw);
+    if (handoff.enemyId) enemySelect.value = handoff.enemyId;
+    if (handoff.loadout) document.getElementById('presetSelect').value = handoff.loadout;
+    updateBlurb();
+    spawnSelected(handoff.overrides || null);
+  } catch (e) {
+    console.error('[enemy_editor handoff] failed to parse:', e);
+  }
+})();
 
 document.getElementById('respawnPlayerBtn').addEventListener('click', () => {
   if (gameState !== 'playing') return;

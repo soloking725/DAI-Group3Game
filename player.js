@@ -279,7 +279,7 @@ class Player {
     if (abilityState.hasChargedAttack) {
       // Press Z/J with no cooldown → start charging (don't fire yet)
       if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
-          this.attackCooldown <= 0 && !this.stillpointActive && !this.ducking &&
+          this.attackCooldown <= 0 && !this.ducking &&
           !this.charging && !this.parrying) {
         this.charging = true;
         this.chargeTimer = 0;
@@ -299,7 +299,7 @@ class Player {
       }
 
       // Cancel charge if conditions no longer met
-      if (this.charging && (this.stillpointActive || this.ducking || this.attackCooldown > 0)) {
+      if (this.charging && (this.ducking || this.attackCooldown > 0)) {
         this.charging = false;
         this.chargeTimer = 0;
         this.fullyCharged = false;
@@ -340,7 +340,7 @@ class Player {
         this.fullyCharged = false;
       }
     } else if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
-               this.attackCooldown <= 0 && !this.stillpointActive && !this.ducking && !this.parrying) {
+               this.attackCooldown <= 0 && !this.ducking && !this.parrying) {
       // No Charged Attack yet — Z/J always fires the quick attack immediately,
       // no charge timer, no heavy branch, no charge VFX.
       if (isPressed('ArrowUp') || isPressed('KeyW')) {
@@ -362,7 +362,7 @@ class Player {
     // ── Parry: tap Z during cooldown (instead of attacking) ────────────────
     if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
         !this.attacking && this.attackCooldown > 0 && this.parryCooldown <= 0 &&
-        !this.stillpointActive && !this.ducking && !this.parrying) {
+        !this.ducking && !this.parrying) {
       this.parrying = true;
       this.parryTimer = PARRY_WINDOW; // 10 frames to deflect
       this.parryCooldown = PARRY_COOLDOWN; // 60 frames between parries
@@ -386,7 +386,7 @@ class Player {
 
     // ── Shard Shot — hold to aim, release to fire (expansion §0.1) ─────────
     // Press V/N: start aiming; a glowing dotted arc appears (see draw()).
-    // Hold Up/W or Down/S while aiming: tilt the arc smoothly.
+    // Hold R (up) or T (down) while aiming: tilt the arc smoothly.
     // Release: fire along the arc. A quick tap = instant forward shot.
     this.shardShotFired = false;
     if ((wasJustPressed('KeyV') || wasJustPressed('KeyN')) &&
@@ -399,9 +399,9 @@ class Player {
     if (this.shardAiming) {
       if (isPressed('KeyV') || isPressed('KeyN')) {
         this.shardAimTimer++;
-        if (isPressed('ArrowUp') || isPressed('KeyW')) {
+        if (isPressed('KeyR')) {          // R for up
           this.shardAimVy = Math.max(this.shardAimVy - SHARD_AIM_TILT_RATE, SHARD_AIM_VY_MIN);
-        } else if (isPressed('ArrowDown') || isPressed('KeyS')) {
+        } else if (isPressed('KeyT')) {   // T for down
           this.shardAimVy = Math.min(this.shardAimVy + SHARD_AIM_TILT_RATE, SHARD_AIM_VY_MAX);
         }
       } else {

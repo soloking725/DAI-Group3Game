@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stillpoint – World Graph Analyzer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: #0a0a0f;
+      color: #c4b5fd;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 1.6em;
+      margin-bottom: 4px;
+      color: #e0d7ff;
+    }
+    .sub {
+      color: #6a6a8e;
+      font-size: 0.85em;
+      margin-bottom: 20px;
+    }
+    #results {
+      background: #0d0d1a;
+      border: 1px solid #1a1a2e;
+      padding: 16px 20px;
+      border-radius: 4px;
+      max-width: 900px;
+      white-space: pre-wrap;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    .stat-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      margin: 12px 0;
+    }
+    .stat {
+      background: #12121f;
+      border: 1px solid #1e1e3e;
+      padding: 4px 12px;
+      border-radius: 3px;
+    }
+    .stat .label {
+      color: #6a6a8e;
+    }
+    .stat .value {
+      color: #c4b5fd;
+      font-weight: bold;
+    }
+    .stat .highlight {
+      color: #67e8f9;
+    }
+    .stat .warn {
+      color: #fbbf24;
+    }
+    .stat .err {
+      color: #f87171;
+    }
+    button {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4e;
+      color: #c4b5fd;
+      padding: 6px 16px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: 3px;
+      margin-right: 8px;
+    }
+    button:hover {
+      background: #2a2a4e;
+      border-color: #6a6a9e;
+    }
+    .path {
+      color: #2dd4bf;
+      font-weight: bold;
+    }
+    .optional {
+      color: #fbbf24;
+    }
+    .deadend {
+      color: #f87171;
+    }
+    .footnote {
+      color: #4a4a6e;
+      font-size: 0.8em;
+      margin-top: 16px;
+      border-top: 1px solid #1a1a2e;
+      padding-top: 12px;
+    }
+    #raw {
+      margin-top: 12px;
+      background: #04040a;
+      border: 1px solid #1a1a2e;
+      padding: 10px;
+      font-size: 11px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+      white-space: pre-wrap;
+      color: #6a6a9e;
+    }
+    .toggle-raw {
+      color: #6a6a8e;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 0.85em;
+      margin-left: 12px;
+    }
+    .input-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: 8px 0 12px;
+    }
+    .input-group label {
+      color: #6a6a8e;
+      font-size: 0.9em;
+    }
+    .input-group input {
+      background: #12121f;
+      border: 1px solid #1e1e3e;
+      color: #c4b5fd;
+      padding: 3px 8px;
+      font-family: inherit;
+      font-size: 13px;
+      width: 160px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🗺️ Stillpoint — Graph Analyzer</h1>
+  <p class="sub">
+    Loads <code>area.js</code> and measures linearity, critical path, optional rooms, and dead ends.
+  </p>
+
+  <div class="input-group">
+    <label>Start room:</label>
+    <input id="startInput" value="tutorial_area" />
+    <label>End room:</label>
+    <input id="endInput" value="boss_arena" />
+  </div>
+
+  <div style="margin: 8px 0;">
+    <button id="analyzeBtn">▶ Analyze</button>
+    <span class="toggle-raw" id="toggleRaw">show raw data</span>
+  </div>
+
+  <div id="results">
+    <span style="color:#4a4a6e;">Press <strong>Analyze</strong> to run the graph analysis.</span>
+  </div>
+
+  <div id="raw"></div>
+
+  <div class="footnote">
+    This tool reads <code>AREAS</code> from <code>area.js</code> – it works with whatever rooms you have defined.
+  </div>
+
+  <script>
+    let AREAS = null;
+
+    // Try to use the global AREAS if it exists (if opened alongside the game)
+    if (typeof window.AREAS !== 'undefined') {
+      AREAS = window.AREAS;
+    }
+
+    function loadAreaJS() {
+      return new Promise((resolve, reject) => {
+        if (AREAS) {
+          resolve(AREAS);
+          return;
+        }
+        fetch('area.js')
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.text();
+          })
+          .then(code => {
+            // Wrap the code in a function that returns AREAS.
+            // This captures the top-level const declaration.
+            const fn = new Function(code + '\nreturn AREAS;');
+            const areas = fn();
+            if (areas && typeof areas === 'object') {
+              AREAS = areas;
+              resolve(AREAS);
+            } else {
+              reject('area.js did not define AREAS (returned ' + typeof areas + ')');
+            }
+          })
+          .catch(err => reject('Failed to fetch area.js: ' + err.message));
+      });
+    }
+
+    function analyze(AREAS, startId, endId) {
+      // Build adjacency list – only rooms with col/row (real map rooms)
+      const graph = {};
+      const allIds = [];
+      for (const id in AREAS) {
+        const room = AREAS[id];
+        if (typeof room.col !== 'number') continue; // skip dev-only rooms
+        allIds.push(id);
+        graph[id] = [];
+        if (room.connections) {
+          for (const conn of room.connections) {
+            if (AREAS[conn.to] && typeof AREAS[conn.to].col === 'number') {
+              graph[id].push(conn.to);
+            }
+          }
+        }
+      }
+
+      // BFS from start to end
+      function bfs(startId, endId) {
+        if (!graph[startId]) return null;
+        const queue = [[startId]];
+        const visited = new Set([startId]);
+        while (queue.length) {
+          const path = queue.shift();
+          const node = path[path.length - 1];
+          if (node === endId) return path;
+          for (const neighbor of (graph[node] || [])) {
+            if (!visited.has(neighbor)) {
+              visited.add(neighbor);
+              queue.push([...path, neighbor]);
+            }
+          }
+        }
+        return null;
+      }
+
+      const criticalPath = bfs(startId, endId);
+      if (!criticalPath) {
+        return { error: `No path from '${startId}' to '${endId}'` };
+      }
+
+      const criticalSet = new Set(criticalPath);
+      const optionalRooms = allIds.filter(id => !criticalSet.has(id));
+
+      // Indegree
+      const indegree = {};
+      for (const id of allIds) indegree[id] = 0;
+      for (const id of allIds) {
+        for (const n of graph[id] || []) {
+          indegree[n] = (indegree[n] || 0) + 1;
+        }
+      }
+
+      // Outdegree
+      const outdegree = {};
+      for (const id of allIds) outdegree[id] = (graph[id] || []).length;
+
+      // Dead ends: rooms with outdegree 0 (except the end)
+      const deadEnds = allIds.filter(id => outdegree[id] === 0 && id !== endId);
+
+      // Rooms with indegree 0 (except start)
+      const entryOnly = allIds.filter(id => indegree[id] === 0 && id !== startId);
+
+      // Branching: rooms on the critical path with outdegree > 1
+      const branchPoints = criticalPath.filter(id => (graph[id] || []).length > 1);
+
+      // Count how many optional rooms are actually reachable from the critical path
+      let reachableOptional = 0;
+      for (const opt of optionalRooms) {
+        let found = false;
+        for (const cp of criticalPath) {
+          const queue = [cp];
+          const visited = new Set([cp]);
+          while (queue.length) {
+            const node = queue.shift();
+            if (node === opt) { found = true; break; }
+            for (const n of (graph[node] || [])) {
+              if (!visited.has(n)) {
+                visited.add(n);
+                queue.push(n);
+              }
+            }
+          }
+          if (found) break;
+        }
+        if (found) reachableOptional++;
+      }
+
+      return {
+        totalRooms: allIds.length,
+        totalConnections: allIds.reduce((s, id) => s + (graph[id] || []).length, 0),
+        criticalPath,
+        criticalLength: criticalPath.length - 1,
+        optionalRooms,
+        optionalCount: optionalRooms.length,
+        reachableOptional,
+        deadEnds,
+        entryOnly,
+        branchPoints,
+        indegree,
+        outdegree,
+        graph,
+        startId,
+        endId,
+      };
+    }
+
+    function renderResults(result) {
+      const el = document.getElementById('results');
+      if (result.error) {
+        el.innerHTML = `<span class="err">⚠️ ${result.error}</span>`;
+        return;
+      }
+
+      const {
+        totalRooms,
+        totalConnections,
+        criticalPath,
+        criticalLength,
+        optionalRooms,
+        optionalCount,
+        reachableOptional,
+        deadEnds,
+        entryOnly,
+        branchPoints,
+        startId,
+        endId,
+      } = result;
+
+      let html = '';
+
+      // Stats
+      html += `<div class="stat-grid">`;
+      html += `<div class="stat"><span class="label">Rooms</span> <span class="value">${totalRooms}</span></div>`;
+      html += `<div class="stat"><span class="label">Connections</span> <span class="value">${totalConnections}</span></div>`;
+      html += `<div class="stat"><span class="label">Critical path length</span> <span class="value highlight">${criticalLength} transitions</span></div>`;
+      html += `<div class="stat"><span class="label">Mandatory rooms</span> <span class="value">${criticalPath.length}</span></div>`;
+      html += `<div class="stat"><span class="label">Optional rooms</span> <span class="value optional">${optionalCount}</span></div>`;
+      html += `<div class="stat"><span class="label">Reachable optional</span> <span class="value">${reachableOptional}</span></div>`;
+      html += `<div class="stat"><span class="label">Dead ends</span> <span class="value deadend">${deadEnds.length}</span></div>`;
+      html += `<div class="stat"><span class="label">Branch points</span> <span class="value warn">${branchPoints.length}</span></div>`;
+      html += `</div>`;
+
+      // Critical path
+      html += `<div><strong>Critical path (${startId} → ${endId}):</strong> <span class="path">${criticalPath.join(' → ')}</span></div>`;
+
+      // Optional rooms
+      if (optionalRooms.length) {
+        html += `<div><strong>Optional rooms:</strong> <span class="optional">${optionalRooms.join(', ')}</span></div>`;
+      } else {
+        html += `<div><strong>Optional rooms:</strong> none – fully linear</div>`;
+      }
+
+      // Dead ends
+      if (deadEnds.length) {
+        html += `<div><strong>Dead ends (no outgoing):</strong> <span class="deadend">${deadEnds.join(', ')}</span></div>`;
+      }
+
+      // Entry-only
+      if (entryOnly.length) {
+        html += `<div><strong>Entry-only rooms (indegree 0, not start):</strong> <span class="warn">${entryOnly.join(', ')}</span></div>`;
+      }
+
+      // Branch points
+      if (branchPoints.length) {
+        html += `<div><strong>Branch points (critical path rooms with >1 exit):</strong> <span class="warn">${branchPoints.join(', ')}</span></div>`;
+      }
+
+      // Linearity assessment
+      const linearity = (optionalCount === 0) ? '100% linear (no optional rooms)' :
+                        (branchPoints.length === 0) ? 'Strictly linear corridor with optional dead-end branches' :
+                        'Non-linear web (multiple branches from critical path)';
+      html += `<div style="margin-top:8px;background:#12121f;padding:6px 12px;border-radius:3px;border-left:3px solid ${optionalCount===0?'#2dd4bf':'#fbbf24'};">
+        <strong>📐 Linearity assessment:</strong> ${linearity}
+      </div>`;
+
+      el.innerHTML = html;
+
+      // Store raw data for toggle
+      const raw = document.getElementById('raw');
+      raw.textContent = JSON.stringify(result, (key, val) => {
+        if (key === 'graph') return '[adjacency list]';
+        if (key === 'indegree' || key === 'outdegree') return val;
+        return val;
+      }, 2);
+    }
+
+    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+      const resultsEl = document.getElementById('results');
+      resultsEl.innerHTML = '<span style="color:#6a6a8e;">Loading area.js...</span>';
+
+      const startId = document.getElementById('startInput').value.trim() || 'tutorial_area';
+      const endId = document.getElementById('endInput').value.trim() || 'boss_arena';
+
+      try {
+        const areas = await loadAreaJS();
+        if (!areas) {
+          resultsEl.innerHTML = '<span class="err">Could not load AREAS. Make sure area.js is in the same directory.</span>';
+          return;
+        }
+        const result = analyze(areas, startId, endId);
+        renderResults(result);
+      } catch (e) {
+        resultsEl.innerHTML = `<span class="err">Error: ${e.message || e}</span>`;
+      }
+    });
+
+    // Toggle raw data
+    let rawVisible = false;
+    document.getElementById('toggleRaw').addEventListener('click', () => {
+      const raw = document.getElementById('raw');
+      rawVisible = !rawVisible;
+      raw.style.display = rawVisible ? 'block' : 'none';
+      document.getElementById('toggleRaw').textContent = rawVisible ? 'hide raw data' : 'show raw data';
+    });
+
+    // Auto-run on load if AREAS is already present (e.g. if opened from the game's page)
+    if (typeof window.AREAS !== 'undefined' && window.AREAS) {
+      setTimeout(() => {
+        const startId = document.getElementById('startInput').value || 'tutorial_area';
+        const endId = document.getElementById('endInput').value || 'boss_arena';
+        const result = analyze(window.AREAS, startId, endId);
+        renderResults(result);
+      }, 200);
+    }
+  </script>
+
+</body>
+</html>

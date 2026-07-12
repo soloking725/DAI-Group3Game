@@ -45,15 +45,32 @@ dash) and directional melee combat.
 Other design docs, read as needed for their specific topic:
 - `story.md` — narrative/companion-character system (large, not yet built
   — no code currently implements the companion, endings, or Fracture Pip
-  economy described there; it's a design doc, not a status doc).
-- `lore.md` — currently empty.
+  economy described there; it's a design doc, not a status doc). Contains
+  the newest planned ability, **Void Tether** (§4) — newer than
+  expansion.md's Graviton Surge, itself still unbuilt.
+- `lore.md` — a real, substantive narrative doc (NOT empty — corrected
+  2026-07-12, this line was stale). Connective-tissue prose tying together
+  the `loreFragments[]` already in `area.js` into one story; not yet
+  surfaced in-game (`LORE_ENABLED = false`).
 - `cave_design_plan.md` — "how to make rooms read as a cave, not a
   platform gauntlet" research notes; informed the Crag of the Colossus
-  build.
+  build. Largely superseded for new work by the Task 4 decoration system
+  (`REGION_STYLES`/`decorateRoomForRegion()` in game.js — see roadmap.md
+  Phase 9) for anything region-specific; still the right reference for
+  cave-floor/no-fall-death philosophy generally.
 - `room_verification_tool_plan.md` — design for a not-yet-built
   reachability/safety linter for rooms (static linter + headless bot
   walker). `debug_v1.html`'s R09–R11 checks are a lightweight down-payment
   on this, not the full tool.
+- `regions.md` — which of the 13 expansion.md regions exist (built or
+  planned), room counts, and each region's special effect/mechanic; also
+  holds a 25-physics-concept brainstorm for 5 *additional* regions beyond
+  the 13, kept strictly in a "not assigned anywhere yet" section.
+- `session_priorities.md` — an ordered task docket for a specific work
+  session (checkbox list, not a permanent design doc). Once fully consumed
+  its "recommended order" reasoning should be folded into roadmap.md and
+  the file itself archived/retired — don't treat it as a standing doc the
+  way roadmap.md/expansion.md are.
 
 ## Explicit design decisions (do not relitigate without asking)
 
@@ -73,8 +90,21 @@ Other design docs, read as needed for their specific topic:
   continuous cave floors (see `cave_design_plan.md`); pits are reserved
   for rooms that deliberately want that hazard, via an explicit
   `pitDeathY` override, not an inferred one.
+- **No lock-and-key gating (flagged 2026-07-12).** A door should be
+  blocked by something the player's *toolkit* can't yet do (Phase Dash,
+  Shard Shot, wall jump, etc.) — never by a collectible key/item found
+  elsewhere that just unlocks a door with no other function, the way
+  `requires: 'phase_dash'` already works everywhere in `area.js` today.
+  Hollow Knight reference point: mantis-jump-gated ledges and dash-gated
+  gaps, not literal locked doors with a key on the other side of the map.
+  **Known conflict, not yet resolved**: `expansion.md`'s Warp Gate Nexus
+  (§3.11, and the cross-link table in §3.13b) is planned to open "after
+  collecting 3 Keystones" — a literal key mechanic. Not built yet. Revisit
+  this with the user before implementing it as written; it may need
+  reframing as an ability gate (or a puzzle-vault-completion gate) instead.
 - Explicitly out of scope project-wide: charms, a shop/geo economy as a
-  main progression gate, procedural generation, multiplayer.
+  main progression gate, procedural generation, multiplayer, lock-and-key
+  item gating (see above).
 
 ## Architecture map
 
@@ -162,18 +192,47 @@ gate only the damage checks on `!dead`.
   transitions, anchors, ability rewards, lore) with JS export. Presets
   are separate hardcoded copies of room data, not live-synced with
   `area.js` — re-paste exported output back into `area.js` by hand.
+  **Enemy palette is stale** (2026-07-12) — only supports placing
+  Fractured/Stutterer, not the other 7 built enemy types (Crystal
+  Sentinel, Void Lancer, Null Sentinel, Anchor Wraith, Deflector Drone,
+  Mirror Sprite, Echo Stalker), and has no `region`/decoration awareness
+  for the Task 4 visual system. A real gap if this tool is meant to be
+  usable for full level design — see roadmap.md's open items.
 - **`enemy_test.html`** — spawns any real enemy/miniboss class in an
   isolated flat arena with a chosen ability loadout, for balance/behavior
   testing without playing through the full game.
+- **`enemy_editor.html`** — tunes numeric stats (HP, attack cooldown,
+  patrol range) and ability loadout for any built enemy class, with a live
+  preview canvas, then hands off to `enemy_test.html` to actually spawn and
+  fight it (via a `localStorage` handoff key). Does NOT edit AI/behavior
+  logic or enemy.js itself — a "Save JSON" export gives a paste-ready
+  overrides block instead. Safe for a non-coder to use directly; no code
+  risk.
 - **`worldmap.html`** — standalone compass-graph visualizer, reads live
   `AREAS` data plus a hand-maintained `PLANNED_REGIONS` list for the
-  regions in `expansion.md` that don't exist as real `AREAS` entries yet.
-  Keep `PLANNED_REGIONS`/`CROSS_LINKS` in sync with `expansion.md` §3.13b
-  by hand — there's no automatic validation between the two.
+  regions in `expansion.md` that don't exist as real `AREAS` entries yet,
+  plus a region-status table (built vs. planned, cluster membership) added
+  2026-07-12. Keep `PLANNED_REGIONS`/`CROSS_LINKS` in sync with
+  `expansion.md` §3.13b by hand — there's no automatic validation between
+  the two.
+- **`level_designer.html`** — PLANNED, not built (see roadmap.md's tail
+  end for the full spec). Would be a live visual tuning tool for the Task
+  4 decoration system (`REGION_STYLES` etc.) — palette/parameter controls
+  reusing the real game.js decoration functions, with a JSON export.
+  Explicitly scoped to NOT touch room geometry — that stays
+  `levelEditor.html`'s job.
 
 If you touch input handling, area data shape, or add a new game state,
 run the relevant debug page manually — per `performanceInstructions.md`,
 breaking these silently is treated as a regression.
+
+**Known debug-tool issues (pre-existing, not from recent sessions):**
+- `debug_v1.html` R10 check: `win.abilityState is undefined`. Root cause:
+  `abilityState` in `ability.js` is a top-level `const`, not a `window`
+  property. Fixed R09 by attaching `window.AREAS = AREAS` in area.js (same
+  pattern); a fix for this would be `window.abilityState = abilityState` at
+  the bottom of ability.js. Not done because it's debug-tool-only and low
+  priority — add the same guard pattern only if you're already in that file.
 
 ## Save data
 
@@ -185,18 +244,30 @@ separate key, `stillpoint_settings_v1`. See `saveGame()`/`loadGame()` in
 to also update it in both the save and load functions, plus
 `startNewGame()`'s reset path.
 
-## Current status (see `roadmap.md` for full detail)
+## Current status (see `roadmap.md` for full detail — corrected 2026-07-12,
+the note below about Phase 1.8 was stale; this is exactly the kind of drift
+this section is prone to, so **always trust `roadmap.md`'s own tail end
+("NEXT SESSION SHOULD") over this summary**, not the other way around)
 
-- Phase 0 (core UX/QoL) and Phase 1.1–1.7 (movement/combat overhaul):
-  done. Phase 1.8 (Dash Refund on Hit) is the next unstarted item in that
-  phase per the roadmap's own "CURRENTLY HERE" note — **double check
-  `roadmap.md`'s latest entries before trusting this**, it may have moved.
+- Phase 0 (core UX/QoL) and Phase 1.1–1.8 (movement/combat overhaul,
+  including 1.8 Dash Refund on Hit) are done.
 - Crag of the Colossus (a full region: 4 rooms + Colossus Core miniboss)
   is built and live-verified — see `roadmap.md` Phase 7 for the bugs
   found/fixed while building it.
-- The 13 spacetime regions, 26+2 enemy roster, and 8 minibosses in
-  `expansion.md` are **planned, not built** (Crag is a separate,
-  already-built region outside that 13-region plan).
+- 3 of the 13 expansion.md spacetime regions are built as real skeletons
+  (Mirror Veil, Event Horizon, Chrono-Space Rift — empty rooms + doors,
+  cross-linked to each other, 2 of Mirror Veil's abilities/enemies placed;
+  no cave-aesthetic-level room population like Crag has yet). The
+  remaining 10, the rest of the 26+2 enemy roster, and the 8 minibosses in
+  `expansion.md` are **planned, not built**. See `roadmap.md` Phase 9/10
+  and `regions.md` for detail.
+- 5 new enemies (Null Sentinel, Anchor Wraith, Deflector Drone, Mirror
+  Sprite, Echo Stalker) are built in `enemy.js`, spawnable via
+  `enemy_test.html`/`enemy_editor.html` (new tool — see Dev/debug tooling
+  below) and placed in `AREAS`. Two known balance issues open: BUG-013
+  (Stillpoint) and BAL-001 (Phase Dash's echo-distraction) — both partially
+  addressed this session but need a human playtest to confirm, see
+  `BUG_ANALYSIS_AND_QA_PLAN.md`.
 - The King's death-timer gating bug (victory could never fire) is fixed —
   see the boss/miniboss death pattern section above for the pattern to copy.
 

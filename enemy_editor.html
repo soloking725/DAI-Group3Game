@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Enemy Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-size:12px;display:flex;height:100vh;overflow:hidden}
+
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#bar{display:flex;gap:8px;align-items:center;padding:8px 12px;background:#0e0e1e;border-bottom:1px solid #1e1e3e;flex-shrink:0}
+#bar select{background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:4px 8px}
+#bar h1{font-size:13px;color:#e0d7ff;margin-right:auto}
+
+#stage{flex:1;display:flex;align-items:center;justify-content:center;background:#04040a;position:relative}
+canvas{display:block;background:#0a0a12;border:1px solid #1a1a2e}
+.tag{position:absolute;top:10px;left:10px;font-size:10px;padding:3px 7px;border-radius:3px}
+.tag.built{background:rgba(45,212,191,0.18);color:#2dd4bf}
+
+/* SIDEBAR */
+#side{width:300px;background:#0a0a18;border-left:1px solid #1e1e3e;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;padding:10px}
+h2{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#4a4a7e;border-bottom:1px solid #1a1a2e;margin:12px 0 6px;padding-bottom:3px}
+h2:first-child{margin-top:0}
+p.note{color:#5a5a8e;font-size:10.5px;line-height:1.5;margin:0 0 8px}
+.row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.row label{color:#8888aa;font-size:10.5px;flex:1}
+.row input,.row select{width:110px;background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:3px 5px}
+button{width:100%;background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:6px;cursor:pointer;margin-bottom:6px}
+button:hover{background:#1e1e3e}
+button.primary{border-color:#2dd4bf;color:#2dd4bf}
+button.reset{border-color:#f87171;color:#f87171}
+#exp-out{width:100%;height:120px;background:#04040a;border:1px solid #1e1e3e;color:#67e8f9;font-size:9.5px;resize:none;font-family:monospace;padding:4px}
+</style>
+</head>
+<body>
+
+<div id="main">
+  <div id="bar">
+    <h1>⚔ Enemy Editor</h1>
+    <label>Enemy:</label>
+    <select id="enemySelect"></select>
+  </div>
+  <div id="stage">
+    <span class="tag built" id="stageTag">fractured</span>
+    <canvas id="preview" width="360" height="280"></canvas>
+  </div>
+</div>
+
+<div id="side">
+  <p class="note">
+    Edits stats/loadout for a real <code>enemy.js</code> class (not a mock), then hands off to
+    <code>enemy_test.html</code> to actually spawn and fight it. Geometry/AI logic lives in enemy.js —
+    this tool only tunes the numeric knobs every enemy already exposes as plain instance fields
+    (<code>health</code>, <code>attackCooldown</code>, <code>patrolRange</code>), plus the ability loadout.
+    It does not edit enemy.js itself — "Save JSON" gives you a paste-ready block for that.
+  </p>
+
+  <h2>Stats</h2>
+  <div class="row"><label>Max HP</label><input type="number" id="statHealth" min="1" max="99" step="1"></div>
+  <div class="row"><label>Attack Cooldown (frames)</label><input type="number" id="statAttackCooldown" min="10" max="300" step="1"></div>
+  <div class="row"><label>Patrol Range (px)</label><input type="number" id="statPatrolRange" min="0" max="600" step="10"></div>
+  <button id="resetStatsBtn" class="reset">↺ Reset to enemy.js defaults</button>
+
+  <h2>Ability Loadout</h2>
+  <select id="presetSelect" style="width:100%">
+    <option value="none">None (day 1)</option>
+    <option value="phase_dash">+ Phase Dash</option>
+    <option value="shard_shot">+ Shard Shot</option>
+    <option value="stillpoint">+ Stillpoint</option>
+    <option value="charged_attack" selected>+ Charged Attack (current full kit)</option>
+  </select>
+
+  <h2>Test</h2>
+  <button class="primary" id="testBtn">▶ Test in Arena (opens enemy_test.html)</button>
+  <p class="note">Opens <code>enemy_test.html</code> in a new tab with this enemy, stat overrides,
+    and loadout pre-applied and spawned automatically.</p>
+
+  <h2>Export</h2>
+  <button id="exportBtn">⬇ Save JSON</button>
+  <textarea id="exp-out" readonly placeholder="Press Save JSON to generate an overrides block..."></textarea>
+</div>
+
+<script>
+// Real defaults per built enemy — read directly off enemy.js's own base
+// values (ENEMY_HEALTH/ENEMY_ATTACK_COOLDOWN for the base class, each
+// subclass's own const where it overrides one, e.g. LANCER_HEALTH). Kept as
+// plain data here (not by loading enemy.js) since this tool only needs the
+// numbers, not the classes themselves — it hands off to enemy_test.html
+// (which DOES load the real classes) to actually spawn anything.
+const ENEMY_DEFAULTS = {
+  fractured:        { name: 'Fractured',        health: 3, attackCooldown: 90,  patrolRange: 120, color: '#f87171' },
+  stutterer:        { name: 'Stutterer',        health: 3, attackCooldown: 90,  patrolRange: 120, color: '#a78bfa' },
+  crystal_sentinel: { name: 'Crystal Sentinel', health: 4, attackCooldown: 90,  patrolRange: 120, color: '#2dd4bf' },
+  void_lancer:       { name: 'Void Lancer',      health: 4, attackCooldown: 100, patrolRange: 120, color: '#7c3aed' },
+  null_sentinel:    { name: 'Null Sentinel',    health: 3, attackCooldown: 90,  patrolRange: 120, color: '#e0d4ff' },
+  anchor_wraith:    { name: 'Anchor Wraith',    health: 2, attackCooldown: 90,  patrolRange: 0,   color: '#818cf8' },
+  deflector_drone:  { name: 'Deflector Drone',  health: 3, attackCooldown: 90,  patrolRange: 0,   color: '#67e8f9' },
+  mirror_sprite:    { name: 'Mirror Sprite',    health: 2, attackCooldown: 90,  patrolRange: 120, color: '#c084fc' },
+  echo_stalker:     { name: 'Echo Stalker',     health: 2, attackCooldown: 90,  patrolRange: 120, color: '#7c3aed' },
+};
+
+const enemySelect = document.getElementById('enemySelect');
+for (const id in ENEMY_DEFAULTS) {
+  const opt = document.createElement('option');
+  opt.value = id; opt.textContent = ENEMY_DEFAULTS[id].name;
+  enemySelect.appendChild(opt);
+}
+
+const statHealth = document.getElementById('statHealth');
+const statAttackCooldown = document.getElementById('statAttackCooldown');
+const statPatrolRange = document.getElementById('statPatrolRange');
+const stageTag = document.getElementById('stageTag');
+const canvas = document.getElementById('preview');
+const ctx = canvas.getContext('2d');
+
+function currentDefaults() { return ENEMY_DEFAULTS[enemySelect.value]; }
+
+function loadDefaultsIntoInputs() {
+  const d = currentDefaults();
+  statHealth.value = d.health;
+  statAttackCooldown.value = d.attackCooldown;
+  statPatrolRange.value = d.patrolRange;
+  stageTag.textContent = enemySelect.value;
+  draw();
+}
+
+function draw() {
+  const d = currentDefaults();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const bodySize = 28 + Math.min(24, Number(statHealth.value || d.health) * 3); // bigger HP reads as a visually bigger threat
+  ctx.fillStyle = d.color;
+  ctx.fillRect(cx - bodySize / 2, cy - bodySize / 2, bodySize, bodySize);
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(cx + bodySize / 2 - 12, cy - bodySize / 2 + 8, 8, 6);
+
+  // Patrol range indicator
+  const range = Number(statPatrolRange.value || 0);
+  if (range > 0) {
+    ctx.strokeStyle = 'rgba(196, 181, 253, 0.25)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(cx - range / 2, cy + bodySize / 2 + 20);
+    ctx.lineTo(cx + range / 2, cy + bodySize / 2 + 20);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.fillStyle = '#5a5a8e';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`HP ${statHealth.value}  |  ATK CD ${statAttackCooldown.value}f  |  Patrol ${statPatrolRange.value}px`, cx, canvas.height - 14);
+  ctx.textAlign = 'left';
+}
+
+enemySelect.addEventListener('change', loadDefaultsIntoInputs);
+[statHealth, statAttackCooldown, statPatrolRange].forEach((el) => el.addEventListener('input', draw));
+document.getElementById('resetStatsBtn').addEventListener('click', loadDefaultsIntoInputs);
+
+function buildOverrides() {
+  return {
+    enemyId: enemySelect.value,
+    loadout: document.getElementById('presetSelect').value,
+    overrides: {
+      health: Number(statHealth.value),
+      attackCooldown: Number(statAttackCooldown.value),
+      patrolRange: Number(statPatrolRange.value),
+    },
+  };
+}
+
+document.getElementById('testBtn').addEventListener('click', () => {
+  localStorage.setItem('stillpoint_enemy_editor_test', JSON.stringify(buildOverrides()));
+  window.open('enemy_test.html', '_blank');
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const data = buildOverrides();
+  const json = JSON.stringify(data, null, 2);
+  document.getElementById('exp-out').value = json;
+});
+
+loadDefaultsIntoInputs();
+</script>
+</body>
+</html>

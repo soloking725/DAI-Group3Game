@@ -128,7 +128,7 @@ class Enemy {
     }
     if (nearestEcho) {
       this.distractionTarget = nearestEcho;
-      this.distractionTimer = 60; // fixed duration (will be scaled down by _ts above)
+      this.distractionTimer = ECHO_DISTRACT_DURATION;
       return;
     }
 
@@ -429,7 +429,7 @@ class Stutterer extends Enemy {
       const d = Math.abs((this.x + this.width / 2) - (echo.x + echo.width / 2));
       if (d < nearestDist) { nearestDist = d; nearestEcho = echo; }
     }
-    if (nearestEcho) { this.distractionTarget = nearestEcho; this.distractionTimer = 60; return; }
+    if (nearestEcho) { this.distractionTarget = nearestEcho; this.distractionTimer = ECHO_DISTRACT_DURATION; return; }
 
     this.teleportTimer += _ts;
 
@@ -665,7 +665,7 @@ class VoidLancer extends Enemy {
       const d = Math.abs((this.x + this.width / 2) - (echo.x + echo.width / 2));
       if (d < nearestDist) { nearestDist = d; nearestEcho = echo; }
     }
-    if (nearestEcho) { this.distractionTarget = nearestEcho; this.distractionTimer = 60; return; }
+    if (nearestEcho) { this.distractionTarget = nearestEcho; this.distractionTimer = ECHO_DISTRACT_DURATION; return; }
 
     const sight = this.canSeePlayer(player);
     if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE && !this.windingUp && !this.charging) {
@@ -842,6 +842,374 @@ class VoidLancer extends Enemy {
       ctx.textAlign = 'left';
     }
 
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Task 5 (session_priorities.md #5) — 5 new enemies from expansion.md §2/§2.3.
+// Picked to work with abilities already in the game (Phase Dash, Shard Shot)
+// rather than the unbuilt Graviton Surge, and two (Mirror Sprite, Echo
+// Stalker) double as first real content for Mirror Veil, which has been an
+// empty enemies:[] skeleton since Phase 9. See roadmap.md for balance notes.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Null Sentinel (expansion.md 2.3 #29) — Phase Dash counter ──────────────
+// Alternates phaseable (dim) / solid (bright) every ~1s. Dashing into it
+// while solid cancels the dash and deals a small hit; while phaseable it's a
+// free pass-through, same as an ordinary Phase Dash. Reuses the base Enemy's
+// chase/patrol/attack AI via super.update() — only the phase toggle and the
+// dash-counter check are new.
+const SENTINEL_PHASE_INTERVAL = 60; // ~1s per state at 60fps
+
+class NullSentinel extends Enemy {
+  constructor(x, y) {
+    super(x, y, 'null_sentinel');
+    this.phaseTimer = 0;
+    this.solid = true;
+  }
+
+  update(player, bounds, echoes) {
+    super.update(player, bounds, echoes);
+    if (this.dead) return;
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+
+    this.phaseTimer += _ts;
+    if (this.phaseTimer >= SENTINEL_PHASE_INTERVAL) {
+      this.phaseTimer = 0;
+      this.solid = !this.solid;
+    }
+
+    if (this.solid && player.phaseDashing && rectsOverlap(player, this)) {
+      player.phaseDashing = false;
+      player.phaseDashTimer = 0;
+      player.vx *= 0.3;
+      player.invincibleTimer = 0;
+      player.takeDamage(1);
+    }
+  }
+
+  draw(ctx) {
+    if (this.dead) ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 20);
+
+    const bodyAlpha = this.dead ? 1 : (this.solid ? 1 : 0.3);
+    ctx.globalAlpha *= bodyAlpha;
+    ctx.fillStyle = this.flashTimer < 6 ? '#ffffff' : (this.solid ? '#e0d4ff' : '#8888aa');
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillStyle = '#0a0a0f';
+    const eyeX = this.facing === 1 ? this.x + 18 : this.x + 4;
+    ctx.fillRect(eyeX, this.y + 8, 8, 6);
+    ctx.globalAlpha = this.dead ? Math.max(0, 1 - this.deathTimer / 20) : 1;
+
+    // Solid/phaseable state ring — reads at a glance without staring at body alpha.
+    ctx.strokeStyle = this.solid ? 'rgba(224, 212, 255, 0.6)' : 'rgba(136, 136, 170, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 18, 0, Math.PI * 2);
+    ctx.stroke();
+
+    if (this.windingUp) {
+      const progress = 1 - this.windUpTimer / ENEMY_WINDUP_FRAMES;
+      ctx.fillStyle = `rgba(255, 120, 40, ${0.5 + progress * 0.5})`;
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', this.x + this.width / 2, this.y - 6);
+      ctx.textAlign = 'left';
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── Anchor Wraith (expansion.md 2.3 #28) — Phase Dash counter ──────────────
+// Tethered, drifts slowly (doesn't chase aggressively), projects a visible
+// stasis field. Phase Dashing while inside the field cancels the dash and
+// deals a small hit + strips i-frames, punishing "dash through everything"
+// as a reflex — same design intent as Null Sentinel, different shape
+// (always-on field vs. a timed on/off state).
+const WRAITH_FIELD_RADIUS = 120;
+const WRAITH_DRIFT_SPEED = 0.8;
+
+class AnchorWraith extends Enemy {
+  constructor(x, y) {
+    super(x, y, 'anchor_wraith');
+    this.ignoreVertical = true; // floats, not ground-bound
+    this.health = 2; // low HP per expansion.md — meant to be killed before it matters, not fought head-on
+  }
+
+  update(player, bounds, echoes) {
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    if (this.dead) { this.deathTimer++; return; }
+
+    if (this.hitStun > 0) {
+      this.hitStun--;
+      this.x += this.vx * _ts;
+      this.y += this.vy * _ts;
+      this.flashTimer = Math.max(-1, this.flashTimer - 1);
+      return;
+    }
+
+    const sight = this.canSeePlayer(player);
+    if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE) this.facing = sight.dx > 0 ? 1 : -1;
+
+    // Slow, deliberate drift toward the player — "bait it to move before
+    // dashing through the now-empty space" only works if it actually moves.
+    if (sight.inRange) {
+      const dist = Math.max(1, Math.hypot(sight.dx, sight.dy));
+      this.vx = (sight.dx / dist) * WRAITH_DRIFT_SPEED;
+      this.vy = (sight.dy / dist) * WRAITH_DRIFT_SPEED;
+    } else {
+      this.vx *= 0.9;
+      this.vy *= 0.9;
+    }
+    this.x += this.vx * _ts;
+    this.y += this.vy * _ts;
+    this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
+
+    const cx = this.x + this.width / 2, cy = this.y + this.height / 2;
+    const pcx = player.x + player.width / 2, pcy = player.y + player.height / 2;
+    const distToPlayer = Math.hypot(pcx - cx, pcy - cy);
+    if (player.phaseDashing && distToPlayer <= WRAITH_FIELD_RADIUS) {
+      player.phaseDashing = false;
+      player.phaseDashTimer = 0;
+      player.vx *= 0.3;
+      player.invincibleTimer = 0;
+      player.takeDamage(1);
+    }
+
+    this.flashTimer++;
+  }
+
+  getAttackHitbox() { return null; } // no melee attack of its own — the field is the whole point
+
+  draw(ctx) {
+    if (this.dead) ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 20);
+
+    // Stasis field ring — the actual mechanic, drawn first so the body reads on top.
+    ctx.strokeStyle = 'rgba(129, 140, 248, 0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(this.x + this.width / 2, this.y + this.height / 2, WRAITH_FIELD_RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.globalAlpha *= 0.55; // semi-transparent per expansion.md's description
+    ctx.fillStyle = this.flashTimer < 6 ? '#ffffff' : '#818cf8';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.globalAlpha = this.dead ? Math.max(0, 1 - this.deathTimer / 20) : 1;
+  }
+}
+
+// ── Deflector Drone (expansion.md 2.3 #31) — Shard Shot counter ────────────
+// Hovers passively, shield always faces the player. A Shard Shot that hits
+// the shielded side is reflected back (see game.js's projectile/enemy
+// collision loop for the actual reflection — that array lives in game.js,
+// not here, so the counter can't be fully self-contained the way the two
+// Phase-Dash counters above are).
+const DEFLECTOR_HOVER_SPEED = 0.5;
+
+class DeflectorDrone extends Enemy {
+  constructor(x, y) {
+    super(x, y, 'deflector_drone');
+    this.ignoreVertical = true;
+    this.health = 3;
+    this.hoverPhase = Math.random() * Math.PI * 2;
+    this.hoverCenterY = y;
+  }
+
+  // Is `px` (a projectile's x) approaching from this drone's currently
+  // shielded side? Shield always faces the player, so it's just "is the
+  // shot coming from the same side the player is on."
+  shieldFacesPoint(px) {
+    return (px < this.x + this.width / 2) === (this.facing === -1);
+  }
+
+  update(player, bounds, echoes) {
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    if (this.dead) { this.deathTimer++; return; }
+
+    if (this.hitStun > 0) {
+      this.hitStun--;
+      this.x += this.vx * _ts;
+      this.y += this.vy * _ts;
+      this.flashTimer = Math.max(-1, this.flashTimer - 1);
+      return;
+    }
+
+    const sight = this.canSeePlayer(player);
+    this.facing = sight.dx > 0 ? 1 : -1; // shield always tracks the player, no deadzone
+
+    // Gentle bob in place — passive, doesn't chase.
+    this.hoverPhase += 0.03 * _ts;
+    this.y = this.hoverCenterY + Math.sin(this.hoverPhase) * 12;
+    this.x += (sight.inRange ? this.facing * DEFLECTOR_HOVER_SPEED * 0.2 : 0) * _ts;
+    this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
+
+    this.flashTimer++;
+  }
+
+  getAttackHitbox() { return null; } // no melee — purely a ranged-combat obstacle
+
+  draw(ctx) {
+    if (this.dead) ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 20);
+    ctx.fillStyle = this.flashTimer < 6 ? '#ffffff' : '#67e8f9';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    // Shield — a bright arc on whichever side currently faces the player.
+    const shieldX = this.facing === -1 ? this.x - 3 : this.x + this.width - 3;
+    ctx.fillStyle = 'rgba(103, 232, 249, 0.7)';
+    ctx.fillRect(shieldX, this.y - 2, 6, this.height + 4);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── Mirror Sprite (expansion.md §2, enemy #22) — Mirror Veil flavor enemy ──
+// Only tangible when the player is facing it; attacks from behind (i.e.
+// while the player is NOT facing it) otherwise. Reuses base Enemy attack AI
+// via super.update(), then overrides tangibility afterward.
+class MirrorSprite extends Enemy {
+  constructor(x, y) {
+    super(x, y, 'mirror_sprite');
+    this.health = 2;
+    this.tangible = false;
+  }
+
+  update(player, bounds, echoes) {
+    super.update(player, bounds, echoes);
+    if (this.dead) return;
+    // Tangible only when the player is facing toward this sprite.
+    const towardSprite = (this.x > player.x) === (player.facing === 1);
+    this.tangible = towardSprite;
+  }
+
+  takeDamage(dmg, sourceX, attackDir) {
+    if (!this.tangible) return; // "Face it directly to make it tangible"
+    super.takeDamage(dmg, sourceX, attackDir);
+  }
+
+  getAttackHitbox() {
+    // Can still attack while intangible — that's the whole threat ("attacks
+    // from behind when you're not facing it").
+    if (!this.attacking || this.attackTimer > 15) return null;
+    return {
+      x: this.facing === 1 ? this.x + this.width : this.x - 30,
+      y: this.y + 4,
+      width: 30,
+      height: 24
+    };
+  }
+
+  draw(ctx) {
+    if (this.dead) ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 20);
+    ctx.globalAlpha *= this.tangible ? 1 : 0.3;
+    ctx.fillStyle = this.flashTimer < 6 ? '#ffffff' : (this.tangible ? '#c084fc' : '#6b5b8a');
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillStyle = '#0a0a0f';
+    const eyeX = this.facing === 1 ? this.x + 18 : this.x + 4;
+    ctx.fillRect(eyeX, this.y + 8, 8, 6);
+    ctx.globalAlpha = this.dead ? Math.max(0, 1 - this.deathTimer / 20) : 1;
+
+    if (this.windingUp) {
+      const progress = 1 - this.windUpTimer / ENEMY_WINDUP_FRAMES;
+      ctx.fillStyle = `rgba(255, 120, 40, ${0.4 + progress * 0.6})`;
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', this.x + this.width / 2, this.y - 6);
+      ctx.textAlign = 'left';
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── Echo Stalker (expansion.md §2, enemy #2) — Mirror Veil flavor enemy ────
+// Teleports to just behind the player the moment a Phase Dash ends. Reuses
+// Stutterer's teleport-blink visual convention (decoy fade, blink flicker).
+const STALKER_BLINK_COOLDOWN = 45;
+
+class EchoStalker extends Enemy {
+  constructor(x, y) {
+    super(x, y, 'echo_stalker');
+    this.health = 2;
+    this.blinking = false;
+    this.blinkTimer = 0;
+    this.blinkCooldown = 0;
+    this.wasDashing = false;
+  }
+
+  update(player, bounds, echoes) {
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    if (this.dead) { this.deathTimer++; return; }
+
+    if (this.blinkCooldown > 0) this.blinkCooldown -= _ts;
+    if (this.blinkTimer > 0) { this.blinkTimer -= _ts; if (this.blinkTimer <= 0) this.blinking = false; }
+
+    // The moment a Phase Dash ends, teleport to just behind the player's new facing.
+    if (this.wasDashing && !player.phaseDashing && this.blinkCooldown <= 0) {
+      const behindDir = -player.facing;
+      this.x = player.x + behindDir * (player.width + 10);
+      this.y = player.y;
+      this.blinking = true;
+      this.blinkTimer = 15;
+      this.blinkCooldown = STALKER_BLINK_COOLDOWN;
+      if (typeof spawnParticlesAt !== 'undefined') spawnParticlesAt(this.x + this.width / 2, this.y + this.height / 2, '#a78bfa', 6);
+    }
+    this.wasDashing = player.phaseDashing;
+
+    const sight = this.canSeePlayer(player);
+    if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE) this.facing = sight.dx > 0 ? 1 : -1;
+    this.vx = 0; // doesn't chase on foot — positioning is entirely via the teleport above
+
+    if (sight.verticalOk && Math.abs(sight.dx) < ENEMY_ATTACK_RANGE && this.attackCooldown <= 0 && !this.windingUp && !this.attacking) {
+      this.windingUp = true;
+      this.windUpTimer = ENEMY_WINDUP_FRAMES;
+    }
+    if (this.windingUp) {
+      this.windUpTimer -= _ts;
+      if (this.windUpTimer <= 0) {
+        this.windingUp = false;
+        this.attacking = true;
+        this.attackTimer = 20;
+        this.attackCooldown = ENEMY_ATTACK_COOLDOWN;
+      }
+    }
+    if (this.attacking) { this.attackTimer -= _ts; if (this.attackTimer <= 0) this.attacking = false; }
+    if (this.attackCooldown > 0) this.attackCooldown -= _ts;
+    if (this.attackCooldown < 0) this.attackCooldown = 0;
+
+    this.vy += GRAVITY * _ts;
+    this.y += this.vy * _ts;
+    if (this.y + this.height > bounds.groundY) { this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true; }
+    const area = getCurrentArea();
+    if (area) {
+      for (const plat of area.platforms) {
+        if (plat.destructible && plat.hp <= 0) continue;
+        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
+          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
+            this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
+          }
+        }
+      }
+    }
+    this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
+    this.flashTimer++;
+  }
+
+  draw(ctx) {
+    if (this.dead) ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 20);
+    if (this.blinking && this.blinkTimer % 4 < 2) { ctx.globalAlpha = 1; return; }
+
+    ctx.fillStyle = this.flashTimer < 6 ? '#ffffff' : (this.windingUp ? '#e9d5ff' : '#7c3aed');
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillStyle = '#0a0a0f';
+    const eyeX = this.facing === 1 ? this.x + 18 : this.x + 4;
+    ctx.fillRect(eyeX, this.y + 8, 8, 6);
+
+    if (this.windingUp) {
+      const progress = 1 - this.windUpTimer / ENEMY_WINDUP_FRAMES;
+      ctx.fillStyle = `rgba(255, 120, 40, ${0.4 + progress * 0.6})`;
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', this.x + this.width / 2, this.y - 6);
+      ctx.textAlign = 'left';
+    }
     ctx.globalAlpha = 1;
   }
 }
@@ -1127,7 +1495,7 @@ class CrystalSentinel {
     }
     if (nearestEcho) {
       this.distractionTarget = nearestEcho;
-      this.distractionTimer = 60;
+      this.distractionTimer = ECHO_DISTRACT_DURATION;
       this.windingUp = false;
       this.attacking = false;
       this.flashTimer++;

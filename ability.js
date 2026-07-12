@@ -7,6 +7,12 @@ const PHASE_DASH_DURATION = 8;
 const PHASE_DASH_COOLDOWN = 90;
 const ECHO_LIFETIME = 150; // frames the echo persists
 const ECHO_DISTRACT_RADIUS = 150; // range to distract enemies
+// Balance pass 2026-07-12 (BAL-001, flagged by the user as "too strong,
+// too useful as a crutch"): was 60 frames (1s) of a distracted enemy fully
+// frozen (no movement, no attack) — closer to a group panic-button than a
+// traversal tool. Halved rather than removed, so the echo still does its
+// intended job (buy a moment to slip past one enemy).
+const ECHO_DISTRACT_DURATION = 30;
 
 // Shard Shot ability
 const SHARD_SHOT_SPEED = 7;
@@ -89,3 +95,5 @@ function usePhaseDash(player) {
 
 // Note: useShardShot is defined in game.js (it builds a game.js Projectile,
 // not the old ShardProjectile), so it isn't duplicated here.
+
+if (typeof window !== 'undefined') window.abilityState = abilityState;
