@@ -61,6 +61,12 @@ class Player {
     this.attackTimer = 0;
     this.attackCooldown = 0;
     this.attackDirection = 'forward'; // 'forward', 'up', 'down'
+    // Per-swing hit tracking — cleared every time a new attack starts (see
+    // the three spots that set `this.attacking = true`). Without this, an
+    // enemy/wall that stays inside the (multi-frame) attack hitbox at
+    // point-blank range took damage on every overlapping frame instead of
+    // once per swing.
+    this.hitTargetsThisSwing = new Set();
     this.dashing = false;
     this.dashTimer = 0;
     this.dashCooldown = 0;
@@ -262,40 +268,76 @@ class Player {
       if (this.phaseDashTimer <= 0) { this.phaseDashing = false; this.vx *= 0.4; }
     }
 
-    // ── Attack input: hold to charge, release to fire ──────────────────────
-    // Press Z/J with no cooldown → start charging (don't fire yet)
-    if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
-        this.attackCooldown <= 0 && !this.stillpointActive && !this.ducking &&
-        !this.charging && !this.parrying) {
-      this.charging = true;
-      this.chargeTimer = 0;
-      this.fullyCharged = false;
-    }
+    // ── Attack input: hold to charge, release to fire — requires the Charged
+    // Attack ability (crag_altar). Without it, Z/J only ever fires the quick
+    // normal attack on tap; the charge/heavy-attack system doesn't exist yet.
+    if (abilityState.hasChargedAttack) {
+      // Press Z/J with no cooldown → start charging (don't fire yet)
+      if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
+          this.attackCooldown <= 0 && !this.stillpointActive && !this.ducking &&
+          !this.charging && !this.parrying) {
+        this.charging = true;
+        this.chargeTimer = 0;
+        this.fullyCharged = false;
+      }
 
-    // While holding, accumulate charge
-    if (this.charging && (isPressed('KeyZ') || isPressed('KeyJ'))) {
-      this.chargeTimer++;
-      if (this.chargeTimer >= CHARGE_FULL) {
-        this.chargeTimer = CHARGE_FULL;
-        if (!this.fullyCharged) {
-          this.fullyCharged = true;
-          if (typeof SFX !== 'undefined') SFX.chargeFull();
+      // While holding, accumulate charge
+      if (this.charging && (isPressed('KeyZ') || isPressed('KeyJ'))) {
+        this.chargeTimer++;
+        if (this.chargeTimer >= CHARGE_FULL) {
+          this.chargeTimer = CHARGE_FULL;
+          if (!this.fullyCharged) {
+            this.fullyCharged = true;
+            if (typeof SFX !== 'undefined') SFX.chargeFull();
+          }
         }
       }
-    }
 
-    // Cancel charge if conditions no longer met
-    if (this.charging && (this.stillpointActive || this.ducking || this.attackCooldown > 0)) {
-      this.charging = false;
-      this.chargeTimer = 0;
-      this.fullyCharged = false;
-    }
+      // Cancel charge if conditions no longer met
+      if (this.charging && (this.stillpointActive || this.ducking || this.attackCooldown > 0)) {
+        this.charging = false;
+        this.chargeTimer = 0;
+        this.fullyCharged = false;
+      }
 
-    // Release Z/J → fire attack
-    if (this.charging && !isPressed('KeyZ') && !isPressed('KeyJ')) {
-      this.charging = false;
+      // Release Z/J → fire attack
+      if (this.charging && !isPressed('KeyZ') && !isPressed('KeyJ')) {
+        this.charging = false;
 
-      // Directional attack based on input
+        // Directional attack based on input
+        if (isPressed('ArrowUp') || isPressed('KeyW')) {
+          this.attackDirection = 'up';
+        } else if (isPressed('ArrowDown') || isPressed('KeyS')) {
+          this.attackDirection = 'down';
+        } else {
+          this.attackDirection = 'forward';
+        }
+
+        if (this.chargeTimer >= CHARGE_TAP) {
+          // ── Heavy attack ──
+          this.attacking = true;
+          this.attackTimer = ATTACK_DURATION + 4; // slightly longer animation
+          this.attackCooldown = ATTACK_COOLDOWN + 8; // longer recovery
+          this.heavy = true;
+          this.heavyCharge = this.chargeTimer / CHARGE_FULL; // 0-1 charge ratio
+          if (typeof SFX !== 'undefined') SFX.heavyAttack();
+        } else {
+          // ── Normal attack (quick tap) ──
+          this.attacking = true;
+          this.attackTimer = ATTACK_DURATION;
+          this.attackCooldown = ATTACK_COOLDOWN;
+          this.heavy = false;
+          if (typeof SFX !== 'undefined') SFX.attack();
+        }
+        this.dashRefundedThisAttack = false; // Phase 1.8: one dash refund per attack
+        this.hitTargetsThisSwing.clear();
+        this.chargeTimer = 0;
+        this.fullyCharged = false;
+      }
+    } else if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
+               this.attackCooldown <= 0 && !this.stillpointActive && !this.ducking && !this.parrying) {
+      // No Charged Attack yet — Z/J always fires the quick attack immediately,
+      // no charge timer, no heavy branch, no charge VFX.
       if (isPressed('ArrowUp') || isPressed('KeyW')) {
         this.attackDirection = 'up';
       } else if (isPressed('ArrowDown') || isPressed('KeyS')) {
@@ -303,26 +345,13 @@ class Player {
       } else {
         this.attackDirection = 'forward';
       }
-
-      if (this.chargeTimer >= CHARGE_TAP) {
-        // ── Heavy attack ──
-        this.attacking = true;
-        this.attackTimer = ATTACK_DURATION + 4; // slightly longer animation
-        this.attackCooldown = ATTACK_COOLDOWN + 8; // longer recovery
-        this.heavy = true;
-        this.heavyCharge = this.chargeTimer / CHARGE_FULL; // 0-1 charge ratio
-        if (typeof SFX !== 'undefined') SFX.heavyAttack();
-      } else {
-        // ── Normal attack (quick tap) ──
-        this.attacking = true;
-        this.attackTimer = ATTACK_DURATION;
-        this.attackCooldown = ATTACK_COOLDOWN;
-        this.heavy = false;
-        if (typeof SFX !== 'undefined') SFX.attack();
-      }
-      this.dashRefundedThisAttack = false; // Phase 1.8: one dash refund per attack
-      this.chargeTimer = 0;
-      this.fullyCharged = false;
+      this.attacking = true;
+      this.attackTimer = ATTACK_DURATION;
+      this.attackCooldown = ATTACK_COOLDOWN;
+      this.heavy = false;
+      if (typeof SFX !== 'undefined') SFX.attack();
+      this.dashRefundedThisAttack = false;
+      this.hitTargetsThisSwing.clear();
     }
 
     // ── Parry: tap Z during cooldown (instead of attacking) ────────────────

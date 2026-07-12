@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — World Map Planner</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #06060e; color: #c4b5fd; font-family: 'Courier New', monospace; font-size: 12px; padding: 20px; }
+  h1 { font-size: 1.2em; margin-bottom: 4px; }
+  p.note { color: #6b6b8d; font-size: 0.85em; max-width: 900px; margin-bottom: 14px; line-height: 1.5; }
+  #wrap { overflow: auto; border: 1px solid #1e1e3e; background: #04040a; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 11px; color: #9a94b8; }
+  .leg-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+  .swatch.dashed { border: 1.5px dashed currentColor; background: transparent; }
+</style>
+</head>
+<body>
+<h1>Stillpoint — World Map Planner</h1>
+<p class="note">
+  Built rooms (solid boxes) are read live from <code>area.js</code>'s compass graph
+  (<code>col</code>/<code>row</code>/<code>connections</code>) — this can never drift out of sync with the real game,
+  since it's the same data <code>map.js</code> uses in-game. Planned regions (dashed boxes) are hand-maintained
+  below in <code>PLANNED_REGIONS</code>/<code>CROSS_LINKS</code> until they're actually built as real <code>AREA</code>
+  entries, at which point they should move out of this file's placeholder lists and into <code>area.js</code> for real.
+</p>
+<div id="wrap"><div id="svg-holder"></div></div>
+<div class="legend" id="legend"></div>
+
+<script src="area.js"></script>
+<script>
+// ─── PLANNED (not yet built) regions — hand-maintained until real AREA data exists ───
+// Mirrors Plans/expansion.md's "REGION ATLAS" section. Keep these two in sync by hand;
+// this file has no way to validate against expansion.md automatically.
+const PLANNED_REGIONS = [
+  { id: 'graviton_core',      label: 'Graviton Core',       col: 5, row: -1, color: '#818cf8' },
+  { id: 'event_horizon',      label: 'Event Horizon',       col: 5, row: -2, color: '#818cf8' },
+  { id: 'inverted_spire',     label: 'Inverted Spire',      col: 5, row: -3, color: '#818cf8' },
+  { id: 'observatory',        label: 'The Observatory',     col: 4, row: -1, color: '#4f46e5' },
+  { id: 'void_expanse',       label: 'The Void Expanse',    col: 4, row: -2, color: '#4f46e5' },
+  { id: 'warp_gate_nexus',    label: 'Warp Gate Nexus',     col: 4, row: -3, color: '#4f46e5' },
+  { id: 'polar_shift',        label: 'The Polar Shift',     col: 6, row: -1, color: '#fb923c' },
+  { id: 'paradox_engine',     label: 'Paradox Engine',      col: 6, row: -2, color: '#fb923c' },
+  { id: 'static_field',       label: 'Static Field',        col: 6, row: -3, color: '#fb923c' },
+  { id: 'mirror_veil',        label: 'Mirror Veil',         col: 5, row: 1,  color: '#f472b6' },
+  { id: 'timeline_crossroads',label: 'Timeline X-roads',    col: 5, row: 2,  color: '#f472b6' },
+  { id: 'chrono_space_rift',  label: 'Chrono-Space Rift',   col: 5, row: 3,  color: '#f472b6' },
+  { id: 'echoing_abyss',      label: 'Echoing Abyss',       col: 5, row: 4,  color: '#f472b6' },
+];
+// Planned parent edges (the original "tree" — one edge per planned region to whatever
+// spine/cluster room precedes it). Drawn as thin dashed planned-color lines.
+const PLANNED_EDGES = [
+  ['the_vault', 'graviton_core'], ['graviton_core', 'event_horizon'], ['event_horizon', 'inverted_spire'],
+  ['the_forge', 'observatory'], ['observatory', 'void_expanse'], ['void_expanse', 'warp_gate_nexus'],
+  ['the_rift', 'polar_shift'], ['polar_shift', 'paradox_engine'], ['paradox_engine', 'static_field'],
+  ['the_vault', 'mirror_veil'], ['mirror_veil', 'timeline_crossroads'],
+  ['timeline_crossroads', 'chrono_space_rift'], ['chrono_space_rift', 'echoing_abyss'],
+];
+// Cross-links — the fix for the "it's a tree, not a web" feedback. See expansion.md
+// §3.13b for the reasoning behind each one. Drawn as thick dotted lines in a distinct color.
+const CROSS_LINKS = [
+  ['observatory', 'graviton_core'],
+  ['graviton_core', 'polar_shift'],
+  ['void_expanse', 'event_horizon'],
+  ['event_horizon', 'paradox_engine'],
+  ['warp_gate_nexus', 'inverted_spire'],
+  ['inverted_spire', 'static_field'],
+  ['echoing_abyss', 'crystal_cavern'], // long one-way shortcut back to the early spine
+];
+
+const CELL = 96, GAP = 10;
+const nodes = [];
+for (const id in AREAS) {
+  const room = AREAS[id];
+  if (typeof room.col !== 'number' || typeof room.row !== 'number') continue;
+  nodes.push({ id, label: room.name, col: room.col, row: room.row,
+    color: room.mapAccent || room.ambientColor || '#8888aa',
+    built: true, boss: room.isBossArena || room.roomType === 'boss' || room.roomType === 'miniboss' });
+}
+for (const p of PLANNED_REGIONS) nodes.push({ ...p, built: false, boss: false });
+
+const builtEdges = [];
+for (const id in AREAS) {
+  const room = AREAS[id];
+  if (!room.connections) continue;
+  for (const c of room.connections) {
+    if (!AREAS[c.to] || typeof AREAS[c.to].col !== 'number') continue;
+    const key = [id, c.to].sort().join('|');
+    if (!builtEdges.some((e) => e.key === key)) builtEdges.push({ key, a: id, b: c.to });
+  }
+}
+
+let minCol = Infinity, maxCol = -Infinity, minRow = Infinity, maxRow = -Infinity;
+nodes.forEach((n) => { minCol = Math.min(minCol, n.col); maxCol = Math.max(maxCol, n.col); minRow = Math.min(minRow, n.row); maxRow = Math.max(maxRow, n.row); });
+const colSpan = maxCol - minCol + 1, rowSpan = maxRow - minRow + 1;
+const W = colSpan * (CELL + GAP) + GAP, H = rowSpan * (CELL + GAP) + GAP;
+const byId = {}; nodes.forEach((n) => byId[n.id] = n);
+function cx(n) { return GAP + (n.col - minCol) * (CELL + GAP) + CELL / 2; }
+function cy(n) { return GAP + (n.row - minRow) * (CELL + GAP) + CELL / 2; }
+
+let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Stillpoint world compass map">`;
+svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="#04040a"/>`;
+
+for (const { a, b } of builtEdges) {
+  const A = byId[a], B = byId[b];
+  if (!A || !B) continue;
+  svg += `<line x1="${cx(A)}" y1="${cy(A)}" x2="${cx(B)}" y2="${cy(B)}" stroke="#6a6a9e" stroke-width="2" opacity="0.6"/>`;
+}
+for (const [a, b] of PLANNED_EDGES) {
+  const A = byId[a], B = byId[b];
+  if (!A || !B) continue;
+  svg += `<line x1="${cx(A)}" y1="${cy(A)}" x2="${cx(B)}" y2="${cy(B)}" stroke="#4a4a7e" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.55"/>`;
+}
+for (const [a, b] of CROSS_LINKS) {
+  const A = byId[a], B = byId[b];
+  if (!A || !B) continue;
+  svg += `<line x1="${cx(A)}" y1="${cy(A)}" x2="${cx(B)}" y2="${cy(B)}" stroke="#2dd4bf" stroke-width="2.5" stroke-dasharray="1 5" stroke-linecap="round" opacity="0.85"/>`;
+}
+
+for (const n of nodes) {
+  const x = cx(n) - CELL / 2, y = cy(n) - CELL / 2;
+  svg += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="6" fill="${n.color}" fill-opacity="${n.built ? 0.28 : 0.12}" stroke="${n.color}" stroke-width="${n.boss ? 2.5 : 1.4}" ${n.built ? '' : 'stroke-dasharray="4 3"'}/>`;
+  if (n.boss) svg += `<text x="${cx(n)}" y="${y + 16}" text-anchor="middle" font-size="14" fill="${n.color}">☠</text>`;
+  const words = n.label.split(' '); let lines = [], cur = '';
+  words.forEach((w) => { if ((cur + ' ' + w).trim().length > 13) { lines.push(cur.trim()); cur = w; } else { cur = (cur + ' ' + w).trim(); } });
+  if (cur) lines.push(cur);
+  lines.forEach((line, i) => {
+    svg += `<text x="${cx(n)}" y="${cy(n) + (i - (lines.length - 1) / 2) * 11 + 4}" text-anchor="middle" font-size="9.5" font-family="Courier New, monospace" fill="${n.built ? '#eae6ff' : '#b8b2d8'}">${line}</text>`;
+  });
+}
+svg += `</svg>`;
+document.getElementById('svg-holder').innerHTML = svg;
+
+document.getElementById('legend').innerHTML = `
+  <div class="leg-item"><div class="swatch" style="background:#8888aa"></div>Built (live from area.js)</div>
+  <div class="leg-item"><div class="swatch dashed" style="color:#4a4a7e"></div>Planned region / planned parent edge</div>
+  <div class="leg-item"><div class="swatch" style="background:#2dd4bf"></div>Cross-link (closes a loop — see expansion.md §3.13b)</div>
+  <div class="leg-item">☠ Boss / miniboss room</div>
+`;
+</script>
+</body>
+</html>

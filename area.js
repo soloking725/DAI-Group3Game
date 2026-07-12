@@ -20,6 +20,8 @@ const AREAS = {
   tutorial_area: {
     id: 'tutorial_area',
     name: 'Threshold',
+    region: 'origin',
+    col: 0, row: 0,
     width: 900,
     groundY: 390,
     bgColor: '#0a0a0f',
@@ -34,6 +36,10 @@ const AREAS = {
       // Sealed until isTutorialComplete() — see game.js switchArea()/draw().
       { x: 865, y: 320, w: 35, h: 70, to: 'the_fracture', toX: 60, toY: 310, requires: 'tutorial_complete' },
     ],
+    // Compass graph — see COMPASS GRAPH section at the bottom of this file.
+    connections: [
+      { direction: 'east', to: 'the_fracture', requires: 'tutorial_complete', oneWay: true, order: 0, doorIndex: 0 },
+    ],
     trainingDummy: { x: 400, y: 362, w: 28, h: 28 },
     enemies: [],
     stillpoints: [],
@@ -47,6 +53,8 @@ const AREAS = {
   the_fracture: {
     id: 'the_fracture',
     name: 'The Fracture',
+    region: 'origin',
+    col: 1, row: 0,
     width: 1400,
     groundY: 390,
     bgColor: '#0a0a0f',
@@ -69,6 +77,15 @@ const AREAS = {
     transitions: [
       // Exit right → Echo Bridge
       { x: 1365, y: 320, w: 35, h: 70, to: 'echo_bridge', toX: 60, toY: 312 },
+      // North branch → Crag of the Colossus, reached from the same high
+      // platform as the Phase Dash pickup (placed at the far end of it so
+      // it doesn't overlap the pickup's own trigger radius at x:695).
+      { x: 760, y: 173, w: 40, h: 22, to: 'crag_entrance', toX: 60, toY: 480, requires: 'phase_dash' },
+    ],
+    connections: [
+      { direction: 'east', to: 'echo_bridge', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'crag_entrance', requires: 'phase_dash', oneWay: false, order: 0, doorIndex: 1,
+        edgeExempt: true, edgeExemptReason: 'Reached via a jump to the high mid-room Phase Dash platform, not a side-edge door — same convention as Echo Bridge → Upper Ruins.' },
     ],
     enemies: [
       { type: 'fractured', x: 700,  y: 362 },   // on right ground
@@ -91,8 +108,11 @@ const AREAS = {
   echo_bridge: {
     id: 'echo_bridge',
     name: 'Echo Bridge',
+    region: 'origin',
+    col: 2, row: 0,
     width: 1000,
     groundY: 900,   // no floor — fall = pit death
+    pitDeathY: 600, // real platforms all sit above y:600 — preserves the previous behavior now that game.js no longer infers this from groundY
     bgColor: '#0a0a0f',
     bgTint: 'rgba(140, 80, 200, 0.04)',
     ambientColor: '#8b5cf6',
@@ -109,6 +129,12 @@ const AREAS = {
       { x: 965, y: 233, w: 35, h: 80, to: 'crystal_cavern', toX: 60, toY: 92 },
       // Optional — Upper Ruins (Phase Dash required, from p4)
       { x: 740, y: 258, w: 80, h: 30, to: 'upper_ruins', toX: 100, toY: 348, requires: 'phase_dash' },
+    ],
+    connections: [
+      { direction: 'west', to: 'the_fracture', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'east', to: 'crystal_cavern', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+      { direction: 'north', to: 'upper_ruins', requires: 'phase_dash', oneWay: false, order: 0, doorIndex: 2,
+        edgeExempt: true, edgeExemptReason: 'Reached by jumping up from a mid-air platform (room has no floor, groundY=900) — not a side-edge door.' },
     ],
     enemies: [
       { type: 'fractured', x: 530, y: 278 },   // p3: 306-28=278 (Fractured, not Stutterer — Stutterers teleport into void)
@@ -130,6 +156,9 @@ const AREAS = {
   upper_ruins: {
     id: 'upper_ruins',
     name: 'Upper Ruins',
+    region: 'origin',
+    col: 2, row: -1,
+    mapAccent: '#fbbf24', // lore-only optional branch — distinct map color
     width: 800,
     groundY: 390,
     bgColor: '#0a0a0f',
@@ -144,6 +173,10 @@ const AREAS = {
     ],
     transitions: [
       { x: 0, y: 326, w: 35, h: 64, to: 'echo_bridge', toX: 750, toY: 292 },
+    ],
+    connections: [
+      { direction: 'south', to: 'echo_bridge', requires: null, oneWay: false, order: 0, doorIndex: 0,
+        edgeExempt: true, edgeExemptReason: 'Drops back down to Echo Bridge; placed on the west wall for level-design convenience — this room has its own floor, not a literal bottom edge.' },
     ],
     enemies: [
       { type: 'fractured', x: 390, y: 362 },
@@ -169,6 +202,8 @@ const AREAS = {
   crystal_cavern: {
     id: 'crystal_cavern',
     name: 'Crystal Cavern',
+    region: 'origin',
+    col: 3, row: 0,
     width: 1200,
     groundY: 700,
     bgColor: '#0a0a0f',
@@ -189,6 +224,10 @@ const AREAS = {
     transitions: [
       { x:0, y:68, w:35, h:82, to:'echo_bridge', toX:928, toY:268 },
       { x:1165, y:418, w:35, h:60, to:'the_forge', toX:60, toY:348 }
+    ],
+    connections: [
+      { direction: 'west', to: 'echo_bridge', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'east', to: 'the_forge', requires: null, oneWay: false, order: 0, doorIndex: 1 },
     ],
     enemies: [
       { type:'fractured', x:308, y:190 },
@@ -211,6 +250,8 @@ const AREAS = {
   the_forge: {
     id: 'the_forge',
     name: 'The Forge',
+    region: 'origin',
+    col: 4, row: 0,
     width: 1300,
     groundY: 390,
     bgColor: '#080812',
@@ -231,6 +272,10 @@ const AREAS = {
     transitions: [
       { x: 0,    y: 325, w: 35, h: 65, to: 'crystal_cavern', toX: 1130, toY: 428 },
       { x: 1265, y: 325, w: 35, h: 65, to: 'the_vault',      toX: 60,   toY: 348 },
+    ],
+    connections: [
+      { direction: 'west', to: 'crystal_cavern', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'east', to: 'the_vault', requires: null, oneWay: false, order: 0, doorIndex: 1 },
     ],
     enemies: [
       { type: 'fractured', x: 250,  y: 362 },   // left zone (ground)
@@ -257,6 +302,8 @@ const AREAS = {
   the_vault: {
     id: 'the_vault',
     name: 'The Vault',
+    region: 'origin',
+    col: 5, row: 0,
     width: 900,
     groundY: 390,
     bgColor: '#0a0a0f',
@@ -280,6 +327,10 @@ const AREAS = {
       // Exit requires Stillpoint — the door is locked until you pick it up
       { x: 865, y: 325, w: 35, h: 65, to: 'the_rift',  toX: 60,   toY: 282, requires: 'stillpoint' },
     ],
+    connections: [
+      { direction: 'west', to: 'the_forge', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'east', to: 'the_rift', requires: 'stillpoint', oneWay: false, order: 0, doorIndex: 1 },
+    ],
     enemies: [],   // rest room — no combat
     stillpoints: [
       { x: 140, y: 370, index: 0 },   // entry side: 390-20=370
@@ -302,8 +353,11 @@ const AREAS = {
     the_rift: {
     id: 'the_rift',
     name: 'The Rift',
+    region: 'origin',
+    col: 6, row: 0,
     width: 1960,
     groundY: 900,
+    pitDeathY: 600, // real platforms all sit above y:600 — preserves the previous behavior now that game.js no longer infers this from groundY
     bgColor: '#0a0a0f',
     bgTint: 'rgba(80,40,160,0.07)',
     ambientColor: '#7c3aed',
@@ -323,6 +377,10 @@ const AREAS = {
     transitions: [
       { x:0, y:258, w:35, h:80, to:'the_vault', toX:828, toY:348 },
       { x:1910, y:160, w:35, h:80, to:'antechamber', toX:60, toY:348 }
+    ],
+    connections: [
+      { direction: 'west', to: 'the_vault', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'east', to: 'antechamber', requires: null, oneWay: false, order: 0, doorIndex: 1 },
     ],
     enemies: [
       { type:'fractured', x:490, y:250 },
@@ -345,6 +403,8 @@ const AREAS = {
   antechamber: {
     id: 'antechamber',
     name: 'Antechamber',
+    region: 'origin',
+    col: 7, row: 0,
     width: 700,
     groundY: 390,
     bgColor: '#08080e',
@@ -358,6 +418,10 @@ const AREAS = {
     transitions: [
       { x: 0,   y: 326, w: 35, h: 64, to: 'the_rift',   toX: 1920, toY: 190 },
       { x: 665, y: 326, w: 35, h: 64, to: 'boss_arena', toX: 420,  toY: 310 },
+    ],
+    connections: [
+      { direction: 'west', to: 'the_rift', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'east', to: 'boss_arena', requires: null, oneWay: true, order: 0, doorIndex: 1 },
     ],
     enemies: [],
     stillpoints: [
@@ -380,6 +444,9 @@ const AREAS = {
   boss_arena: {
     id: 'boss_arena',
     name: 'The Fractured King',
+    region: 'origin',
+    col: 8, row: 0,
+    roomType: 'boss',
     width: 900,
     groundY: 390,
     bgColor: '#0a0a0f',
@@ -396,6 +463,7 @@ const AREAS = {
     ],
     // Victory exit — handled by the gameState='victory' flow, no physical door during fight
     transitions: [],
+    connections: [],   // sealed arena — reached one-way from antechamber, no doors of its own
     enemies: [],
     stillpoints: [
       { x: 430, y: 370, index: 0 },   // centre ground, last checkpoint: 390-20=370
@@ -405,8 +473,453 @@ const AREAS = {
     bossSpawn: { x: 400, y: 334 },   // BOSS_Y = groundY - BOSS_HEIGHT = 390-56=334 ✓
   },
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // CRAG OF THE COLOSSUS — new starting expansion region.
+  // Branches off The Fracture's Phase Dash platform (requires phase_dash to
+  // enter). Grants the Charged Attack ability at crag_altar; the miniboss
+  // Colossus Core (crag_warden) requires it to defeat. Compass position:
+  // col 1, rows -1..-4 — a vertical column climbing "up the crag" directly
+  // north of The Fracture, per the full-world layout plan.
+  //
+  // Each room is large and multi-tier (per expansion.md §3.15 — few big
+  // rooms, not many small ones) with internal branching rather than a
+  // single critical-path corridor. Destructible walls are heavy-attack-only
+  // (hp 2-5) and gate Tier 3 secrets that are visible on the first pass but
+  // can't be broken until the player has been to crag_altar and back.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CRAG 1 — Crag Entrance
+  // Enter from The Fracture's high platform (west side, mid-height landing).
+  // Three internal routes converge on the east exit: a lower critical path
+  // (segmented platforms over pits, matches Echo Bridge's no-floor pattern),
+  // a parallel mid-height route that avoids most enemies, and an optional
+  // upper climb that dead-ends at a Tier 3 secret behind two heavy-attack
+  // rubble walls — visible and reachable now, but unbreakable until the
+  // player has Charged Attack (from crag_altar, deeper in this region).
+  // ─────────────────────────────────────────────────────────────────────────
+  crag_entrance: {
+    id: 'crag_entrance',
+    name: 'Crag Entrance',
+    region: 'crag',
+    col: 1, row: -1,
+    mapAccent: '#d97757',
+    width: 2800,
+    groundY: 900,
+    pitDeathY: 1050, // generous fallback net only — the cave floor below is continuous, this should never trigger on the intended route
+    bgColor: '#120a06',
+    bgTint: 'rgba(180, 90, 40, 0.05)',
+    ambientColor: '#d97757',
+    platforms: [
+      { x: 0,    y: 520, w: 340, h: 60 },   // entry ledge — player lands here from The Fracture; width reaches the first lower-route platform's x-start so the drop off its edge has no horizontal gap beneath it
+
+      // Lower route (critical path, tier 1) — a continuous cave floor. Each
+      // platform's width reaches exactly to the start of the next one, so
+      // height changes read as steps to hop between, never as a gap you can
+      // fall through — no fall-death is possible along this route.
+      { x: 340,  y: 860, w: 320, h: 40 },
+      { x: 660,  y: 860, w: 280, h: 40 },
+      { x: 940,  y: 800, w: 260, h: 40 },   // step up
+      { x: 1200, y: 860, w: 340, h: 40 },   // step down
+      { x: 1540, y: 800, w: 300, h: 40 },   // step up
+      { x: 1840, y: 860, w: 340, h: 40 },   // step down
+      { x: 2180, y: 800, w: 300, h: 40 },   // step up
+      { x: 2480, y: 740, w: 280, h: 40 },   // step up, reaching the exit door
+
+      // Mid route (parallel, avoids most ground enemies) — rejoins lower route near x:1540
+      { x: 300,  y: 660, w: 180, h: 20 },
+      { x: 560,  y: 610, w: 160, h: 20 },
+      { x: 820,  y: 650, w: 160, h: 20 },
+      { x: 1100, y: 600, w: 180, h: 20 },
+      { x: 1380, y: 640, w: 160, h: 20 },
+
+      // Upper climb (optional, harder) — dead-ends at the Tier 3 secret
+      { x: 60,   y: 430, w: 160, h: 20 },
+      { x: 300,  y: 360, w: 140, h: 20 },
+      { x: 520,  y: 300, w: 140, h: 20 },
+      { x: 750,  y: 340, w: 140, h: 20 },
+      { x: 960,  y: 300, w: 200, h: 20 },   // last platform before the sealed alcove
+      // Rubble wall — heavy-attack-only, visible from the first pass, needs Charged Attack
+      { x: 1150, y: 140, w: 24, h: 210, destructible: true, hp: 3, wall: true },
+      { x: 1180, y: 300, w: 160, h: 20 },   // alcove floor, beyond the wall
+    ],
+    transitions: [
+      // BUGFIX: this door used to be `y: 520, h: 60` (520-580) — that's INSIDE
+      // the solid platform body (platform spans y:520-580), below the player's
+      // actual standing hitbox (~488-520), so it was physically untouchable.
+      // Doors need to extend UP from the platform surface into the air the
+      // player's body occupies, not down into the ground.
+      { x: 0,    y: 450, w: 35, h: 70, to: 'the_fracture', toX: 720, toY: 155 },
+      { x: 2740, y: 690, w: 40, h: 60, to: 'crag_breach',  toX: 60,  toY: 380 },
+    ],
+    connections: [
+      { direction: 'south', to: 'the_fracture', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      // 'north' here is the world-map compass direction (deeper into the
+      // region), not the physical in-room travel direction — the door
+      // itself is a normal east-edge door, matching the room-to-room visual
+      // continuity convention (exit right, enter left) used everywhere else.
+      { direction: 'north', to: 'crag_breach', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [
+      { type: 'fractured', x: 380,  y: 832 },
+      { type: 'fractured', x: 1240, y: 832 },
+      { type: 'stutterer',  x: 1880, y: 832 },
+      { type: 'fractured', x: 2220, y: 772 },
+    ],
+    stillpoints: [
+      { x: 100, y: 500, index: 0 },   // entry ledge, safe first checkpoint in the region
+    ],
+    loreFragments: [
+      { id: 'lore_ce1', x: 1260, y: 280,
+        text: '"The crag does not yield to a light hand. Strike as though you mean to end something."' },
+    ],
+    abilityReward: null,
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CRAG 2 — Crag Breach
+  // A tall fissure. Lower route (safe, wide platforms) vs. upper route
+  // (harder platforming, rewards a Tier 2 fracture-pip pickup) — both
+  // converge at the east exit. One heavy-attack wall gates a small Tier 3
+  // alcove, same "visible now, breakable later" rule as Crag Entrance.
+  // ─────────────────────────────────────────────────────────────────────────
+  crag_breach: {
+    id: 'crag_breach',
+    name: 'Crag Breach',
+    region: 'crag',
+    col: 1, row: -2,
+    mapAccent: '#d97757',
+    width: 3000,
+    groundY: 1100,
+    pitDeathY: 1250, // generous fallback net only — same continuous-cave-floor rule as Crag Entrance
+    bgColor: '#0f0805',
+    bgTint: 'rgba(160, 70, 30, 0.06)',
+    ambientColor: '#c2703d',
+    platforms: [
+      { x: 0,    y: 420, w: 300, h: 40 },   // entry, from Crag Entrance
+
+      // Lower route (critical path) — continuous cave floor, same rule as
+      // Crag Entrance: each platform's width reaches the next one's x-start.
+      { x: 300,  y: 500, w: 300, h: 30 },
+      { x: 600,  y: 580, w: 280, h: 30 },
+      { x: 880,  y: 660, w: 280, h: 30 },
+      { x: 1160, y: 600, w: 320, h: 30 },
+      { x: 1480, y: 660, w: 300, h: 30 },
+      { x: 1780, y: 580, w: 300, h: 30 },
+      { x: 2080, y: 500, w: 320, h: 30 },
+      { x: 2400, y: 560, w: 300, h: 30 },
+      { x: 2700, y: 500, w: 260, h: 30 },   // leads to exit
+
+      // Upper route (optional, harder) — Tier 2 reward. Falling off any of
+      // these just drops the player back onto the continuous lower floor,
+      // never into a pit — the "optional detour, not a precision gauntlet"
+      // rule from Crag Entrance applies here too.
+      { x: 260,  y: 260, w: 180, h: 20 },
+      { x: 560,  y: 200, w: 160, h: 20 },
+      { x: 900,  y: 240, w: 160, h: 20 },
+      { x: 1220, y: 190, w: 160, h: 20 },
+      { x: 1560, y: 230, w: 160, h: 20 },   // Tier 2 pickup platform (fracture pip)
+
+      // Heavy-attack wall gating a Tier 3 secret — dead-ends the upper route
+      // beyond the Tier 2 platform, same pattern as Crag Entrance's alcove
+      // (a sealed ledge past a rubble wall, not a fall-through pocket).
+      { x: 1780, y: 230, w: 24, h: 170, destructible: true, hp: 4, wall: true },
+      { x: 1810, y: 190, w: 160, h: 20 },   // secret ledge, beyond the wall
+    ],
+    transitions: [
+      { x: 0,    y: 400, w: 35, h: 60, to: 'crag_entrance', toX: 2700, toY: 700 },
+      { x: 2940, y: 440, w: 40, h: 60, to: 'crag_altar',    toX: 60,   toY: 660 },
+    ],
+    connections: [
+      { direction: 'south', to: 'crag_entrance', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'crag_altar', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [
+      { type: 'fractured', x: 630,  y: 552 },
+      { type: 'stutterer',  x: 1190, y: 572 },
+      { type: 'crystal_sentinel', x: 1810, y: 552 },
+      { type: 'fractured', x: 2430, y: 532 },
+    ],
+    stillpoints: [
+      { x: 60, y: 400, index: 0 },
+    ],
+    loreFragments: [
+      { id: 'lore_cb1', x: 1600, y: 206,
+        text: '"Something split this stone in one blow. We have been trying to understand the blow ever since."' },
+    ],
+    abilityReward: null,
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CRAG 3 — Crag Altar
+  // Cathedral-like open chamber. Charged Attack sits on a central dais
+  // (Tier 1 — can't be missed). Stillpoint checkpoint before the exit to
+  // Crag Warden, per the "checkpoint before a miniboss" door-use rule.
+  // ─────────────────────────────────────────────────────────────────────────
+  crag_altar: {
+    id: 'crag_altar',
+    name: 'Crag Altar',
+    region: 'crag',
+    col: 1, row: -3,
+    mapAccent: '#d97757',
+    width: 2200,
+    groundY: 1000,
+    bgColor: '#0d0704',
+    bgTint: 'rgba(217, 119, 87, 0.08)',
+    ambientColor: '#fb923c',
+    platforms: [
+      { x: 0, y: 1000, w: 2200, h: 60 },   // full safety floor — this room is a rest/reveal chamber, not a precision-pit room like Crag Entrance/Breach
+      { x: 0,    y: 700, w: 260, h: 40 },   // entry, from Crag Breach
+      { x: 340,  y: 780, w: 220, h: 30 },
+      { x: 640,  y: 700, w: 200, h: 30 },
+      { x: 920,  y: 620, w: 260, h: 30 },   // approach to the dais
+      { x: 1000, y: 520, w: 220, h: 30 },   // central dais — Charged Attack sits above this
+      { x: 1300, y: 620, w: 200, h: 30 },
+      { x: 1580, y: 700, w: 220, h: 30 },
+      { x: 1880, y: 780, w: 260, h: 30 },   // approach to exit, past checkpoint
+
+      // Symmetrical high side ledges — decorative verticality + optional lore
+      { x: 700,  y: 340, w: 160, h: 20 },
+      { x: 1400, y: 340, w: 160, h: 20 },
+    ],
+    abilityReward: {
+      id: 'charged_attack',
+      x: 1110,
+      y: 498,   // 22px above the dais at y:520
+      name: 'Charged Attack',
+      desc: 'Hold Z/J — charge a heavy strike. Cracks rubble walls, staggers armored foes.',
+    },
+    transitions: [
+      { x: 0,    y: 680, w: 35, h: 60, to: 'crag_breach', toX: 2900, toY: 460 },
+      { x: 2140, y: 720, w: 40, h: 60, to: 'crag_warden', toX: 60,   toY: 420 },
+    ],
+    connections: [
+      { direction: 'south', to: 'crag_breach', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'north', to: 'crag_warden', requires: null, oneWay: false, order: 0, doorIndex: 1 },
+    ],
+    enemies: [
+      { type: 'fractured', x: 660,  y: 672 },
+      { type: 'fractured', x: 1600, y: 672 },
+    ],
+    stillpoints: [
+      { x: 1940, y: 758, index: 0 },   // last checkpoint before the miniboss
+    ],
+    loreFragments: [
+      { id: 'lore_ca1', x: 800, y: 316,
+        text: '"We gave the crag a heart of crystal so it would remember how to stand. It remembers too well."' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CRAG 4 — Crag Warden (Colossus Core miniboss arena)
+  // Mostly open, flat floor — this fight is about spacing and heavy-attack
+  // timing (Fractured King's Guard-style shield bash, reskinned as a rock
+  // shell only Charged Attack can crack), not verticality. Two low
+  // platforms for repositioning only. Two exits open after the fight:
+  // a one-way shortcut back to The Fracture (folds the region back into
+  // the world per §6.4), and a Graviton-Surge-gated door toward the next
+  // planned region — see the raw `transitions` entry below for why that
+  // one isn't in `connections` yet.
+  // ─────────────────────────────────────────────────────────────────────────
+  crag_warden: {
+    id: 'crag_warden',
+    name: 'Crag Warden',
+    region: 'crag',
+    col: 1, row: -4,
+    mapAccent: '#d97757',
+    roomType: 'miniboss',
+    width: 2000,
+    groundY: 500,
+    bgColor: '#0a0503',
+    bgTint: 'rgba(217, 119, 87, 0.1)',
+    ambientColor: '#fb923c',
+    isMinibossArena: true,   // distinct from isBossArena (King-specific spawn logic in game.js) —
+                             // Colossus Core's own spawn/seal logic is Task 7, not wired up yet.
+    miniboss: 'colossus_core',
+    platforms: [
+      { x: 0,    y: 500, w: 2000, h: 60 },   // open floor — the fight needs room to read
+      { x: 500,  y: 400, w: 180, h: 14 },    // low reposition platform
+      { x: 1320, y: 400, w: 180, h: 14 },    // low reposition platform
+    ],
+    transitions: [
+      { x: 0,    y: 434, w: 35, h: 66, to: 'crag_altar', toX: 2100, toY: 740 },
+      // One-way reward shortcut straight back to the region's entry point —
+      // not spatially adjacent (row -4 to row 0), hence `shortcut: true`.
+      { x: 1000, y: 440, w: 60, h: 60, to: 'the_fracture', toX: 700, toY: 155 },
+      // Locked door toward the next planned region (Graviton Core cluster).
+      // Deliberately NOT in `connections[]` yet — that region doesn't exist
+      // in AREAS, and the compass validator requires connection targets to
+      // exist. `requires: 'graviton_surge'` is safe on its own: the ability
+      // doesn't exist yet either, so abilityState.hasGravitonSurge is always
+      // falsy and this transition can never actually fire (see game.js's
+      // `requires` filtering) — it just sits here inert until both the
+      // ability and the target region are built, at which point add a
+      // matching `connections[]` entry too.
+      { x: 1940, y: 440, w: 35, h: 60, to: 'graviton_core', toX: 60, toY: 400, requires: 'graviton_surge' },
+    ],
+    connections: [
+      { direction: 'south', to: 'crag_altar', requires: null, oneWay: false, order: 0, doorIndex: 0 },
+      { direction: 'south', to: 'the_fracture', requires: null, oneWay: true, order: 1, doorIndex: 1, shortcut: true },
+    ],
+    enemies: [],   // Colossus Core is spawned via bossSpawn/miniboss, not the generic enemies array — see Task 7
+    stillpoints: [],
+    loreFragments: [],
+    abilityReward: null,
+    bossSpawn: { x: 950, y: 440 },   // groundY(500) - miniboss height, refine once Colossus Core's class exists (Task 7)
+  },
+
 };
 
 function getArea(id) {
   return AREAS[id];
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPASS GRAPH — single source of truth for room connectivity.
+//
+// Each room declares `col`/`row` (its position on the world map grid) and a
+// `connections` array — the ONLY place door topology is authored. map.js
+// generates its layout/connection-line data FROM this at runtime; nothing
+// hand-authors the map separately anymore, so the map can't drift out of
+// sync with the actual doors in `transitions`.
+//
+// Connection record shape:
+//   {
+//     direction:  'north' | 'south' | 'east' | 'west',
+//     to:         <area id>,
+//     requires:   <ability string> | null,
+//     oneWay:     bool,   // true if the target room has no connection back
+//     order:      number, // disambiguates multiple doors on the same side
+//     doorIndex:  number, // index into this room's `transitions` array —
+//                         // the physical hitbox this connection corresponds to
+//     edgeExempt: bool,   // (optional) skip the physical edge-position check —
+//                         // for vertical/drop connections that don't have a
+//                         // formal room-height field to validate against yet
+//     edgeExemptReason: string, // required if edgeExempt is true
+//   }
+//
+// A room can have any number of connections (0, 1, or many), including
+// several on the same direction (e.g. two east doors at different heights) —
+// `order` + the doorIndex hitbox positions disambiguate those.
+//
+// `region` is a forward-looking tag (not yet used for rendering) so that once
+// 10+ regions exist, the map can group/zoom by region instead of rendering
+// one flat grid — see the TODO on buildMapGraph() in map.js.
+//
+// `roomType` is optional metadata for map styling — 'boss' is already used
+// by drawMap() (red border). Future miniboss rooms should set
+// roomType: 'miniboss' so the map can style them distinctly without touching
+// the boss-spawn logic in game.js, which keys off `isBossArena` specifically.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const EDGE_TOLERANCE = 20; // px — allows near-edge doors authored by hand
+
+function assertDoorOnCorrectEdge(room, connection, hitbox) {
+  if (connection.edgeExempt || connection.shortcut) return true;
+  if (!hitbox) {
+    console.error(`[compass graph] ${room.id}: connection to '${connection.to}' has no matching transitions[${connection.doorIndex}]`);
+    return false;
+  }
+  if (connection.direction === 'east') {
+    if (hitbox.x + hitbox.w < room.width - EDGE_TOLERANCE) {
+      console.error(`[compass graph] ${room.id}: 'east' door to '${connection.to}' (doorIndex ${connection.doorIndex}) is not on the east edge (x+w=${hitbox.x + hitbox.w}, room.width=${room.width})`);
+      return false;
+    }
+  } else if (connection.direction === 'west') {
+    if (hitbox.x > EDGE_TOLERANCE) {
+      console.error(`[compass graph] ${room.id}: 'west' door to '${connection.to}' (doorIndex ${connection.doorIndex}) is not on the west edge (x=${hitbox.x})`);
+      return false;
+    }
+  } else if (connection.direction === 'north' || connection.direction === 'south') {
+    // No formal room-height field exists yet to validate against — rooms only
+    // declare groundY, not a total vertical extent. Warn rather than fail so
+    // north/south connections aren't forced into edgeExempt unnecessarily,
+    // but don't block on it. Revisit once rooms carry explicit height data.
+    console.warn(`[compass graph] ${room.id}: '${connection.direction}' door to '${connection.to}' skipped strict edge check (no room-height field yet) — consider edgeExempt:true with a reason if this is intentional.`);
+  }
+  return true;
+}
+
+const OPPOSITE_DIRECTION = { north: 'south', south: 'north', east: 'west', west: 'east' };
+const DIRECTION_DELTA = {
+  north: { col: 0, row: -1 },
+  south: { col: 0, row: 1 },
+  east:  { col: 1, row: 0 },
+  west:  { col: -1, row: 0 },
+};
+
+function validateAreaGraph() {
+  let ok = true;
+
+  for (const roomId in AREAS) {
+    const room = AREAS[roomId];
+    if (!room.connections) continue; // not yet migrated — skip rather than crash
+
+    // Group by direction to catch duplicate `order` values / overlapping doors.
+    const byDirection = {};
+    for (const conn of room.connections) {
+      (byDirection[conn.direction] = byDirection[conn.direction] || []).push(conn);
+    }
+
+    for (const dir in byDirection) {
+      const group = byDirection[dir];
+      const seenOrders = new Set();
+      for (const conn of group) {
+        if (seenOrders.has(conn.order)) {
+          console.error(`[compass graph] ${roomId}: duplicate order ${conn.order} on direction '${dir}'`);
+          ok = false;
+        }
+        seenOrders.add(conn.order);
+      }
+    }
+
+    for (const conn of room.connections) {
+      // 1. Door hitbox is on the correct edge (or explicitly exempted).
+      const hitbox = room.transitions && room.transitions[conn.doorIndex];
+      if (!assertDoorOnCorrectEdge(room, conn, hitbox)) ok = false;
+
+      // 2. Target room exists.
+      const target = AREAS[conn.to];
+      if (!target) {
+        console.error(`[compass graph] ${roomId}: connection to unknown area '${conn.to}'`);
+        ok = false;
+        continue;
+      }
+
+      // 3. col/row adjacency matches the declared direction — skipped for
+      // `shortcut: true` connections (one-way elevators/drops/loops that
+      // deliberately don't respect local compass adjacency, e.g. a miniboss
+      // arena's reward shortcut straight back to an early hub room).
+      if (!conn.shortcut &&
+          typeof room.col === 'number' && typeof room.row === 'number' &&
+          typeof target.col === 'number' && typeof target.row === 'number') {
+        const delta = DIRECTION_DELTA[conn.direction];
+        const expectedCol = room.col + delta.col;
+        const expectedRow = room.row + delta.row;
+        if (target.col !== expectedCol || target.row !== expectedRow) {
+          console.error(`[compass graph] ${roomId} -> '${conn.to}' direction '${conn.direction}' implies grid position (${expectedCol},${expectedRow}) but '${conn.to}' is at (${target.col},${target.row})`);
+          ok = false;
+        }
+      }
+
+      // 4. Non-one-way connections must have a matching reverse connection.
+      if (!conn.oneWay) {
+        const expectedReverseDir = OPPOSITE_DIRECTION[conn.direction];
+        const hasReverse = (target.connections || []).some(
+          (rc) => rc.to === roomId && rc.direction === expectedReverseDir
+        );
+        if (!hasReverse) {
+          console.error(`[compass graph] ${roomId} -> '${conn.to}' (${conn.direction}) is not marked oneWay but '${conn.to}' has no matching '${expectedReverseDir}' connection back to '${roomId}'`);
+          ok = false;
+        }
+      }
+    }
+  }
+
+  if (ok) {
+    console.log('[compass graph] validated OK — ' + Object.keys(AREAS).length + ' rooms');
+  }
+  return ok;
+}
+
+validateAreaGraph();

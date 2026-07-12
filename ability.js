@@ -63,6 +63,7 @@ const abilityState = {
   hasPhaseDash: false,
   hasShardShot: false,
   hasStillpoint: false,
+  hasChargedAttack: false,
   notifications: [], // { text, timer }
 };
 

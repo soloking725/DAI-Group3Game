@@ -7,6 +7,16 @@ const ENEMY_ATTACK_RANGE = 40;
 const ENEMY_DETECT_RANGE = 200; // how far the enemy notices the player (was 80 via ENEMY_ATTACK_RANGE * 2)
 const ENEMY_ATTACK_COOLDOWN = 90;
 
+// ── Detection tuning ─────────────────────────────────────────────────────────
+// See Enemy.canSeePlayer() below for how these combine.
+const ENEMY_VERTICAL_BAND = 50;       // ground enemies: max |dy| to count the player as "seen"
+const ENEMY_DETECT_HYSTERESIS = 35;   // widens ENEMY_DETECT_RANGE once already aware, so sitting
+                                       // right on the boundary doesn't flicker chase/patrol every frame
+const ENEMY_VERTICAL_HYSTERESIS = 20; // same idea, applied to the vertical band
+const ENEMY_FACING_DEADZONE = 6;      // px — don't flip facing from noise when the player is ~overhead
+const PATROL_SPEED = 0.7;             // slow wander speed, independent of chase speed
+const PATROL_IDLE_FRAMES = 30;        // frames to stand still after losing the player, before patrol resumes
+
 // Windup (pre-attack telegraph) duration in frames
 // Player has this many frames to react and dodge before the hit lands.
 const ENEMY_WINDUP_FRAMES = 28;
@@ -41,10 +51,52 @@ class Enemy {
     this.juggling = false;     // airborne combo state
     this.patrolCenter = x;
     this.patrolRange = 120;
+    this.patrolDir = -1;   // patrol's own direction state — never read/written by chase code
+    this.idleTimer = 0;    // frames left to stand still after losing the player, before patrol resumes
+    this.aware = false;    // hysteresis flag — see canSeePlayer()
+
+    // Per-instance overrides for canSeePlayer(), meant for future subclasses:
+    //   this.verticalBand = <px>   — override ENEMY_VERTICAL_BAND for this enemy
+    //   this.ignoreVertical = true — flying/hovering enemies that should track both axes freely
+    this.verticalBand = null;
+    this.ignoreVertical = false;
 
     // Distraction state (for echo decoys)
     this.distractionTimer = 0;
     this.distractionTarget = null;
+  }
+
+  // ── Shared player-detection method — all enemy subclasses should call this ──
+  // instead of computing raw dx/dist themselves, so new enemy types don't
+  // reintroduce the "flat, no vertical awareness" bug this replaced.
+  //
+  // Ground enemies (default): only "see" the player within a vertical band
+  // (ENEMY_VERTICAL_BAND, or `this.verticalBand` if set) — an enemy directly
+  // below/above the player on a different platform should not detect or
+  // attack them just because they're horizontally close.
+  //
+  // Flying/hovering enemies: set `this.ignoreVertical = true` to track the
+  // player with full Euclidean distance and no vertical gating at all — a
+  // one-line config on the subclass, not a rewrite of this method.
+  //
+  // Hysteresis: once `this.aware` is true, both the detect range and the
+  // vertical band widen by their *_HYSTERESIS constants before dropping back
+  // to unaware — this is what stops rapid chase/patrol flicker when the
+  // player sits right on the boundary instead of clearly inside or outside it.
+  canSeePlayer(player) {
+    const dx = (player.x + player.width / 2) - (this.x + this.width / 2);
+    const dy = (player.y + player.height / 2) - (this.y + this.height / 2);
+
+    const baseBand = this.ignoreVertical ? Infinity : (this.verticalBand != null ? this.verticalBand : ENEMY_VERTICAL_BAND);
+    const band = (this.aware && !this.ignoreVertical) ? baseBand + ENEMY_VERTICAL_HYSTERESIS : baseBand;
+    const verticalOk = Math.abs(dy) <= band;
+
+    const dist = this.ignoreVertical ? Math.abs(dx) : Math.sqrt(dx * dx + dy * dy);
+    const range = this.aware ? ENEMY_DETECT_RANGE + ENEMY_DETECT_HYSTERESIS : ENEMY_DETECT_RANGE;
+    const inRange = verticalOk && dist < range;
+
+    this.aware = inRange;
+    return { inRange, dx, dy, dist, verticalOk };
   }
 
   update(player, bounds, echoes) {
@@ -80,13 +132,29 @@ class Enemy {
       return;
     }
 
-    const dx = player.x - this.x;
-    const dist = Math.abs(dx);
-    this.facing = dx > 0 ? 1 : -1;
+    const wasAware = this.aware;
+    const sight = this.canSeePlayer(player);
+
+    // Lost the player this frame — stop chase movement immediately instead of
+    // carrying stale chase velocity into the patrol branch below, then idle
+    // briefly before patrol resumes (absorbs flicker right at the vertical-
+    // band boundary instead of visibly pacing back and forth every frame).
+    if (wasAware && !sight.inRange) {
+      this.vx = 0;
+      this.idleTimer = PATROL_IDLE_FRAMES;
+    }
+
+    // Stable facing: only flip when the player is far enough off-center to be
+    // unambiguous, so standing roughly overhead doesn't flicker facing left/right.
+    if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE) {
+      this.facing = sight.dx > 0 ? 1 : -1;
+    }
 
     // ── Windup telegraph ─────────────────────────────────────────────────────
-    // Begin windup when in range and not already winding / attacking
-    if (dist < ENEMY_ATTACK_RANGE && this.attackCooldown <= 0 && !this.windingUp && !this.attacking) {
+    // Begin windup when in range AND within the vertical band — an enemy
+    // standing on a different platform than the player should never windup
+    // or attack just because they're horizontally close.
+    if (sight.verticalOk && Math.abs(sight.dx) < ENEMY_ATTACK_RANGE && this.attackCooldown <= 0 && !this.windingUp && !this.attacking) {
       this.windingUp = true;
       this.windUpTimer = ENEMY_WINDUP_FRAMES;
       this.vx = 0;
@@ -149,13 +217,24 @@ class Enemy {
     if (this.attackCooldown < 0) this.attackCooldown = 0;
 
     // ── Movement AI (only when not winding up or attacking) ──────────────────
+    // Three fully separate states, each owning its own velocity — chase never
+    // leaves residue for patrol to inherit, which was the actual disengage bug
+    // (patrol used to reuse whatever vx chase left behind until a boundary
+    // was hit, producing a visible stutter-step at the vertical-band edge).
     if (!this.windingUp && !this.attacking) {
-      if (dist < ENEMY_DETECT_RANGE) {
+      if (sight.inRange) {
         this.vx = this.facing * ENEMY_SPEED;
+        this.idleTimer = 0;
+      } else if (this.idleTimer > 0) {
+        this.idleTimer -= _ts;
+        this.vx = 0;
       } else {
+        // Patrol — own direction state, never touched by the chase branch
+        // above, so switching states can never leave stale momentum behind.
         if (Math.abs(this.x - this.patrolCenter) > this.patrolRange) {
-          this.vx = -Math.sign(this.vx) * ENEMY_SPEED;
+          this.patrolDir = this.x > this.patrolCenter ? -1 : 1;
         }
+        this.vx = this.patrolDir * PATROL_SPEED;
       }
     }
 
@@ -376,12 +455,19 @@ class Stutterer extends Enemy {
       if (this.decoys[i].life <= 0) this.decoys.splice(i, 1);
     }
 
-    const dist = Math.abs(player.x - this.x);
-    this.facing = (player.x - this.x) > 0 ? 1 : -1;
+    // Shared detection (see Enemy.canSeePlayer()) — Stutterer never chases
+    // (it teleports instead), so it only needs this for stable facing and
+    // vertical-gated attack triggering, not the chase/patrol state machine.
+    const sight = this.canSeePlayer(player);
+    if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE) {
+      this.facing = sight.dx > 0 ? 1 : -1;
+    }
     this.vx = 0;
 
-    // Windup before attack
-    if (dist < ENEMY_ATTACK_RANGE * 2.5 && this.attackCooldown <= 0 && !this.windingUp && !this.attacking) {
+    // Windup before attack — gated to the vertical band too, so a Stutterer
+    // on a platform far above/below the player can't windup just because
+    // it's horizontally close.
+    if (sight.verticalOk && Math.abs(sight.dx) < ENEMY_ATTACK_RANGE * 2.5 && this.attackCooldown <= 0 && !this.windingUp && !this.attacking) {
       this.windingUp = true;
       this.windUpTimer = ENEMY_WINDUP_FRAMES;
     }
@@ -1035,3 +1121,225 @@ class CrystalSentinel {
 
 // Initialize the static projectile array
 CrystalSentinel.projectiles = [];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Colossus Core — Crag of the Colossus miniboss (crag_warden). A rock-shelled
+// construct that only Charged (heavy) attacks can damage — a normal hit
+// bounces off with a spark, exactly like the region's destructible rubble
+// walls. Single telegraphed charge attack, no phases — reskin of "The
+// Fractured King's Guard" (expansion.md 4.1), chosen because it's the most
+// "basic, no ability required beyond Charged Attack" fight on the miniboss
+// roster, which fits a region's first miniboss. Reward: +1 Max Health,
+// applied by game.js when `defeatedMinibosses['colossus_core']` flips true.
+// ─────────────────────────────────────────────────────────────────────────────
+const COLOSSUS_HEALTH = 12;
+const COLOSSUS_SPEED = 3.5;
+const COLOSSUS_DAMAGE = 2;
+
+class ColossusCore {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.width = 64;
+    this.height = 64;
+    this.vx = 0;
+    this.vy = 0;
+    this.health = COLOSSUS_HEALTH;
+    this.maxHealth = COLOSSUS_HEALTH;
+    this.facing = -1;
+    this.dead = false;
+    this.deathTimer = 0;
+    this.grounded = false;
+    this.flashTimer = 0;
+    this.bounceFlash = 0; // brief white flash when a NON-heavy hit bounces off (no damage)
+    this.state = 'idle';  // idle -> telegraph -> charging -> idle
+    this.stateTimer = 90;
+    this.attackCooldown = 0;
+    this.stunTimer = 0; // parry stun
+  }
+
+  getBounds() { return { x: this.x, y: this.y, width: this.width, height: this.height }; }
+
+  getAttackHitbox() {
+    if (this.state !== 'charging') return null;
+    return {
+      x: this.facing === 1 ? this.x + this.width : this.x - 20,
+      y: this.y + 8,
+      width: 20,
+      height: this.height - 16,
+    };
+  }
+
+  // `isHeavy` — only a Charged Attack can damage the core; a normal hit
+  // bounces off (visual/audio feedback only, no health loss, no hitstun).
+  // This mirrors the destructible-wall rule elsewhere in the region: some
+  // things only yield to force.
+  takeDamage(amount, fromX, attackDir, isHeavy) {
+    if (this.dead) return;
+    if (!isHeavy) {
+      this.bounceFlash = 8;
+      if (typeof SFX !== 'undefined') SFX.shardHit();
+      return;
+    }
+    this.health -= amount;
+    this.flashTimer = 8;
+    this.attackCooldown = Math.max(this.attackCooldown, 30);
+    if (fromX !== undefined) this.vx = (this.x > fromX ? 1 : -1) * 2;
+    if (this.health <= 0) { this.health = 0; this.dead = true; this.deathTimer = 0; }
+  }
+
+  update(player, bounds, echoes) {
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    if (this.dead) { this.deathTimer++; return; }
+
+    if (this.stunTimer > 0) {
+      this.stunTimer -= _ts;
+      this.flashTimer = Math.max(0, this.flashTimer - 1);
+      return;
+    }
+
+    const area = getCurrentArea();
+    this.facing = player.x > this.x ? 1 : -1;
+    this.flashTimer = Math.max(0, this.flashTimer - 1);
+    this.bounceFlash = Math.max(0, this.bounceFlash - 1);
+    if (this.attackCooldown > 0) this.attackCooldown -= _ts;
+    if (this.attackCooldown < 0) this.attackCooldown = 0;
+    this.stateTimer -= _ts;
+
+    const dist = Math.abs((player.x + player.width / 2) - (this.x + this.width / 2));
+
+    switch (this.state) {
+      case 'idle':
+        this.vx *= 0.85;
+        if (this.stateTimer <= 0) {
+          if (this.attackCooldown <= 0 && dist < 500 && this.grounded) {
+            this.state = 'telegraph';
+            this.stateTimer = 40; // visible windup before the charge — see draw()
+            this.vx = 0;
+          } else {
+            this.stateTimer = 30; // keep re-checking
+          }
+        }
+        break;
+      case 'telegraph':
+        this.vx = 0;
+        if (this.stateTimer <= 0) {
+          this.state = 'charging';
+          this.stateTimer = 50;
+          this.vx = this.facing * COLOSSUS_SPEED;
+        }
+        break;
+      case 'charging':
+        if (this.stateTimer <= 0) {
+          this.state = 'idle';
+          this.stateTimer = 70;
+          this.vx = 0;
+          this.attackCooldown = 60;
+        }
+        break;
+    }
+
+    this.vy += GRAVITY * _ts;
+    this.y += this.vy * _ts;
+    this.x += this.vx * _ts;
+
+    if (this.y + this.height > bounds.groundY) {
+      this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
+    }
+    if (area) {
+      for (const plat of area.platforms) {
+        if (plat.destructible && plat.hp <= 0) continue;
+        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
+          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
+            this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
+          }
+        }
+      }
+    }
+
+    // Hitting the arena wall ends a charge early instead of clipping out of bounds.
+    if (this.x < bounds.left) {
+      this.x = bounds.left;
+      if (this.state === 'charging') { this.state = 'idle'; this.stateTimer = 70; this.attackCooldown = 60; }
+    }
+    if (this.x + this.width > bounds.right) {
+      this.x = bounds.right - this.width;
+      if (this.state === 'charging') { this.state = 'idle'; this.stateTimer = 70; this.attackCooldown = 60; }
+    }
+  }
+
+  draw(ctx) {
+    if (this.dead) {
+      ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 30);
+    }
+
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
+
+    // Body — rust/stone shell, cracks appear as health drops
+    const healthFrac = this.health / this.maxHealth;
+    ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : this.bounceFlash > 0 ? '#fbbf24' : '#c2703d';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.strokeStyle = '#7a4322';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(this.x, this.y, this.width, this.height);
+    ctx.lineWidth = 1;
+
+    // Crack overlay — more cracks the lower the health
+    const crackCount = Math.round((1 - healthFrac) * 6);
+    ctx.strokeStyle = 'rgba(10, 5, 3, 0.6)';
+    for (let i = 0; i < crackCount; i++) {
+      const seed = i * 37.13 + Math.floor(this.x); // stable per-instance, not per-frame random
+      const sx = this.x + 8 + (seed % (this.width - 16));
+      const sy = this.y + 8 + ((seed * 1.7) % (this.height - 16));
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + 8 - (seed % 16), sy + 10 - (seed % 20));
+      ctx.stroke();
+    }
+
+    // Molten core, visible through the shell — glows brighter as it takes damage
+    ctx.fillStyle = `rgba(251, 146, 60, ${0.3 + (1 - healthFrac) * 0.5})`;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 10 + (1 - healthFrac) * 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye
+    ctx.fillStyle = '#0a0a0f';
+    const eyeX = this.facing === 1 ? this.x + this.width - 20 : this.x + 12;
+    ctx.fillRect(eyeX, this.y + 14, 10, 8);
+
+    // Telegraph — expanding ring + "!" before the charge
+    if (this.state === 'telegraph') {
+      const progress = 1 - this.stateTimer / 40;
+      const ringRadius = 16 + progress * 36;
+      ctx.strokeStyle = `rgba(255, 120, 40, ${0.3 + progress * 0.5})`;
+      ctx.lineWidth = 3 - progress;
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = `bold ${12 + Math.round(progress * 4)}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('!', cx, this.y - 8);
+      ctx.textAlign = 'left';
+    }
+
+    // Charge tell — motion streaks behind it
+    if (this.state === 'charging') {
+      ctx.fillStyle = 'rgba(217, 119, 87, 0.4)';
+      const trailX = this.facing === 1 ? this.x - 20 : this.x + this.width;
+      ctx.fillRect(trailX, this.y + 10, 20, this.height - 20);
+    }
+
+    // Health bar
+    const barW = 70;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(cx - barW / 2, this.y - 20, barW, 6);
+    ctx.fillStyle = '#fb923c';
+    ctx.fillRect(cx - barW / 2, this.y - 20, barW * healthFrac, 6);
+
+    ctx.globalAlpha = 1;
+  }
+}

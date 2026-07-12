@@ -141,7 +141,7 @@ async function loadSandbox() {
 async function runChecks() {
   document.getElementById('run-btn').disabled = true;
   clearLog();
-  checksTotal = 8;
+  checksTotal = 11;
   updateStats();
   log('Booting sandboxed game instance...', 'dim');
 
@@ -242,6 +242,74 @@ async function runChecks() {
   // ── Check 8: no uncaught exceptions were thrown anywhere in the run ─────
   report('R08', win.__sawError ? 'err' : 'ok',
     win.__sawError ? ('uncaught error during run: ' + win.__sawError) : 'no uncaught exceptions during the whole run');
+
+  // ── Check 9: the compass graph (area.js connections/col/row) validates ──
+  // Reuses the real validateAreaGraph() function — same one that runs
+  // automatically on load — so this check can never drift out of sync with
+  // what the game itself considers valid.
+  try {
+    const graphOk = win.validateAreaGraph();
+    report('R09', graphOk ? 'ok' : 'err',
+      graphOk ? 'compass graph (area.js connections) validated with no errors'
+              : 'compass graph validation failed — see console warnings above for which room/connection');
+  } catch (e) {
+    report('R09', 'err', 'validateAreaGraph() threw: ' + e.message);
+  }
+
+  // ── Check 10: every room reachable via a real switchArea() call survives ──
+  // A room can load with zero console errors and still instantly kill the
+  // player (wrong spawn Y, a pit-death threshold that doesn't match the
+  // room's actual floor, etc.) — this is exactly the bug class R01-R08 can't
+  // see, since the canvas legitimately changes either way. Walks every room
+  // that declares a compass position, teleports in, runs 90 real frames, and
+  // fails if the player dies or the game state leaves 'playing'.
+  const allAreaIds = Object.keys(win.AREAS).filter((id) => typeof win.AREAS[id].col === 'number');
+  const deaths = [];
+  for (const areaId of allAreaIds) {
+    win.abilityState.hasPhaseDash = true;
+    win.abilityState.hasShardShot = true;
+    win.abilityState.hasStillpoint = true;
+    win.switchArea(areaId, 60, Math.max(40, win.AREAS[areaId].groundY - 400));
+    let t = performance.now();
+    for (let i = 0; i < 90; i++) { t += 16.7; win.gameLoop(t); }
+    if (win.gameState !== 'playing' || win.player.health <= 0) {
+      deaths.push(areaId + ' (gameState=' + win.gameState + ', health=' + win.player.health + ')');
+    }
+  }
+  report('R10', deaths.length === 0 ? 'ok' : 'err',
+    deaths.length === 0
+      ? `all ${allAreaIds.length} rooms survived a 90-frame teleport-in test`
+      : `died/gameover in: ${deaths.join(', ')} — likely a bad spawn Y or pitDeathY mismatch for that room`);
+
+  // ── Check 11: no door is embedded inside the platform it sits next to ──
+  // Static check, no simulation needed. Catches the exact bug found while
+  // building Crag of the Colossus: a transition hitbox positioned at
+  // `y: platform.y` extending DOWN into the platform's own solid body,
+  // instead of `y: platform.y - height` extending UP into the air where the
+  // player's standing hitbox actually is — physically untouchable in
+  // practice even though it loads and renders with no errors. See
+  // Plans/room_verification_tool_plan.md for the fuller version of this idea
+  // (this is a lightweight permanent regression guard, not that full tool).
+  const embeddedDoors = [];
+  for (const id in win.AREAS) {
+    const room = win.AREAS[id];
+    (room.transitions || []).forEach((t, i) => {
+      for (const p of room.platforms || []) {
+        if (p.destructible) continue; // walls aren't floor references
+        const xOverlap = t.x < p.x + p.w && t.x + t.w > p.x;
+        if (!xOverlap) continue;
+        // Embedded = the door's entire vertical span sits at/below the
+        // platform's own top surface with no part reaching above it.
+        if (t.y >= p.y - 2 && (t.y + t.h) > p.y + 5) {
+          embeddedDoors.push(`${id}.transitions[${i}] (to '${t.to}') inside platform at (${p.x},${p.y})`);
+        }
+      }
+    });
+  }
+  report('R11', embeddedDoors.length === 0 ? 'ok' : 'err',
+    embeddedDoors.length === 0
+      ? 'no transition hitboxes found embedded inside solid platform geometry'
+      : `possibly embedded doors: ${embeddedDoors.join('; ')}`);
 
   log('Done. ' + checksPassed + ' pass, ' + checksWarn + ' warn, ' + checksErr + ' fail.', checksErr ? 'err' : checksWarn ? 'warn' : 'ok');
   document.getElementById('run-btn').disabled = false;

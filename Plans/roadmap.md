@@ -461,3 +461,121 @@ EXPLICITLY OUT OF SCOPE (by user request)
 CURRENTLY HERE: 0.1-0.6 done, Phase 1.1-1.7 done. Next: 1.8 (Dash Refund on Hit).
 ═══════════════════════════════════════════════════════════════════════════
 ```
+
+─────────────────────────────────────────────────────────────────────────────
+PHASE 7 — Crag of the Colossus & the World Map (2026-07-11)
+─────────────────────────────────────────────────────────────────────────────
+[x] Compass-graph map system rework (area.js `connections`/`col`/`row` +
+    `validateAreaGraph()`, map.js generates layout from it). Verified against
+    all 10 pre-existing rooms, no regressions.
+[x] Crag of the Colossus — ALL 8 original sub-tasks done and live-verified:
+      1. `abilityState.hasChargedAttack` — save/load/init/startNewGame wired.
+      2. Charged Attack gated in player.js — no ability = quick tap only.
+      3. 4 rooms built (crag_entrance, crag_breach, crag_altar, crag_warden),
+         converted to a continuous cave floor (no fall-death on the intended
+         route) after the pit-death bug below was found; upper/mid routes
+         stay optional detours that drop safely back to the floor.
+      4. the_fracture -> crag_entrance connected (Phase Dash gated).
+      5. crag_altar grants Charged Attack (tested: pickup -> hasChargedAttack).
+      6. Heavy-attack-only destructible rubble walls — normal attacks bounce
+         off with zero effect, heavy attacks crack them, verified exactly
+         one hp decrement per swing (see per-swing dedup below).
+      7. Colossus Core miniboss (enemy.js) — rock-shelled construct, only
+         Charged/heavy hits connect (normal attacks bounce, no damage/
+         hitstun), 12 HP, single telegraphed charge attack. Full fight
+         verified live: 6 heavy hits to kill, `defeatedMinibosses` persists
+         (no respawn on re-entry), full heal on defeat, no forced game-state
+         change (unlike the King, this doesn't end the run).
+      8. crag_warden has a one-way shortcut back to the_fracture (built,
+         functional) plus a locked stub door toward Graviton Core, gated on
+         `graviton_surge` (an ability that doesn't exist yet, so the door is
+         safely inert — verified this can't be triggered or crash).
+    Bugs found and fixed along the way (all verified live, not just read):
+      - game.js's pit-death check hardcoded a 600px kill-plane for any room
+        with groundY > 800, assuming every tall room is a floorless void like
+        Echo Bridge/The Rift. Crag's rooms are tall WITH real floors below
+        y:600, so this instantly killed the player on entry. Fixed via an
+        explicit optional `pitDeathY` per room; Echo Bridge/The Rift got
+        `pitDeathY: 600` to preserve their exact original behavior.
+      - crag_entrance's return door was positioned inside the solid platform
+        body instead of in the air where the player's standing hitbox
+        actually is — physically untouchable. Fixed (`y: platform.y -
+        doorHeight`, extending up into the air, not down into the ground).
+      - Both floorless rooms (crag_entrance, crag_breach) converted to
+        continuous cave floors per direct feedback: no fall-death on the
+        intended path unless a region deliberately wants that as its hazard.
+      - The King's own boss-death trigger (`gameState = 'victory'`) has the
+        same class of bug my miniboss code initially copied: the whole
+        update block is gated on `boss && !boss.dead`, so once `dead` flips
+        true the block stops running entirely and `boss.deathTimer` (needed
+        to hit exactly 1 to fire the victory transition) gets stuck at 0
+        forever — confirmed live, `deathTimer` never advances past 0 once
+        dead. NOT fixed (out of scope, a bigger change to the King's win
+        flow) — flagging here since it means beating the King currently
+        cannot trigger victory through this code path. My own miniboss code
+        uses the correct pattern instead (`if (miniboss)`, not `if (miniboss
+        && !miniboss.dead)`, with individual collision checks gated on
+        `!miniboss.dead` where needed).
+      - Multi-hit-per-swing damage: player.getAttackHitbox() stays non-null
+        for the whole swing (12-16 frames), and there was no per-swing "already
+        hit this target" tracking, so a target that stayed inside the hitbox
+        across multiple frames took damage every overlapping frame instead of
+        once per swing. Fixed via `player.hitTargetsThisSwing` (a Set,
+        cleared whenever a new attack starts), checked in the enemy hit loop,
+        the boss hit loop, and the new destructible-wall loop. Final numbers,
+        verified live: normal = 1 dmg, heavy = flat 2 dmg at every charge
+        level from tap to full (not a gradient — `ceil(1+heavyCharge)` always
+        lands in `(1,2]`, so it's always 2). Base Fractured (3 HP): 3 normal
+        hits, 2 heavy hits, or any mix summing to >=3, kills it — no
+        one-shots at any range anymore.
+[x] Enemy targeting/detection (enemy.js) — vertical-band gating + hysteresis
+    added (`Enemy.canSeePlayer()`, shared by Fractured/Stutterer), disengage
+    fixed (chase velocity no longer carries into patrol; patrol now uses its
+    own independent `patrolDir` and wanders continuously instead of standing
+    frozen). All scenarios verified live: no windup when the player is
+    overhead outside the vertical band, zero aware-state flicker across 200
+    frames oscillating right at the detect-range boundary, clean patrol
+    between `patrolCenter +/- patrolRange` with zero player-tracking while
+    disengaged.
+[ ] World map / interconnectedness — see `expansion.md` "REGION ATLAS" section
+    (added this session) for the full per-region table (color, compass
+    position, gating ability, connections). Known problem, called out
+    explicitly by the user: the current planned graph (origin spine + Crag +
+    4 clusters off the Vault/Forge/Rift) is a **tree**, not a **web** — every
+    region has exactly one parent edge and, at most, one shortcut back. This
+    is NOT Hollow Knight-level interconnectedness (Crossroads-style hubs have
+    several direct connections to unrelated regions, creating real cycles in
+    the graph, which is what makes backtracking feel like rediscovering a
+    world instead of retracing a branch). The REGION ATLAS in expansion.md
+    now includes a "cross-links" column with proposed cycle-forming
+    connections between clusters — these are planning-only, not yet built
+    into any AREA data (the 12 non-Crag regions don't exist as AREAS yet).
+    Apply the cross-link pattern when any of those regions actually gets
+    built, not just the single parent edge from the original tree layout.
+[ ] Room verification tool — planned, not built. See
+    `Plans/room_verification_tool_plan.md` for the full design (a headless
+    bot-driven room walker + static layout linter, meant to catch exactly
+    the class of bug found in Crag above — unreachable platforms, pits with
+    no safety net, doors embedded in solid geometry — before a human ever
+    plays the room).
+[x] worldmap.html — a real, git-committed, self-contained diagram tool
+    (distinct from the Artifact shown mid-session, which only lived in that
+    chat) generating the same graph from live `area.js` data plus a
+    hand-maintained `PLANNED_REGIONS` list for the 12 unbuilt regions. Lives
+    at the repo root alongside `debug_v1.html`/`levelEditor.html`.
+
+NEXT SESSION SHOULD:
+  - Doors still render as a floating trigger box, not a natural cave-mouth
+    passage — the "invisible door" visual request from this session's
+    feedback is not done, only the fall-death/gap-closing part is. That's a
+    rendering change to game.js's transition-drawing code, touching every
+    region, not just Crag — worth its own pass rather than bolting onto the
+    next task.
+  - Build the room verification tool per Plans/room_verification_tool_plan.md
+    before the next region ships — it would have caught 3 of the 4 bugs
+    found this session automatically instead of by hand.
+  - Decide whether to fix the King's stuck-deathTimer/victory bug (see
+    above) — currently beating the King cannot trigger the win screen.
+  - When any of the 12 planned regions actually gets built, use the
+    cross-link pattern from expansion.md §3.13b, not just a single parent
+    edge — that's the whole point of this session's interconnectedness fix.

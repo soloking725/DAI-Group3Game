@@ -100,6 +100,13 @@ let bossProjectiles = [];
 let victoryTimer = 0;
 let bossDefeated = false;
 
+// Miniboss fight state — separate from `boss` (the King), which is tied to
+// isBossArena and the victory-cinematic flow. Minibosses use `isMinibossArena`
+// + `area.miniboss` (an id string) instead, and just persist a defeated flag
+// per id (keyed in `defeatedMinibosses`) rather than ending the run.
+let miniboss = null;
+let defeatedMinibosses = {};
+
 // Camera
 let camera = { x: 0, y: 0 };
 
@@ -237,6 +244,7 @@ function getBounds(area) {
     left: 0,
     right: area.width,
     groundY: area.groundY,
+    pitDeathY: area.pitDeathY,
   };
 }
 
@@ -859,6 +867,7 @@ function init() {
   abilityState.hasPhaseDash = false;
   abilityState.hasShardShot = false;
   abilityState.hasStillpoint = false;
+  abilityState.hasChargedAttack = false;
   gameTimeScale = 1.0;
 
   // Spawn menu particles
@@ -974,12 +983,14 @@ function saveGame(slot) {
         hasPhaseDash: abilityState.hasPhaseDash,
         hasShardShot: abilityState.hasShardShot,
         hasStillpoint: abilityState.hasStillpoint,
+        hasChargedAttack: abilityState.hasChargedAttack,
       },
       stillpointActivated,
       lastStillpoint,
       discoveredAreas,
       collectedLore,
       bossDefeated,
+      defeatedMinibosses,
       tutorialState,
     };
     localStorage.setItem(getSaveKey(s), JSON.stringify(data));
@@ -1005,6 +1016,7 @@ function loadGame(slot) {
     abilityState.hasPhaseDash = !!(data.abilityState && data.abilityState.hasPhaseDash);
     abilityState.hasShardShot = !!(data.abilityState && data.abilityState.hasShardShot);
     abilityState.hasStillpoint = !!(data.abilityState && data.abilityState.hasStillpoint);
+    abilityState.hasChargedAttack = !!(data.abilityState && data.abilityState.hasChargedAttack);
     abilityState.phaseDashCooldown = 0;
     abilityState.shardShotCooldown = 0;
     abilityState.notifications = [];
@@ -1014,6 +1026,7 @@ function loadGame(slot) {
     discoveredAreas = data.discoveredAreas || { [currentAreaId]: true };
     collectedLore = data.collectedLore || {};
     bossDefeated = !!data.bossDefeated;
+    defeatedMinibosses = data.defeatedMinibosses || {};
     tutorialState = data.tutorialState || { moved: true, jumped: true, attacked: true, dashed: true };
 
     echoes = [];
@@ -1021,6 +1034,7 @@ function loadGame(slot) {
     particles = [];
     bossProjectiles = [];
     boss = null;
+    miniboss = null;
     areaEnemiesSpawned = {};
     spawnAreaEnemies(currentAreaId);
     resetCamera();
@@ -1053,6 +1067,7 @@ function getSlotInfo(slot) {
       hasPhaseDash: !!(data.abilityState && data.abilityState.hasPhaseDash),
       hasShardShot: !!(data.abilityState && data.abilityState.hasShardShot),
       hasStillpoint: !!(data.abilityState && data.abilityState.hasStillpoint),
+      hasChargedAttack: !!(data.abilityState && data.abilityState.hasChargedAttack),
       bossDefeated: !!data.bossDefeated,
     };
   } catch (e) {
@@ -1086,6 +1101,8 @@ function startNewGame() {
   particles = [];
   bossProjectiles = [];
   boss = null;
+  miniboss = null;
+  defeatedMinibosses = {};
   areaEnemiesSpawned = {};
   discoveredAreas = { tutorial_area: true };
   stillpointActivated = {};
@@ -1095,6 +1112,7 @@ function startNewGame() {
   abilityState.hasPhaseDash = false;
   abilityState.hasShardShot = false;
   abilityState.hasStillpoint = false;
+  abilityState.hasChargedAttack = false;
   abilityState.phaseDashCooldown = 0;
   abilityState.shardShotCooldown = 0;
   abilityState.notifications = [];
@@ -1192,6 +1210,7 @@ function restartRoom() {
   echoes = [];
   projectiles = [];
   boss = null;
+  miniboss = null;
   bossProjectiles = [];
   resetCamera();
   spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#67e8f9', 10);
@@ -1486,6 +1505,25 @@ function update() {
     bossProjectiles = [];
   }
 
+  // Spawn miniboss when entering a miniboss arena (Colossus Core, etc.) —
+  // parallel to the King's spawn above but keyed by `area.miniboss` (an id
+  // string) rather than tied to isBossArena, so multiple future minibosses
+  // in different regions can each persist their own defeated flag.
+  if (area.isMinibossArena && !miniboss && !defeatedMinibosses[area.miniboss]) {
+    const spawn = area.bossSpawn;
+    if (spawn && area.miniboss === 'colossus_core') {
+      miniboss = new ColossusCore(spawn.x, spawn.y);
+      screenShake = 30;
+      screenShakeIntensity = 4;
+      spawnParticles(spawn.x + 32, spawn.y + 32, '#d97757', 20);
+      spawnParticles(spawn.x + 32, spawn.y + 32, '#fb923c', 12);
+    }
+  }
+  // Clear miniboss when leaving its arena
+  if (!area.isMinibossArena && miniboss) {
+    miniboss = null;
+  }
+
   // Tutorial room: track move/jump/attack/dash steps, hit-test the dummy
   if (currentAreaId === 'tutorial_area') {
     updateTutorial(area);
@@ -1562,7 +1600,14 @@ function update() {
   // Check player death or pit death (fell off the map)
   // Note: death at 0 HP should trigger regardless of invincibility timer
   const playerDead = player.health <= 0;
-  const pitDeathY = bounds.groundY > 800 ? 600 : bounds.groundY + 100;
+  // Explicit per-room override (for floorless "void" rooms like Echo Bridge/
+  // The Rift, whose real platforms all sit well above their nominal groundY)
+  // falls back to groundY + 100 for rooms with an actual floor near groundY —
+  // covers any room regardless of how tall it is, instead of guessing from
+  // groundY alone (that guess used to hard-code 600 for any groundY > 800,
+  // which incorrectly killed the player above real platforms in tall
+  // multi-floor rooms like Crag of the Colossus).
+  const pitDeathY = typeof bounds.pitDeathY === 'number' ? bounds.pitDeathY : bounds.groundY + 100;
   const pitDeath = player.y > pitDeathY;
   if ((playerDead || pitDeath) && (playerDead || player.invincibleTimer <= 0)) {
     screenShake = 15;
@@ -1621,9 +1666,13 @@ function update() {
   for (const enemy of enemies) {
     enemy.update(player, bounds, echoes);
 
-    // Player attack hits enemy
+    // Player attack hits enemy — gated to once per swing (see
+    // player.hitTargetsThisSwing) so an enemy that stays inside a multi-frame
+    // attack hitbox at point-blank range doesn't take damage/knockback/
+    // hitstop on every overlapping frame, only once per swing.
     const playerAtk = player.getAttackHitbox();
-    if (playerAtk && !enemy.dead && rectsOverlap(playerAtk, enemy)) {
+    if (playerAtk && !enemy.dead && rectsOverlap(playerAtk, enemy) && !player.hitTargetsThisSwing.has(enemy)) {
+      player.hitTargetsThisSwing.add(enemy);
       const dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
       enemy.takeDamage(dmg, player.x, playerAtk.dir);
       spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#f87171', player.heavy ? 10 : 6);
@@ -1772,8 +1821,39 @@ function update() {
     }
   }
 
+  // Player heavy attack cracks destructible walls (rubble walls in Crag of
+  // the Colossus, and any future heavy-attack-only wall). A normal attack
+  // does nothing — only `player.heavy === true` chips away hp. Same
+  // once-per-swing dedup as the enemy/boss hit loops above, so holding the
+  // hitbox against a wall across multiple frames doesn't multi-tick it.
+  const wallAtk = player.getAttackHitbox();
+  if (wallAtk && player.heavy) {
+    for (const plat of area.platforms) {
+      if (!plat.destructible || plat.hp === undefined || plat.hp <= 0) continue;
+      if (player.hitTargetsThisSwing.has(plat)) continue;
+      if (rectsOverlap(wallAtk, { x: plat.x, y: plat.y, width: plat.w, height: plat.h })) {
+        player.hitTargetsThisSwing.add(plat);
+        plat.hp--;
+        spawnParticles(plat.x + plat.w / 2, plat.y + plat.h / 2, '#2dd4bf', plat.hp <= 0 ? 16 : 8);
+        screenShake = Math.max(screenShake, 6);
+        screenShakeIntensity = Math.max(screenShakeIntensity, 3);
+        hitstopTimer = Math.max(hitstopTimer, 5);
+        SFX.shardHit();
+      }
+    }
+  }
+
   // === BOSS UPDATE ===
-  if (boss && !boss.dead) {
+  // Gate on `boss` alone, NOT `boss && !boss.dead` — that used to mean once
+  // `dead` flipped true, this whole block (including the `boss.update()`
+  // call that increments `deathTimer`) stopped running on every subsequent
+  // frame, so `deathTimer` got stuck at 0 forever and `deathTimer === 1`
+  // (required below to trigger victory) could never become true. Confirmed
+  // live: defeating the King could not end the game through this path.
+  // Boss.update() already early-returns after incrementing deathTimer when
+  // `this.dead`, so calling it unconditionally here is safe — same pattern
+  // already used for the miniboss's equivalent block.
+  if (boss) {
     boss.update(player, bossProjectiles, area.width);
 
     // Handle boss summon requests
@@ -1787,9 +1867,11 @@ function update() {
       boss.summonData = null;
     }
 
-    // Player melee attack hits boss
+    // Player melee attack hits boss — same once-per-swing dedup as the
+    // regular enemy hit loop above (see player.hitTargetsThisSwing).
     const playerAtk = player.getAttackHitbox();
-    if (playerAtk && !boss.dead && rectsOverlap(playerAtk, boss)) {
+    if (playerAtk && !boss.dead && rectsOverlap(playerAtk, boss) && !player.hitTargetsThisSwing.has(boss)) {
+      player.hitTargetsThisSwing.add(boss);
       const dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
       boss.takeDamage(dmg, player.x, 'melee');
       spawnParticles(boss.x + boss.width / 2, boss.y + boss.height / 2, '#f87171', player.heavy ? 12 : 6);
@@ -1870,6 +1952,82 @@ function update() {
       victoryTimer = 180;
       gameState = 'victory';
       SFX.bossDeath();
+    }
+  }
+
+  // === MINIBOSS UPDATE (Colossus Core, etc.) ===
+  // NOTE: gate on `miniboss` alone, NOT `miniboss && !miniboss.dead` — the
+  // King's equivalent block uses that pattern and it has a real bug: once
+  // `dead` flips true, the outer `!boss.dead` check fails on every
+  // subsequent frame, so `boss.update()` (which increments `deathTimer`)
+  // never runs again and `deathTimer === 1` can never become true — the
+  // victory trigger is dead code. Confirmed live (deathTimer stays stuck at
+  // 0 forever once dead). Not fixing boss.js's copy here since it's a
+  // separate, bigger change to the King's win-condition flow outside this
+  // task's scope — flagging it in the summary instead. My own code below
+  // must not repeat it, so `miniboss.update()` always runs, and only the
+  // damage-dealing collision checks are individually gated on `!miniboss.dead`.
+  if (miniboss) {
+    miniboss.update(player, bounds, echoes);
+
+    // Player attack hits miniboss — pass `player.heavy` through as a 4th
+    // arg so ColossusCore.takeDamage() can enforce "only heavy attacks
+    // connect" (other enemy types simply ignore the extra argument).
+    const playerAtk = player.getAttackHitbox();
+    if (playerAtk && !miniboss.dead && rectsOverlap(playerAtk, miniboss) && !player.hitTargetsThisSwing.has(miniboss)) {
+      player.hitTargetsThisSwing.add(miniboss);
+      const dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
+      miniboss.takeDamage(dmg, player.x, 'melee', player.heavy);
+      if (player.heavy) {
+        spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#fb923c', 10);
+        player.gainFracture();
+        screenShake = 10; screenShakeIntensity = 5;
+        hitstopTimer = 8;
+      } else {
+        spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#d97757', 4);
+      }
+    }
+
+    // Miniboss attack hits player
+    const mbAtk = !miniboss.dead ? miniboss.getAttackHitbox() : null;
+    if (mbAtk && rectsOverlap(mbAtk, player)) {
+      if (player.parrying) {
+        miniboss.stunTimer = PARRY_STUN;
+        miniboss.flashTimer = 10;
+        player.parrying = false;
+        player.parryTimer = 0;
+        player.invincibleTimer = PARRY_IFRAMES;
+        player.gainFracture();
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
+        screenShake = 4; screenShakeIntensity = 2;
+        hitstopTimer = 5;
+        SFX.parry();
+      } else {
+        player.takeDamage(COLOSSUS_DAMAGE);
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#d97757', 4);
+        SFX.playerHurt();
+      }
+    }
+
+    // Miniboss body contact with player (its charge attack is the real threat, but guard against a plain collide too)
+    if (!miniboss.dead && rectsOverlap(player, miniboss) && player.invincibleTimer <= 0 && !player.phaseDashing) {
+      player.takeDamage(1);
+      spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#d97757', 4);
+      SFX.playerHurt();
+    }
+
+    // Miniboss death — no victory cinematic, just persist the defeat and heal the player
+    if (miniboss.dead && miniboss.deathTimer === 1) {
+      defeatedMinibosses[area.miniboss] = true;
+      screenShake = 40;
+      screenShakeIntensity = 5;
+      spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#fbbf24', 24);
+      spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#fb923c', 18);
+      player.health = MAX_HEALTH; // full heal on defeat — a permanent Max Health increase would need
+                                   // MAX_HEALTH to become mutable + HUD/save changes, out of scope here
+      addAbilityNotification('COLOSSUS CORE DEFEATED');
+      SFX.bossDeath();
+      saveGame();
     }
   }
 
@@ -1962,6 +2120,15 @@ function update() {
         abilityFlash = 16;
         abilityFlashColor = '#67e8f9';
         abilityPopups.push({ text: '★ STILLPOINT', x: ab.x, y: ab.y - 20, life: 120, color: '#67e8f9' });
+        SFX.abilityPickup();
+        saveGame();
+      } else if (ab.id === 'charged_attack' && !abilityState.hasChargedAttack) {
+        abilityState.hasChargedAttack = true;
+        addAbilityNotification('ABILITY: Charged Attack — Hold Z/J to charge a heavy strike!');
+        spawnParticles(ab.x, ab.y, '#fbbf24', 20);
+        abilityFlash = 12;
+        abilityFlashColor = '#fbbf24';
+        abilityPopups.push({ text: '★ CHARGED ATTACK', x: ab.x, y: ab.y - 20, life: 90, color: '#fbbf24' });
         SFX.abilityPickup();
         saveGame();
       }
@@ -2741,6 +2908,11 @@ function draw() {
     boss.draw(ctx);
     boss.drawTelegraphs(ctx);
     drawBossProjectiles(ctx, bossProjectiles);
+  }
+
+  // Miniboss
+  if (miniboss) {
+    miniboss.draw(ctx);
   }
 
    // ── Crystal Sentinel projectiles ──────────────────────────────────────

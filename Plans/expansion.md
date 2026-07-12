@@ -144,6 +144,39 @@ All tasks are grouped into logical phases for incremental development.
 
 ---
 
+### 3.13b REGION ATLAS — compass position, color, gating, and cross-links
+
+*Added after the Crag of the Colossus build session, in response to direct feedback that the planned world graph was a tree (one parent edge per region) rather than a web. The compass grid below is the same `col`/`row` coordinate space `area.js`'s `connections` arrays use — see the compass-graph section at the bottom of `area.js`. Rows increase southward, columns increase eastward, `(0,0)` = Threshold.*
+
+**Origin spine (built, row 0, col 0-8)** — unchanged, not repeated here; see `area.js` directly.
+
+**Crag of the Colossus (building now)** — col 1, rows -1 to -4 (a vertical branch directly north of The Fracture). Color: rust `#d97757`/`#c2703d`/`#fb923c` (warm stone, deliberately the odd one out against the rest of the palette's cool violet/teal, since it's not one of the 13 spacetime regions). Gated by `phase_dash` to enter; grants `charged_attack`. Cross-links: a one-way shortcut back to `the_fracture` (built), plus a locked stub door gated by `graviton_surge` toward Graviton Core (data exists, inert until that ability + region exist).
+
+**The three parallel clusters (planned, not built)** — these sit in adjacent columns at matching rows, which is what makes the cross-link lattice below possible:
+
+| Row | Void/Sky cluster (col 4) | Gravity cluster (col 5) | Magnetic cluster (col 6) |
+|---|---|---|---|
+| -1 | The Observatory — `#4f46e5` | Graviton Core — `#818cf8` | The Polar Shift — `#fb923c` |
+| -2 | The Void Expanse — `#4f46e5` | Event Horizon — `#818cf8` | Paradox Engine — `#fb923c` |
+| -3 | Warp Gate Nexus — `#4f46e5` | The Inverted Spire — `#818cf8` | Static Field — `#fb923c` |
+
+Each column's own north-south chain is the original tree edge (e.g. Forge→Observatory→Void Expanse→Warp Gate Nexus). The **cross-links** are new, added at each row between adjacent columns:
+
+| Cross-link | Requires | Why this one |
+|---|---|---|
+| Observatory ↔ Graviton Core (row -1) | `graviton_surge` one way / open the other | Both are gravity-adjacent themes (low-gravity vs. gravity-flip) — natural thematic pairing, and closes a loop back to the origin spine via two different spine rooms (Forge and Vault). |
+| Graviton Core ↔ The Polar Shift (row -1) | `shard_shot` | Lets a player who entered via Vault/Graviton reach the Magnetic cluster without backtracking through The Rift. |
+| Void Expanse ↔ Event Horizon (row -2) | `phase_dash` | Both are "hostile traversal physics" rooms (moving platforms / constant pull) — reinforces that these two clusters share a movement-challenge identity. |
+| Event Horizon ↔ Paradox Engine (row -2) | `graviton_surge` | Mid-tier loop, gated behind the ability found in the adjacent cluster — rewards having explored Gravity first. |
+| Warp Gate Nexus ↔ The Inverted Spire (row -3) | 3 Keystones (Warp Gate Nexus's existing gate) | Nexus is designed as a late hub already (3-4 challenge vaults) — a direct link to the top of the Gravity cluster fits its "converges everything" role. |
+| The Inverted Spire ↔ Static Field (row -3) | `graviton_surge` | Closes the top row into a full lattice — from here a player can reach any of the three clusters' deepest rooms without returning to row 0 at all. |
+
+**Time/Mirror cluster (planned, not built)** — col 5, rows 1-4, south of the Vault (the one cluster without a parallel neighbor, since it runs the opposite direction from the other three). Color: pink-violet `#f472b6`. To avoid this being the one true dead-end tree branch, it gets a single long shortcut instead of a lattice: **Echoing Abyss (5,4) → one-way `shortcut:true` connection back to Crystal Cavern (3,0)**, gated by `stillpoint` (already required to reach Echoing Abyss in the first place, so this is a free return trip, not an extra gate) — turns the deepest room in this cluster into a loop back to the *early* origin spine instead of forcing a full backtrack south-to-north through all 4 rooms again.
+
+**Final boss placement rule (unchanged, re-verified against this atlas)**: no region above — built or planned — connects directly into `antechamber` or `boss_arena`. The Fractured King stays the true end of the critical path regardless of how large the side-content web grows.
+
+---
+
 ### 3.14 Non-Linear Structure & Upgrade Placement (see also index.html Phase 6)
 
 The 13 regions above are a *list of themes*, not yet a non-linear world. Turning them into one requires two explicit rules, applied per region before any interior room layout is built:
