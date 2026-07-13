@@ -58,12 +58,20 @@
 // (that's not a bug/mixup — see the region list panel, which spells out
 // cluster membership in text so the shared color doesn't read as "same
 // region").
+// Repositioned 2026-07-13: Graviton Core/Inverted Spire (col 5) and
+// Observatory/Void Expanse/Warp Gate Nexus (col 4) used to sit exactly on
+// top of the Event Horizon and Chrono-Space Rift chains once those got
+// built in Phase 9 as real 4-room chains occupying those same cells —
+// nobody moved the placeholders afterward. Moved Gravity to col 7 and
+// Void/Sky to col 3 (both genuinely free columns — only antechamber/
+// crystal_cavern occupy row 0 there). Magnetic (col 6) and the Time/Mirror
+// south cluster (col 5, rows 2/4) were already clear and are unchanged.
 const PLANNED_REGIONS = [
-  { id: 'graviton_core',      label: 'Graviton Core',       col: 5, row: -1, color: '#818cf8', cluster: 'Gravity cluster (col 5)' },
-  { id: 'inverted_spire',     label: 'Inverted Spire',      col: 5, row: -3, color: '#818cf8', cluster: 'Gravity cluster (col 5)' },
-  { id: 'observatory',        label: 'The Observatory',     col: 4, row: -1, color: '#4f46e5', cluster: 'Void/Sky cluster (col 4)' },
-  { id: 'void_expanse',       label: 'The Void Expanse',    col: 4, row: -2, color: '#4f46e5', cluster: 'Void/Sky cluster (col 4)' },
-  { id: 'warp_gate_nexus',    label: 'Warp Gate Nexus',     col: 4, row: -3, color: '#4f46e5', cluster: 'Void/Sky cluster (col 4)' },
+  { id: 'graviton_core',      label: 'Graviton Core',       col: 7, row: -1, color: '#818cf8', cluster: 'Gravity cluster (col 7)' },
+  { id: 'inverted_spire',     label: 'Inverted Spire',      col: 7, row: -3, color: '#818cf8', cluster: 'Gravity cluster (col 7)' },
+  { id: 'observatory',        label: 'The Observatory',     col: 3, row: -1, color: '#4f46e5', cluster: 'Void/Sky cluster (col 3)' },
+  { id: 'void_expanse',       label: 'The Void Expanse',    col: 3, row: -2, color: '#4f46e5', cluster: 'Void/Sky cluster (col 3)' },
+  { id: 'warp_gate_nexus',    label: 'Warp Gate Nexus',     col: 3, row: -3, color: '#4f46e5', cluster: 'Void/Sky cluster (col 3)' },
   { id: 'polar_shift',        label: 'The Polar Shift',     col: 6, row: -1, color: '#fb923c', cluster: 'Magnetic cluster (col 6)' },
   { id: 'paradox_engine',     label: 'Paradox Engine',      col: 6, row: -2, color: '#fb923c', cluster: 'Magnetic cluster (col 6)' },
   { id: 'static_field',       label: 'Static Field',        col: 6, row: -3, color: '#fb923c', cluster: 'Magnetic cluster (col 6)' },
@@ -127,12 +135,12 @@ svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="#04040a"/>`;
 for (const { a, b } of builtEdges) {
   const A = byId[a], B = byId[b];
   if (!A || !B) continue;
-  svg += `<line x1="${cx(A)}" y1="${cy(A)}" x2="${cx(B)}" y2="${cy(B)}" stroke="#6a6a9e" stroke-width="2" opacity="0.6"/>`;
+  svg += `<line x1="${cx(A)}" y1="${cy(A)}" x2="${cx(B)}" y2="${cy(B)}" stroke="#9a9ad6" stroke-width="3" opacity="0.9"/>`;
 }
 for (const [a, b] of PLANNED_EDGES) {
   const A = byId[a], B = byId[b];
   if (!A || !B) continue;
-  svg += `<line x1="${cx(A)}" y1="${cy(A)}" x2="${cx(B)}" y2="${cy(B)}" stroke="#4a4a7e" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.55"/>`;
+  svg += `<line x1="${cx(A)}" y1="${cy(A)}" x2="${cx(B)}" y2="${cy(B)}" stroke="#8a8ad0" stroke-width="2.5" stroke-dasharray="7 5" opacity="0.85"/>`;
 }
 for (const [a, b] of CROSS_LINKS) {
   const A = byId[a], B = byId[b];

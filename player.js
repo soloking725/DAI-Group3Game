@@ -48,7 +48,7 @@ const PARRY_STUN = 30;      // frames the enemy is stunned (0.5s)
 const PARRY_IFRAMES = 20;   // player invincibility after successful parry
 
 // Stillpoint (time-slow)
-const FRACTURE_MAX = 3;
+const FRACTURE_ABS_MAX = 4; // absolute ceiling on fractureMax, reached by finding all Fracture Pips
 const FRACTURE_DRAIN_RATE = 60; // frames per pip drained while active
 
 class Player {
@@ -95,7 +95,8 @@ class Player {
     this.duckHeight = 16;
 
     // Stillpoint / Fracture meter
-    this.fractureMeter = 0;        // 0-3 pips
+    this.fractureMeter = 0;        // current pips, 0-fractureMax
+    this.fractureMax = 0;          // cap on fractureMeter; starts at 0 (unusable) until Fracture Pips are found, up to FRACTURE_ABS_MAX
     this.fractureDrain = 0;        // sub-pip drain counter
     this.stillpointActive = false;
 
@@ -122,10 +123,15 @@ class Player {
 
   // Called by game.js when a melee hit lands
   gainFracture() {
-    if (this.fractureMeter < FRACTURE_MAX) {
+    if (this.fractureMeter < this.fractureMax) {
       this.fractureMeter++;
       if (typeof SFX !== 'undefined') SFX.fractureGain();
     }
+  }
+
+  // Called on Fracture Pip pickup — raises the cap, never the current value
+  gainFractureMax() {
+    this.fractureMax = Math.min(FRACTURE_ABS_MAX, this.fractureMax + 1);
   }
 
   update(bounds, platforms) {
@@ -433,6 +439,10 @@ class Player {
       for (const plat of platforms) {
         if (plat.destructible && plat.hp <= 0) continue;
         // Skip top-landing for platforms flagged as walls (e.g. boss arena side walls).
+        // `ceiling` platforms (cave-top boundary pieces) get FULL normal collision
+        // here — identical to any other platform — the flag only exempts them from
+        // the room linter's reachability check (see area.js's _linterStandable()),
+        // since a room's top boundary isn't a real route the linter needs to verify.
         // Also use prevBottom (position before velocity applied) so a player running
         // into a tall wall never gets snapped to its top surface.
         const prevBottom = (this.y + this.height) - this.vy;
@@ -583,7 +593,7 @@ class Player {
 
     // ── Stillpoint glow on player body ────────────────────────────────────
     if (this.stillpointActive) {
-      const pipFrac = this.fractureMeter / FRACTURE_MAX;
+      const pipFrac = this.fractureMax > 0 ? this.fractureMeter / this.fractureMax : 0;
       const pulse = Math.sin(typeof frameCount !== 'undefined' ? frameCount * 0.15 : 0) * 0.2 + 0.8;
       // Outer halo
       ctx.fillStyle = `rgba(103, 232, 249, ${0.12 * pulse})`;

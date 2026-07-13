@@ -140,17 +140,177 @@ PHASE 1 — Movement & Combat Overhaul
       starts in player.js; refund applied in game.js's enemy hit loop right
       after gainFracture/hitstop). Rewards aggressive play without making
       dash spam free — a whiffed swing refunds nothing.
-[ ] 1.9 Future Player Upgrades
+[~] 1.9 Future Player Upgrades — core plumbing built (2026-07-12), placeholder
+      lore-pip visual effect only; real per-fragment content waits on 1.10.
     - Players will explore for more upgrades rather than be given everything at the start. 
       Everything must be collected, so the player needs an inventory. Fracture pips, 
       weapon upgrades, ability upgrades, etc. Lore bits will be remade. Instead of being text,
       lore bits will have a visual effect that stops the game, like a small shot of a city crumbling
       down, or the King walking away, and then it will be in inventory until you get enough for 
       an upgrade for like strength or something. You start with zero fracture pips and you find up to four.
-[ ] 1.10 Lore Buildout
+    - **Resolved a naming collision found while planning**: the codebase already
+      had a `fractureMeter` (0-3, combat resource filling on hits, draining on
+      Stillpoint use) separate from story.md's "Fracture Pip" economy
+      (collectible currency spent on Stillpoint/Graviton Surge/Void Tether).
+      Per the user, these are the same resource, unified: `fractureMeter`'s
+      cap (`player.fractureMax`, new field in player.js, replacing the old
+      hardcoded `FRACTURE_MAX` const now renamed `FRACTURE_ABS_MAX = 4`)
+      starts at **0** — Stillpoint is unusable until the player finds
+      Fracture Pip pickups in the world, each raising the cap by 1 up to 4.
+      The current value still fills via combat exactly as before
+      (`gainFracture()`); only the cap changed. Removed the old "Stillpoint
+      pickup grants 1 free pip" line in game.js — that's no longer
+      compatible with starting at cap 0.
+    - New `area.fracturePipRewards[]` (mirrors `abilityReward`'s shape) —
+      2 placed as proof of concept (`the_fracture`'s low shelf,
+      `the_vault`'s altar), reachability-checked by `validateRoomLayout()`
+      the same way lore fragments are. Pickup raises `player.fractureMax`,
+      shows a notification + particle burst, autosaves — same pattern as
+      ability pickups.
+    - Lore fragments got a second, independent pickup path (the old
+      `LORE_ENABLED`-gated text-popup code stays dead/intact per CLAUDE.md,
+      not flipped): touching a lore fragment now always marks it collected,
+      plays a placeholder full-screen amber vignette pulse
+      (`lorePipEffect`, non-blocking — player keeps moving, per the "room
+      for both" cutscene-vs-overlay decision, this placeholder leans
+      overlay-style since no real content exists yet), and banks toward
+      `statUpgrades`. Real per-fragment cutscene content (city crumbling,
+      the King walking away, etc.) is explicitly 1.10's job, not built here.
+    - New Inventory screen off the pause menu (reuses `pauseMenuIndex`'s
+      nav pattern as a new `gameState === 'inventory'`): shows Fracture
+      Pips found/max, lore pips found/banked, and one spendable upgrade
+      (Strength, +1 flat melee damage per level via `playerMeleeDamage()`,
+      costs 2 banked lore pips per level, capped at level 3) to prove the
+      collect-then-spend loop end to end. More upgrade types are a follow-up,
+      not scoped here.
+    - All new state (`player.fractureMax`, `fracturePipsFound`,
+      `statUpgrades`) persists through `saveGame()`/`loadGame()`/
+      `startNewGame()` alongside the existing `abilityState`/`collectedLore`
+      fields — verified live (see Verification below), not just read.
+    - Verified live via a headless JS harness in the browser (no human
+      playtest yet): fresh game starts at fractureMax 0/Stillpoint
+      unusable; walking onto a Fracture Pip raises the cap to 1 and doesn't
+      re-trigger on subsequent frames; Stillpoint activation is correctly
+      blocked at cap 0 and works once a pip is banked; walking onto a lore
+      fragment marks it collected, fires the placeholder vignette, and
+      banks 1 pip; the Inventory screen correctly blocks the Strength
+      upgrade at 1 banked pip ("Not enough Lore Pips") and succeeds at 2
+      pips, after which `playerMeleeDamage()` reflects the bonus (1 -> 2);
+      Escape from Inventory returns to the pause menu, not straight to
+      play; full save/load round-trip restores `fractureMax`,
+      `fractureMeter` (correctly clamped to the restored cap), 
+      `statUpgrades`, `fracturePipsFound`, and `collectedLore` exactly.
+      `validateAreaGraph()`/`validateAllRoomLayouts()` still pass clean
+      (27 rooms / 26 layouts) with both new Fracture Pip placements.
+    - **Ability upgrade shop — design only, not built (2026-07-13)**: per
+      the user, the Lore Pip shop shouldn't stop at Strength — every core
+      ability should have its own upgrade line, purchasable the same way
+      (banked Lore Pips, via the Inventory screen). Distinct from
+      expansion.md's miniboss rewards (those are one-time, guaranteed,
+      tied to a specific fight); this is a flexible economy the player
+      chooses how to spend, same pattern `tryUpgradeStrength()` already
+      proves out. Proposed lines (each independent, own level cap, costs
+      scale per level same as Strength's `2/4/6` shape):
+        - **Dash**: +1 max chain length (`DASH_CHAIN_MAX`, currently 3,
+          cap the upgrade at +2 so max chain never exceeds 5 — an
+          unlimited chain breaks the "chain resets on ground" tension),
+          OR a flat dash-speed increase per level — pick one axis, not
+          both, so the upgrade reads as one clear improvement.
+        - **Phase Dash**: currently horizontal-only — `usePhaseDash()` in
+          ability.js always dashes along `player.facing` (left/right), no
+          vertical component. Upgrade line unlocks angled aiming (reuse
+          Shard Shot's existing
+          hold-to-aim pattern from `SHARD_AIM_TILT_RATE`/aim visualization
+          in player.js — don't invent a second aiming scheme), tier 2
+          unlocks full omnidirectional (8-way or free-aim). This is the
+          one the user specifically named as an example.
+        - **Shard Shot**: damage per level, OR projectile speed per level,
+          OR (higher tier) pierce (passes through one extra enemy/wall
+          hit) — the user's other named example ("stronger shard shots").
+          Same one-axis-per-line rule as Dash above.
+        - **Parry**: window (`PARRY_WINDOW`, currently 10f) +2f per level,
+          capped low (this window is deliberately tight — see
+          `BUG_ANALYSIS_AND_QA_PLAN.md` if a note exists on parry
+          difficulty tuning before loosening it much).
+        - **Stillpoint**: duration per pip (`FRACTURE_DRAIN_RATE`,
+          currently 60f/pip drained) OR life-steal amount — note 4.6's
+          Temporal Warden miniboss reward is ALSO "Stillpoint upgrade
+          (life steal +1 per hit)" per expansion.md, so if both exist,
+          make sure they stack additively rather than one silently
+          overriding the other when both are implemented.
+        - **Charged Attack**: charge-time reduction per level
+          (`CHARGE_FULL`, currently 40f) — makes heavy attacks more
+          viable in normal combat, not just as a punish tool.
+        - **Strength** (built): unchanged, flat melee damage, see above.
+      Implementation shape (when this gets built): generalize
+      `statUpgrades = { strength: 0 }` to hold one key per line above,
+      each with its own `*_UPGRADE_COST`/`*_UPGRADE_MAX` consts and a
+      `tryUpgradeX()` function following `tryUpgradeStrength()`'s exact
+      pattern (game.js) — and extend the Inventory screen's draw code
+      (currently one hardcoded Strength row) to iterate a list of upgrade
+      defs instead of hand-drawing each one. Not started; flagged here so
+      the next session doesn't have to re-derive the shape.
+[~] 1.10 Lore Buildout — King rewritten as a villain + all 8 planned
+      minibosses' lore drafted (2026-07-12); not yet ported into `area.js`
+      or displayed in-game.
     - Build out the lore of each region, and the lore bits visual effect will be decided based on that. 
       I don't like the current lore, especially considering the role of the King, so we must reconsider 
       the lore first before making a decision.
+    - Brainstormed the King's role via a structured round of yes/no and
+      multiple-choice questions (per the user's request to be asked
+      "extensive" questions rather than pitched a single take). Locked
+      answers, now written into `Plans/lore.md`: **Conqueror** who
+      deliberately weaponized/fused every Stillpoint into one absolute
+      one (not an accident); **still actively hunting** the one anomaly he
+      can't perceive or control (the companion child from story.md);
+      **arrogant/taunting**, not a brooding tragic figure; **one sharp,
+      non-excusing detail** kept for depth (he genuinely believed total,
+      permanent control would end all future conflict — wrong, but a real
+      internal logic, not cardboard evil); most **regions' ruin is an
+      independent tragedy**, not his personal doing (one explicit
+      exception: Graviton Core's Fractured King's Guard, literally one of
+      his own). This directly completes story.md's existing mechanic
+      rather than requiring any change to it — "the only being the King
+      cannot see... unless you teach her to fight" (story.md §2) is now
+      explicitly the mechanical reason Training the child (making her
+      fight, i.e. visible) is what puts her in his sights, per lore.md's
+      new "On the child" note.
+    - Full rewrite of `Plans/lore.md`'s "The Fracture" and "The King"
+      sections to match (framing changed from an accidental structural
+      failure to a deliberate weapon that misfired at world scale), plus a
+      brand-new "Minibosses & their regions" section covering all 8
+      expansion.md minibosses (Mirror King, Gravity Collapse Core,
+      Temporal Warden, Fractured King's Guard, Electromagnetic Golem,
+      Quantum Pursuer, The Assembler, Warden & Hollow) — each an
+      independent variation on the doc's existing "built to last, and
+      what happened when it couldn't" rule, none repeating the same shape.
+      Crag of the Colossus's existing lore needed no changes — it was
+      already an independent tragedy under the old version too.
+    - Assigned the 3 previously-unpinned minibosses to regions by
+      mechanical/thematic fit, confirmed with the user: Fractured King's
+      Guard → Graviton Core, Quantum Pursuer → Echoing Abyss (its shadow-
+      clone kit matches that region's own-echoes-as-platforms mechanic
+      almost exactly), Warden & Hollow → Warp Gate Nexus (a teleport hub
+      naturally wants a gatekeeper-duo trial). 5 of the 13 regions
+      (Timeline Crossroads, Static Field, The Observatory, The Void
+      Expanse, The Inverted Spire) intentionally have no assigned
+      miniboss — not every region needs one.
+    - NOT done, explicitly deferred (see lore.md's own "Notes for whoever
+      builds the display system"): none of `area.js`'s existing
+      `loreFragments[]` text (`lore_f1`, `lore_ur1-3`, `lore_tf1`,
+      `lore_tv1-2`, `lore_ac1-2`, `lore_eb1`, `lore_cc1`, `lore_tr1`) has
+      been edited yet to match the new King — lore.md proposes replacement
+      quotes for all of them, but porting those into the live game data is
+      a separate mechanical pass, not done here. None of the 8 miniboss
+      regions exist as real `AREAS` entries yet either (only Mirror Veil,
+      Event Horizon, Chrono-Space Rift are built — Phase 9), so their
+      lore has nowhere to live in-game yet.
+    - Lore-bit visual effects don't have to be one mode globally — room for
+      both a full cutscene-style pause (for major story beats) and
+      lore.md's original non-disruptive overlay sketch (for minor ones),
+      decided per-fragment once the above is actually wired into a room.
+    - `story.md`'s Fracture Pip table was stale (`fracturePips: 3, max 4`)
+      — already fixed to `0, max 4` alongside 1.9's ship (see 1.9 above).
 
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 2 — Enemies & Smarter AI
@@ -272,6 +432,22 @@ PHASE 4 — World Restructure: Non-Linear Map
         tutorial_complete gate — just needs new area layouts to use them)
 [ ] 4.4 Shortcuts & One-Way Doors
 [ ] 4.5 Fast Travel (Stillpoint Gates)
+      - Proposed node locations (2026-07-13, per the user): **The Vault**
+        (already the calm rest-stop on the spine, natural hub — see its
+        room note in the origin-spine section); each region's
+        **Sanctum/Core** room (Mirror Veil Sanctum, Chrono-Space Rift
+        Sanctum, Event Horizon Core, and future regions' equivalent deepest
+        room) — already the ability-reward checkpoint in each built
+        region, so it's a natural node without inventing a new location
+        type; and the opening **sealed starting room** from 6.7 below, once
+        discovered as the other end of the map's loop (thematically strong
+        — fast-traveling back to where it all started — and mechanically
+        useful late-game).
+      - Deliberately do NOT put a fast-travel node at the Antechamber <->
+        boss_arena Phase-Dash wall crossing described in 6.7 — that
+        crossing needs to stay a singular, un-mundane "aha" traversal
+        moment, not a menu option. Turning it into ordinary fast travel
+        would cheapen the loop reveal it exists to deliver.
 [ ] 4.6 Environmental Hazards (Traps)
 [ ] 4.7 Dynamic Lantern / Player Aura
 [ ] 4.8 Secret Shimmer (Breakable Walls)
@@ -446,6 +622,15 @@ PHASE 5 — Extra Depth & Polish
       - A basic "how to play"/controls reference screen, generated FROM the
         current keybinding state (so it's always accurate even after
         remapping), not a separate hardcoded image/text.
+[ ] 5.9 ASPIRATIONAL / FAR FUTURE, NOT SCOPED — Playable-King NG+2 arc
+      - Full design (pitch, why it's compelling, the 2 real narrative risks,
+        the scope risk) lives in `story.md` §9, not here — roadmap.md stays
+        the status/checklist doc, not the narrative-design doc. Summary:
+        a second New Game+ playing AS the King, then a third act fighting
+        the child grown up. Explicitly NOT scoped — close to a second
+        game's worth of work; do not start without reading story.md §9's
+        risk list first (King-sympathy tension, "why does she become a
+        threat" needing a real answer, not just a twist).
 
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 6 — Non-Linear World & Meaningful Exploration
@@ -508,6 +693,122 @@ path.
         only worth doing once the core non-linear structure above is solid
         and playtested, since sequence-breaking can trivialize pacing if the
         rest of the world isn't robust to it yet.
+[ ] 6.6 Connective-region rooms — the actual fix for "tree, not web"
+      - Direct instruction (2026-07-13): more CONNECTIVE regions specifically,
+        not just more regions. This is the same problem Phase 9 already named
+        (the 3 anchor regions are 3 parallel spokes, not a web) — 6.6 is the
+        concrete content fix, triaged from `Plans/considerations.md`.
+      - **Mirror Corridor removed 2026-07-13** per the user's instruction to
+        drop the "real execution risk" triage tier — it was filed there
+        because "swap lanes via portals" wasn't a finished design, only a
+        sentence. Flagging explicitly: this was the flagship idea directly
+        answering "more connective regions," and removing it leaves 6.6
+        without a concrete cross-link content plan — Puppet Strings below
+        is a dead-end optional region (Void-Tether-gated), not a cross-link,
+        so it doesn't fill the same role. If the connective-regions goal is
+        still live, this needs a replacement idea or Mirror Corridor's
+        return once it has an actual finished design, not just a concept.
+      - **Puppet Strings / Tether Region** (considerations.md, rated A) — a
+        vast vertical hook-to-hook shaft, locked behind choosing Void Tether
+        (story.md §4's 4th ability, itself still unbuilt). Gives Void Tether
+        a purpose beyond "grappling hook" (pull enemies, use them as rams on
+        crystal walls). Sequence this AFTER Void Tether itself is built —
+        it's a showcase room for an ability that doesn't exist in code yet.
+        **Location moved 2026-07-13**: branches directly off **Timeline
+        Crossroads**, not Warp Gate Nexus — Void Tether is granted at
+        Timeline Crossroads (via the Crystalline Warden, moved there per
+        the miniboss-conflict resolution, see `regions.md`), so its
+        showcase area belongs right where the ability is earned rather
+        than clear across the map at Warp Gate Nexus.
+      - See "Considerations.md triage" note below for the rest — the source
+        file (`Plans/considerations.md`) has been deleted per the user's
+        instruction now that every idea worth keeping has a home here.
+[ ] 6.7 The spatial loop reveal — opening cinematic + antechamber twist
+      - Approved 2026-07-13. Full narrative design (opening cinematic, the
+        Temporal-Warden-as-ally reveal, why the child must "die," how this
+        fits the existing 3-ending structure) lives in `story.md` §0/§7/§9
+        and `lore.md`'s King section — not duplicated here. The engineering
+        task this roadmap item actually tracks:
+          1. Compass-graph rework: the sealed starting room needs to sit at
+             the opposite vertical extreme from `boss_arena` (currently
+             both effectively on the same `row: 0` spine) for the loop to
+             read spatially, not just narratively. Re-run
+             `validateAreaGraph()`/`validateAllRoomLayouts()` after.
+          2. A scripted antechamber beat: a corridor wall between the
+             player and part of `boss_arena`, a camera zoom-out (one-time
+             scripted, not the general-purpose zoom room rejected
+             elsewhere this session), crossed via a Phase-Dash-gated
+             one-way transition into what turns out to be `boss_arena`
+             approached from its other side.
+      - Deliberately does NOT get a fast-travel node at this crossing (see
+        4.5) — it needs to stay a singular moment, not a menu option.
+
+### Considerations.md triage (2026-07-13)
+
+Full file read; per-idea call below so the brainstorm doc doesn't have to be
+re-read cold next session. Revised 2026-07-13 after direct pushback
+("do you really think all of it is worth adding? will they be good to
+play?") — the first pass gave uniform cost/impact ratings without being
+honest about which ideas are *proven* vs. which are unproven concepts that
+only sound good as a sentence. This revision separates those explicitly.
+
+**High confidence — proven patterns, low execution risk, just build them:**
+  - **Kill Reset Air-Dash** — landing a melee kill refreshes dash cooldown.
+    Trivial change, directly complements `movement_feel_plan.md`'s
+    dash-refill-on-landing lever (this is dash-refill-on-kill — same
+    philosophy, different trigger) and turns combat into aerial-combo flow
+    the way 1.8's existing Dash Refund on Hit already gestures at. This
+    exact pattern is proven across the genre (Dead Cells/Hollow Knight-
+    adjacent) — near-zero risk it comes out bad.
+  - **Self-Placed Map Markers** — essential, not just nice: 6.2's
+    "ability-gated backtracking" (visible-but-unreachable ledges) doesn't
+    actually work as a promise without a way to remember where those were.
+    This is the missing piece that makes 6.2 functional, not just a
+    standalone QoL nicety — sequence it alongside 6.2, not after.
+  - **Screen-Shatter Shortcuts** — cheap particle payoff on unlocking a
+    one-way shortcut (6.4), applies to shortcuts that already exist
+    (Crag Warden's, Mirror Veil's, Chrono-Rift's). Pure juice, can't
+    really come out bad.
+  - **Death as Erosion** — a small crack/flicker added to a room per
+    respawn. Costs one overlay sprite; sells the Fracture's "the world is
+    wearing thin" theme better than more lore fragments would. Low
+    impact-per-player-notice, but also low risk — a safe include.
+  - **King's Observatory** — reconsidered (2026-07-13), was wrongly filed
+    as "just a vista" in the first pass. It actually has real functional
+    teeth: "see the lights of every region you've discovered" is a direct
+    visual payoff for the ALREADY-prioritized map/exploration goal
+    (6.1-6.2, Self-Placed Map Markers) — every discovered region lighting
+    up in the distance is a passive reward for exploring, using systems
+    already being built, not a stand-alone extra. Accepted.
+  - **Hollow Core** — also reconsidered. Filed as a lookout room before;
+    better version is to place it as actual plot geography (where the
+    Stillpoints originated, or tied to the King's true prison) rather than
+    an optional side room — "the literal center of the world, pure
+    Stillpoint energy" earns a spot on the critical or near-critical path,
+    not just a detour. Accepted, but sequence its exact location/story tie
+    alongside 1.10's lore work, not as a bare decorative room.
+
+**Removed 2026-07-13, per the user** (dropped the "real execution risk"
+tier and Fractured Horizon entirely — not deferred, not built):
+  Echo's Wound, Mirror Corridor (see 6.6's note above on what this leaves
+  unresolved), Camera Zoom-Out Room, Hall of Absence, Companion's Memory,
+  Weight-Shift Halfway Twist, Colour-Keyed World, The Fractured Horizon.
+
+**Contingent — can't honestly assess until a dependency exists:**
+  - **Puppet Strings / Tether Region** — can't tell if it's fun
+    independent of Void Tether itself (story.md §4), which isn't built.
+    Sequence after Void Tether, not before.
+
+**Not pulled in — real redundancy risk:**
+  - **The Ashen Maelstrom** (downward wind, half-height jumps) — risks
+    feeling redundant next to Event Horizon's lateral gravity-pull; same
+    texture (a constant directional force to fight), different axis. Only
+    worth it if clearly differentiated from Event Horizon in practice.
+
+`Plans/considerations.md` itself has been deleted — every idea worth
+keeping now lives in 6.6/here, and re-deriving from a deleted brainstorm
+doc isn't possible, so this triage note is now the only record of what it
+contained.
 
 ─────────────────────────────────────────────────────────────────────────────
 EXPLICITLY OUT OF SCOPE (by user request)
@@ -1276,3 +1577,33 @@ this was the one place actual gameplay physics disagreed with the linter's
     on the groundY+100 fallback) — this phase only builds the capability.
     Building an actual deep/tall room to prove it out in real gameplay
     (not just the editor/Node-linter level) is still open.
+
+PHASE 14 — `ceiling: true` Platform Flag (2026-07-12)
+─────────────────────────────────────────────────────────────────────────────
+Follow-up to Phase 13, same session: cave-style rooms need a literal solid
+ceiling (blocks the player from jumping out of the cavern), but the only
+existing way to author one was a normal `platforms[]` entry — which the
+room linter correctly flagged as "unreachable," since nobody stands on top
+of a ceiling. Root issue: no schema distinction between "a real floor/ledge
+that must be reachable" and "a boundary surface that blocks movement but
+was never meant to be landed on."
+
+[x] Added `ceiling: true`. First pass gave it asymmetric collision (skip
+    landing, keep the head-bonk) — corrected same session per user
+    feedback: a ceiling should be IDENTICAL to a normal platform in
+    `player.js` (full collision, landable from either side), full stop.
+    `ceiling` is purely a linter-exemption flag, nothing else — it carries
+    no special-cased physics at all.
+[x] `area.js`'s `_linterStandable()` excludes `p.ceiling`, so ceiling
+    pieces are never checked for reachability — they were never a real
+    floor/ledge to begin with, that's the one and only thing the flag does.
+[x] `levelEditor.html`: `ceiling` checkbox next to the existing `wall`
+    checkbox in the platform properties panel, plus a distinct rust-colored
+    dashed style + `▽` icon on canvas so ceiling/wall pieces read
+    differently from real floors at a glance. Label corrected to "Normal
+    collision, exempt from reachability check."
+[x] Verified in-browser: a player dropped onto a `ceiling` platform lands
+    on it normally (grounded, standing) — same as any other platform.
+    Re-ran `validateAllRoomLayouts()`/`validateAreaGraph()` — still 27/0
+    graph errors, 26/0 layout failures (no existing room uses `ceiling`
+    yet, purely additive).

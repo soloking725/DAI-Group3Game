@@ -48,10 +48,23 @@ Other design docs, read as needed for their specific topic:
   economy described there; it's a design doc, not a status doc). Contains
   the newest planned ability, **Void Tether** (§4) — newer than
   expansion.md's Graviton Surge, itself still unbuilt.
-- `lore.md` — a real, substantive narrative doc (NOT empty — corrected
-  2026-07-12, this line was stale). Connective-tissue prose tying together
-  the `loreFragments[]` already in `area.js` into one story; not yet
-  surfaced in-game (`LORE_ENABLED = false`).
+- `lore.md` — a real, substantive narrative doc. Rewritten 2026-07-12: the
+  King is now a deliberate conqueror-villain (fused every Stillpoint into
+  one on purpose, still actively hunting the companion child from
+  story.md), not the earlier sympathetic/tragic framing — see roadmap.md
+  1.10 for the full brainstorm and lore.md's own "Revision history".
+  Also gained a full "Minibosses & their regions" section covering all 8
+  expansion.md minibosses. `area.js`'s existing `loreFragments[]` text
+  still reflects the OLD King and has NOT been ported to match yet — treat
+  lore.md as the current source of truth for characterization, not the
+  live in-game strings. Not yet surfaced in-game (`LORE_ENABLED = false`).
+- `movement_feel_plan.md` — proposal (not started) for pushing player
+  movement toward a faster, more fluid ("late Celeste") feel — dash-
+  refill-on-landing as the priority lever, camera look-ahead, and matching
+  enemy pacing. Flags that raising base speed constants requires a full
+  `validateAllRoomLayouts()` re-run since the linter simulates physics
+  against those exact constants — read this before touching
+  `MOVE_SPEED`/`DASH_SPEED`/dash-cooldown behavior.
 - `cave_design_plan.md` — "how to make rooms read as a cave, not a
   platform gauntlet" research notes; informed the Crag of the Colossus
   build. Largely superseded for new work by the Task 4 decoration system
@@ -62,10 +75,16 @@ Other design docs, read as needed for their specific topic:
   reachability/safety linter for rooms (static linter + headless bot
   walker). `debug_v1.html`'s R09–R11 checks are a lightweight down-payment
   on this, not the full tool.
-- `regions.md` — which of the 13 expansion.md regions exist (built or
-  planned), room counts, and each region's special effect/mechanic; also
-  holds a 25-physics-concept brainstorm for 5 *additional* regions beyond
-  the 13, kept strictly in a "not assigned anywhere yet" section.
+- `regions.md` — the single planning reference for world layout: which of
+  the 13 expansion.md regions exist (built or planned), cluster/col/row,
+  room counts, miniboss assignment, and each region's special effect.
+  Rebuilt 2026-07-13 to fold in the col/row/cluster data that used to only
+  live in `worldmap.html`'s `PLANNED_REGIONS` array (keep both in sync by
+  hand) and to drop the old 25-physics-concept brainstorm (nothing in it
+  was ever assigned to a region). Use alongside yEd (`export_graph.js`
+  exports the live world graph to yEd's GraphML format — the actual answer
+  to "is there a tool to plan the map spatially," no custom tool needed)
+  and `levelEditor.html` for individual room detail.
 - `session_priorities.md` — an ordered task docket for a specific work
   session (checkbox list, not a permanent design doc). Once fully consumed
   its "recommended order" reasoning should be folded into roadmap.md and

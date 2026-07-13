@@ -47,7 +47,11 @@ At any point, you can **leave her behind** by pressing `F`. She sits and waits.
 
 ## 4. THE 4TH ABILITY — VOID TETHER (The Sacrifice)
 
-**Miniboss**: *The Crystalline Warden* (Region 7 — The Polar Shift).
+**Miniboss**: *The Crystalline Warden* (Timeline Crossroads — moved here 2026-07-13
+from The Polar Shift to resolve a conflict with expansion.md's Electromagnetic Golem,
+which is the better mechanical fit for The Polar Shift's push/pull magnetism; the
+Warden's "freezes in terror, encases itself in crystal" imagery fits Timeline
+Crossroads' Past/Present frozen-vs-safe mechanic instead — see `Plans/regions.md`).
 
 - **If you bring the child**: The Warden freezes in terror, encases itself in crystal. You cannot fight it. The ability is lost forever.
 - **If you leave the child at the entrance**: You fight the Warden alone. Defeating it grants:
@@ -92,15 +96,84 @@ At any point, you can **leave her behind** by pressing `F`. She sits and waits.
 
 ---
 
+## 0. THE OPENING & THE LOOP REVEAL (added 2026-07-13)
+
+Wordless cold open, per the "felt and seen, not read" lore principle: the King nearly
+kills the player; an ally seals the player away **in time** (not just hidden — see
+lore.md's King section for why time-sealing specifically was necessary) to save them.
+This is the player's only memory at game start — the King, and their own fear. The player
+finds an outfit in the sealed room and climbs out into the tutorial area; the game then
+plays normally. **The ally is the Temporal Warden** (a miniboss met much later, in
+Chrono-Space Rift) — see lore.md for why his existing characterization already fits this
+role without needing new lore invented for it.
+
+Late-game payoff: in the Antechamber, a long corridor ends at a wall separating the
+player from part of the boss arena; crossing it (Phase Dash required) reveals that the
+boss arena IS the sealed starting room, reached from its opposite end — the whole map is
+a loop, not a line. This makes the premise below ("resurrected in a time loop") something
+the player *discovers spatially* rather than something only stated in this doc. See
+`Plans/roadmap.md` 6.7 for the engineering side of this (compass-graph rework, the
+Phase-Dash wall mechanic) — this section is the narrative side only.
+
 ## 7. THE THREE ENDINGS & POST-GAME UNLOCKS
+
+**Framing update (2026-07-13):** treat the King-fight → forced-choice-to-end-the-child →
+ally-intervenes → loop-back sequence (see §0 above) as the **default outcome** — what
+happens absent a deliberate Train or permanent-Abandon divergence. Collapse and True
+Anchor below are the two ways a player breaks *out* of that default loop, not three
+co-equal branches; Loop (ending 2) IS that default outcome, just given weight and a
+cinematic instead of being one option among equals. Same mechanism (the ally, the
+loop-back) resolves differently depending on which path the player took — "breaking the
+loop works the same way for the other endings," per the instruction that produced this
+framing.
+
+**Why the child must "die" — a real mechanism, not left as a shrug:** ties to the
+already-written Vault lore ("we kept one hidden here — for whoever came next") — the
+hidden Stillpoint isn't just an item, it's bonded to the child, or she IS it, given form.
+That's why the King can't perceive her (same reason his fused Stillpoints can't sense the
+one that got away), and why ending him for real — not just his body — requires that
+Stillpoint being spent, which looks like killing a child. This is the mechanism the
+ending should be written around, not an unmotivated twist.
 
 | Ending | Trigger | Cinematic (No Text) | Post-Game Unlock |
 | :--- | :--- | :--- | :--- |
 | **1. Collapse** | Left her permanently → Absorbed her at the Shell. | You kill the King. The fracture implodes. Screen fades white. Save file deleted. | **Nothing** (punishment). |
-| **2. Loop** | Protected her (never trained). Or Spared her at the Shell. | You push her to safety. You step into the fracture and dissolve. She wakes up in the Tutorial area. | **New Game+** (Play as the child — smaller model, 0 abilities, all dialogues treat you as the new Warden). |
+| **2. Loop** (the default outcome, see framing note above) | Protected her (never trained). Or Spared her at the Shell. | You push her to safety. You step into the fracture and dissolve. She wakes up in the Tutorial area. | **New Game+** (Play as the child — smaller model, 0 abilities, all dialogues treat you as the new Warden). See §9 for a far-future alternative take on this slot. |
 | **3. True Anchor** | Trained her (she fought). She saved you. | She takes the King's fatal blow. Her shards seal the fracture. You kneel alone in the empty arena. | **Boss Rush & Memory Refights** (Her ghost appears in The Vault — interact to refight any boss). |
 
 > **Radiant Mode** (1-hit death) unlocks after either Ending 2 or 3.
+
+---
+
+## 9. FAR-FUTURE, NOT SCOPED: Playable-King NG+2 + grown-child NG+3 (2026-07-13)
+
+Explicitly aspirational per the user — not a commitment, see `Plans/roadmap.md` 5.9 for
+the scope/risk breakdown (this is close to a second game's worth of work). The pitch: the
+Loop ending's postgame becomes, instead of/in addition to playing as the child, a second
+New Game+ playing AS the King — inhabiting his side of events, presumably discovering why
+he became this way — followed by a third act fighting the child, now grown up, as a new
+threat. Collapse and True Anchor keep their current postgame content unchanged.
+
+**Why it's compelling:** lore.md's whole thesis (something built to be permanent, and
+what happens when it can't stay that way) would go from being narrated to being
+literally *played* — the player becoming the next iteration of the exact pattern the
+King represents.
+
+**Two real risks to solve before writing any of this, not after:**
+1. Playing AS the King for an extended campaign pulls hard toward sympathizing with him
+   almost automatically — in tension with lore.md's deliberate "one sharp non-excusing
+   detail, not fully sympathetic" characterization. Needs its own design answer for
+   keeping his wrongness legible while playable.
+2. "The child, now grown, becomes the final threat" needs a real earned reason or it
+   reads as a cheap heel-turn. Candidate throughline: if the cycle isn't broken in the
+   King arc, she grows up carrying the Stillpoint-bond alone, unsupported, and becomes
+   what happens to anyone who holds something like that too long — the pattern, a third
+   time. Usable, but still a real writing task.
+
+**Small detail worth keeping regardless of this item's fate:** the King has some form of
+perception that senses hidden/anomalous things — "nowhere normal" isn't hidden from him.
+This is why the ally in §0 had to seal the player in time specifically, not just a secret
+room (a secret room isn't secret from him).
 
 ---
 
@@ -117,7 +190,7 @@ this is just a suggestion
     path: 'protect' | 'train' | 'left'
   },
   tetherUnlocked: false,
-  fracturePips: 3,      // max 4
+  fracturePips: 0,      // starts at 0 (unusable), cap grows to max 4 via found Fracture Pip pickups — see roadmap.md 1.9
   endings: {
     collapsed: false,
     looped: false,

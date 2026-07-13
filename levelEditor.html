@@ -308,10 +308,12 @@ function render(){
     const isSel=isSelObj(p);
     const cx=aC(p.x),cy=aC(p.y),cw=aC(p.w),ch=aC(p.h);
     if(p.destructible){ctx.fillStyle='rgba(45,212,191,0.15)';ctx.strokeStyle=isSel?'#fbbf24':'#2dd4bf';ctx.setLineDash([3,3]);}
+    else if(p.ceiling){ctx.fillStyle='rgba(217,119,87,0.18)';ctx.strokeStyle=isSel?'#fbbf24':'#d97757';ctx.setLineDash([2,2]);}
+    else if(p.wall){ctx.fillStyle='rgba(148,96,96,0.18)';ctx.strokeStyle=isSel?'#fbbf24':'#946060';ctx.setLineDash([]);}
     else{ctx.fillStyle='rgba(70,70,108,0.8)';ctx.strokeStyle=isSel?'#fbbf24':'#6a6a9e';ctx.setLineDash([]);}
     ctx.lineWidth=isSel?2:1;ctx.fillRect(cx,cy,cw,ch);ctx.strokeRect(cx,cy,cw,ch);ctx.setLineDash([]);
     ctx.fillStyle='rgba(140,140,180,0.5)';ctx.font='8px monospace';
-    if(cw>24)ctx.fillText(p.w+'×'+p.h,cx+2,cy+Math.min(ch/2+3,9));
+    if(cw>24)ctx.fillText((p.ceiling?'▽ ':p.wall?'▮ ':'')+p.w+'×'+p.h,cx+2,cy+Math.min(ch/2+3,9));
   }
 
   // Enemies
@@ -884,6 +886,7 @@ function updateSideProps(){
     <div class="row"><label>💥</label><input type="checkbox" id="p-dest" ${sel.destructible?'checked':''}><span style="color:#2dd4bf;font-size:10px"> Destructible</span></div>
     ${sel.destructible?pi('p-hp','hp',sel.hp||2,1):''}
     <div class="row"><label>wall</label><input type="checkbox" id="p-wall" ${sel.wall?'checked':''}><span style="color:#5a5a8e;font-size:10px"> No top-landing (side wall)</span></div>
+    <div class="row"><label>ceiling</label><input type="checkbox" id="p-ceiling" ${sel.ceiling?'checked':''}><span style="color:#5a5a8e;font-size:10px"> Normal collision, exempt from reachability check</span></div>
     ${layerButtons('plat')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='enemy'){
@@ -919,7 +922,7 @@ function updateSideProps(){
   el.innerHTML=h;
 
   // Wire inputs
-  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-wall p-to p-req p-oneway p-type p-id p-name p-txt p-desc'.split(' ').forEach(id=>{
+  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-wall p-ceiling p-to p-req p-oneway p-type p-id p-name p-txt p-desc'.split(' ').forEach(id=>{
     const e=document.getElementById(id);if(!e)return;
     e.addEventListener('input',applyProps);
     e.addEventListener('change',()=>{applyProps();pushHistory();});
@@ -936,6 +939,7 @@ function applyProps(){
     if(gi('p-w')!==null)sel.w=Math.max(4,gi('p-w'));if(gi('p-h')!==null)sel.h=Math.max(1,gi('p-h'));
     sel.destructible=gb('p-dest');if(sel.destructible)sel.hp=gi('p-hp')||2;else delete sel.hp;
     if(gb('p-wall'))sel.wall=true;else delete sel.wall;
+    if(gb('p-ceiling'))sel.ceiling=true;else delete sel.ceiling;
   }else if(selType==='enemy'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const t=gs('p-type');if(t)sel.type=t;

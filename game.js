@@ -142,8 +142,48 @@ const CONTROLS_HINT_FADE_END = 660;    // ~11s @ 60fps: hint fully gone
 // left intact; flip this back to true to bring pickups back while a more
 // environmental version is designed.
 const LORE_ENABLED = false;
-let collectedLore = {};
+let collectedLore = {};        // lore pip ids collected — drives the new visual-effect pickup flow (1.9), independent of LORE_ENABLED's old text-popup path
 let loreOverlay = null; // { text, timer, maxTimer }
+let lorePipEffect = null; // { timer, maxTimer } — placeholder screen effect on lore pip pickup, see drawLorePipEffect()
+
+// ── Fracture Pips / stat upgrades (roadmap 1.9) ──────────────────────────
+let fracturePipsFound = {};    // pip id -> true, world pickups that raise player.fractureMax
+let statUpgrades = { strength: 0 }; // spent-upgrade levels per INVENTORY_UPGRADES key, funded by banked lore pips
+let inventoryMessage = null; // { text, timer } — transient feedback line in the inventory screen
+let inventorySelection = 0;  // selected row in the Inventory screen's upgrade list
+
+// Data-driven upgrade list — the Inventory screen's draw/nav code iterates
+// this instead of hand-drawing each stat, so adding a new Lore-Pip-funded
+// upgrade line (see roadmap.md 1.9's "Ability upgrade shop" design) only
+// means adding an entry here, not touching the screen itself. Only
+// 'strength' has a real gameplay effect right now (playerMeleeDamage()
+// below) — the rest of the design (Dash/Phase Dash/Shard Shot/Parry/
+// Stillpoint/Charged Attack lines) is still a design doc, not built.
+const INVENTORY_UPGRADES = [
+  { key: 'strength', label: 'Strength', desc: 'Flat bonus melee damage per level.', color: '#c4b5fd', cost: 2, max: 3 },
+];
+
+function totalPipsSpent() {
+  let spent = 0;
+  for (const def of INVENTORY_UPGRADES) spent += (statUpgrades[def.key] || 0) * def.cost;
+  return spent;
+}
+
+// Lore pips collected but not yet spent on any upgrade.
+function lorePipsBanked() {
+  return Object.keys(collectedLore).length - totalPipsSpent();
+}
+
+// Spends a line's lore-pip cost for +1 level. Returns true on success.
+function tryUpgrade(key) {
+  const def = INVENTORY_UPGRADES.find(d => d.key === key);
+  if (!def) return false;
+  if ((statUpgrades[key] || 0) >= def.max) return false;
+  if (lorePipsBanked() < def.cost) return false;
+  statUpgrades[key] = (statUpgrades[key] || 0) + 1;
+  saveGame();
+  return true;
+}
 
 // ── Tutorial (Phase 0.2) ─────────────────────────────────────────────────
 let tutorialState = { moved: false, jumped: false, attacked: false, dashed: false };
@@ -379,6 +419,7 @@ class Projectile {
 // can never drift apart between them.
 function playerMeleeDamage() {
   let dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
+  dmg += statUpgrades.strength; // roadmap 1.9 — flat bonus per lore-pip-funded strength level
   if (player.stillpointActive && abilityState.hasStillpoint) dmg *= 1.5;
   return dmg;
 }
@@ -698,6 +739,29 @@ function drawLoreFragment(ctx, lf) {
   ctx.strokeStyle = 'rgba(253, 230, 138, 0.6)';
   ctx.lineWidth = 1;
   ctx.stroke();
+}
+
+// Draw a Fracture Pip pickup (violet diamond, echoes the HUD fracture-pip glyph)
+function drawFracturePip(ctx, fp) {
+  const pulse = Math.sin(frameCount * 0.07) * 0.3 + 0.7;
+  const x = fp.x, y = fp.y;
+
+  const glowSize = 30;
+  const gradient = ctx.createRadialGradient(x, y, 0, x, y, glowSize);
+  gradient.addColorStop(0, `rgba(196, 181, 253, ${pulse * 0.4})`);
+  gradient.addColorStop(1, 'rgba(196, 181, 253, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(x - glowSize, y - glowSize, glowSize * 2, glowSize * 2);
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.PI / 4 + Math.sin(frameCount * 0.03) * 0.15);
+  ctx.fillStyle = `rgba(196, 181, 253, ${pulse})`;
+  ctx.fillRect(-7, -7, 14, 14);
+  ctx.strokeStyle = 'rgba(233, 213, 255, 0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(-7, -7, 14, 14);
+  ctx.restore();
 }
 
 // --- Area-specific parallax backdrop (deep nebulae + silhouette shapes) ---
@@ -1185,6 +1249,7 @@ function saveSettings() {
 function buildPauseMenu() {
   pauseMenuItems = [
     { label: 'Resume', action: () => { /* just close the menu */ } },
+    { label: 'Inventory', action: () => { gameState = 'inventory'; } },
     { label: 'Return to Anchor', action: () => returnToAnchor(), disabled: !lastAnchor },
     { label: 'Restart Room', action: () => restartRoom() },
     { label: `Screen Shake: ${screenShakeEnabled ? 'ON' : 'OFF'}`, action: () => {
@@ -1246,7 +1311,10 @@ function saveGame(slot) {
         y: player.y,
         health: player.health,
         fractureMeter: player.fractureMeter,
+        fractureMax: player.fractureMax,
       },
+      fracturePipsFound,
+      statUpgrades,
       abilityState: {
         hasPhaseDash: abilityState.hasPhaseDash,
         hasShardShot: abilityState.hasShardShot,
@@ -1279,7 +1347,10 @@ function loadGame(slot) {
     currentAreaId = data.currentAreaId;
     player = new Player(data.player.x || 100, data.player.y || 0);
     player.health = typeof data.player.health === 'number' ? data.player.health : MAX_HEALTH;
-    player.fractureMeter = typeof data.player.fractureMeter === 'number' ? data.player.fractureMeter : 0;
+    player.fractureMax = typeof data.player.fractureMax === 'number' ? data.player.fractureMax : 0;
+    player.fractureMeter = typeof data.player.fractureMeter === 'number' ? Math.min(data.player.fractureMeter, player.fractureMax) : 0;
+    fracturePipsFound = data.fracturePipsFound || {};
+    statUpgrades = data.statUpgrades || { strength: 0 };
 
     abilityState.hasPhaseDash = !!(data.abilityState && data.abilityState.hasPhaseDash);
     abilityState.hasShardShot = !!(data.abilityState && data.abilityState.hasShardShot);
@@ -1376,6 +1447,8 @@ function startNewGame() {
   anchorActivated = {};
   lastAnchor = null;
   collectedLore = {};
+  fracturePipsFound = {};
+  statUpgrades = { strength: 0 };
   bossDefeated = false;
   abilityState.hasPhaseDash = false;
   abilityState.hasShardShot = false;
@@ -1681,6 +1754,37 @@ function update() {
         if (gameState === 'paused') {
           gameState = 'playing';
         }
+      }
+    }
+    clearJustPressed();
+    return;
+  }
+
+  // Inventory screen (roadmap 1.9) — sub-menu off pause. Navigate the
+  // upgrade list (data-driven, see INVENTORY_UPGRADES) and spend banked
+  // Lore Pips on the selected row; everything else is display-only.
+  if (gameState === 'inventory') {
+    if (inventoryMessage) {
+      inventoryMessage.timer--;
+      if (inventoryMessage.timer <= 0) inventoryMessage = null;
+    }
+    if (wasJustPressed('Escape')) {
+      gameState = 'paused';
+      SFX.uiSelect();
+    } else if (wasJustPressed('ArrowUp')) {
+      inventorySelection = (inventorySelection - 1 + INVENTORY_UPGRADES.length) % INVENTORY_UPGRADES.length;
+      SFX.uiSelect();
+    } else if (wasJustPressed('ArrowDown')) {
+      inventorySelection = (inventorySelection + 1) % INVENTORY_UPGRADES.length;
+      SFX.uiSelect();
+    } else if (wasJustPressed('Enter') || wasJustPressed('Space')) {
+      const def = INVENTORY_UPGRADES[inventorySelection];
+      if (tryUpgrade(def.key)) {
+        SFX.abilityPickup();
+        inventoryMessage = { text: `${def.label} upgraded!`, timer: 90 };
+      } else {
+        SFX.uiSelect();
+        inventoryMessage = { text: 'Not enough Lore Pips', timer: 90 };
       }
     }
     clearJustPressed();
@@ -2421,8 +2525,9 @@ function update() {
         saveGame();
       } else if (ab.id === 'stillpoint' && !abilityState.hasStillpoint) {
         abilityState.hasStillpoint = true;
-        player.fractureMeter = 1; // start with 1 pip so player can immediately try it
-        addAbilityNotification('STILLPOINT — Q to slow time. Recharge by hitting enemies.');
+        // No free pip: fractureMax starts at 0 (roadmap 1.9) — Stillpoint stays
+        // unusable until the player finds Fracture Pips to raise the cap.
+        addAbilityNotification('STILLPOINT — Q to slow time. Find Fracture Pips to power it.');
         spawnParticles(ab.x, ab.y, '#67e8f9', 28);
         abilityFlash = 16;
         abilityFlashColor = '#67e8f9';
@@ -2437,6 +2542,26 @@ function update() {
         abilityFlashColor = '#fbbf24';
         abilityPopups.push({ text: '★ CHARGED ATTACK', x: ab.x, y: ab.y - 20, life: 90, color: '#fbbf24' });
         SFX.abilityPickup();
+        saveGame();
+      }
+    }
+  }
+
+  // Check Fracture Pip pickups (roadmap 1.9 — raise player.fractureMax, up to FRACTURE_ABS_MAX)
+  if (area.fracturePipRewards) {
+    for (const fp of area.fracturePipRewards) {
+      if (fracturePipsFound[fp.id]) continue;
+      const dist = Math.abs((player.x + player.width / 2) - fp.x) +
+                   Math.abs((player.y + player.height / 2) - fp.y);
+      if (dist < 30) {
+        fracturePipsFound[fp.id] = true;
+        player.gainFractureMax();
+        SFX.abilityPickup();
+        spawnParticles(fp.x, fp.y, '#c4b5fd', 18);
+        abilityFlash = 10;
+        abilityFlashColor = '#c4b5fd';
+        abilityPopups.push({ text: `♦ FRACTURE PIP (${player.fractureMax}/4)`, x: fp.x, y: fp.y - 20, life: 90, color: '#c4b5fd' });
+        addAbilityNotification(`Fracture Pip found — max ${player.fractureMax}/4`);
         saveGame();
       }
     }
@@ -2457,10 +2582,39 @@ function update() {
     }
   }
 
+  // Lore pips (roadmap 1.9 — the new non-text pickup flow). Independent of
+  // LORE_ENABLED/loreOverlay above (the old text-popup path stays dead but
+  // intact per CLAUDE.md — not flipped here, this is a separate path).
+  // Placeholder visual effect (a brief screen-space burst) plays on pickup;
+  // swap in real per-fragment cutscenes once roadmap 1.10 decides content.
+  // Each pip also banks toward statUpgrades — see spendableLorePips()/
+  // tryUpgrade() below.
+  if (area.loreFragments) {
+    for (const lf of area.loreFragments) {
+      if (collectedLore[lf.id]) continue;
+      const dist = Math.abs((player.x + player.width / 2) - lf.x) +
+                   Math.abs((player.y + player.height / 2) - lf.y);
+      if (dist < 30) {
+        collectedLore[lf.id] = true;
+        SFX.lorePickup();
+        spawnParticles(lf.x, lf.y, '#fbbf24', 24);
+        lorePipEffect = { timer: 90, maxTimer: 90 };
+        addAbilityNotification('Lore Pip found — check Inventory to spend');
+        saveGame();
+      }
+    }
+  }
+
   // Update lore overlay timer
   if (loreOverlay) {
     loreOverlay.timer--;
     if (loreOverlay.timer <= 0) loreOverlay = null;
+  }
+
+  // Update lore pip placeholder effect timer
+  if (lorePipEffect) {
+    lorePipEffect.timer--;
+    if (lorePipEffect.timer <= 0) lorePipEffect = null;
   }
 
   // Update notifications
@@ -3171,8 +3325,17 @@ function draw() {
     drawAbilityReward(ctx, area.abilityReward);
   }
 
-  // Lore fragments (sparse environmental storytelling pickups)
-  if (LORE_ENABLED && area.loreFragments) {
+  // Fracture Pip pickups (roadmap 1.9)
+  if (area.fracturePipRewards) {
+    for (const fp of area.fracturePipRewards) {
+      if (!fracturePipsFound[fp.id]) drawFracturePip(ctx, fp);
+    }
+  }
+
+  // Lore pips (sparse environmental storytelling pickups — roadmap 1.9's
+  // non-text flow, always visible; independent of LORE_ENABLED's old
+  // text-popup path, see the pickup-check block above)
+  if (area.loreFragments) {
     for (const lf of area.loreFragments) {
       if (!collectedLore[lf.id]) drawLoreFragment(ctx, lf);
     }
@@ -3268,11 +3431,11 @@ function draw() {
   }
 
   // ── Fracture meter pips ───────────────────────────────────────────────────
-  if (abilityState.hasStillpoint) {
+  if (abilityState.hasStillpoint && player.fractureMax > 0) {
     ctx.font = '9px "Courier New", monospace';
     ctx.fillStyle = 'rgba(103, 232, 249, 0.45)';
     ctx.fillText('FRACTURE', 14, H - 58);
-    for (let i = 0; i < FRACTURE_MAX; i++) {
+    for (let i = 0; i < player.fractureMax; i++) {
       const px = 14 + i * 22;
       const py = H - 48;
       const filled = i < player.fractureMeter;
@@ -3415,6 +3578,168 @@ function draw() {
     ctx.textAlign = 'left';
   }
 
+  // ── Inventory screen (roadmap 1.9) ──────────────────────────────────────
+  if (gameState === 'inventory') {
+    // Dim + subtle vignette behind the panel (matches lorePipEffect's radial style)
+    ctx.fillStyle = 'rgba(10, 10, 15, 0.88)';
+    ctx.fillRect(0, 0, W, H);
+    const bgGlow = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, H * 0.7);
+    bgGlow.addColorStop(0, 'rgba(103, 232, 249, 0.05)');
+    bgGlow.addColorStop(1, 'rgba(103, 232, 249, 0)');
+    ctx.fillStyle = bgGlow;
+    ctx.fillRect(0, 0, W, H);
+
+    const panelW = 560;
+    const panelH = 380;
+    const px = W / 2 - panelW / 2;
+    const py = H / 2 - panelH / 2;
+
+    ctx.fillStyle = 'rgba(9, 9, 16, 0.95)';
+    ctx.fillRect(px, py, panelW, panelH);
+    ctx.strokeStyle = '#3a3a6e';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(px, py, panelW, panelH);
+    // Corner accents (small flourish, echoes the diamond pip motif used elsewhere)
+    ctx.strokeStyle = 'rgba(196, 181, 253, 0.5)';
+    ctx.lineWidth = 2;
+    for (const [cx, cy, dx, dy] of [[px, py, 1, 1], [px + panelW, py, -1, 1], [px, py + panelH, 1, -1], [px + panelW, py + panelH, -1, -1]]) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + dy * 16);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx + dx * 16, cy);
+      ctx.stroke();
+    }
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#e0d7ff';
+    ctx.font = 'bold 24px "Courier New", monospace';
+    ctx.fillText('INVENTORY', W / 2, py + 38);
+    ctx.strokeStyle = 'rgba(196, 181, 253, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px + 40, py + 52);
+    ctx.lineTo(px + panelW - 40, py + 52);
+    ctx.stroke();
+
+    // ── Left column: Fracture Pips + Lore Pips, as diamond glyphs (echoes drawFracturePip/HUD) ──
+    const colX = px + 34;
+    let iy = py + 90;
+
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 13px "Courier New", monospace';
+    ctx.fillStyle = '#67e8f9';
+    ctx.fillText('FRACTURE PIPS', colX, iy);
+    iy += 26;
+    for (let i = 0; i < 4; i++) {
+      const dx = colX + 10 + i * 26, dy = iy;
+      const filled = i < player.fractureMax;
+      ctx.save();
+      ctx.translate(dx, dy);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = filled ? '#67e8f9' : 'rgba(103, 232, 249, 0.08)';
+      ctx.fillRect(-8, -8, 16, 16);
+      ctx.strokeStyle = filled ? '#cffafe' : '#2a2a4e';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-8, -8, 16, 16);
+      ctx.restore();
+    }
+    iy += 44;
+
+    const totalLorePips = Object.keys(collectedLore).length;
+    const banked = Math.max(0, lorePipsBanked());
+    ctx.font = 'bold 13px "Courier New", monospace';
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillText('LORE PIPS', colX, iy);
+    iy += 22;
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillStyle = '#c9b98a';
+    ctx.fillText(`Found:  ${totalLorePips}`, colX, iy);
+    iy += 20;
+    ctx.fillStyle = banked > 0 ? '#fde68a' : '#8a8060';
+    ctx.fillText(`Banked: ${banked}`, colX, iy);
+    iy += 30;
+
+    // Small flavor line — keeps the panel from reading as a bare spreadsheet
+    ctx.font = 'italic 10px "Courier New", monospace';
+    ctx.fillStyle = '#5a5a7e';
+    wrapText(ctx, 'Lore Pips are spent below on lasting upgrades.', colX, iy, panelW / 2 - 50, 13);
+
+    // ── Right column: upgrade list (data-driven, INVENTORY_UPGRADES) ──
+    const listX = px + panelW / 2 + 10;
+    const listW = panelW / 2 - 44;
+    let ly = py + 90;
+    ctx.font = 'bold 13px "Courier New", monospace';
+    ctx.fillStyle = '#c4b5fd';
+    ctx.fillText('UPGRADES', listX, ly);
+    ly += 24;
+
+    for (let i = 0; i < INVENTORY_UPGRADES.length; i++) {
+      const def = INVENTORY_UPGRADES[i];
+      const level = statUpgrades[def.key] || 0;
+      const maxed = level >= def.max;
+      const canAfford = banked >= def.cost;
+      const selected = i === inventorySelection;
+      const rowH = 48;
+
+      if (selected) {
+        ctx.fillStyle = 'rgba(196, 181, 253, 0.14)';
+        ctx.fillRect(listX - 10, ly - 18, listW + 10, rowH);
+        ctx.strokeStyle = 'rgba(196, 181, 253, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(listX - 10, ly - 18, listW + 10, rowH);
+      }
+
+      ctx.textAlign = 'left';
+      ctx.font = '13px "Courier New", monospace';
+      ctx.fillStyle = maxed ? '#8a8aae' : (selected ? '#e0d7ff' : '#b0a8d0');
+      ctx.fillText(`${selected ? '▸ ' : '  '}${def.label}`, listX, ly);
+
+      // Level pips (small diamonds, one per max level)
+      const pipStartX = listX + 4;
+      const pipY = ly + 16;
+      for (let l = 0; l < def.max; l++) {
+        const ppx = pipStartX + l * 16;
+        ctx.save();
+        ctx.translate(ppx, pipY);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = l < level ? def.color : 'rgba(255,255,255,0.06)';
+        ctx.fillRect(-5, -5, 10, 10);
+        ctx.strokeStyle = l < level ? def.color : '#2a2a4e';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-5, -5, 10, 10);
+        ctx.restore();
+      }
+
+      ctx.font = '10px "Courier New", monospace';
+      ctx.fillStyle = maxed ? '#6a6a8e' : (canAfford ? '#8a8aae' : '#5a5a7e');
+      ctx.fillText(maxed ? 'MAXED' : `Cost: ${def.cost} pips`, pipStartX + def.max * 16 + 10, pipY + 4);
+
+      ly += rowH;
+    }
+
+    // Description of the currently selected upgrade
+    const activeDef = INVENTORY_UPGRADES[inventorySelection];
+    if (activeDef) {
+      ctx.font = 'italic 10px "Courier New", monospace';
+      ctx.fillStyle = '#7a7a9e';
+      wrapText(ctx, activeDef.desc, listX, ly + 8, listW, 13);
+    }
+
+    // Transient feedback
+    if (inventoryMessage) {
+      ctx.textAlign = 'center';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillStyle = 'rgba(224, 215, 255, 0.85)';
+      ctx.fillText(inventoryMessage.text, W / 2, py + panelH - 44);
+    }
+
+    ctx.font = '10px "Courier New", monospace';
+    ctx.fillStyle = '#4a4a6e';
+    ctx.textAlign = 'center';
+    ctx.fillText('↑↓ Select  ·  ENTER Upgrade  ·  ESC Back', W / 2, py + panelH - 16);
+    ctx.textAlign = 'left';
+  }
+
   // Victory screen
   if (gameState === 'victory') {
     const progress = 1 - Math.min(1, victoryTimer / 180);
@@ -3490,6 +3815,19 @@ function draw() {
     wrapText(ctx, loreOverlay.text, W / 2, H - 96, 420, 15);
     ctx.textAlign = 'left';
     ctx.globalAlpha = 1;
+  }
+
+  // Lore pip placeholder visual effect (roadmap 1.9) — non-disruptive,
+  // player keeps moving. A brief screen-edge amber vignette pulse; swap for
+  // real per-fragment cutscenes once roadmap 1.10 decides content.
+  if (lorePipEffect) {
+    const fadeIn = lorePipEffect.maxTimer - lorePipEffect.timer;
+    const alpha = (fadeIn < 15 ? fadeIn / 15 : Math.min(1, lorePipEffect.timer / 30)) * 0.35;
+    const grad = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.75);
+    grad.addColorStop(0, 'rgba(251, 191, 36, 0)');
+    grad.addColorStop(1, `rgba(251, 191, 36, ${alpha})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
   }
 
   // Full-screen map overlay

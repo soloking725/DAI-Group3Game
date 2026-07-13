@@ -108,6 +108,9 @@ const AREAS = {
       { id: 'lore_f1', x: 995, y: 150,
         text: '"We built the Stillpoints to anchor time itself. We never imagined what it would mean for one of them to break."' },
     ],
+    fracturePipRewards: [
+      { id: 'fp_fracture_1', x: 200, y: 295 },   // low shelf platform
+    ],
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -375,6 +378,9 @@ const AREAS = {
         text: '"Stillpoint: the moment between moments. He stole ours. We kept one hidden here — for whoever came next."' },
       { id: 'lore_tv2', x: 620, y: 265,
         text: '"Go. He is waiting. He has always been waiting. Since the fracture he cannot do anything else."' },
+    ],
+    fracturePipRewards: [
+      { id: 'fp_vault_1', x: 450, y: 176 },   // altar platform
     ],
   },
 
@@ -1549,9 +1555,13 @@ function _linterEdge(phys, a, b, loadout, blockers) {
 }
 
 // Standable platforms only — walls and destructible panels aren't floors the
-// route may rely on (destructibles can be gone; thin walls aren't routes).
+// route may rely on (destructibles can be gone; thin walls aren't routes),
+// and ceiling pieces (`ceiling: true` — a cave-top boundary that blocks
+// upward jumps but is never meant to be landed on, see player.js) aren't
+// real standable surfaces either, so they shouldn't be checked for
+// reachability the way an actual floor/ledge is.
 function _linterStandable(room) {
-  return (room.platforms || []).filter((p) => !p.wall && !p.destructible);
+  return (room.platforms || []).filter((p) => !p.wall && !p.destructible && !p.ceiling);
 }
 
 // The platform a body dropped at (cx, fromY) lands on, or null (= void).
@@ -1678,6 +1688,7 @@ function validateRoomLayout(room) {
   }
   for (const a of (room.anchors || [])) checkPoint(`anchor #${a.index}`, a.x, a.y, 0, 0);
   for (const l of (room.loreFragments || [])) checkPoint(`lore fragment '${l.id}'`, l.x, l.y, 0, 0);
+  for (const fp of (room.fracturePipRewards || [])) checkPoint(`fracture pip '${fp.id}'`, fp.x, fp.y, 0, 0);
   for (const e of (room.enemies || [])) checkPoint(`enemy '${e.type}'`, e.x, e.y, 28, 28);
 
   // ── 3. Door checks: embedded in geometry / floating out of reach ───────

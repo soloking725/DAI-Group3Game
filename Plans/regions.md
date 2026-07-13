@@ -1,89 +1,217 @@
-# Regions — existence, room counts, and effects
+# Regions — the single planning reference for world layout
 
-Scope of this doc: which regions exist (built or planned), roughly how many
-rooms each has/will have, and what each room's *special effect* (the
-physics/mechanic that makes it feel distinct) is meant to be. Deliberately
-NOT covered here: door topology, connections[], cross-links, ability
-gating — that's area.js's compass graph and expansion.md §3.13b/§3.14. This
-is a "what exists and what it feels like," not a "how it connects" doc.
+Scope: which of the 13 expansion.md regions exist (built or planned), their
+cluster/col/row position, room counts, each region's special mechanical
+effect, miniboss assignment, and — new 2026-07-13 — where every
+upgrade/collectible type is meant to be found. This is the doc to have open
+alongside a spatial diagramming tool (yEd via `export_graph.js`'s live
+GraphML export, or Whimsical if you'd rather build the graph by hand — see
+the tradeoff note in the earlier discussion) and **`levelEditor.html`**
+(individual room detail once a region is actually being built). Deliberately
+NOT duplicated here: door topology/`connections[]` (that's `area.js`'s
+compass graph) or narrative content (that's `story.md`/`lore.md`).
+
+Trimmed 2026-07-13: removed the 25-physics-concept future brainstorm (none
+of it was assigned to a real region) and folded in the col/row/cluster data
+that used to live only in `worldmap.html`'s `PLANNED_REGIONS` array, so this
+is now the one place to look, not two.
 
 ---
 
 ## Built (3 anchor regions — see roadmap.md Phase 9)
 
 All three are currently empty skeletons (flat floor + doors only) — no
-special effect is implemented yet. Task 4 (cave-aesthetic pass) gives them
-a first visual identity; none of them have their *mechanical* effect (the
+special effect is implemented yet. Task 4 (cave-aesthetic pass) gave them a
+first visual identity; none of them have their *mechanical* effect (the
 thing that makes traversal feel different, not just look different) built.
 
-| Region | Rooms | Planned mechanical effect (not yet built) |
-|---|---|---|
-| Mirror Veil | 4 (gate, reflection, hollow, sanctum) | Background is inverted; secret paths exist only in the reflected version of the room, not the "real" one — per expansion.md §3.2. |
-| Event Horizon | 4 (gate, pull, drift, core) | Constant gravitational pull toward one side of the room (leftward per §3.1) — platforming against a steady lateral force, not just gaps. |
-| Chrono-Space Rift | 4 (gate, loop, echo, sanctum) | Looping room — anything (player, projectile, enemy) that exits one side reappears on the other (wrap-around), per §3.6. |
+| Region | Rooms | Miniboss | Mechanical effect (not yet built) |
+|---|---|---|---|
+| Mirror Veil | 4 (gate, reflection, hollow, sanctum) | The Mirror King (4.2) | Background is inverted; secret paths exist only in the reflected version of the room, not the "real" one — per expansion.md §3.2. |
+| Event Horizon | 4 (gate, pull, drift, core) | Gravity Collapse Core (4.3) | Constant gravitational pull toward one side of the room (leftward per §3.1) — platforming against a steady lateral force, not just gaps. |
+| Chrono-Space Rift | 4 (gate, loop, echo, sanctum) | Temporal Warden (4.6) — also the opening cinematic's ally, see story.md §0 | Looping room — anything (player, projectile, enemy) that exits one side reappears on the other (wrap-around), per §3.6. |
 
 ---
 
 ## Planned (10 remaining of the 13 expansion.md regions)
 
-None of these exist as real `AREAS` entries yet — `worldmap.html` shows
-each as a single placeholder node. Room counts below are estimates (the
-task 2 convention of 4-7 rooms/region), not committed layouts.
+None of these exist as real `AREAS` entries yet — `worldmap.html` shows each
+as a single placeholder node (col/row below match its `PLANNED_REGIONS`
+array — keep both in sync by hand, or update `worldmap.html` when either
+changes). Room counts are estimates (4-7 rooms/region convention), not
+committed layouts. Miniboss assignments confirmed 2026-07-13.
 
-| Region | Cluster | Est. rooms | Special effect |
-|---|---|---|---|
-| Graviton Core | Gravity (col 5) | 4-6 | Levers that flip gravity for the room; grants Graviton Surge. |
-| The Inverted Spire | Gravity (col 5) | 4-6 | Gravity permanently inverted — "up" and "down" are swapped from the moment you enter. |
-| The Observatory | Void/Sky (col 4) | 4-6 | Low gravity — floaty jumps, long hang time, heavy verticality. |
-| The Void Expanse | Void/Sky (col 4) | 5-7 | No solid ground at all — every platform is a moving "time-stopped debris" chunk; timing, not positioning, is the whole puzzle. |
-| Warp Gate Nexus | Void/Sky (col 4) | 5-7 (hub + 3-4 vaults) | Teleporter hub — a central room branching into 3-4 small self-contained challenge vaults. |
-| The Polar Shift | Magnetic (col 6) | 4-6 | Blue walls push, red walls pull — traversal is bouncing between magnetic surfaces like a pinball, not jumping. |
-| Paradox Engine | Magnetic (col 6) | 5-7 | Chase zone — a giant machine actively hunts the player through a maze while normal enemies still need fighting. |
-| Static Field | Magnetic (col 6) | 4-6 | Electromagnetic arcs chain across the room; touching the floor zaps you upward (must stay airborne). Also corrupts the map overlay while inside (and briefly after) — a presentational glitch only, `discoveredAreas` is never actually altered. |
-| Timeline Crossroads | Time/Mirror (col 5, south) | 4-6 | Two overlapping time states, Past (crumbling) and Present (safe); enemies phase in/out, only vulnerable when "Present" (gold tint). |
-| Echoing Abyss | Time/Mirror (col 5, south) | 4-6 | Your own dashes/attacks leave lingering echoes (2s) that double as real platforms — you can jump on your own echo. |
+**Col/row repositioned 2026-07-13** — Gravity (was col 5) and Void/Sky (was
+col 4) used to sit exactly on top of the built Event Horizon and
+Chrono-Space Rift chains once those became real 4-room chains occupying
+those same cells in Phase 9; nobody moved the placeholders afterward. This
+is what caused the overlapping/unreadable `worldmap.html` the user
+reported. Moved Gravity to col 7 and Void/Sky to col 3 (both genuinely
+free columns). Magnetic (col 6) and Time/Mirror south (col 5, rows 2/4)
+were already clear and are unchanged. `worldmap.html`'s `PLANNED_REGIONS`
+updated to match — verified live, no more overlap.
+
+| Region | Cluster | Col, Row | Est. rooms | Miniboss | Special effect |
+|---|---|---|---|---|---|
+| Graviton Core | Gravity (col 7) | 7, -1 | 4-6 | Fractured King's Guard (4.1) — the one miniboss directly tied to the King himself | Levers that flip gravity for the room; grants Graviton Surge. |
+| The Inverted Spire | Gravity (col 7) | 7, -3 | 4-6 | — | Gravity permanently inverted — "up" and "down" are swapped from the moment you enter. |
+| The Observatory | Void/Sky (col 3) | 3, -1 | 4-6 | — | Low gravity — floaty jumps, long hang time, heavy verticality. Its capstone room IS "King's Observatory" — see Reward Placement below. |
+| The Void Expanse | Void/Sky (col 3) | 3, -2 | 5-7 | — | No solid ground at all — every platform is a moving "time-stopped debris" chunk; timing, not positioning, is the whole puzzle. |
+| Warp Gate Nexus | Void/Sky (col 3) | 3, -3 | 5-7 (hub + 3-4 vaults) | Warden & Hollow (4.8) | Teleporter hub — a central room branching into 3-4 small self-contained challenge vaults. |
+| The Polar Shift | Magnetic (col 6) | 6, -1 | 4-6 | Electromagnetic Golem (4.4) | Blue walls push, red walls pull — traversal is bouncing between magnetic surfaces like a pinball, not jumping. |
+| Paradox Engine | Magnetic (col 6) | 6, -2 | 5-7 | The Assembler (4.7) | Chase zone — a giant machine actively hunts the player through a maze while normal enemies still need fighting. |
+| Static Field | Magnetic (col 6) | 6, -3 | 4-6 | — | Electromagnetic arcs chain across the room; touching the floor zaps you upward (must stay airborne). Also corrupts the map overlay while inside (and briefly after) — a presentational glitch only, `discoveredAreas` is never actually altered. |
+| Timeline Crossroads | Time/Mirror (col 5, south) | 5, 2 | 4-6 | The Crystalline Warden (story.md §4, Void Tether fight) — moved here 2026-07-13, see resolution note below | Two overlapping time states, Past (crumbling) and Present (safe); enemies phase in/out, only vulnerable when "Present" (gold tint). Home of the Companion's Memory beat (roadmap 6.6) AND — moved here 2026-07-13 — Puppet Strings/Tether Region, branching directly off this region rather than Warp Gate Nexus, so the ability's showcase area sits right where it's earned instead of across the map. |
+| Echoing Abyss | Time/Mirror (col 5, south) | 5, 4 | 4-6 | Quantum Pursuer (4.5) — canonically catches up to and overtakes the player, the game's one deliberately-faster-than-you enemy | Your own dashes/attacks leave lingering echoes (2s) that double as real platforms — you can jump on your own echo. |
+
+4 regions carry no miniboss (Inverted Spire, Observatory, Void Expanse,
+Static Field) — intentional, not every region needs one; see roadmap.md's
+Phase 2/4 discussion if that changes.
+
+**Reconciliation resolved 2026-07-13**: expansion.md's miniboss table
+assigned Electromagnetic Golem to the Magnetic cluster (The Polar Shift),
+while story.md §4 separately placed the Crystalline Warden (Void Tether's
+gatekeeper) in "The Polar Shift" by name — a collision from two docs'
+independent numbering, not a deliberate double-fight. Resolved by moving
+the Crystalline Warden to **Timeline Crossroads**: Electromagnetic Golem is
+the better mechanical fit for Polar Shift's push/pull magnetism, and the
+Warden's "freezes in terror, encases itself in crystal" imagery fits
+Timeline Crossroads' Past (frozen)/Present (safe) mechanic better anyway —
+a net improvement, not just a fix. `story.md` §4 updated to match.
 
 ---
 
-## Future — 25 physics/paradox concepts for 5 more regions (brainstorm only)
+## Reward placement (added 2026-07-13)
 
-You asked to think beyond the 13 already planned. These are NOT assigned to
-any region, NOT added to `area.js`/`worldmap.html`/`expansion.md`, and
-carry no col/row, room count, or gating — pure raw material for picking 5
-new regions from. Grouped loosely by category so related ideas sit near
-each other; pick freely across groups.
+**Design principle**: every planned region's best reward should require an
+ability or tool found in a DIFFERENT region — per roadmap 6.2/6.3's existing
+"ability-gated backtracking" rule. Don't gate a region's own deepest secret
+on an ability granted earlier in that same region; that's not backtracking,
+that's just critical path. The table below proposes which other region's
+tool gates each one's Tier-3 secret — treat these as a starting proposal to
+adjust once rooms are actually being laid out in the level editor, not a
+final lock.
 
-### Fundamental forces
-1. **Strong Force** — extreme short-range attraction that flips to violent repulsion just past a threshold distance; platforms/enemies snap together then fling apart, teaching players to respect a very narrow "safe band."
-2. **Weak Force / Radioactive Decay** — platforms "decay" on an unpredictable per-platform timer (visibly ticking down, but the exact moment is randomized within a window), forcing players to commit before they're fully sure.
-3. **Electromagnetic Induction** — moving through a coil-shaped room/loop generates a charge that powers a door elsewhere; traversal *is* the power source, not a separate switch.
-4. **Casimir Effect** — two very close parallel walls pull the player toward the gap between them (vacuum pressure); a "squeeze" traversal challenge rather than a gap-to-cross.
+### Abilities — where each one is granted
 
-### Quantum phenomena
-5. **Quantum Superposition** — a platform is simultaneously in two positions until the player looks directly at it (camera/facing check), at which point it "collapses" to one — reward for looking away vs. straight-on.
-6. **Quantum Tunneling** — thin walls have a real (not scripted) chance to let a fast-enough dash pass through; encourages speed as its own traversal tool, distinct from Phase Dash's guaranteed pass.
-7. **Heisenberg Uncertainty** — the room can show you the player's true position OR true velocity/trajectory, never both at once (HUD/visual toggle tied to player speed) — a puzzle about acting on incomplete information.
-8. **Schrödinger's Door** — a door is simultaneously locked and open until the player commits to an approach vector; approaching from one side "decides" its state.
-9. **Entanglement** — two platforms/switches in different parts of the room (or even a different room) are paired; acting on one instantly mirrors on the other, including from off-screen.
+| Ability | Region | Status |
+|---|---|---|
+| Phase Dash | Mirror Veil Sanctum | Built (Phase 9) |
+| Shard Shot | Crystal Cavern (origin spine) | Built — kept here deliberately, its own wall puzzle needs the ability in-room, see roadmap.md Phase 9 |
+| Stillpoint | Chrono-Space Rift Sanctum | Built (Phase 9) |
+| Charged Attack | Crag Altar (Crag of the Colossus, side region) | Built (Phase 7) |
+| Graviton Surge | Graviton Core | Planned, region not built yet |
+| Void Tether | Timeline Crossroads (Crystalline Warden fight, conditional on leaving the child) — moved from The Polar Shift 2026-07-13 | Planned, region not built yet |
 
-### Thermodynamics & entropy
-10. **Entropy (2nd Law)** — a room that only ever becomes more disordered over time (platforms drift/scatter, never on their own reassemble) unless the player actively "resets" it via an anchor — a room that punishes hesitation structurally, not just with enemies.
-11. **Hawking Radiation** — near a black-hole feature, platforms slowly "evaporate" from the edges inward — a soft timer that's visual/gradual rather than a hard countdown.
-12. **Maxwell's Demon** — a sorting gate that only lets certain "kinds" of things through one way (e.g., only slow-moving vs. fast-moving projectiles/objects) — a filtering puzzle, not a binary lock.
-13. **Standing Waves / Resonance** — platforms only solidify when the player's movement rhythm matches a visible/audible pulse — traversal gated by timing-to-a-beat, not raw platforming skill.
+### Fracture Pips — 4 total (`FRACTURE_ABS_MAX`), 2 already placed
 
-### Relativity & motion
-14. **Time Dilation** — deep in a gravity well, the player's own actions play out in slow motion *from an outside observer's frame* — used for a puzzle where you have to predict how your slowed actions look to something outside the well.
-15. **Twin Paradox** — two parallel routes of equal physical distance where one visibly takes "longer" in relative time than the other, and only the slower route lets a timed hazard elsewhere resolve safely.
-16. **Length Contraction** — platforms visually compress or stretch based on the player's current dash speed — an illusion-based puzzle where the "safe" jump distance isn't what it looks like until you slow down.
-17. **Conservation of Momentum** — long frictionless (ice-like) stretches where the player keeps momentum instead of stopping on release — inertia management as the core challenge, not gaps.
-18. **Doppler Shift** — audio/visual cues (enemy telegraphs, hazard warnings) shift pitch/color based on relative velocity toward or away from the player — rewards using motion itself to "read" the room.
+| # | Location | Status | Gate (for backtracking) |
+|---|---|---|---|
+| 1 | The Fracture (origin spine, low shelf) | Built — see roadmap.md 1.9 | None — deliberately the easy, teach-the-mechanic first one |
+| 2 | The Vault (origin spine, altar) | Built — see roadmap.md 1.9 | None — same reasoning |
+| 3 | Graviton Core, a nook requiring Phase Dash | Planned | Phase Dash (from Mirror Veil) — cross-region gate |
+| 4 | Echoing Abyss, a nook requiring Charged Attack to break a wall | Planned | Charged Attack (from Crag) — cross-region gate, also rewards reaching the region with the long one-way shortcut back to Crystal Cavern (existing `CROSS_LINKS` entry) |
 
-### Paradoxes (logic, not physics, but same design texture as "Paradox Engine")
-19. **Zeno's Paradox** — a stretch where each jump only closes half the remaining distance to the goal (diminishing returns) until the player finds the specific action that breaks the halving pattern (e.g., a dash that isn't subject to it).
-20. **Grandfather Paradox** — damaging or interacting with your own Echo (already a real mechanic via Phase Dash) retroactively alters the room's present-state layout — ties directly into the game's existing Echo system rather than inventing a new one.
-21. **Bootstrap Paradox** — a loop room whose exit is also its own entrance, with no discernible "first cause" — a traversal puzzle about finding the one point where the loop can be broken rather than followed.
-22. **Ship of Theseus** — platforms are replaced one at a time as the player crosses a long room, until none of the original platforms remain — tests whether the player notices, and rewards backtracking to check.
-23. **Ontological Paradox** — an item found at the region's end is required to enter the region in the first place (via a one-way loop back to the start with the item already "always having been there") — a structural loop unique to a Tier 3 secret, not the main path.
-24. **The Ship That Isn't There / Sorites Paradox** — a floor made of many small platform fragments that individually seem solid but collectively vanish past a threshold count remaining — a room that erodes by *quantity*, not by a timer.
-25. **Simulation/Nested Reality** — a room that is revealed to be a smaller copy of an earlier room (same layout, different scale/palette), raising the question of which one is "real" — reuses existing room geometry cheaply while feeling new.
+### Lore Pips — one per region, two regions get a second
+
+Applies to all 13 regions (the 3 built ones currently have `loreFragments`
+placed on the origin spine's OWN rooms, per Phase 7-9, but the 3 anchor
+REGIONS themselves — Mirror Veil, Event Horizon, Chrono-Space Rift — have
+none yet; add theirs per this rule too):
+
+| Region | Lore Pip count | Where |
+|---|---|---|
+| Mirror Veil | 1 | Sanctum (alongside the Phase Dash grant) |
+| Event Horizon | 1 | Core (deepest built room) |
+| Chrono-Space Rift | 1 | Sanctum (alongside the Stillpoint grant) |
+| Graviton Core | 1 | — |
+| The Inverted Spire | 1 | — |
+| **The Observatory** | **2** | One standard placement; the second IS the King's Observatory payoff itself (see below) — the region's narrative weight earns the extra |
+| The Void Expanse | 1 | — |
+| **Warp Gate Nexus** | **2** | Hub regions carry more narrative weight — earns the extra |
+| The Polar Shift | 1 | — |
+| Paradox Engine | 1 | — |
+| Static Field | 1 | — |
+| Timeline Crossroads | 1 | Placed near the Companion's Memory beat (roadmap 6.6) |
+| Echoing Abyss | 1 | — |
+
+Total: 15 Lore Pips across the 13 regions (11 x 1, 2 x 2), separate from the
+origin spine's own already-placed fragments and the Crag's 3.
+
+### Cosmetic upgrades — NOT one per region, kept rare and hidden
+
+Per the "nice to collect, not another economy" discussion — these are
+zero-mechanical-weight finds (dash-trail/echo color, a build epithet
+unlock), so they shouldn't be as common as Lore Pips or they stop feeling
+special. Proposed: **one per cluster** (Gravity, Void/Sky, Magnetic,
+Time/Mirror — 4 total), hidden in whichever single room within that
+cluster ends up hardest to reach, decided once that cluster is actually
+built, not pre-assigned to a specific region now.
+
+### King's Observatory & Hollow Core — placement
+
+- **King's Observatory** is not a new/14th region — it's the capstone room
+  of the already-planned **"The Observatory"** region (Void/Sky cluster);
+  the shared name isn't a coincidence, use it. Reach it deep in that
+  region's layout, ideally after a cross-region ability requirement (ties
+  into the map/exploration payoff already discussed).
+- **Hollow Core** — placed as plot geography near the endgame, not a side
+  region: a secret/optional room branching off **Antechamber** or
+  **Boss Arena**, consistent with the "center of the world, tied to the
+  King's true prison" framing from its earlier discussion. Exact door
+  placement to be decided alongside 6.7's spatial-loop rework, since both
+  touch the same rooms.
+
+### Fast travel nodes (mirrors roadmap.md 4.5 — kept in sync by hand)
+
+The Vault; each region's Sanctum/Core (Mirror Veil Sanctum, Chrono-Space
+Rift Sanctum, Event Horizon Core, and future regions' equivalent deepest
+room); the opening sealed starting room (6.7), once discovered. Deliberately
+NOT at the Antechamber/Boss Arena Phase-Dash wall crossing — that stays a
+one-time reveal, not a menu option.
+
+---
+
+## Connective content — honest accounting (revised 2026-07-13)
+
+Checked directly rather than assumed: for the specific "tree vs. web"
+problem among the 13 planned regions, **not much was actually added this
+session**, and what was removed was the one idea aimed squarely at it.
+
+- **Mirror Corridor** — the flagship idea for this exact problem (turning
+  the Mirror Veil Sanctum <-> Event Horizon Gate cross-link into a real
+  playable room). Removed per instruction along with the rest of the
+  "execution risk" triage tier. Nothing has replaced it yet.
+- **Puppet Strings / Tether Region** — real, but it's a dead-end optional
+  vault off Warp Gate Nexus (see that row above), not a cross-link between
+  two existing regions. Doesn't solve the same problem.
+- **The spatial loop reveal (roadmap 6.7)** — a genuinely big connective
+  addition, but it connects the origin spine's two ends (tutorial <-> boss
+  arena) to each other, not the 13 planned regions to one another.
+- **Fast travel nodes** (roadmap 4.5) — functional connectivity between
+  hubs, not new spatial/narrative web content.
+- **`CROSS_LINKS`** (`worldmap.html`) — pre-existing from Phase 9, not
+  added this session.
+
+**A concrete replacement worth considering, since the gap is real**:
+`echoing_abyss` <-> `crystal_cavern` already has a one-way shortcut back to
+the early spine (existing `CROSS_LINKS` entry). A cheaper, lower-risk
+version of Mirror Corridor's idea — real content at a cross-link, not just
+a bare door — could apply here instead: since Echoing Abyss's own mechanic
+is "your echoes become platforms," the shortcut back to Crystal Cavern
+could require leaving a deliberate echo *in* Crystal Cavern on the way in,
+then using it as a landing platform on the way back through — reusing an
+existing region's already-built geometry and the already-built echo system,
+no new room needed the way Mirror Corridor's two-lane portal room would
+have. Lower risk because it's an interaction with a room that already
+exists, not a new room with unproven portal-swap rules. Worth prototyping
+before committing, same caution as everything else in this file's rewards
+section.
+
+## Cross-links (the "tree vs. web" fix)
+
+Hand-maintained in `worldmap.html`'s `CROSS_LINKS` array (not duplicated
+here to avoid a second copy drifting out of sync) — see that file for the
+current list and expansion.md §3.13b for the reasoning behind each one.
+Apply the same cross-link pattern to any of the 10 planned regions above
+once they're actually built, per Phase 9's standing instruction.
