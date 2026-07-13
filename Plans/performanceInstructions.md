@@ -1,4 +1,8 @@
-# CLAUDE – GAME DEV PERMANENT INSTRUCTIONS
+# Performance & Engineering Discipline — Stillpoint
+
+Standing rules for every session working on this vanilla HTML5 Canvas/JS
+codebase (no engine, no build step — see `CLAUDE.md`). Treat as binding
+per `CLAUDE.md`'s "read these first" list.
 
 ## 0. CORE PRINCIPLE (READ FIRST)
 Before you write a single line of code, answer these 3 questions in your head:
@@ -9,12 +13,24 @@ Before you write a single line of code, answer these 3 questions in your head:
 ---
 
 ## 1. PERFORMANCE – LAG & FRAMERATE
-- **Profile before optimizing** – never guess. Use in-engine profiler (Unity/Unreal/Godot) or custom timers.
-- **Avoid per‑frame allocations** – cache references, use object pools, reuse collections.
-- **Update frequency** – move expensive logic to `FixedUpdate` (physics) or co‑routines / timers (e.g., run AI every 5 frames, not every frame).
-- **Batching** – check draw calls, use GPU instancing, combine meshes, reduce materials.
-- **Memory** – watch for memory leaks (unsubscribed events, lingering references). Suggest `WeakReference` or cleanup callbacks.
-- **If you spot O(n²) or O(n³) loops in hot paths** – immediately flag and propose a spatial hash / octree / grid.
+- **Profile before optimizing** – never guess. Use Chrome/Firefox DevTools'
+  Performance tab (see `BUG_ANALYSIS_AND_QA_PLAN.md` §4 for the exact steps)
+  or custom `performance.now()` timers.
+- **Avoid per‑frame allocations** – cache references, reuse arrays/objects
+  instead of allocating new ones inside `update()`/`draw()` every frame.
+- **Update frequency** – expensive logic that doesn't need to run every
+  frame (e.g. AI decisions, distant-enemy checks) should run every N frames
+  via a counter, not unconditionally in the main loop.
+- **Canvas draw calls** – batch similar draws where cheap to do so, avoid
+  redundant `save()`/`restore()`, avoid `getImageData`/`putImageData` in
+  hot paths.
+- **Memory** – watch for leaks (event listeners never removed, arrays that
+  only grow — e.g. `projectiles[]`/particle arrays must actually splice out
+  dead entries every frame).
+- **If you spot O(n²) or worse in a hot path** (e.g. every-enemy-vs-every-
+  projectile collision checks) – flag it and propose a cheaper structure
+  (spatial grid, early-exit distance check) before it becomes a real
+  bottleneck at higher enemy/particle counts.
 
 ---
 
@@ -31,43 +47,50 @@ Before you write a single line of code, answer these 3 questions in your head:
 
 ---
 
-## 3. KEEP THE “PLAN” UP‑TO‑DATE
-I maintain a `GAME_PLAN.md` in the root. Whenever you:
+## 3. KEEP `roadmap.md` UP‑TO‑DATE
+`Plans/roadmap.md` is this project's living dev-status doc (not a separate
+`GAME_PLAN.md` — this file used to reference that name; it doesn't exist in
+this repo). Whenever you:
 - Add a new system
 - Change a core mechanic
 - Deprecate an old feature
-- Restructure folders
+- Fix a non-trivial bug
 
-→ **Update `GAME_PLAN.md`** with:
-- What changed
-- Why it changed
-- Any new dependencies or entry points
-
-If `GAME_PLAN.md` doesn’t exist yet, create it with:
-- High‑level architecture (scenes, managers, data flow)
-- Current milestone / next goal
-- Known technical debt
+→ **Update `roadmap.md`** in the same style as its existing entries
+(checkbox + a short prose note — what changed, why, what's still open),
+not just a checkbox flip. See `CLAUDE.md`'s "read these first" section for
+how the doc set fits together.
 
 ---
 
 ## 4. DEBUG TOOLS – KEEP THEM WORKING & EXTEND
-- **Never break the debug overlay / console** – if your change touches input, rendering, or logging, test the debug tools manually.
-- **If you add a new system**, add a corresponding debug command or visualizer (e.g., `-show_ai_paths`, `-toggle_physics_debug`).
-- **If a debug tool becomes outdated**, either fix it or add a `// DEPRECATED` comment with the new replacement.
-
-**Level Editor** (if exists):
-- Any change to serialization, transforms, or prefab instantiation **must** be tested with the level editor.
-- If the level editor relies on a specific data format, do not change that format without providing a migration script or fallback.
+- **Never break the debug tools** – `debug_v1.html`/`debug_new.html`,
+  `levelEditor.html`, `enemy_test.html`, `enemy_editor.html`, `worldmap.html`
+  (full list and what each does in `CLAUDE.md`'s "Dev/debug tooling"
+  section). If your change touches input handling, area data shape, or adds
+  a new game state, run the relevant page manually and check the console.
+- **If you add a new system** (a new ability, enemy type, room field),
+  check whether an existing tool needs updating to know about it (e.g. a
+  new enemy type needs adding to `enemy_test.html`'s `CLASS_MAP` and
+  `levelEditor.html`'s palette — see `CLAUDE.md`'s note that the palette is
+  currently stale, a real gap).
+- **`levelEditor.html`**: exported room JSON must be pasted into `area.js`
+  by hand (not live-synced) — if you change the room data shape, the
+  editor's export needs to match or its output silently won't paste in
+  cleanly.
 
 ---
 
 ## 5. RESPONSIBILITY CHECKLIST (BEFORE SUBMITTING CODE)
-- [ ] Does this run at 60+ FPS on the target hardware? (If unsure, add a performance comment and suggest a stress test.)
-- [ ] Are there new allocations in `Update()`? If yes, cache them.
-- [ ] Is every new file placed in a logical, searchable location?
-- [ ] Did I update `GAME_PLAN.md`?
-- [ ] Did I test at least one debug command / editor function?
-- [ ] If I split a big file, did I verify no broken references?
+- [ ] Does this hold 60fps? (If unsure, note it and suggest a stress test —
+      see `BUG_ANALYSIS_AND_QA_PLAN.md` §4 for profiling steps.)
+- [ ] Are there new allocations inside `update()`/`draw()` every frame? If
+      yes, cache them.
+- [ ] Did I update `roadmap.md`?
+- [ ] Did I test at least one relevant debug tool (see §4)?
+- [ ] If I split a big file, did I verify `index.html`'s `<script>` load
+      order still resolves (see `CLAUDE.md`'s architecture map — order
+      matters, globals depend on earlier files)?
 
 ---
 

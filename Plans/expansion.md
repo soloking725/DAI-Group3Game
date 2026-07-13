@@ -290,10 +290,10 @@ Right now the game's structure is: many small single-screen rooms, each connecte
 
 ## WHAT THIS PLAN DOES NOT INCLUDE (BY DESIGN)
 
-- **Charms / badge system** (explicitly rejected by the user).  
-- **Geo / shop economy** as a main progression gate (kept minimal – optional merchant in Phase 5).  
-- **Procedural generation** – all rooms are hand‑crafted.  
-- **Multiplayer / online features**.
+See `CLAUDE.md`'s design-decisions section for the full, current list
+(charms/badges, a geo/shop economy as a main gate, procedural generation,
+multiplayer, lock-and-key gating) — kept in one place there to avoid this
+doc and `roadmap.md` drifting apart on it.
 
 ---
 

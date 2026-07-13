@@ -80,6 +80,7 @@ class Player {
     this.invincibleTimer = 0;
     this.flashTimer = 0;
     this.coyoteTimer = 0;
+    this.hitStunTimer = 0;   // frames of knockback after taking damage — suppresses directional input override, mirrors Enemy's hitStun
 
     this.phaseDashing = false;
     this.phaseDashTimer = 0;
@@ -177,7 +178,7 @@ class Player {
     }
 
     // ── Movement ───────────────────────────────────────────────────────────
-    if (!this.dashing && !this.phaseDashing) {
+    if (!this.dashing && !this.phaseDashing && this.hitStunTimer <= 0) {
       const speed = this.ducking ? DUCK_SPEED : MOVE_SPEED;
       if (isPressed('ArrowLeft') || isPressed('KeyA')) {
         this.vx = -speed;
@@ -221,6 +222,9 @@ class Player {
         this.invincibleTimer = Math.max(this.invincibleTimer, 8); // brief i-frames
         if (typeof SFX !== 'undefined') SFX.wallJump();
       }
+    } else if (this.hitStunTimer > 0) {
+      // Let knockback decay on its own instead of holding it or fighting stale input.
+      this.vx *= 0.92;
     }
 
     // ── Regular Dash ────────────────────────────────────────────────────────
@@ -482,12 +486,16 @@ class Player {
       this.wallJumpCoyote = WALL_JUMP_COYOTE;
     }
 
-    if (this.y + this.height > bounds.groundY) {
-      this.y = bounds.groundY - this.height;
-      this.vy = 0;
-      if (!this.grounded) { this.justLanded = true; this.justLandedTimer = 0; if (typeof SFX !== 'undefined') SFX.land(); }
-      this.grounded = true;
-    }
+    // `bounds.groundY` used to be an invisible, always-on floor here — caught
+    // the player at that y no matter what x they were at, even over a real
+    // gap with no platform underneath. That silently made every "pit" and
+    // `pitDeathY` unreachable in normal play (see roadmap.md Phase 12/13 —
+    // the room linter already modeled gaps as real gaps with no floor;
+    // this was the one place actual gameplay disagreed with that model).
+    // Standing now comes ONLY from real platforms in the loop above; falling
+    // past all of them is governed by `pitDeathY` in game.js (or nothing, if
+    // a room doesn't set one — matches the project's no-fall-death-by-
+    // default rule).
 
     if (this.justLanded) {
       this.justLandedTimer++;
@@ -498,6 +506,7 @@ class Player {
     if (this.x + this.width > bounds.right) this.x = bounds.right - this.width;
 
     if (this.invincibleTimer > 0) { this.invincibleTimer--; this.flashTimer++; }
+    if (this.hitStunTimer > 0) this.hitStunTimer--;
   }
 
   getAttackHitbox() {
@@ -531,7 +540,10 @@ class Player {
     };
   }
 
-  takeDamage(dmg) {
+  // `sourceX` (the hitting enemy's x) is optional — when given, applies a
+  // small knockback impulse + brief hitstun away from the source, mirroring
+  // the convention already used by Enemy.takeDamage(dmg, sourceX, ...).
+  takeDamage(dmg, sourceX) {
     if (this.invincibleTimer > 0) return;
     this.health -= dmg;
     this.invincibleTimer = INVINCIBLE_FRAMES;
@@ -539,6 +551,12 @@ class Player {
     if (this.stillpointActive) {
       this.stillpointActive = false;
       if (typeof SFX !== 'undefined') SFX.stillpointEnd();
+    }
+    if (sourceX !== undefined) {
+      const dir = (this.x + this.width / 2 > sourceX) ? 1 : -1;
+      this.vx = dir * 4;
+      this.vy = -3;
+      this.hitStunTimer = 10;
     }
   }
 

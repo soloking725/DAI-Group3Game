@@ -9,9 +9,10 @@ body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-s
 
 /* TOP BAR */
 #bar{display:flex;gap:6px;align-items:center;padding:6px 10px;background:#0e0e1e;border-bottom:1px solid #1e1e3e;flex-shrink:0;flex-wrap:wrap}
-#bar select,#bar button{background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:3px 7px;cursor:pointer}
+#bar select,#bar button,#bar input{background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:3px 7px;cursor:pointer}
 #bar button:hover{background:#1e1e3e;border-color:#6a6a9e}
 #bar button.on{background:#2a2a50;border-color:#a78bfa;color:#e0d7ff}
+#bar button:disabled{opacity:0.35;cursor:default}
 #bar label{color:#5a5a8e;font-size:10px}
 #coord{color:#3e3e6e;font-size:10px;margin-left:auto;min-width:90px;text-align:right}
 .sep{width:1px;height:18px;background:#1e1e3e;flex-shrink:0}
@@ -19,28 +20,45 @@ body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-s
 /* LAYOUT */
 #main{display:flex;flex:1;overflow:hidden}
 #wrap{flex:1;overflow:auto;position:relative;background:#04040a;cursor:crosshair}
+#wrap.panning{cursor:grabbing}
+#wrap.space-held{cursor:grab}
 canvas{display:block}
 
 /* SIDEBAR */
-#side{width:230px;background:#0a0a18;border-left:1px solid #1e1e3e;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+#side{width:250px;background:#0a0a18;border-left:1px solid #1e1e3e;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
 #side h3{font-size:10px;color:#5a5a8e;padding:8px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1a1a2e}
 #props{flex:1;overflow-y:auto;padding:8px}
 .row{display:flex;align-items:center;gap:4px;margin-bottom:4px}
-.row label{color:#5a5a8e;font-size:10px;width:28px;flex-shrink:0}
-.row input,.row select,.row textarea{flex:1;background:#06060e;border:1px solid #1e1e3e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:2px 4px}
+.row label{color:#5a5a8e;font-size:10px;width:50px;flex-shrink:0}
+.row input,.row select,.row textarea{flex:1;background:#06060e;border:1px solid #1e1e3e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:2px 4px;min-width:0}
 .row input[type=checkbox]{width:auto;flex:none;cursor:pointer}
 .row textarea{height:52px;resize:none;font-size:10px}
-.row button{flex:1;padding:3px;cursor:pointer;font-family:monospace;font-size:10px}
+.row button{flex:1;padding:3px;cursor:pointer;font-family:monospace;font-size:10px;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd}
+.row button:hover{background:#1e1e48}
 .del{background:#200e0e;border:1px solid #7f1d1d;color:#f87171}
 .del:hover{background:#3a1a1a}
 .hint{color:#3a3a5e;font-size:10px;padding:6px;line-height:1.5}
 .section-title{color:#4a4a7e;font-size:9px;text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px;border-bottom:1px solid #1a1a2e;padding-bottom:2px}
 
+/* SEARCH */
+#search-wrap{padding:8px;border-bottom:1px solid #1a1a2e}
+#search-wrap input{width:100%;background:#06060e;border:1px solid #1e1e3e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:3px 5px}
+#search-results{max-height:120px;overflow-y:auto;margin-top:4px}
+.sr-item{padding:3px 5px;font-size:10px;color:#8a8ac0;cursor:pointer;border-bottom:1px solid #14142a}
+.sr-item:hover{background:#161632;color:#e0d7ff}
+
 /* EXPORT */
 #exp{border-top:1px solid #1e1e3e;padding:8px}
-#exp-btn{width:100%;padding:5px;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;cursor:pointer;font-family:monospace;font-size:11px;margin-bottom:5px}
-#exp-btn:hover{background:#1e1e48}
-#exp-out{width:100%;height:72px;background:#04040a;border:1px solid #1e1e3e;color:#67e8f9;font-size:9px;resize:none;font-family:monospace}
+#exp-btn,#check-btn{width:100%;padding:5px;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;cursor:pointer;font-family:monospace;font-size:11px;margin-bottom:5px}
+#exp-btn:hover,#check-btn:hover{background:#1e1e48}
+#exp-out{width:100%;height:72px;background:#04040a;border:1px solid #1e1e3e;color:#67e8f9;font-size:9px;resize:none;font-family:monospace;margin-bottom:5px}
+#check-out{width:100%;max-height:110px;overflow-y:auto;background:#04040a;border:1px solid #1e1e3e;color:#8a8ac0;font-size:9px;padding:4px;line-height:1.5}
+#check-out .ok{color:#34d399}
+#check-out .bad{color:#f87171;cursor:pointer}
+#check-out .bad:hover{color:#fca5a5;text-decoration:underline}
+#diff-out,#validate-out{width:100%;max-height:110px;overflow-y:auto;background:#04040a;border:1px solid #1e1e3e;color:#8a8ac0;font-size:9px;padding:4px;line-height:1.5;margin-bottom:5px}
+#diff-out .ok,#validate-out .ok{color:#34d399}
+#diff-out .bad,#validate-out .bad{color:#f87171}
 
 /* LEGEND */
 #legend{display:flex;gap:8px;padding:4px 10px;background:#08081a;border-top:1px solid #1a1a2e;flex-shrink:0;flex-wrap:wrap}
@@ -52,181 +70,172 @@ canvas{display:block}
 
 <div id="bar">
   <label>Area:</label>
-  <select id="preset">
-    <option value="the_fracture">The Fracture</option>
-    <option value="echo_bridge">Echo Bridge</option>
-    <option value="upper_ruins">Upper Ruins</option>
-    <option value="crystal_cavern">Crystal Cavern</option>
-    <option value="the_forge">The Forge</option>
-    <option value="the_vault">The Vault</option>
-    <option value="the_rift">The Rift</option>
-    <option value="antechamber">Antechamber</option>
-    <option value="boss_arena">Boss Arena</option>
-    <option value="crag_entrance">Crag Entrance</option>
-    <option value="crag_breach">Crag Breach</option>
-    <option value="crag_altar">Crag Altar</option>
-    <option value="crag_warden">Crag Warden</option>
-  </select>
+  <select id="preset"></select>
+  <button id="new-room-btn" title="Create a blank 1200px room">✦ New Room</button>
   <div class="sep"></div>
   <label>Tool:</label>
-  <button class="on" data-tool="select">◈ Select</button>
-  <button data-tool="plat">⬛ Platform</button>
-  <button data-tool="wall">🔷 Crystal Wall</button>
-  <button data-tool="frac">👾 Fractured</button>
-  <button data-tool="stut">👻 Stutterer</button>
-  <button data-tool="sp">◆ Anchor</button>
-  <button data-tool="ab">★ Ability</button>
-  <button data-tool="trans">→ Transition</button>
-  <button data-tool="lore">💬 Lore</button>
+  <button class="on" data-tool="select" title="V">◈ Select</button>
+  <button data-tool="plat" title="P">⬛ Platform</button>
+  <button data-tool="wall" title="W">🔷 Wall</button>
+  <select id="enemy-type"></select>
+  <button data-tool="enemy" title="E">👾 Enemy</button>
+  <button data-tool="sp" title="T">◆ Anchor</button>
+  <button data-tool="ab" title="A">★ Ability</button>
+  <button data-tool="trans" title="X">→ Transition</button>
+  <button data-tool="lore" title="L">💬 Lore</button>
+  <button data-tool="bossspawn" title="B">☠ Boss Spawn</button>
+  <button data-tool="testspawn" title="R — click to test a jump/dash from here">🧪 Test Spawn</button>
+  <div class="sep"></div>
+  <button id="undo-btn" title="Ctrl+Z">↶ Undo</button>
+  <button id="redo-btn" title="Ctrl+Shift+Z / Ctrl+Y">↷ Redo</button>
+  <div class="sep"></div>
+  <button id="stitch-btn" title="Snap dragged platform edges flush against neighbors">🧲 Stitch</button>
   <div class="sep"></div>
   <button id="zoom-">−</button>
   <button id="zoom+">+</button>
-  <button id="snap-btn" class="on" title="Toggle 10px snap (G)">⊞ Snap</button>
+  <label>Grid:</label>
+  <select id="grid-size">
+    <option value="0">Off</option>
+    <option value="5">5px</option>
+    <option value="10" selected>10px</option>
+    <option value="20">20px</option>
+    <option value="50">50px</option>
+  </select>
   <span id="coord">x:0 y:0</span>
 </div>
 
 <div id="main">
   <div id="wrap"><canvas id="cv"></canvas></div>
   <div id="side">
+    <div id="search-wrap">
+      <input id="obj-search" type="text" placeholder="Find object (type, id, target)…">
+      <div id="search-results"></div>
+    </div>
     <h3>Properties</h3>
     <div id="props">
       <div class="section-title">Area</div>
       <div class="row"><label>name</label><input id="a-name" type="text"></div>
+      <div class="row"><label>region</label><input id="a-region" type="text" list="region-list"><datalist id="region-list"></datalist></div>
       <div class="row"><label>width</label><input id="a-w" type="number" step="50"></div>
       <div class="row"><label>groundY</label><input id="a-gy" type="number" step="10"></div>
+      <div class="row"><label>height</label><input id="a-rh" type="number" step="50" placeholder="auto (groundY+100)"></div>
       <div class="row"><label>ambient</label><input id="a-amb" type="text"></div>
-      <div id="sel-props"><div class="hint">Click any object to edit its properties.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected object.<br><br><b>Platform/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div></div>
+      <div class="row"><label>roomType</label>
+        <select id="a-roomtype">
+          <option value="">Normal</option>
+          <option value="boss">Boss Arena</option>
+          <option value="miniboss">Miniboss Arena</option>
+        </select>
+      </div>
+      <div class="row" id="a-miniboss-row" style="display:none"><label>miniboss</label><input id="a-minibossid" type="text" placeholder="e.g. colossus_core"></div>
+      <div class="row"><label>no pit</label><input id="a-nopit" type="checkbox"><span style="color:#5a5a8e;font-size:10px"> No Pit Death (pitDeathY = ∞)</span></div>
+      <div id="sel-props"><div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll wheel to zoom.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div></div>
     </div>
     <div id="exp">
       <button id="exp-btn">⬇ Export JavaScript</button>
       <textarea id="exp-out" readonly placeholder="Press Export to generate area JS..."></textarea>
+      <button id="validate-btn">▲ Validate This Room</button>
+      <div id="validate-out"></div>
+      <button id="diff-btn">⇄ Diff vs Saved</button>
+      <div id="diff-out"></div>
+      <button id="check-btn">✓ Check All Rooms</button>
+      <div id="check-out"></div>
     </div>
   </div>
 </div>
 
 <div id="legend">
   <div class="leg"><div class="lc" style="background:#4a4a7080;border-color:#6a6a9e"></div> Platform</div>
-  <div class="leg"><div class="lc" style="background:#2dd4bf20;border-color:#2dd4bf"></div> Crystal Wall</div>
-  <div class="leg"><div class="lc" style="background:#f8717140;border-color:#f87171"></div> Fractured</div>
-  <div class="leg"><div class="lc" style="background:#a78bfa40;border-color:#a78bfa"></div> Stutterer</div>
+  <div class="leg"><div class="lc" style="background:#2dd4bf20;border-color:#2dd4bf"></div> Wall</div>
+  <div class="leg"><div class="lc" style="background:#f8717140;border-color:#f87171"></div> Enemy</div>
   <div class="leg"><div class="lc" style="background:#67e8f940;border-color:#67e8f9"></div> Anchor</div>
   <div class="leg"><div class="lc" style="background:#c4b5fd40;border-color:#c4b5fd"></div> Ability</div>
   <div class="leg"><div class="lc" style="background:#34d39920;border-color:#34d399"></div> Transition</div>
   <div class="leg"><div class="lc" style="background:#fbbf2440;border-color:#fbbf24"></div> Lore</div>
-  <span style="color:#3a3a5e;font-size:9px;margin-left:auto">Keys: V P W F S T A X L — tool shortcuts | G — toggle snap | Del — remove | Arrows — nudge</span>
+  <div class="leg"><div class="lc" style="background:#f8717125;border-color:#f87171"></div> Boss Spawn</div>
+  <span style="color:#3a3a5e;font-size:9px;margin-left:auto">Keys: V P W E T A X L B R — tools | G — cycle grid | Del — remove | Arrows — nudge | Ctrl+Z/Y — undo/redo | Ctrl+C/V — copy/paste</span>
 </div>
 
+<script src="area.js"></script>
+<script src="enemy.js"></script>
 <script>
-// ─── PRESET DATA ──────────────────────────────────────────────────────────
-const PRESETS = {
-  the_fracture:{id:'the_fracture',name:'The Fracture',width:1400,groundY:390,bgTint:'rgba(100,60,150,0.03)',ambientColor:'#c4b5fd',
-    platforms:[{x:0,y:390,w:490,h:60},{x:560,y:390,w:840,h:60},{x:130,y:315,w:150,h:14},{x:400,y:245,w:140,h:14},{x:650,y:195,w:160,h:14}],
-    abilityReward:{id:'phase_dash',x:695,y:173,name:'Phase Dash',desc:'C — dash. Leaves an echo that distracts enemies.'},
-    enemies:[{type:'fractured',x:700,y:362},{type:'fractured',x:1150,y:362}],
-    anchors:[{x:220,y:370,index:0}],
-    transitions:[{x:1365,y:320,w:35,h:70,to:'echo_bridge',toX:60,toY:312}],
-    loreFragments:[{id:'lore_f1',x:695,y:148,text:'"We built the Stillpoints to anchor time itself."'}]},
-  echo_bridge:{id:'echo_bridge',name:'Echo Bridge',width:1000,groundY:900,bgTint:'rgba(140,80,200,0.04)',ambientColor:'#8b5cf6',
-    platforms:[{x:30,y:350,w:200,h:14},{x:295,y:328,w:110,h:14},{x:445,y:306,w:200,h:14},{x:810,y:318,w:155,h:14}],
-    enemies:[{type:'fractured',x:530,y:278}],
-    anchors:[{x:90,y:330,index:0}],
-    transitions:[{x:0,y:290,w:35,h:80,to:'the_fracture',toX:1330,toY:348},{x:965,y:256,w:35,h:80,to:'crystal_cavern',toX:60,toY:92},{x:820,y:256,w:80,h:30,to:'upper_ruins',toX:100,toY:348,requires:'phase_dash'}],
-    loreFragments:[{id:'lore_eb1',x:330,y:302,text:'"The bridge refused to hold."'}],abilityReward:null},
-  upper_ruins:{id:'upper_ruins',name:'Upper Ruins',width:800,groundY:390,bgTint:'rgba(160,120,80,0.04)',ambientColor:'#fbbf24',
-    platforms:[{x:0,y:390,w:800,h:60},{x:100,y:302,w:120,h:14},{x:300,y:242,w:120,h:14},{x:500,y:302,w:120,h:14},{x:650,y:232,w:130,h:14}],
-    enemies:[{type:'fractured',x:390,y:362}],anchors:[],
-    transitions:[{x:0,y:326,w:35,h:64,to:'echo_bridge',toX:750,toY:292}],
-    loreFragments:[{id:'lore_ur1',x:150,y:276,text:'"Before the fracture, these halls echoed."'},{id:'lore_ur2',x:340,y:216,text:'"The King built this place."'},{id:'lore_ur3',x:695,y:206,text:'"He was wrong. Nothing permanent survives time."'}],abilityReward:null},
-  crystal_cavern:{id:'crystal_cavern',name:'Crystal Cavern',width:1200,groundY:700,bgTint:'rgba(45,212,191,0.05)',ambientColor:'#2dd4bf',
-    platforms:[{x:30,y:130,w:160,h:14},{x:280,y:218,w:120,h:14},{x:100,y:318,w:130,h:14},{x:370,y:398,w:160,h:14},{x:680,y:330,w:24,h:370,destructible:true,hp:3},{x:720,y:420,w:160,h:14},{x:940,y:360,w:140,h:14},{x:1060,y:460,w:140,h:14},{x:0,y:700,w:1200,h:60}],
-    abilityReward:{id:'shard_shot',x:415,y:376,name:'Shard Shot',desc:'V to fire. W+V upward. Shatters crystal walls.'},
-    enemies:[{type:'fractured',x:308,y:190},{type:'stutterer',x:490,y:370},{type:'fractured',x:990,y:332}],
-    anchors:[{x:80,y:680,index:0}],
-    transitions:[{x:0,y:68,w:35,h:82,to:'echo_bridge',toX:928,toY:268},{x:1165,y:418,w:35,h:60,to:'the_forge',toX:60,toY:348}],
-    loreFragments:[{id:'lore_cc1',x:415,y:358,text:'"The crystals are made of frozen time."'}]},
-  the_forge:{id:'the_forge',name:'The Forge',width:1300,groundY:390,bgTint:'rgba(45,130,180,0.04)',ambientColor:'#67e8f9',
-    platforms:[{x:0,y:390,w:1300,h:60},{x:150,y:300,w:120,h:14},{x:560,y:270,w:140,h:14},{x:1060,y:255,w:140,h:14},{x:430,y:218,w:22,h:172,destructible:true,hp:2},{x:452,y:218,w:22,h:172,destructible:true,hp:2},{x:850,y:198,w:22,h:192,destructible:true,hp:2},{x:872,y:198,w:22,h:192,destructible:true,hp:2}],
-    enemies:[{type:'fractured',x:250,y:362},{type:'stutterer',x:620,y:362},{type:'fractured',x:960,y:362},{type:'stutterer',x:1100,y:227}],
-    anchors:[{x:180,y:370,index:0}],
-    transitions:[{x:0,y:325,w:35,h:65,to:'crystal_cavern',toX:1130,toY:428},{x:1265,y:325,w:35,h:65,to:'the_vault',toX:60,toY:348}],
-    loreFragments:[{id:'lore_tf1',x:600,y:244,text:'"He forged his own prison here."'}],abilityReward:null},
-  the_vault:{id:'the_vault',name:'The Vault',width:900,groundY:390,bgTint:'rgba(180,160,255,0.07)',ambientColor:'#e0d4ff',
-    platforms:[{x:0,y:390,w:900,h:60},{x:190,y:290,w:130,h:14},{x:570,y:290,w:130,h:14},{x:360,y:196,w:180,h:14}],
-    abilityReward:{id:'stillpoint',x:420,y:174,name:'Stillpoint',desc:'Q — slow the world. Recharges by hitting enemies.'},
-    enemies:[],anchors:[{x:140,y:370,index:0},{x:730,y:370,index:1}],
-    transitions:[{x:0,y:325,w:35,h:65,to:'the_forge',toX:1230,toY:348},{x:865,y:325,w:35,h:65,to:'the_rift',toX:60,toY:282,requires:'stillpoint'}],
-    loreFragments:[{id:'lore_tv1',x:260,y:265,text:'"Stillpoint: the moment between moments."'},{id:'lore_tv2',x:620,y:265,text:'"Go. He is waiting."'}]},
-  the_rift:{id:'the_rift',name:'The Rift',width:1960,groundY:900,bgTint:'rgba(80,40,160,0.07)',ambientColor:'#7c3aed',
-    platforms:[{x:30,y:320,w:200,h:14},{x:300,y:300,w:100,h:14},{x:470,y:278,w:100,h:14},{x:640,y:298,w:100,h:14},{x:820,y:268,w:160,h:14},{x:1060,y:246,w:100,h:14},{x:1220,y:264,w:120,h:14},{x:1380,y:246,w:220,h:14},{x:1630,y:258,w:260,h:14},{x:1900,y:225,w:120,h:14}],
-    enemies:[{type:'fractured',x:490,y:250},{type:'fractured',x:880,y:240},{type:'fractured',x:1700,y:230},{type:'fractured',x:1810,y:230}],
-    anchors:[{x:1450,y:226,index:0}],
-    transitions:[{x:0,y:258,w:35,h:80,to:'the_vault',toX:828,toY:348},{x:1960,y:158,w:35,h:80,to:'antechamber',toX:60,toY:348}],
-    loreFragments:[{id:'lore_tr1',x:1450,y:212,text:'"Every gap is a small surrender."'}],abilityReward:null},
-  antechamber:{id:'antechamber',name:'Antechamber',width:700,groundY:390,bgTint:'rgba(200,40,40,0.04)',ambientColor:'#f87171',
-    platforms:[{x:0,y:390,w:700,h:60},{x:185,y:292,w:150,h:14},{x:365,y:225,w:150,h:14}],
-    enemies:[],anchors:[{x:330,y:370,index:0}],
-    transitions:[{x:0,y:326,w:35,h:64,to:'the_rift',toX:1920,toY:190},{x:665,y:326,w:35,h:64,to:'boss_arena',toX:420,toY:310}],
-    loreFragments:[{id:'lore_ac1',x:220,y:268,text:'"He cannot stop himself."'},{id:'lore_ac2',x:395,y:202,text:'"The King does not want your death. He wants someone to stop him."'}],abilityReward:null},
-  boss_arena:{id:'boss_arena',name:'The Fractured King',width:900,groundY:390,bgTint:'rgba(200,40,40,0.06)',ambientColor:'#f87171',isBossArena:true,
-    platforms:[{x:0,y:390,w:900,h:60},{x:0,y:0,w:16,h:390},{x:884,y:0,w:16,h:390},{x:130,y:295,w:130,h:14},{x:640,y:295,w:130,h:14},{x:350,y:210,w:200,h:14}],
-    enemies:[],anchors:[{x:430,y:370,index:0}],transitions:[],loreFragments:[],abilityReward:null,bossSpawn:{x:400,y:334}},
-  crag_entrance:{id:'crag_entrance',name:'Crag Entrance',width:2800,groundY:900,pitDeathY:1050,bgTint:'rgba(180,90,40,0.05)',ambientColor:'#d97757',
-    platforms:[{x:0,y:520,w:340,h:60},{x:340,y:860,w:320,h:40},{x:660,y:860,w:280,h:40},{x:940,y:800,w:260,h:40},{x:1200,y:860,w:340,h:40},{x:1540,y:800,w:300,h:40},{x:1840,y:860,w:340,h:40},{x:2180,y:800,w:300,h:40},{x:2480,y:740,w:280,h:40},
-      {x:300,y:660,w:180,h:20},{x:560,y:610,w:160,h:20},{x:820,y:650,w:160,h:20},{x:1100,y:600,w:180,h:20},{x:1380,y:640,w:160,h:20},
-      {x:60,y:430,w:160,h:20},{x:300,y:360,w:140,h:20},{x:520,y:300,w:140,h:20},{x:750,y:340,w:140,h:20},{x:960,y:300,w:200,h:20},
-      {x:1150,y:140,w:24,h:210,destructible:true,hp:3},{x:1180,y:300,w:160,h:20}],
-    enemies:[{type:'fractured',x:380,y:832},{type:'fractured',x:1240,y:832},{type:'stutterer',x:1880,y:832},{type:'fractured',x:2220,y:772}],
-    anchors:[{x:100,y:500,index:0}],
-    transitions:[{x:0,y:450,w:35,h:70,to:'the_fracture',toX:720,toY:155},{x:2740,y:690,w:40,h:60,to:'crag_breach',toX:60,toY:400}],
-    loreFragments:[{id:'lore_ce1',x:1260,y:280,text:'"Strike as though you mean to end something."'}],abilityReward:null},
-  crag_breach:{id:'crag_breach',name:'Crag Breach',width:3000,groundY:1100,pitDeathY:1250,bgTint:'rgba(160,70,30,0.06)',ambientColor:'#c2703d',
-    platforms:[{x:0,y:420,w:300,h:40},{x:300,y:500,w:300,h:30},{x:600,y:580,w:280,h:30},{x:880,y:660,w:280,h:30},{x:1160,y:600,w:320,h:30},{x:1480,y:660,w:300,h:30},{x:1780,y:580,w:300,h:30},{x:2080,y:500,w:320,h:30},{x:2400,y:560,w:300,h:30},{x:2700,y:500,w:260,h:30},
-      {x:260,y:260,w:180,h:20},{x:560,y:200,w:160,h:20},{x:900,y:240,w:160,h:20},{x:1220,y:190,w:160,h:20},{x:1560,y:230,w:160,h:20},
-      {x:1780,y:230,w:24,h:170,destructible:true,hp:4},{x:1810,y:190,w:160,h:20}],
-    enemies:[{type:'fractured',x:630,y:552},{type:'stutterer',x:1190,y:572},{type:'crystal_sentinel',x:1810,y:552},{type:'fractured',x:2430,y:532}],
-    anchors:[{x:60,y:400,index:0}],
-    transitions:[{x:0,y:400,w:35,h:60,to:'crag_entrance',toX:2700,toY:700},{x:2940,y:440,w:40,h:60,to:'crag_altar',toX:60,toY:660}],
-    loreFragments:[{id:'lore_cb1',x:1600,y:206,text:'"Something split this stone in one blow."'}],abilityReward:null},
-  crag_altar:{id:'crag_altar',name:'Crag Altar',width:2200,groundY:1000,bgTint:'rgba(217,119,87,0.08)',ambientColor:'#fb923c',
-    platforms:[{x:0,y:1000,w:2200,h:60},{x:0,y:700,w:260,h:40},{x:340,y:780,w:220,h:30},{x:640,y:700,w:200,h:30},{x:920,y:620,w:260,h:30},{x:1000,y:520,w:220,h:30},{x:1300,y:620,w:200,h:30},{x:1580,y:700,w:220,h:30},{x:1880,y:780,w:260,h:30},
-      {x:700,y:340,w:160,h:20},{x:1400,y:340,w:160,h:20}],
-    abilityReward:{id:'charged_attack',x:1110,y:498,name:'Charged Attack',desc:'Hold Z/J — charge a heavy strike.'},
-    enemies:[{type:'fractured',x:660,y:672},{type:'fractured',x:1600,y:672}],
-    anchors:[{x:1940,y:758,index:0}],
-    transitions:[{x:0,y:680,w:35,h:60,to:'crag_breach',toX:2900,toY:460},{x:2140,y:720,w:40,h:60,to:'crag_warden',toX:60,toY:420}],
-    loreFragments:[{id:'lore_ca1',x:800,y:316,text:'"We gave the crag a heart of crystal so it would remember how to stand."'}]},
-  crag_warden:{id:'crag_warden',name:'Crag Warden',width:2000,groundY:500,bgTint:'rgba(217,119,87,0.1)',ambientColor:'#fb923c',
-    platforms:[{x:0,y:500,w:2000,h:60},{x:500,y:400,w:180,h:14},{x:1320,y:400,w:180,h:14}],
-    enemies:[],anchors:[],
-    transitions:[{x:0,y:434,w:35,h:66,to:'crag_altar',toX:2100,toY:740},{x:1000,y:440,w:60,h:60,to:'the_fracture',toX:700,toY:155},{x:1940,y:440,w:35,h:60,to:'graviton_core',toX:60,toY:400}],
-    loreFragments:[],abilityReward:null,bossSpawn:{x:950,y:440}}
-};
+// ─── ENEMY ROSTER (auto-derived from enemy.js's ENEMY_REGISTRY — see the
+// comment above that registry for why this is the single source of truth) ──
+const ENEMY_TYPES = (typeof ENEMY_REGISTRY !== 'undefined')
+  ? Object.keys(ENEMY_REGISTRY)
+  : ['fractured', 'stutterer']; // fallback if enemy.js failed to load
 
 // ─── STATE ────────────────────────────────────────────────────────────────
-let area = clone(PRESETS.the_fracture);
-let sel = null, selType = null;
+function clone(o){ return typeof structuredClone === 'function' ? structuredClone(o) : JSON.parse(JSON.stringify(o)); }
+
+const ALL_ROOM_IDS = Object.keys(AREAS);
+let area = clone(AREAS[ALL_ROOM_IDS[0]]);
+let sel = null, selType = null;      // primary selection (mirrors selList[0] when length<=1)
+let selList = [];                     // [{obj,type}] — multi-select set
 let tool = 'select';
 let SCALE = 0.62;
-let snap = true;
-const SNAP = 10;
+let SNAP = 10; // 0 = off
 let dragging = false, dox = 0, doy = 0;
+let dragStarts = null; // for multi-drag: [{obj,sx,sy}]
+let dragMoved = false;
 let creating = false, cs = null;
 let mx = 0, my = 0; // mouse area coords
+let resizing = null; // 'w' | 'h' | null — resizing the ROOM bounds
+let objResizing = null; // {obj, edge, sx,sy,sw,sh} — resizing a selected platform/transition, Slides-style
+let panning = false, panStartX=0, panStartY=0, panScrollX=0, panScrollY=0;
+let spaceHeld = false;
+let clipboard = [];
+let stitchEnabled = false;
+let currentLoadedId = ALL_ROOM_IDS[0]; // tracks which AREAS[id] "Diff vs Saved" compares against; null for an unsaved New Room
+let testSpawn = null; // {x,y} — reachability-envelope test marker
+let validationFailures = []; // [{msg,x,y}] from the last "Validate This Room" run
 
-function clone(o){ return JSON.parse(JSON.stringify(o)); }
-function snp(v){ return snap ? Math.round(v/SNAP)*SNAP : Math.round(v); }
+function snp(v){ return SNAP>0 ? Math.round(v/SNAP)*SNAP : Math.round(v); }
 function aC(v){ return v*SCALE; }
 function cA(v){ return v/SCALE; }
+
+// ─── HISTORY (undo/redo) ───────────────────────────────────────────────────
+let history = [clone(area)], historyIndex = 0;
+const HISTORY_MAX = 60;
+function pushHistory(){
+  history = history.slice(0, historyIndex+1);
+  history.push(clone(area));
+  if (history.length > HISTORY_MAX) history.shift();
+  historyIndex = history.length-1;
+  updateUndoRedoButtons();
+}
+function resetHistory(){
+  history = [clone(area)]; historyIndex = 0; updateUndoRedoButtons();
+}
+function undo(){
+  if (historyIndex<=0) return;
+  historyIndex--; area = clone(history[historyIndex]);
+  sel=null; selType=null; selList=[];
+  updateAreaFields(); updateSideProps(); render(); updateUndoRedoButtons();
+}
+function redo(){
+  if (historyIndex>=history.length-1) return;
+  historyIndex++; area = clone(history[historyIndex]);
+  sel=null; selType=null; selList=[];
+  updateAreaFields(); updateSideProps(); render(); updateUndoRedoButtons();
+}
+function updateUndoRedoButtons(){
+  document.getElementById('undo-btn').disabled = historyIndex<=0;
+  document.getElementById('redo-btn').disabled = historyIndex>=history.length-1;
+}
 
 // ─── CANVAS SETUP ────────────────────────────────────────────────────────
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
+const wrapEl = document.getElementById('wrap');
 
 function resizeCV(){
-  const W = document.getElementById('wrap').clientWidth;
-  const visH = Math.max(area.groundY+100, 500);
-  cv.width = Math.max(area.width*SCALE, W);
-  cv.height = Math.min(600, visH*SCALE+20);
+  const W = wrapEl.clientWidth;
+  const visH = Math.max(effectiveRoomHeight(), 500);
+  cv.width = Math.max(area.width*SCALE, W)+40;
+  // No 900px cap anymore — tall/deep rooms scroll within #wrap (which is
+  // already overflow:auto) instead of being squashed to fit a fixed canvas.
+  cv.height = visH*SCALE+40;
 }
 
 // ─── RENDER ───────────────────────────────────────────────────────────────
@@ -235,30 +244,55 @@ function diamond(x,y,r,fill,stroke,lw){
   ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke();
 }
 
+function isSelObj(o){ return selList.some(s=>s.obj===o); }
+
 function render(){
   resizeCV();
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.fillStyle='#04040a';ctx.fillRect(0,0,cv.width,cv.height);
 
   // Subtle grid
+  const gridStep = SNAP>0?SNAP:10;
   ctx.lineWidth=0.4;
   ctx.strokeStyle='rgba(20,20,50,0.9)';
-  for(let x=0;x<=area.width;x+=10){ctx.beginPath();ctx.moveTo(aC(x),0);ctx.lineTo(aC(x),cv.height);ctx.stroke()}
-  for(let y=0;y<=Math.max(area.groundY+100,600);y+=10){ctx.beginPath();ctx.moveTo(0,aC(y));ctx.lineTo(cv.width,aC(y));ctx.stroke()}
+  const roomH = effectiveRoomHeight();
+  for(let x=0;x<=area.width;x+=gridStep){ctx.beginPath();ctx.moveTo(aC(x),0);ctx.lineTo(aC(x),cv.height);ctx.stroke()}
+  for(let y=0;y<=roomH;y+=gridStep){ctx.beginPath();ctx.moveTo(0,aC(y));ctx.lineTo(cv.width,aC(y));ctx.stroke()}
   ctx.strokeStyle='rgba(40,40,90,0.6)';ctx.lineWidth=0.6;
   for(let x=0;x<=area.width;x+=50){ctx.beginPath();ctx.moveTo(aC(x),0);ctx.lineTo(aC(x),cv.height);ctx.stroke()}
-  for(let y=0;y<=Math.max(area.groundY+100,600);y+=50){ctx.beginPath();ctx.moveTo(0,aC(y));ctx.lineTo(cv.width,aC(y));ctx.stroke()}
+  for(let y=0;y<=roomH;y+=50){ctx.beginPath();ctx.moveTo(0,aC(y));ctx.lineTo(cv.width,aC(y));ctx.stroke()}
 
-  // GroundY line
+  // GroundY line (floor reference only — not a hard bound anymore, see
+  // player.js/game.js; falling past it is governed by pitDeathY / real
+  // platforms, not this line)
   ctx.setLineDash([6,4]);ctx.strokeStyle='rgba(180,50,50,0.5)';ctx.lineWidth=1.5;
   ctx.beginPath();ctx.moveTo(0,aC(area.groundY));ctx.lineTo(cv.width,aC(area.groundY));ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle='rgba(180,50,50,0.5)';ctx.font='9px monospace';
-  ctx.fillText('groundY='+area.groundY,3,aC(area.groundY)-4);
+  ctx.fillText('groundY='+area.groundY+' (floor reference only)',3,aC(area.groundY)-4);
+
+  // Width bound line
+  ctx.setLineDash([6,4]);ctx.strokeStyle='rgba(90,90,180,0.5)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(aC(area.width),0);ctx.lineTo(aC(area.width),cv.height);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Room height bound line (camera/canvas extent — independent of groundY)
+  ctx.setLineDash([6,4]);ctx.strokeStyle='rgba(52,211,153,0.5)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(0,aC(roomH));ctx.lineTo(cv.width,aC(roomH));ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(52,211,153,0.6)';ctx.font='9px monospace';
+  ctx.fillText('roomHeight='+roomH+(typeof area.roomHeight==='number'?'':' (auto)'),3,aC(roomH)-4);
+
+  // Resize handles (small squares at edges)
+  ctx.fillStyle='#fbbf24';
+  ctx.fillRect(aC(area.width)-4, aC(area.groundY)*0.5-4, 8, 8); // width handle (mid-height on right edge)
+  ctx.fillRect(aC(area.width)*0.5-4, aC(area.groundY)-4, 8, 8); // groundY handle (mid-width on ground line, floor reference)
+  ctx.fillStyle='#34d399';
+  ctx.fillRect(aC(area.width)*0.5-4, aC(roomH)-4, 8, 8); // roomHeight handle (mid-width on room bottom line)
 
   // Transitions
   for(const tr of area.transitions){
-    const isSel=tr===sel;
+    const isSel=isSelObj(tr);
     const cx=aC(tr.x),cy=aC(tr.y),cw=aC(tr.w),ch=aC(tr.h);
     const col=tr.requires==='stillpoint'?'#67e8f9':tr.requires==='phase_dash'?'#a78bfa':'#34d399';
     ctx.fillStyle='rgba(52,211,153,0.1)';ctx.fillRect(cx,cy,cw,ch);
@@ -271,53 +305,96 @@ function render(){
 
   // Platforms
   for(const p of area.platforms){
-    const isSel=p===sel;
+    const isSel=isSelObj(p);
     const cx=aC(p.x),cy=aC(p.y),cw=aC(p.w),ch=aC(p.h);
     if(p.destructible){ctx.fillStyle='rgba(45,212,191,0.15)';ctx.strokeStyle=isSel?'#fbbf24':'#2dd4bf';ctx.setLineDash([3,3]);}
     else{ctx.fillStyle='rgba(70,70,108,0.8)';ctx.strokeStyle=isSel?'#fbbf24':'#6a6a9e';ctx.setLineDash([]);}
     ctx.lineWidth=isSel?2:1;ctx.fillRect(cx,cy,cw,ch);ctx.strokeRect(cx,cy,cw,ch);ctx.setLineDash([]);
-    if(isSel){ctx.fillStyle='#fbbf24';ctx.fillRect(cx+cw-5,cy+ch-5,9,9);}// resize indicator
     ctx.fillStyle='rgba(140,140,180,0.5)';ctx.font='8px monospace';
-    if(cw>24)ctx.fillText(p.w+'×'+p.h,cx+2,cy+Math.min(aC(p.h/2)+3,9));
+    if(cw>24)ctx.fillText(p.w+'×'+p.h,cx+2,cy+Math.min(ch/2+3,9));
   }
 
   // Enemies
   for(const en of area.enemies){
-    const isSel=en===sel;
-    const col=en.type==='stutterer'?'#a78bfa':'#f87171';
+    const isSel=isSelObj(en);
+    const col=en.type==='stutterer'?'#a78bfa':en.type==='crystal_sentinel'?'#67e8f9':'#f87171';
     const cx=aC(en.x-14),cy=aC(en.y),cw=aC(28),ch=aC(28);
     ctx.fillStyle=col+'35';ctx.strokeStyle=isSel?'#fbbf24':col;ctx.lineWidth=isSel?2:1;
     ctx.fillRect(cx,cy,cw,ch);ctx.strokeRect(cx,cy,cw,ch);
-    ctx.fillStyle=isSel?'#fbbf24':col;ctx.font='bold '+Math.round(10*SCALE)+'px monospace';
-    ctx.textAlign='center';ctx.fillText(en.type==='stutterer'?'S':'F',aC(en.x),aC(en.y)+aCP(14));ctx.textAlign='left';
+    ctx.fillStyle=isSel?'#fbbf24':col;ctx.font='bold '+Math.round(9*SCALE+3)+'px monospace';
+    ctx.textAlign='center';ctx.fillText((en.type||'?').slice(0,3),aC(en.x),aC(en.y)+aC(16));ctx.textAlign='left';
   }
 
   // Stillpoints
   for(const sp of area.anchors){
-    const isSel=sp===sel;
+    const isSel=isSelObj(sp);
     diamond(aC(sp.x),aC(sp.y),aC(10),'rgba(103,232,249,0.3)',isSel?'#fbbf24':'#67e8f9',isSel?2:1.5);
     ctx.fillStyle='#67e8f9';ctx.font='8px monospace';ctx.fillText('SP',aC(sp.x)+12,aC(sp.y)+3);
   }
 
   // Lore
   for(const lf of (area.loreFragments||[])){
-    const isSel=lf===sel;
+    const isSel=isSelObj(lf);
     diamond(aC(lf.x),aC(lf.y),aC(8),'rgba(251,191,36,0.25)',isSel?'#fbbf24':'#fbbf24',isSel?2:1.5);
   }
 
   // Ability
   if(area.abilityReward){
-    const ab=area.abilityReward,isSel=ab===sel;
+    const ab=area.abilityReward,isSel=isSelObj(ab);
     diamond(aC(ab.x),aC(ab.y),aC(12),'rgba(196,181,253,0.3)',isSel?'#fbbf24':'#c4b5fd',isSel?2:1.5);
     ctx.fillStyle='#c4b5fd';ctx.font='8px monospace';ctx.fillText(ab.name||ab.id,aC(ab.x)+14,aC(ab.y)+3);
   }
 
   // Boss spawn
   if(area.bossSpawn){
-    const bs=area.bossSpawn;
-    ctx.fillStyle='rgba(248,113,113,0.15)';ctx.strokeStyle='#f87171';ctx.lineWidth=1;ctx.setLineDash([2,4]);
+    const bs=area.bossSpawn,isSel=isSelObj(bs);
+    ctx.fillStyle='rgba(248,113,113,0.15)';ctx.strokeStyle=isSel?'#fbbf24':'#f87171';ctx.lineWidth=isSel?2:1;ctx.setLineDash([2,4]);
     ctx.strokeRect(aC(bs.x),aC(bs.y),aC(48),aC(56));ctx.setLineDash([]);
     ctx.fillStyle='#f87171';ctx.font='8px monospace';ctx.fillText('BOSS',aC(bs.x)+2,aC(bs.y)+9);
+  }
+
+  // Slides-style resize handles around the single selected platform/transition
+  const rsel = resizableSel();
+  if(rsel){
+    const hs = objHandlePositions(rsel);
+    ctx.fillStyle='#fbbf24';ctx.strokeStyle='#06060e';ctx.lineWidth=1;
+    for(const k in hs){
+      const [hx,hy]=hs[k];
+      ctx.fillRect(aC(hx)-4,aC(hy)-4,8,8);
+      ctx.strokeRect(aC(hx)-4,aC(hy)-4,8,8);
+    }
+  }
+
+  // Test Spawn — reachability envelope (max jump apex + move, and max dash
+  // reach) from the marker, using the same physics constants area.js's own
+  // room linter falls back to when player.js isn't loaded (GRAVITY 0.6,
+  // JUMP_FORCE 12, MOVE_SPEED 4, DASH_SPEED 12 × DASH_DURATION 8).
+  if(testSpawn){
+    const GRAV=0.6, JUMP=12, MOVE=4, DASHD=96;
+    const hangTime = (2*JUMP)/GRAV;
+    const jumpApex = (JUMP*JUMP)/(2*GRAV);
+    const jumpReachX = MOVE*hangTime;
+    const cx=aC(testSpawn.x), cy=aC(testSpawn.y);
+    ctx.save();
+    ctx.setLineDash([4,3]);
+    ctx.strokeStyle='rgba(196,181,253,0.6)';ctx.fillStyle='rgba(196,181,253,0.08)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.ellipse(cx,cy-aC(jumpApex)/2,aC(jumpReachX),aC(jumpApex)/2+aC(jumpApex)/2,0,0,Math.PI*2);
+    ctx.fill();ctx.stroke();
+    ctx.strokeStyle='rgba(45,212,191,0.7)';
+    ctx.beginPath();ctx.moveTo(cx-aC(DASHD),cy);ctx.lineTo(cx+aC(DASHD),cy);ctx.stroke();
+    ctx.setLineDash([]);
+    diamond(cx,cy,aC(9),'rgba(196,181,253,0.4)','#c4b5fd',2);
+    ctx.fillStyle='#e0d7ff';ctx.font='9px monospace';
+    ctx.fillText(`jump apex ${Math.round(jumpApex)}px · dash ${DASHD}px`,cx+12,cy-4);
+    ctx.restore();
+  }
+
+  // Validation failure markers (from "Validate This Room")
+  for(const f of validationFailures){
+    if(f.x==null)continue;
+    ctx.save();ctx.setLineDash([4,3]);ctx.strokeStyle='#f87171';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(aC(f.x),aC(f.y),14,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
   }
 
   // Creation preview
@@ -331,14 +408,13 @@ function render(){
   }
 }
 
-function aCP(v){return aC(v);}// alias
-
 // ─── HIT TESTING ─────────────────────────────────────────────────────────
 function hitPlat(ax,ay,p){return ax>=p.x&&ax<=p.x+p.w&&ay>=p.y&&ay<=p.y+p.h;}
 function hitPt(ax,ay,ox,oy,r=14){return Math.abs(ax-ox)<r&&Math.abs(ay-oy)<r;}
 function hitRect(ax,ay,rx,ry,rw,rh){return ax>=rx&&ax<=rx+rw&&ay>=ry&&ay<=ry+rh;}
 
 function findAt(ax,ay){
+  if(area.bossSpawn&&hitRect(ax,ay,area.bossSpawn.x,area.bossSpawn.y,48,56))return{obj:area.bossSpawn,type:'bossspawn'};
   if(area.abilityReward&&hitPt(ax,ay,area.abilityReward.x,area.abilityReward.y,16))return{obj:area.abilityReward,type:'ab'};
   for(let i=(area.loreFragments||[]).length-1;i>=0;i--)if(hitPt(ax,ay,area.loreFragments[i].x,area.loreFragments[i].y,12))return{obj:area.loreFragments[i],type:'lore'};
   for(let i=area.anchors.length-1;i>=0;i--)if(hitPt(ax,ay,area.anchors[i].x,area.anchors[i].y,14))return{obj:area.anchors[i],type:'sp'};
@@ -348,36 +424,174 @@ function findAt(ax,ay){
   return null;
 }
 
+// Resize-handle hit test in AREA coords (tolerance widened by current scale)
+// Returns 'w' (width), 'h' (groundY, floor reference), or 'rh' (roomHeight,
+// the real camera/canvas vertical bound).
+function hitResizeHandle(ax,ay){
+  const tol = 8/SCALE;
+  const roomH = effectiveRoomHeight();
+  if(Math.abs(ax-area.width)<tol && Math.abs(ay-area.groundY*0.5)<tol*2) return 'w';
+  if(Math.abs(ay-area.groundY)<tol && Math.abs(ax-area.width*0.5)<tol*2) return 'h';
+  if(Math.abs(ay-roomH)<tol && Math.abs(ax-area.width*0.5)<tol*2) return 'rh';
+  return null;
+}
+
+// Per-object resize handles (Slides/PowerPoint-style box resize) — 8 handles
+// around the currently-selected platform/transition's rect.
+function objHandlePositions(o){
+  return {
+    nw:[o.x,o.y],           n:[o.x+o.w/2,o.y],       ne:[o.x+o.w,o.y],
+    w:[o.x,o.y+o.h/2],                                e:[o.x+o.w,o.y+o.h/2],
+    sw:[o.x,o.y+o.h],       s:[o.x+o.w/2,o.y+o.h],   se:[o.x+o.w,o.y+o.h],
+  };
+}
+function hitObjResizeHandle(ax,ay,obj){
+  const tol = 7/SCALE;
+  const hs = objHandlePositions(obj);
+  for(const k in hs){ if(Math.abs(ax-hs[k][0])<tol && Math.abs(ay-hs[k][1])<tol) return k; }
+  return null;
+}
+function cursorForEdge(edge){
+  if(edge==='nw'||edge==='se') return 'nwse-resize';
+  if(edge==='ne'||edge==='sw') return 'nesw-resize';
+  if(edge==='n'||edge==='s') return 'ns-resize';
+  return 'ew-resize';
+}
+function resizableSel(){ return selList.length===1 && (selType==='plat'||selType==='trans') ? sel : null; }
+
+// ─── SELECTION HELPERS ─────────────────────────────────────────────────────
+function setSingleSel(obj,type){
+  if(obj){ selList=[{obj,type}]; sel=obj; selType=type; }
+  else { selList=[]; sel=null; selType=null; }
+}
+function toggleMultiSel(obj,type){
+  const idx = selList.findIndex(s=>s.obj===obj);
+  if(idx>=0) selList.splice(idx,1);
+  else selList.push({obj,type});
+  if(selList.length===1){ sel=selList[0].obj; selType=selList[0].type; }
+  else { sel=null; selType=null; }
+}
+
 // ─── MOUSE ───────────────────────────────────────────────────────────────
 function getAC(e){const r=cv.getBoundingClientRect();return{x:cA(e.clientX-r.left),y:cA(e.clientY-r.top)};}
 
 cv.addEventListener('mousedown',e=>{
+  if(e.button===1 || spaceHeld){
+    e.preventDefault();
+    panning=true; panStartX=e.clientX; panStartY=e.clientY;
+    panScrollX=wrapEl.scrollLeft; panScrollY=wrapEl.scrollTop;
+    wrapEl.classList.add('panning');
+    return;
+  }
   const{x:ax,y:ay}=getAC(e);
   if(tool==='select'){
+    const rsel = resizableSel();
+    if(rsel){
+      const edge = hitObjResizeHandle(ax,ay,rsel);
+      if(edge){
+        objResizing = {obj:rsel, edge, sx:rsel.x, sy:rsel.y, sw:rsel.w, sh:rsel.h};
+        return render();
+      }
+    }
     const f=findAt(ax,ay);
-    if(f){sel=f.obj;selType=f.type;dragging=true;dox=ax-sel.x;doy=ay-sel.y;updateSideProps();}
-    else{sel=null;selType=null;updateSideProps();}
+    if(f){
+      if(e.shiftKey){ toggleMultiSel(f.obj,f.type); }
+      else if(!isSelObj(f.obj)){ setSingleSel(f.obj,f.type); }
+      dragging=true; dragMoved=false;
+      dragStarts = selList.map(s=>({obj:s.obj, sx:s.obj.x, sy:s.obj.y}));
+      dox=ax-f.obj.x; doy=ay-f.obj.y;
+      updateSideProps();
+    } else {
+      const rh = hitResizeHandle(ax,ay);
+      if(rh){ resizing=rh; }
+      else { setSingleSel(null,null); updateSideProps(); }
+    }
   }else if(tool==='plat'||tool==='wall'||tool==='trans'){
     creating=true;cs={cx:aC(snp(ax)),cy:aC(snp(ay)),ax:snp(ax),ay:snp(ay)};
   }else{
     const sx=snp(ax),sy=snp(ay);
-    if(tool==='frac'||tool==='stut'){const en={type:tool==='stut'?'stutterer':'fractured',x:sx,y:sy};area.enemies.push(en);sel=en;selType='enemy';}
-    else if(tool==='sp'){const sp={x:sx,y:sy,index:area.anchors.length};area.anchors.push(sp);sel=sp;selType='sp';}
-    else if(tool==='ab'){area.abilityReward={id:'new_ability',x:sx,y:sy,name:'New Ability',desc:''};sel=area.abilityReward;selType='ab';}
-    else if(tool==='lore'){if(!area.loreFragments)area.loreFragments=[];const lf={id:'lore_'+Date.now(),x:sx,y:sy,text:'"..."'};area.loreFragments.push(lf);sel=lf;selType='lore';}
+    if(tool==='enemy'){const et=document.getElementById('enemy-type').value||'fractured';const en={type:et,x:sx,y:sy};area.enemies.push(en);setSingleSel(en,'enemy');}
+    else if(tool==='sp'){const spn={x:sx,y:sy,index:area.anchors.length};area.anchors.push(spn);setSingleSel(spn,'sp');}
+    else if(tool==='ab'){area.abilityReward={id:'new_ability',x:sx,y:sy,name:'New Ability',desc:''};setSingleSel(area.abilityReward,'ab');}
+    else if(tool==='lore'){if(!area.loreFragments)area.loreFragments=[];const lf={id:'lore_'+Date.now(),x:sx,y:sy,text:'"..."'};area.loreFragments.push(lf);setSingleSel(lf,'lore');}
+    else if(tool==='bossspawn'){area.bossSpawn={x:sx,y:sy};setSingleSel(area.bossSpawn,'bossspawn');}
+    else if(tool==='testspawn'){testSpawn={x:sx,y:sy};render();return;} // no history entry — it's a scratch marker, not room data
     updateSideProps();
+    pushHistory();
   }
   render();
 });
 
 cv.addEventListener('mousemove',e=>{
+  if(panning){
+    wrapEl.scrollLeft = panScrollX - (e.clientX-panStartX);
+    wrapEl.scrollTop = panScrollY - (e.clientY-panStartY);
+    return;
+  }
   const{x:ax,y:ay}=getAC(e);mx=ax;my=ay;
   document.getElementById('coord').textContent='x:'+Math.round(ax)+' y:'+Math.round(ay);
-  if(dragging&&sel&&tool==='select'){sel.x=snp(ax-dox);sel.y=snp(ay-doy);updateSideProps();}
+  if(resizing==='w'){ area.width=Math.max(200,snp(ax)); render(); return; }
+  if(resizing==='h'){ area.groundY=Math.max(100,snp(ay)); render(); return; }
+  if(resizing==='rh'){ area.roomHeight=Math.max(area.groundY+50,snp(ay)); render(); return; }
+  if(objResizing){
+    const r=objResizing;
+    let nx=r.sx, ny=r.sy, nw=r.sw, nh=r.sh;
+    const mxx=snp(ax), myy=snp(ay);
+    const minW = r.obj===sel && selType==='trans' ? 10 : 4;
+    const minH = r.obj===sel && selType==='trans' ? 10 : 1;
+    if(r.edge.includes('e')) nw=Math.max(minW, mxx-r.sx);
+    if(r.edge.includes('s')) nh=Math.max(minH, myy-r.sy);
+    if(r.edge.includes('w')){ nw=Math.max(minW,(r.sx+r.sw)-mxx); nx=(r.sx+r.sw)-nw; }
+    if(r.edge.includes('n')){ nh=Math.max(minH,(r.sy+r.sh)-myy); ny=(r.sy+r.sh)-nh; }
+    r.obj.x=nx; r.obj.y=ny; r.obj.w=nw; r.obj.h=nh;
+    updateSideProps();
+    render();
+    return;
+  }
+  if(dragging&&dragStarts&&tool==='select'){
+    const nx=snp(ax-dox), ny=snp(ay-doy);
+    const anchor = dragStarts.find(d=>d.obj===sel) || dragStarts[0];
+    const ddx = nx-anchor.sx, ddy = ny-anchor.sy;
+    if(ddx!==0||ddy!==0) dragMoved=true;
+    for(const d of dragStarts){ d.obj.x = snp(d.sx+ddx); d.obj.y = snp(d.sy+ddy); }
+    if(stitchEnabled && dragStarts.length===1 && selType==='plat') applyStitch(dragStarts[0].obj);
+    updateSideProps();
+  } else if(tool==='select' && !dragging && !panning){
+    const rsel = resizableSel();
+    const edge = rsel ? hitObjResizeHandle(ax,ay,rsel) : null;
+    cv.style.cursor = edge ? cursorForEdge(edge) : 'default';
+  }
   render();
 });
 
+// ─── AUTO-TILE / STITCH — snaps a dragged platform's edges flush against
+// any neighbor it's close to (closes the sub-pixel gaps that let the player
+// fall through what looks like a continuous floor) ─────────────────────────
+function applyStitch(p){
+  const TOL = 14;
+  for(const o of area.platforms){
+    if(o===p) continue;
+    const vOverlap = p.y < o.y+o.h && p.y+p.h > o.y;
+    if(vOverlap){
+      if(Math.abs(p.x-(o.x+o.w))<TOL) p.x=o.x+o.w;
+      else if(Math.abs((p.x+p.w)-o.x)<TOL) p.x=o.x-p.w;
+    }
+    const hOverlap = p.x < o.x+o.w && p.x+p.w > o.x;
+    if(hOverlap){
+      if(Math.abs(p.y-(o.y+o.h))<TOL) p.y=o.y+o.h;
+      else if(Math.abs((p.y+p.h)-o.y)<TOL) p.y=o.y-p.h;
+    }
+  }
+}
+document.getElementById('stitch-btn').addEventListener('click',e=>{
+  stitchEnabled=!stitchEnabled;
+  e.target.classList.toggle('on',stitchEnabled);
+});
+
 cv.addEventListener('mouseup',e=>{
+  if(panning){ panning=false; wrapEl.classList.remove('panning'); return; }
+  if(resizing){ resizing=null; updateAreaFields(); pushHistory(); render(); return; }
+  if(objResizing){ objResizing=null; pushHistory(); render(); return; }
   if(creating&&cs){
     const{x:ax,y:ay}=getAC(e);
     const x1=Math.min(cs.ax,snp(ax)),y1=Math.min(cs.ay,snp(ay));
@@ -385,44 +599,124 @@ cv.addEventListener('mouseup',e=>{
     if(w>=10||h>=4){
       if(tool==='plat'||tool==='wall'){
         const p={x:x1,y:y1,w:Math.max(10,w),h:Math.max(4,h)};
-        if(tool==='wall'){p.destructible=true;p.hp=2;}
-        area.platforms.push(p);sel=p;selType='plat';
+        if(tool==='wall'){p.destructible=true;p.hp=2;p.wall=true;}
+        area.platforms.push(p);setSingleSel(p,'plat');
       }else if(tool==='trans'){
-        const t={x:x1,y:y1,w:Math.max(20,w),h:Math.max(20,h),to:'the_fracture',toX:60,toY:348};
-        area.transitions.push(t);sel=t;selType='trans';
+        const t={x:x1,y:y1,w:Math.max(20,w),h:Math.max(20,h),to:ALL_ROOM_IDS[0],toX:60,toY:348};
+        area.transitions.push(t);setSingleSel(t,'trans');
       }
+      pushHistory();
     }
     updateSideProps();
+  } else if(dragging && dragMoved){
+    pushHistory();
   }
-  dragging=false;creating=false;cs=null;render();
+  dragging=false;creating=false;cs=null;dragStarts=null;dragMoved=false;render();
 });
+
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const delta = e.deltaY<0?0.08:-0.08;
+  SCALE=Math.max(0.2,Math.min(2.5,SCALE+delta));
+  render();
+},{passive:false});
+
+cv.addEventListener('contextmenu',e=>{ if(spaceHeld||panning) e.preventDefault(); });
 
 // ─── KEYBOARD ────────────────────────────────────────────────────────────
 document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
-  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();deleteSel();return;}
-  if(e.key==='Escape'){sel=null;selType=null;updateSideProps();render();return;}
-  const MOVE=e.shiftKey?50:10;
-  if(sel&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
-    e.preventDefault();
-    if(e.key==='ArrowLeft')sel.x-=MOVE;if(e.key==='ArrowRight')sel.x+=MOVE;
-    if(e.key==='ArrowUp')sel.y-=MOVE;if(e.key==='ArrowDown')sel.y+=MOVE;
-    updateSideProps();render();return;
+  if(e.code==='Space' && e.target.tagName!=='INPUT' && e.target.tagName!=='TEXTAREA'){
+    spaceHeld=true; wrapEl.classList.add('space-held'); e.preventDefault();
   }
-  const km={v:'select',p:'plat',w:'wall',f:'frac',s:'stut',t:'sp',a:'ab',x:'trans',l:'lore',g:null};
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){
+    e.preventDefault();
+    if(e.shiftKey) redo(); else undo();
+    return;
+  }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); return; }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='c'){
+    if(selList.length){ clipboard = selList.filter(s=>s.type!=='ab'&&s.type!=='bossspawn').map(s=>({type:s.type,obj:clone(s.obj)})); }
+    return;
+  }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='v'){
+    e.preventDefault(); pasteClipboard(); return;
+  }
+  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();deleteSel();return;}
+  if(e.key==='Escape'){setSingleSel(null,null);updateSideProps();render();return;}
+  const MOVE=e.shiftKey?50:10;
+  if(selList.length&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
+    e.preventDefault();
+    for(const s of selList){
+      if(e.key==='ArrowLeft')s.obj.x-=MOVE;if(e.key==='ArrowRight')s.obj.x+=MOVE;
+      if(e.key==='ArrowUp')s.obj.y-=MOVE;if(e.key==='ArrowDown')s.obj.y+=MOVE;
+    }
+    updateSideProps();render();
+    clearTimeout(window._nudgeHistTimer);
+    window._nudgeHistTimer=setTimeout(pushHistory,300);
+    return;
+  }
+  const km={v:'select',p:'plat',w:'wall',e:'enemy',t:'sp',a:'ab',x:'trans',l:'lore',b:'bossspawn',r:'testspawn',g:null};
   const k=e.key.toLowerCase();
-  if(km[k]!==undefined){if(k==='g'){snap=!snap;document.getElementById('snap-btn').classList.toggle('on',snap);}else setTool(km[k]);}
+  if(km[k]!==undefined){
+    if(k==='g'){ cycleGrid(); }
+    else setTool(km[k]);
+  }
+});
+document.addEventListener('keyup',e=>{
+  if(e.code==='Space'){ spaceHeld=false; wrapEl.classList.remove('space-held'); }
 });
 
+function pasteClipboard(){
+  if(!clipboard.length) return;
+  const pasted=[];
+  for(const c of clipboard){
+    const o=clone(c.obj);
+    o.x=(o.x||0)+20; o.y=(o.y||0)+20;
+    if(c.type==='lore') o.id='lore_'+Date.now()+'_'+Math.floor(Math.random()*1000);
+    if(c.type==='plat') area.platforms.push(o);
+    else if(c.type==='enemy') area.enemies.push(o);
+    else if(c.type==='sp'){ o.index=area.anchors.length; area.anchors.push(o); }
+    else if(c.type==='trans') area.transitions.push(o);
+    else if(c.type==='lore'){ if(!area.loreFragments)area.loreFragments=[]; area.loreFragments.push(o); }
+    else continue;
+    pasted.push({obj:o,type:c.type});
+  }
+  if(pasted.length){ selList=pasted; sel=pasted.length===1?pasted[0].obj:null; selType=pasted.length===1?pasted[0].type:null; updateSideProps(); render(); pushHistory(); }
+}
+
 function deleteSel(){
-  if(!sel)return;
-  if(selType==='plat'){const i=area.platforms.indexOf(sel);if(i>=0)area.platforms.splice(i,1);}
-  else if(selType==='enemy'){const i=area.enemies.indexOf(sel);if(i>=0)area.enemies.splice(i,1);}
-  else if(selType==='sp'){const i=area.anchors.indexOf(sel);if(i>=0)area.anchors.splice(i,1);}
-  else if(selType==='trans'){const i=area.transitions.indexOf(sel);if(i>=0)area.transitions.splice(i,1);}
-  else if(selType==='lore'&&area.loreFragments){const i=area.loreFragments.indexOf(sel);if(i>=0)area.loreFragments.splice(i,1);}
-  else if(selType==='ab'){area.abilityReward=null;}
-  sel=null;selType=null;updateSideProps();render();
+  if(!selList.length)return;
+  const toDelete = new Set(selList.map(s=>s.obj));
+  area.platforms = area.platforms.filter(o=>!toDelete.has(o));
+  area.enemies = area.enemies.filter(o=>!toDelete.has(o));
+  area.anchors = area.anchors.filter(o=>!toDelete.has(o));
+  area.transitions = area.transitions.filter(o=>!toDelete.has(o));
+  if(area.loreFragments) area.loreFragments = area.loreFragments.filter(o=>!toDelete.has(o));
+  if(area.abilityReward && toDelete.has(area.abilityReward)) area.abilityReward=null;
+  if(area.bossSpawn && toDelete.has(area.bossSpawn)) area.bossSpawn=null;
+  setSingleSel(null,null);
+  updateSideProps();render();
+  pushHistory();
+}
+
+// ─── LAYER ORDERING ─────────────────────────────────────────────────────
+function arrayFor(type){
+  if(type==='plat')return area.platforms;
+  if(type==='enemy')return area.enemies;
+  if(type==='trans')return area.transitions;
+  if(type==='lore')return area.loreFragments;
+  if(type==='sp')return area.anchors;
+  return null;
+}
+function reorderSel(dir){
+  if(!sel||!selType)return;
+  const arr=arrayFor(selType); if(!arr)return;
+  const i=arr.indexOf(sel); if(i<0)return;
+  arr.splice(i,1);
+  if(dir==='front') arr.push(sel); else arr.unshift(sel);
+  render(); pushHistory();
 }
 
 // ─── TOOLBAR ─────────────────────────────────────────────────────────────
@@ -432,32 +726,154 @@ function setTool(t){
   cv.style.cursor=t==='select'?'default':'crosshair';
 }
 document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
-document.getElementById('zoom+').onclick=()=>{SCALE=Math.min(1.5,SCALE+0.08);render();};
-document.getElementById('zoom-').onclick=()=>{SCALE=Math.max(0.3,SCALE-0.08);render();};
-document.getElementById('snap-btn').onclick=()=>{snap=!snap;document.getElementById('snap-btn').classList.toggle('on',snap);};
-document.getElementById('preset').addEventListener('change',e=>{area=clone(PRESETS[e.target.value]);sel=null;selType=null;updateAreaFields();updateSideProps();render();});
+document.getElementById('zoom+').onclick=()=>{SCALE=Math.min(2.5,SCALE+0.08);render();};
+document.getElementById('zoom-').onclick=()=>{SCALE=Math.max(0.2,SCALE-0.08);render();};
+document.getElementById('undo-btn').onclick=undo;
+document.getElementById('redo-btn').onclick=redo;
+
+const GRID_STEPS=[0,5,10,20,50];
+function cycleGrid(){
+  const i=GRID_STEPS.indexOf(SNAP);
+  SNAP=GRID_STEPS[(i+1)%GRID_STEPS.length];
+  document.getElementById('grid-size').value=String(SNAP);
+  render();
+}
+document.getElementById('grid-size').addEventListener('change',e=>{ SNAP=parseInt(e.target.value)||0; render(); });
+
+document.getElementById('new-room-btn').addEventListener('click',()=>{
+  area = {
+    id:'new_room', name:'New Room', region:'origin', width:1200, groundY:390,
+    bgColor:'#0a0a0f', bgTint:'rgba(196,181,253,0.02)', ambientColor:'#c4b5fd',
+    platforms:[{x:0,y:390,w:1200,h:60}], transitions:[], enemies:[], anchors:[],
+    loreFragments:[], abilityReward:null,
+  };
+  setSingleSel(null,null);
+  currentLoadedId=null; testSpawn=null; validationFailures=[];
+  const presetSel=document.getElementById('preset');
+  if(!presetSel.querySelector('option[value="__new__"]')){
+    const opt=document.createElement('option'); opt.value='__new__'; opt.textContent='✦ New (unsaved)';
+    presetSel.prepend(opt);
+  }
+  presetSel.value='__new__';
+  updateAreaFields(); updateSideProps(); render(); resetHistory();
+  document.getElementById('validate-out').innerHTML='';
+  document.getElementById('diff-out').innerHTML='';
+});
+
+// ─── PRESET / ROOM SELECT (backed by real AREAS, grouped by region) ───────
+function populatePresetSelect(){
+  const sel=document.getElementById('preset');
+  const byRegion={};
+  for(const id of ALL_ROOM_IDS){
+    const r=AREAS[id].region||'(no region)';
+    (byRegion[r]=byRegion[r]||[]).push(id);
+  }
+  let html='';
+  for(const region of Object.keys(byRegion).sort()){
+    html+=`<optgroup label="${region}">`;
+    for(const id of byRegion[region]) html+=`<option value="${id}">${AREAS[id].name||id}</option>`;
+    html+='</optgroup>';
+  }
+  sel.innerHTML=html;
+  sel.value=ALL_ROOM_IDS[0];
+}
+document.getElementById('preset').addEventListener('change',e=>{
+  const v=e.target.value;
+  if(v==='__new__')return;
+  area=clone(AREAS[v]);
+  currentLoadedId=v; testSpawn=null; validationFailures=[];
+  setSingleSel(null,null);
+  updateAreaFields();updateSideProps();render();
+  resetHistory();
+  document.getElementById('validate-out').innerHTML='';
+  document.getElementById('diff-out').innerHTML='';
+  const staleOpt=document.querySelector('#preset option[value="__new__"]');
+  if(staleOpt)staleOpt.remove();
+});
+
+function populateEnemyTypeSelect(){
+  const sel=document.getElementById('enemy-type');
+  sel.innerHTML=ENEMY_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+
+function populateRegionDatalist(){
+  const dl=document.getElementById('region-list');
+  const regions=[...new Set(ALL_ROOM_IDS.map(id=>AREAS[id].region).filter(Boolean))].sort();
+  dl.innerHTML=regions.map(r=>`<option value="${r}">`).join('');
+}
 
 // ─── AREA FIELDS ─────────────────────────────────────────────────────────
+// Effective room height for canvas/camera purposes — an explicit,
+// author-controlled field independent of groundY (which is just the
+// nominal floor reference line, not a hard bound anymore; see
+// player.js/game.js — the old invisible groundY floor was removed so real
+// pits/deep rooms work). Falls back to groundY+100 when unset, matching
+// game.js's getBounds()/updateCamera() fallback so the editor view and
+// real gameplay camera framing always agree.
+function effectiveRoomHeight(){
+  return typeof area.roomHeight==='number' ? area.roomHeight : area.groundY+100;
+}
 function updateAreaFields(){
   document.getElementById('a-name').value=area.name||'';
+  document.getElementById('a-region').value=area.region||'';
   document.getElementById('a-w').value=area.width||1200;
   document.getElementById('a-gy').value=area.groundY||390;
+  document.getElementById('a-rh').value=typeof area.roomHeight==='number'?area.roomHeight:'';
   document.getElementById('a-amb').value=area.ambientColor||'#c4b5fd';
+  document.getElementById('a-roomtype').value=area.roomType||'';
+  document.getElementById('a-minibossid').value=area.miniboss||'';
+  document.getElementById('a-miniboss-row').style.display=area.roomType==='miniboss'?'flex':'none';
+  document.getElementById('a-nopit').checked = area.pitDeathY===Infinity;
 }
-['a-name','a-w','a-gy','a-amb'].forEach(id=>{
-  document.getElementById(id).addEventListener('change',e=>{
+['a-name','a-region','a-w','a-gy','a-rh','a-amb'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',e=>{
     if(id==='a-name')area.name=e.target.value;
+    else if(id==='a-region')area.region=e.target.value;
     else if(id==='a-w'){area.width=parseInt(e.target.value)||1200;resizeCV();}
     else if(id==='a-gy')area.groundY=parseInt(e.target.value)||390;
+    else if(id==='a-rh'){
+      const v=parseInt(e.target.value);
+      if(e.target.value.trim()===''||isNaN(v)) delete area.roomHeight;
+      else area.roomHeight=Math.max(area.groundY+50,v);
+      resizeCV();
+    }
     else if(id==='a-amb')area.ambientColor=e.target.value;
     render();
   });
+  document.getElementById(id).addEventListener('change',()=>{ pushHistory(); populateRegionDatalist(); });
+});
+document.getElementById('a-roomtype').addEventListener('change',e=>{
+  const v=e.target.value;
+  area.roomType = v||undefined;
+  if(v==='boss'){ area.isBossArena=true; delete area.isMinibossArena; delete area.miniboss; }
+  else if(v==='miniboss'){ area.isMinibossArena=true; delete area.isBossArena; if(!area.miniboss)area.miniboss=''; }
+  else { delete area.isBossArena; delete area.isMinibossArena; delete area.miniboss; }
+  updateAreaFields();
+  pushHistory();
+});
+document.getElementById('a-minibossid').addEventListener('input',e=>{ area.miniboss=e.target.value; });
+document.getElementById('a-minibossid').addEventListener('change',pushHistory);
+document.getElementById('a-nopit').addEventListener('change',e=>{
+  area.pitDeathY = e.target.checked ? Infinity : undefined;
+  if(area.pitDeathY===undefined) delete area.pitDeathY;
+  pushHistory();
 });
 
 // ─── PROPERTIES PANEL ────────────────────────────────────────────────────
+function layerButtons(type){
+  if(!arrayFor(type)) return '';
+  return `<div class="row"><button onclick="reorderSel('back')">⬇ Send Back</button><button onclick="reorderSel('front')">⬆ Bring Front</button></div>`;
+}
+
 function updateSideProps(){
   const el=document.getElementById('sel-props');
-  if(!sel){el.innerHTML='<div class="hint">Click any object to see its properties.</div>';return;}
+  if(selList.length>1){
+    el.innerHTML=`<div class="section-title">Multi-Select (${selList.length})</div>
+    <div class="hint">${selList.length} objects selected.<br>Drag to move together.<br>Arrow keys nudge together.<br>Ctrl+C / Ctrl+V to copy/paste.</div>
+    <div class="row"><button class="del" onclick="deleteSel()">✕ Delete All</button></div>`;
+    return;
+  }
+  if(!sel){el.innerHTML='<div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll wheel to zoom.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div>';return;}
   let h='';
   const pi=(id,lbl,val,step=1)=>`<div class="row"><label>${lbl}</label><input type="number" id="${id}" value="${val}" step="${step}"></div>`;
   const pt=(id,lbl,val)=>`<div class="row"><label>${lbl}</label><input type="text" id="${id}" value="${String(val).replace(/"/g,'&quot;')}"></div>`;
@@ -467,34 +883,46 @@ function updateSideProps(){
     h=`<div class="section-title">Platform</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pi('p-w','w',sel.w,10)}${pi('p-h','h',sel.h,1)}
     <div class="row"><label>💥</label><input type="checkbox" id="p-dest" ${sel.destructible?'checked':''}><span style="color:#2dd4bf;font-size:10px"> Destructible</span></div>
     ${sel.destructible?pi('p-hp','hp',sel.hp||2,1):''}
+    <div class="row"><label>wall</label><input type="checkbox" id="p-wall" ${sel.wall?'checked':''}><span style="color:#5a5a8e;font-size:10px"> No top-landing (side wall)</span></div>
+    ${layerButtons('plat')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='enemy'){
     h=`<div class="section-title">Enemy</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}
-    <div class="row"><label>type</label><select id="p-type"><option ${sel.type==='fractured'?'selected':''}>fractured</option><option ${sel.type==='stutterer'?'selected':''}>stutterer</option></select></div>
+    <div class="row"><label>type</label><select id="p-type">${ENEMY_TYPES.map(t=>`<option ${sel.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    ${layerButtons('enemy')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='sp'){
     h=`<div class="section-title">Anchor ◆</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pi('p-idx','#',sel.index||0,1)}
+    ${layerButtons('sp')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='trans'){
-    const aOpts=Object.keys(PRESETS).map(k=>`<option ${sel.to===k?'selected':''}>${k}</option>`).join('');
-    const rOpts=['','phase_dash','shard_shot','stillpoint'].map(v=>`<option value="${v}" ${sel.requires===v?'selected':''}>${v||'none'}</option>`).join('');
+    const aOpts=ALL_ROOM_IDS.map(k=>`<option ${sel.to===k?'selected':''}>${k}</option>`).join('');
+    const rOpts=['','phase_dash','shard_shot','stillpoint','charged_attack'].map(v=>`<option value="${v}" ${sel.requires===v?'selected':''}>${v||'none'}</option>`).join('');
     h=`<div class="section-title">Transition →</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pi('p-w','w',sel.w,5)}${pi('p-h','h',sel.h,5)}
     <div class="row"><label>to</label><select id="p-to">${aOpts}</select></div>${pi('p-tox','toX',sel.toX||60,10)}${pi('p-toy','toY',sel.toY||348,10)}
     <div class="row"><label>req</label><select id="p-req">${rOpts}</select></div>
+    <div class="row"><label>oneWay</label><input type="checkbox" id="p-oneway" ${sel.oneWay?'checked':''}></div>
+    ${layerButtons('trans')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='lore'){
     h=`<div class="section-title">Lore Fragment</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pp('p-txt','txt',sel.text||'')}
+    ${layerButtons('lore')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='ab'){
     h=`<div class="section-title">Ability ★</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pt('p-name','name',sel.name||'')}${pp('p-desc','desc',sel.desc||'')}
+    <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
+  }else if(selType==='bossspawn'){
+    h=`<div class="section-title">Boss Spawn ☠</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}
+    <div class="hint">Spawn point for the room's boss/miniboss (area.bossSpawn). Used when roomType is Boss or Miniboss Arena.</div>
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }
   el.innerHTML=h;
 
   // Wire inputs
-  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-to p-req p-type p-id p-name p-txt p-desc'.split(' ').forEach(id=>{
+  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-wall p-to p-req p-oneway p-type p-id p-name p-txt p-desc'.split(' ').forEach(id=>{
     const e=document.getElementById(id);if(!e)return;
-    e.addEventListener('input',applyProps);e.addEventListener('change',applyProps);
+    e.addEventListener('input',applyProps);
+    e.addEventListener('change',()=>{applyProps();pushHistory();});
   });
 }
 
@@ -507,6 +935,7 @@ function applyProps(){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     if(gi('p-w')!==null)sel.w=Math.max(4,gi('p-w'));if(gi('p-h')!==null)sel.h=Math.max(1,gi('p-h'));
     sel.destructible=gb('p-dest');if(sel.destructible)sel.hp=gi('p-hp')||2;else delete sel.hp;
+    if(gb('p-wall'))sel.wall=true;else delete sel.wall;
   }else if(selType==='enemy'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const t=gs('p-type');if(t)sel.type=t;
@@ -519,6 +948,7 @@ function applyProps(){
     const to=gs('p-to');if(to)sel.to=to;
     if(gi('p-tox')!==null)sel.toX=gi('p-tox');if(gi('p-toy')!==null)sel.toY=gi('p-toy');
     const req=gs('p-req');if(req!==null){if(req)sel.requires=req;else delete sel.requires;}
+    if(gb('p-oneway'))sel.oneWay=true;else delete sel.oneWay;
   }else if(selType==='lore'){
     const id=gs('p-id');if(id!==null)sel.id=id;
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
@@ -528,34 +958,164 @@ function applyProps(){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const n=gs('p-name');if(n!==null)sel.name=n;
     const d=gs('p-desc');if(d!==null)sel.desc=d;
+  }else if(selType==='bossspawn'){
+    if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
   }
   render();
 }
 
-// ─── EXPORT ──────────────────────────────────────────────────────────────
+// ─── SEARCH ─────────────────────────────────────────────────────────────
+function buildSearchIndex(){
+  const items=[];
+  area.platforms.forEach(p=>items.push({obj:p,type:'plat',label:`Platform ${p.w}×${p.h} @(${p.x},${p.y})${p.destructible?' [destructible]':''}`}));
+  area.enemies.forEach(e=>items.push({obj:e,type:'enemy',label:`Enemy: ${e.type} @(${e.x},${e.y})`}));
+  area.anchors.forEach(a=>items.push({obj:a,type:'sp',label:`Anchor #${a.index||0} @(${a.x},${a.y})`}));
+  area.transitions.forEach(t=>items.push({obj:t,type:'trans',label:`Door → ${t.to} @(${t.x},${t.y})${t.requires?' ['+t.requires+']':''}`}));
+  (area.loreFragments||[]).forEach(l=>items.push({obj:l,type:'lore',label:`Lore: ${l.id}`}));
+  if(area.abilityReward)items.push({obj:area.abilityReward,type:'ab',label:`Ability: ${area.abilityReward.name||area.abilityReward.id}`});
+  if(area.bossSpawn)items.push({obj:area.bossSpawn,type:'bossspawn',label:`Boss Spawn @(${area.bossSpawn.x},${area.bossSpawn.y})`});
+  return items;
+}
+document.getElementById('obj-search').addEventListener('input',e=>{
+  const q=e.target.value.trim().toLowerCase();
+  const out=document.getElementById('search-results');
+  if(!q){out.innerHTML='';return;}
+  const matches=buildSearchIndex().filter(it=>it.label.toLowerCase().includes(q)||it.type.includes(q));
+  out.innerHTML=matches.slice(0,40).map((it,i)=>`<div class="sr-item" data-i="${i}">${it.label}</div>`).join('')||'<div class="sr-item" style="cursor:default">No matches</div>';
+  out.querySelectorAll('.sr-item[data-i]').forEach((el,i)=>{
+    el.addEventListener('click',()=>{
+      setSingleSel(matches[i].obj,matches[i].type);
+      updateSideProps();render();
+      panTo(matches[i].obj);
+    });
+  });
+});
+function panTo(obj){
+  if(obj.x===undefined)return;
+  wrapEl.scrollLeft = Math.max(0, aC(obj.x)-wrapEl.clientWidth/2);
+  wrapEl.scrollTop = Math.max(0, aC(obj.y)-wrapEl.clientHeight/2);
+}
+
+// ─── EXPORT (generic JS-literal serializer — preserves every field on the
+// room object, including ones this UI doesn't have controls for yet, so
+// round-tripping through the editor never silently drops data like col/row/
+// connections/mapAccent) ────────────────────────────────────────────────
+function jsLit(val,indent){
+  if(val===null)return 'null';
+  if(val===undefined)return 'undefined';
+  if(typeof val==='number')return isNaN(val)?'NaN':String(val);
+  if(typeof val==='boolean')return String(val);
+  if(typeof val==='string')return `'${val.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}'`;
+  if(Array.isArray(val)){
+    if(val.length===0)return '[]';
+    const items=val.map(v=>indent+'  '+jsLit(v,indent+'  '));
+    return '[\n'+items.join(',\n')+'\n'+indent+']';
+  }
+  if(typeof val==='object'){
+    const keys=Object.keys(val);
+    if(keys.length===0)return '{}';
+    const items=keys.map(k=>indent+'  '+k+': '+jsLit(val[k],indent+'  '));
+    return '{\n'+items.join(',\n')+'\n'+indent+'}';
+  }
+  return String(val);
+}
 document.getElementById('exp-btn').addEventListener('click',()=>{
-  const a=area;
-  const fp=p=>{let s=`      { x:${p.x}, y:${p.y}, w:${p.w}, h:${p.h}`;if(p.destructible)s+=`, destructible:true, hp:${p.hp||2}`;return s+' }';};
-  const fe=e=>`      { type:'${e.type}', x:${e.x}, y:${e.y} }`;
-  const fs=s=>`      { x:${s.x}, y:${s.y}, index:${s.index||0} }`;
-  const ft=t=>{let s=`      { x:${t.x}, y:${t.y}, w:${t.w}, h:${t.h}, to:'${t.to}', toX:${t.toX||60}, toY:${t.toY||348}`;if(t.requires)s+=`, requires:'${t.requires}'`;return s+' }';};
-  const fl=l=>`      { id:'${l.id}', x:${l.x}, y:${l.y}, text:${JSON.stringify(l.text)} }`;
-  let out=`  ${a.id}: {\n    id: '${a.id}',\n    name: '${a.name}',\n    width: ${a.width},\n    groundY: ${a.groundY},\n`;
-  out+=`    bgColor: '#0a0a0f',\n    bgTint: '${a.bgTint||'rgba(100,60,150,0.03)'}',\n    ambientColor: '${a.ambientColor||'#c4b5fd'}',\n`;
-  out+=`    platforms: [\n${a.platforms.map(fp).join(',\n')}\n    ],\n`;
-  out+=a.abilityReward?`    abilityReward: { id:'${a.abilityReward.id}', x:${a.abilityReward.x}, y:${a.abilityReward.y}, name:'${a.abilityReward.name||''}', desc:${JSON.stringify(a.abilityReward.desc||'')} },\n`:`    abilityReward: null,\n`;
-  out+=`    transitions: [\n${a.transitions.map(ft).join(',\n')}\n    ],\n`;
-  out+=`    enemies: [\n${a.enemies.map(fe).join(',\n')}\n    ],\n`;
-  out+=`    anchors: [\n${a.anchors.map(fs).join(',\n')}\n    ],\n`;
-  out+=`    loreFragments: [\n${(a.loreFragments||[]).map(fl).join(',\n')}\n    ],\n`;
-  if(a.isBossArena)out+=`    isBossArena: true,\n    bossSpawn: { x:${(a.bossSpawn||{x:400}).x}, y:${(a.bossSpawn||{y:334}).y} },\n`;
-  out+=`  },`;
+  const out = `  ${area.id}: ${jsLit(area,'  ')},`;
   document.getElementById('exp-out').value=out;
 });
 
+// ─── CHECK ALL ROOMS (uses the real validateRoomLayout() from area.js) ────
+document.getElementById('check-btn').addEventListener('click',()=>{
+  const out=document.getElementById('check-out');
+  let clean=0, lines=[];
+  for(const id of ALL_ROOM_IDS){
+    const room=AREAS[id];
+    if(typeof room.col!=='number'){ continue; } // dev-only rooms, same skip rule as area.js
+    let failures=[];
+    try{ failures=validateRoomLayout(room).failures; }catch(err){ failures=['linter crashed: '+err.message]; }
+    if(failures.length===0){ clean++; }
+    else { lines.push(`<div class="bad" data-room="${id}">✗ ${id}: ${failures.length} issue(s)<br>&nbsp;&nbsp;${failures.join('<br>&nbsp;&nbsp;')}</div>`); }
+  }
+  const total = ALL_ROOM_IDS.filter(id=>typeof AREAS[id].col==='number').length;
+  let html = lines.length===0
+    ? `<div class="ok">✓ all ${clean}/${total} rooms passed layout checks</div>`
+    : `<div class="ok">${clean}/${total} clean</div>` + lines.join('');
+  out.innerHTML=html;
+  out.querySelectorAll('.bad[data-room]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      document.getElementById('preset').value=el.dataset.room;
+      document.getElementById('preset').dispatchEvent(new Event('change'));
+    });
+  });
+});
+
+// ─── VALIDATE THIS ROOM (runs the real linter on the in-editor, possibly
+// unsaved, room — not just the AREAS copy — and marks failures on canvas) ──
+function deepEqual(a,b){
+  if(a===b)return true;
+  if(typeof a!==typeof b)return false;
+  if(a===null||b===null)return a===b;
+  if(typeof a!=='object')return false;
+  if(Array.isArray(a)!==Array.isArray(b))return false;
+  if(Array.isArray(a)){
+    if(a.length!==b.length)return false;
+    for(let i=0;i<a.length;i++)if(!deepEqual(a[i],b[i]))return false;
+    return true;
+  }
+  const ak=Object.keys(a), bk=Object.keys(b);
+  if(ak.length!==bk.length)return false;
+  for(const k of ak){ if(!(k in b)||!deepEqual(a[k],b[k]))return false; }
+  return true;
+}
+
+document.getElementById('validate-btn').addEventListener('click',()=>{
+  const out=document.getElementById('validate-out');
+  let failures=[];
+  try{ failures=validateRoomLayout(area).failures; }
+  catch(err){ failures=['linter crashed: '+err.message]; }
+  validationFailures=failures.map(f=>{
+    const m=f.match(/\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)/);
+    return { msg:f, x:m?parseFloat(m[1]):null, y:m?parseFloat(m[2]):null };
+  });
+  out.innerHTML = failures.length===0
+    ? '<div class="ok">✓ this room passes layout checks</div>'
+    : failures.map(f=>`<div class="bad">✗ ${f}</div>`).join('');
+  render();
+});
+
+// ─── DIFF VS SAVED — field-level comparison of the in-editor room against
+// the pristine AREAS[currentLoadedId] copy from area.js ────────────────────
+document.getElementById('diff-btn').addEventListener('click',()=>{
+  const out=document.getElementById('diff-out');
+  if(!currentLoadedId||!AREAS[currentLoadedId]){
+    out.innerHTML='<div class="hint">This is a new, unsaved room — nothing to diff against.</div>';
+    return;
+  }
+  const saved=AREAS[currentLoadedId];
+  const keys=[...new Set([...Object.keys(area),...Object.keys(saved)])].sort();
+  const lines=[];
+  for(const k of keys){
+    const inArea=k in area, inSaved=k in saved;
+    if(!inSaved){ lines.push(`<div class="bad">+ ${k} (added)</div>`); continue; }
+    if(!inArea){ lines.push(`<div class="bad">− ${k} (removed)</div>`); continue; }
+    if(!deepEqual(area[k],saved[k])){
+      if(Array.isArray(area[k])&&Array.isArray(saved[k])){
+        lines.push(`<div class="bad">~ ${k} (changed — ${area[k].length} vs ${saved[k].length} items)</div>`);
+      } else {
+        lines.push(`<div class="bad">~ ${k} (changed)</div>`);
+      }
+    }
+  }
+  out.innerHTML = lines.length===0 ? '<div class="ok">No changes vs saved area.js</div>' : lines.join('');
+});
+
 // ─── INIT ────────────────────────────────────────────────────────────────
+populatePresetSelect();
+populateEnemyTypeSelect();
+populateRegionDatalist();
 updateAreaFields();
 updateSideProps();
+updateUndoRedoButtons();
 render();
 window.addEventListener('resize',render);
 </script>

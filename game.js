@@ -245,6 +245,11 @@ function getBounds(area) {
     right: area.width,
     groundY: area.groundY,
     pitDeathY: area.pitDeathY,
+    // Camera/canvas vertical extent — independent of groundY (which is just
+    // the nominal floor reference, not a real bound anymore). Rooms that
+    // don't set this explicitly fall back to the old groundY+100 behavior,
+    // so every existing room's camera framing is unchanged.
+    roomHeight: typeof area.roomHeight === 'number' ? area.roomHeight : area.groundY + 100,
   };
 }
 
@@ -273,9 +278,14 @@ function updateCamera(player, area) {
   camera.x += (targetX - camera.x) * 0.1;
   camera.y += (targetY - camera.y) * 0.1;
 
-  // Clamp to area bounds
+  // Clamp to area bounds. Vertical bound uses `roomHeight` (an explicit,
+  // author-controlled field — same convention as `width`) instead of
+  // `groundY`, so the camera can follow the player into rooms that go
+  // deeper/taller than the nominal floor line. Falls back to the old
+  // groundY+100 behavior for rooms that don't set roomHeight.
+  const roomBottom = typeof area.roomHeight === 'number' ? area.roomHeight : area.groundY + 100;
   camera.x = Math.max(0, Math.min(camera.x, area.width - W));
-  camera.y = Math.max(0, Math.min(camera.y, area.groundY - H + 100));
+  camera.y = Math.max(0, Math.min(camera.y, roomBottom - H + 100));
 }
 
 // Apply camera transform to canvas
@@ -432,6 +442,27 @@ function rectsOverlap(a, b) {
          a.y + a.height > b.y;
 }
 
+// Push the player out of an overlapping enemy along the shallower penetration
+// axis (classic AABB minimum-translation-vector), away from the enemy's
+// center. Runs unconditionally on overlap — independent of invincibility/
+// damage — so the two boxes never sit inside each other.
+function separateFromEnemy(player, enemy) {
+  const pCenterX = player.x + player.width / 2;
+  const pCenterY = player.y + player.height / 2;
+  const eCenterX = enemy.x + enemy.width / 2;
+  const eCenterY = enemy.y + enemy.height / 2;
+
+  const overlapX = (player.width + enemy.width) / 2 - Math.abs(pCenterX - eCenterX);
+  const overlapY = (player.height + enemy.height) / 2 - Math.abs(pCenterY - eCenterY);
+  if (overlapX <= 0 || overlapY <= 0) return;
+
+  if (overlapX < overlapY) {
+    player.x += (pCenterX < eCenterX) ? -overlapX : overlapX;
+  } else {
+    player.y += (pCenterY < eCenterY) ? -overlapY : overlapY;
+  }
+}
+
 // Spawn enemies for an area
 function spawnAreaEnemies(areaId) {
   if (areaEnemiesSpawned[areaId]) return;
@@ -440,23 +471,14 @@ function spawnAreaEnemies(areaId) {
   const area = getArea(areaId);
   areaEnemies[areaId] = [];
 
+  // Looked up from ENEMY_REGISTRY (enemy.js) rather than a hand-maintained
+  // if/else chain — that chain used to silently miss classes (blitz_guard
+  // fell through to a generic base Enemy with none of its real behavior)
+  // whenever a new enemy class was added here but not also added there.
   for (const eDef of area.enemies) {
-    if (eDef.type === 'stutterer') {
-      areaEnemies[areaId].push(new Stutterer(eDef.x, eDef.y));
-    } else if (eDef.type === 'crystal_sentinel') {
-    areaEnemies[areaId].push(new CrystalSentinel(eDef.x, eDef.y));
-    } else if (eDef.type === 'void_lancer') {
-      areaEnemies[areaId].push(new VoidLancer(eDef.x, eDef.y));
-    } else if (eDef.type === 'null_sentinel') {
-      areaEnemies[areaId].push(new NullSentinel(eDef.x, eDef.y));
-    } else if (eDef.type === 'anchor_wraith') {
-      areaEnemies[areaId].push(new AnchorWraith(eDef.x, eDef.y));
-    } else if (eDef.type === 'deflector_drone') {
-      areaEnemies[areaId].push(new DeflectorDrone(eDef.x, eDef.y));
-    } else if (eDef.type === 'mirror_sprite') {
-      areaEnemies[areaId].push(new MirrorSprite(eDef.x, eDef.y));
-    } else if (eDef.type === 'echo_stalker') {
-      areaEnemies[areaId].push(new EchoStalker(eDef.x, eDef.y));
+    const Cls = (typeof ENEMY_REGISTRY !== 'undefined') ? ENEMY_REGISTRY[eDef.type] : undefined;
+    if (Cls && Cls !== Enemy) {
+      areaEnemies[areaId].push(new Cls(eDef.x, eDef.y));
     } else {
       areaEnemies[areaId].push(new Enemy(eDef.x, eDef.y, eDef.type));
     }
@@ -1846,14 +1868,13 @@ function update() {
   // Check player death or pit death (fell off the map)
   // Note: death at 0 HP should trigger regardless of invincibility timer
   const playerDead = player.health <= 0;
-  // Explicit per-room override (for floorless "void" rooms like Echo Bridge/
-  // The Rift, whose real platforms all sit well above their nominal groundY)
-  // falls back to groundY + 100 for rooms with an actual floor near groundY —
-  // covers any room regardless of how tall it is, instead of guessing from
-  // groundY alone (that guess used to hard-code 600 for any groundY > 800,
-  // which incorrectly killed the player above real platforms in tall
-  // multi-floor rooms like Crag of the Colossus).
-  const pitDeathY = typeof bounds.pitDeathY === 'number' ? bounds.pitDeathY : bounds.groundY + 100;
+  // Explicit per-room override. Used to fall back to `groundY + 100` when
+  // unset, but that relied on player.js's old invisible groundY floor to
+  // ever be reachable in the first place — now that falling is governed
+  // purely by real platforms, the correct no-op default is "never die,"
+  // per the project's no-fall-death-by-default rule (CLAUDE.md). Rooms
+  // that want a real pit set `pitDeathY` explicitly, same as always.
+  const pitDeathY = typeof bounds.pitDeathY === 'number' ? bounds.pitDeathY : Infinity;
   const pitDeath = player.y > pitDeathY;
   if ((playerDead || pitDeath) && (playerDead || player.invincibleTimer <= 0)) {
     screenShake = 15;
@@ -2061,30 +2082,36 @@ function update() {
         hitstopTimer = 5;
         SFX.parry();
       } else {
-        player.takeDamage(ENEMY_DAMAGE);
+        player.takeDamage(ENEMY_DAMAGE, enemy.x + enemy.width / 2);
         spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
         SFX.playerHurt();
       }
     }
 
-    // Enemy body contact with player
-    if (!enemy.dead && rectsOverlap(player, enemy) && player.invincibleTimer <= 0 && !player.phaseDashing) {
-      if (player.parrying) {
-        // SUCCESSFUL PARRY on body contact
-        enemy.stunTimer = PARRY_STUN;
-        enemy.flashTimer = 10;
-        player.parrying = false;
-        player.parryTimer = 0;
-        player.invincibleTimer = PARRY_IFRAMES;
-        player.gainFracture();
-        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
-        screenShake = 4; screenShakeIntensity = 2;
-        hitstopTimer = 5;
-        SFX.parry();
-      } else {
-        player.takeDamage(ENEMY_DAMAGE);
-        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
-        SFX.playerHurt();
+    // Enemy body contact with player — push apart every frame there's overlap
+    // (regardless of invincibility) so the two boxes never sit inside each
+    // other; damage/parry are still gated the same as before.
+    if (!enemy.dead && rectsOverlap(player, enemy)) {
+      separateFromEnemy(player, enemy);
+
+      if (player.invincibleTimer <= 0 && !player.phaseDashing) {
+        if (player.parrying) {
+          // SUCCESSFUL PARRY on body contact
+          enemy.stunTimer = PARRY_STUN;
+          enemy.flashTimer = 10;
+          player.parrying = false;
+          player.parryTimer = 0;
+          player.invincibleTimer = PARRY_IFRAMES;
+          player.gainFracture();
+          spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
+          screenShake = 4; screenShakeIntensity = 2;
+          hitstopTimer = 5;
+          SFX.parry();
+        } else {
+          player.takeDamage(ENEMY_DAMAGE, enemy.x + enemy.width / 2);
+          spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
+          SFX.playerHurt();
+        }
       }
     }
   }

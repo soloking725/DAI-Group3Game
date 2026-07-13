@@ -1278,8 +1278,10 @@ function getArea(id) {
 //     doorIndex:  number, // index into this room's `transitions` array —
 //                         // the physical hitbox this connection corresponds to
 //     edgeExempt: bool,   // (optional) skip the physical edge-position check —
-//                         // for vertical/drop connections that don't have a
-//                         // formal room-height field to validate against yet
+//                         // for vertical/drop connections that aren't a real
+//                         // north/south edge door (mid-room jumps, etc.); see
+//                         // `roomHeight` below for rooms that DO want a real
+//                         // strict north/south edge check
 //     edgeExemptReason: string, // required if edgeExempt is true
 //   }
 //
@@ -1295,6 +1297,18 @@ function getArea(id) {
 // by drawMap() (red border). Future miniboss rooms should set
 // roomType: 'miniboss' so the map can style them distinctly without touching
 // the boss-spawn logic in game.js, which keys off `isBossArena` specifically.
+//
+// `roomHeight` (optional number) — the room's real total vertical extent,
+// used by game.js's getBounds()/updateCamera() as the camera's bottom
+// clamp and by assertDoorOnCorrectEdge() above for strict north/south door
+// checks. Falls back to `groundY + 100` when unset (every room built
+// before this field existed). Added when the invisible always-on floor at
+// `groundY` was removed from player.js's collision — `groundY` is now just
+// the nominal floor reference line for rendering/spawn defaults, not a
+// hard bound, so rooms that want to be deeper/taller than groundY (a real
+// pit, a tall vertical shaft) need this field to tell the camera/map how
+// far the room actually goes. Falling past all real platforms is governed
+// by `pitDeathY` (or nothing, if unset — no fall-death by default).
 // ═══════════════════════════════════════════════════════════════════════════
 
 const EDGE_TOLERANCE = 20; // px — allows near-edge doors authored by hand
@@ -1316,11 +1330,26 @@ function assertDoorOnCorrectEdge(room, connection, hitbox) {
       return false;
     }
   } else if (connection.direction === 'north' || connection.direction === 'south') {
-    // No formal room-height field exists yet to validate against — rooms only
-    // declare groundY, not a total vertical extent. Warn rather than fail so
-    // north/south connections aren't forced into edgeExempt unnecessarily,
-    // but don't block on it. Revisit once rooms carry explicit height data.
-    console.warn(`[compass graph] ${room.id}: '${connection.direction}' door to '${connection.to}' skipped strict edge check (no room-height field yet) — consider edgeExempt:true with a reason if this is intentional.`);
+    // `roomHeight` (added when the invisible-groundY-floor was removed from
+    // player.js so rooms could go deeper/taller than groundY — see
+    // roadmap.md Phase 13) is the formal total-vertical-extent field this
+    // check was waiting on. Rooms that don't set it (every room built
+    // before this) fall back to the old warn-only behavior.
+    if (typeof room.roomHeight === 'number') {
+      if (connection.direction === 'south') {
+        if (hitbox.y + hitbox.h < room.roomHeight - EDGE_TOLERANCE) {
+          console.error(`[compass graph] ${room.id}: 'south' door to '${connection.to}' (doorIndex ${connection.doorIndex}) is not on the south edge (y+h=${hitbox.y + hitbox.h}, room.roomHeight=${room.roomHeight})`);
+          return false;
+        }
+      } else {
+        if (hitbox.y > EDGE_TOLERANCE) {
+          console.error(`[compass graph] ${room.id}: 'north' door to '${connection.to}' (doorIndex ${connection.doorIndex}) is not on the north edge (y=${hitbox.y})`);
+          return false;
+        }
+      }
+    } else {
+      console.warn(`[compass graph] ${room.id}: '${connection.direction}' door to '${connection.to}' skipped strict edge check (no room-height field yet) — consider edgeExempt:true with a reason if this is intentional.`);
+    }
   }
   return true;
 }

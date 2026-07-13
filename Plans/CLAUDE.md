@@ -189,15 +189,22 @@ gate only the damage checks on `!dead`.
   platform geometry" linter. Run this after any change touching input,
   state transitions, area data, or timing.
 - **`levelEditor.html`** — visual room editor (place platforms, enemies,
-  transitions, anchors, ability rewards, lore) with JS export. Presets
-  are separate hardcoded copies of room data, not live-synced with
-  `area.js` — re-paste exported output back into `area.js` by hand.
-  **Enemy palette is stale** (2026-07-12) — only supports placing
-  Fractured/Stutterer, not the other 7 built enemy types (Crystal
-  Sentinel, Void Lancer, Null Sentinel, Anchor Wraith, Deflector Drone,
-  Mirror Sprite, Echo Stalker), and has no `region`/decoration awareness
-  for the Task 4 visual system. A real gap if this tool is meant to be
-  usable for full level design — see roadmap.md's open items.
+  transitions, anchors, ability rewards, lore, boss spawns) with JS export.
+  **Corrected 2026-07-12** (was stale): it now loads `area.js`/`enemy.js`
+  directly and edits the real `AREAS` object — no more separate hardcoded
+  preset copies. Export is a generic serializer over the whole room object
+  (preserves col/row/connections/mapAccent/pitDeathY-as-Infinity/etc., not
+  just a fixed field list). Enemy-type dropdown reads from `enemy.js`'s
+  `ENEMY_REGISTRY` (all 10 built types, auto-updates as classes are added
+  to that registry — see roadmap.md Phase 12). Has undo/redo, copy/paste,
+  multi-select, pan/zoom, per-object drag-resize handles, an in-editor
+  "Validate This Room"/"Check All Rooms" linter (satisfies
+  session_priorities.md's former #8), and a "Diff vs Saved" comparison —
+  still no `region`-driven decoration *preview* (Task 4's palette/cave
+  styling only renders in the real game, not this editor's canvas), and
+  still no UI for hazards/switches/moving/one-way platforms since those
+  need new `game.js` runtime behavior first — see
+  `Plans/level_editor_guide.md` for the prioritized next-session list.
 - **`enemy_test.html`** — spawns any real enemy/miniboss class in an
   isolated flat arena with a chosen ability loadout, for balance/behavior
   testing without playing through the full game.

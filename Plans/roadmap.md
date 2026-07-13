@@ -29,16 +29,10 @@ needing the plan re-pasted — update the checkboxes/notes as work happens)
 LEGEND: [x] done   [~] partially done / done differently, see note   [ ] not started
 
 DESIGN DECISIONS FROM THE USER (apply to all future phases):
-  - No charms/badge system — explicitly rejected. Keep Stillpoint's own identity
-    (time-fracture + dashes + Stillpoint), borrow only structural lessons from
-    metroidvanias, not mechanics.
-  - No boxed HUD panels (e.g. the old ability-icon boxes). Prefers minimal,
-    in-world feedback (rings around the player, glyphs) over persistent panels.
-  - Browser/canvas is the agreed platform — no engine rewrite. An Electron/Tauri
-    wrap is the agreed path later if an offline/desktop build is wanted.
-  - Lore is temporarily OFF (LORE_ENABLED = false in game.js). Wants it redone
-    as environmental storytelling (visual/world detail) instead of text popups
-    before re-enabling. Data + code paths are intentionally left intact.
+  See `CLAUDE.md`'s "Explicit design decisions" section for the full,
+  up-to-date list (no charms, no boxed HUD panels, browser/canvas only,
+  lore OFF pending redesign, no lock-and-key gating) — that file is the
+  single source of truth for these; not re-listed here to avoid drift.
 
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 0 — Core UX & Quality of Life
@@ -146,6 +140,17 @@ PHASE 1 — Movement & Combat Overhaul
       starts in player.js; refund applied in game.js's enemy hit loop right
       after gainFracture/hitstop). Rewards aggressive play without making
       dash spam free — a whiffed swing refunds nothing.
+[ ] 1.9 Future Player Upgrades
+    - Players will explore for more upgrades rather than be given everything at the start. 
+      Everything must be collected, so the player needs an inventory. Fracture pips, 
+      weapon upgrades, ability upgrades, etc. Lore bits will be remade. Instead of being text,
+      lore bits will have a visual effect that stops the game, like a small shot of a city crumbling
+      down, or the King walking away, and then it will be in inventory until you get enough for 
+      an upgrade for like strength or something. You start with zero fracture pips and you find up to four.
+[ ] 1.10 Lore Buildout
+    - Build out the lore of each region, and the lore bits visual effect will be decided based on that. 
+      I don't like the current lore, especially considering the role of the King, so we must reconsider 
+      the lore first before making a decision.
 
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 2 — Enemies & Smarter AI
@@ -507,10 +512,9 @@ path.
 ─────────────────────────────────────────────────────────────────────────────
 EXPLICITLY OUT OF SCOPE (by user request)
 ─────────────────────────────────────────────────────────────────────────────
-  - Charms / badge system
-  - Geo/shop economy as a main progression gate (5.3 stays minimal/optional)
-  - Procedural generation — all rooms hand-crafted
-  - Multiplayer / online features
+  See `CLAUDE.md`'s design-decisions section (same list: charms, a
+  geo/shop economy as a main gate, procedural generation, multiplayer,
+  lock-and-key gating).
 
 CURRENTLY HERE: 0.1-0.6 done, Phase 1.1-1.8 done, 2.2 (Void Lancer) done.
 See Phase 7/8 sections below for the Crag region, world-map work, and the
@@ -1164,3 +1168,111 @@ docs-only for now (nothing implemented):
     Stillpoint ability's own mechanics (already covered separately by
     BUG-013/its lifesteal balance in BUG_ANALYSIS_AND_QA_PLAN.md). Confirm
     this reading with the user before touching any room's `anchors[]`.
+
+PHASE 12 — Level Editor Real Data + Bug Fix (2026-07-12)
+─────────────────────────────────────────────────────────────────────────────
+Answers session_priorities.md #8 (Linter Integration into Level Editor) —
+that item is DONE, see below. Also fixed a real (if latent) gameplay bug
+found while auditing the enemy spawn path.
+
+[x] `levelEditor.html` no longer runs on a hardcoded `PRESETS` copy of room
+    data — it now loads `area.js`/`enemy.js` directly and edits the real
+    `AREAS` object (all 27 rooms, grouped by region in the picker). Export
+    is now a generic JS-literal serializer over the whole room object
+    (handles `Infinity` for `pitDeathY`, preserves every field including
+    ones the UI has no control for — col/row/connections/mapAccent — so
+    round-tripping through the editor can't silently drop data the way the
+    old fixed-field export could). This directly resolves the "Enemy
+    palette is stale" / "Presets separate hardcoded copies" gaps noted in
+    CLAUDE.md's Dev/debug tooling section — that note is now corrected.
+[x] Added `ENEMY_REGISTRY` at the bottom of `enemy.js` (type-string → class,
+    one line per enemy) as the single source of truth for which enemy
+    classes exist. The editor's enemy-type dropdown reads from it (was
+    hardcoded to Fractured/Stutterer only, now lists all 10 built types
+    automatically). `game.js`'s `spawnAreaEnemies()` was refactored to look
+    up classes from the same registry instead of a hand-written if/else
+    chain.
+[x] **Bug fix, found via that refactor**: the old if/else chain in
+    `spawnAreaEnemies()` had no branch for `blitz_guard` — any room enemy
+    with that type would have silently spawned as a generic base `Enemy`
+    with none of BlitzGuard's real behavior. No room currently places one
+    (so no live-game impact yet), but it's fixed now via the registry
+    lookup, and any future enemy class only needs the one `ENEMY_REGISTRY`
+    line to be spawnable correctly everywhere.
+[x] New editor features: undo/redo (`Ctrl+Z`/`Ctrl+Y`), copy/paste
+    (`Ctrl+C`/`Ctrl+V`), multi-select (Shift+click), pan (Space/middle-drag),
+    mouse-wheel zoom, configurable grid snap (5/10/20/50/off), room
+    width/groundY drag-resize handles, **per-object resize handles**
+    (Slides/PowerPoint-style — drag any of 8 handles around a selected
+    platform or transition to resize it, replacing type-the-number-only
+    editing), layer front/back ordering, an object search/filter box,
+    region/roomType/miniboss-ID/no-pit-death fields (all previously
+    editor-invisible even though the engine already supported them), a
+    "New Room" blank-template button, auto-tile "Stitch" (snaps a dragged
+    platform's edges flush against neighbors within 14px), a "Test Spawn"
+    reachability-envelope overlay (jump-arc + dash-reach visualization from
+    a click point, using the same physics fallback constants `area.js`'s
+    own linter uses), "Validate This Room" (runs the real
+    `validateRoomLayout()` on in-progress edits, not just the saved room,
+    and circles failures red on canvas), "Diff vs Saved" (field-level
+    comparison against the pristine `area.js` copy), and "Check All Rooms"
+    (batch-runs the linter over every saved room, click a failing one to
+    jump straight to it).
+    **session_priorities.md #8 is now satisfied** by "Validate This Room" +
+    "Check All Rooms" — trimmed from that file.
+[ ] NOT done: the editor still has no UI for hazards/switches/moving
+    platforms/one-way platforms — those need new `game.js` runtime behavior
+    first (see the "Phase 3" section of `Plans/level_editor_guide.md` for
+    the per-item effort estimate and where to hook them in). Building
+    editor UI for these before the engine half exists would let someone
+    place objects in a room that silently do nothing in actual play.
+
+PHASE 13 — Removed the Invisible groundY Floor: Rooms of Any Height (2026-07-12)
+─────────────────────────────────────────────────────────────────────────────
+User request: taller/deeper rooms, "make groundY irrelevant." Investigation
+found `player.js`'s collision had an unconditional, x-independent snap —
+`if (this.y + this.height > bounds.groundY) { snap to groundY }` — active in
+every room regardless of real platforms. That made `groundY` a hard,
+always-on floor everywhere, which meant: (1) no room could ever be deeper
+than its own `groundY`, and (2) `pitDeathY` was practically dead code —
+the player could never fall far enough past `groundY` to reach it, in any
+room, ever. Confirmed via the room linter (`validateRoomLayout()`) that its
+own reachability model already assumed gaps were real (no implicit floor) —
+this was the one place actual gameplay physics disagreed with the linter's
+(correct) assumptions.
+
+[x] Removed the unconditional groundY snap from `player.js`. Standing now
+    comes only from real platforms in `area.platforms`; falling past all of
+    them is governed purely by `pitDeathY` (or nothing — no fall-death by
+    default, confirmed with the user, matches CLAUDE.md's existing rule).
+[x] Added `roomHeight` (optional number) to the room schema — the real
+    total vertical extent, used by `game.js`'s `getBounds()`/
+    `updateCamera()` as the camera's bottom clamp (previously hardcoded to
+    `area.groundY - H + 100`, which is exactly what stopped the camera from
+    following a player into a room deeper than groundY). Falls back to
+    `groundY + 100` when unset, so all 27 existing rooms are pixel-identical
+    in camera framing to before this change — verified via
+    `validateAllRoomLayouts()`/`validateAreaGraph()` (still 27/0 graph
+    errors, 26/0 layout failures) and direct browser testing (player falls
+    past y:12000+ over 200 frames with no platforms below, instead of being
+    caught at groundY).
+[x] `pitDeathY`'s fallback (when a room doesn't set it) changed from
+    `groundY + 100` (dead code — unreachable under the old floor) to
+    `Infinity`. Rooms that want a real pit still set `pitDeathY` explicitly,
+    same as always.
+[x] Wired `roomHeight` into `assertDoorOnCorrectEdge()` in `area.js` — that
+    function already had a TODO/warn-only stub for strict north/south door
+    edge checks ("no room-height field yet"), waiting on exactly this
+    field. Rooms with `roomHeight` set now get the same strict edge
+    validation east/west doors already had; rooms without it keep the old
+    warn-only behavior.
+[x] `levelEditor.html`: added a `height` field + a third drag-resize handle
+    (green line, independent of the red groundY line and the blue width
+    line) for `roomHeight`. GroundY's line/label now says "(floor reference
+    only)" so it doesn't read as a hard bound anymore. Canvas height is no
+    longer capped at 900px — tall rooms scroll within the already-
+    `overflow:auto` `#wrap` container instead of being squashed to fit.
+[ ] NOT done: no existing room actually uses `roomHeight` yet (all 27 stay
+    on the groundY+100 fallback) — this phase only builds the capability.
+    Building an actual deep/tall room to prove it out in real gameplay
+    (not just the editor/Node-linter level) is still open.

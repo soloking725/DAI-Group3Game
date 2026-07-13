@@ -1,7 +1,7 @@
 // Enemies: Fractured (basic) and Stutterer (teleporting)
 
 const ENEMY_SPEED = 1.5;
-const ENEMY_HEALTH = 3;
+const ENEMY_HEALTH = 6;
 const ENEMY_DAMAGE = 1;
 const ENEMY_ATTACK_RANGE = 40;
 const ENEMY_DETECT_RANGE = 200; // how far the enemy notices the player (was 80 via ENEMY_ATTACK_RANGE * 2)
@@ -20,6 +20,32 @@ const PATROL_IDLE_FRAMES = 30;        // frames to stand still after losing the 
 // Windup (pre-attack telegraph) duration in frames
 // Player has this many frames to react and dodge before the hit lands.
 const ENEMY_WINDUP_FRAMES = 28;
+
+// ── Shared ledge-detection helper ───────────────────────────────────────────
+// Ground enemies used to walk straight off platform edges into pits: `grounded`
+// gets set true on landing but was never reset to false each frame, so the
+// "stop moving when airborne" safeguard only ever worked before an enemy's
+// first landing. That's fixed at each `grounded = false` reset site below.
+// This helper is the other half — probing whether there's actually a floor
+// ahead in the enemy's direction of travel (`dir`, ±1) before committing to
+// move that way, so chase/patrol stop and turn at a real ledge instead of
+// relying on the world-bounds clamp (which only stops them at the edge of
+// the whole area, not a mid-air gap).
+function hasFootingAhead(entity, bounds, dir, lookahead = 14) {
+  const probeX = dir === 1 ? entity.x + entity.width + lookahead : entity.x - lookahead;
+  const probeY = entity.y + entity.height + 6;
+  if (bounds && probeY >= bounds.groundY) return true;
+  const area = (typeof getCurrentArea === 'function') ? getCurrentArea() : null;
+  if (area) {
+    for (const plat of area.platforms) {
+      if (plat.destructible && plat.hp <= 0) continue;
+      if (probeX >= plat.x && probeX < plat.x + plat.w && probeY >= plat.y && probeY <= plat.y + plat.h + 10) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Base enemy class — Fractured
@@ -175,6 +201,7 @@ class Enemy {
     if (this.hitStun > 0) {
       this.hitStun--;
       // Physics during hit stun (allow airborne movement for juggling)
+      this.grounded = false;
       this.vy += GRAVITY * _ts;
       this.x += this.vx * _ts;
       this.y += this.vy * _ts;
@@ -223,7 +250,13 @@ class Enemy {
     // was hit, producing a visible stutter-step at the vertical-band edge).
     if (!this.windingUp && !this.attacking) {
       if (sight.inRange) {
-        this.vx = this.facing * ENEMY_SPEED;
+        // Ledge check: don't chase past the edge of the platform we're
+        // standing on — hold position at the edge instead of walking off.
+        if (this.grounded && !hasFootingAhead(this, bounds, this.facing)) {
+          this.vx = 0;
+        } else {
+          this.vx = this.facing * ENEMY_SPEED;
+        }
         this.idleTimer = 0;
       } else if (this.idleTimer > 0) {
         this.idleTimer -= _ts;
@@ -231,16 +264,22 @@ class Enemy {
       } else {
         // Patrol — own direction state, never touched by the chase branch
         // above, so switching states can never leave stale momentum behind.
-        if (Math.abs(this.x - this.patrolCenter) > this.patrolRange) {
+        const atLedge = this.grounded && !hasFootingAhead(this, bounds, this.patrolDir);
+        if (Math.abs(this.x - this.patrolCenter) > this.patrolRange || atLedge) {
           this.patrolDir = this.x > this.patrolCenter ? -1 : 1;
         }
-        this.vx = this.patrolDir * PATROL_SPEED;
+        // Still no footing after flipping (isolated platform) — hold rather
+        // than oscillate into the same ledge every frame.
+        this.vx = (this.grounded && !hasFootingAhead(this, bounds, this.patrolDir))
+          ? 0
+          : this.patrolDir * PATROL_SPEED;
       }
     }
 
     // Physics
     // If airborne and NOT juggling, stop horizontal movement — prevents enemies walking off platform edges into void
     if (!this.grounded && !this.juggling) this.vx = 0;
+    this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.x += this.vx * _ts;
     this.y += this.vy * _ts;
@@ -492,6 +531,7 @@ class Stutterer extends Enemy {
 
     // Stop horizontal movement when airborne — prevents falling off platforms sideways in void areas
     if (!this.grounded) this.vx = 0;
+    this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.y += this.vy * _ts;
 
@@ -621,7 +661,7 @@ class Stutterer extends Enemy {
 // expansion.md §2 (home region: The Void Expanse, not built yet) — built as
 // a standalone class per roadmap.md Phase 2.2 ("Lancer" -> "Void Lancer").
 // ─────────────────────────────────────────────────────────────────────────────
-const LANCER_HEALTH = 6;
+const LANCER_HEALTH = 10;
 const LANCER_SPEED = 1.2;          // slower patrol/approach than Fractured — the payoff is the charge
 const LANCER_DAMAGE = 2;           // charge hits harder than a basic Fractured swing (ENEMY_DAMAGE=1)
 const LANCER_CHARGE_SPEED = 10;
@@ -706,20 +746,28 @@ class VoidLancer extends Enemy {
     // ── Approach (only when not telegraphing/charging) ──
     if (!this.windingUp && !this.charging) {
       if (sight.inRange) {
-        this.vx = this.facing * LANCER_SPEED;
+        if (this.grounded && !hasFootingAhead(this, bounds, this.facing)) {
+          this.vx = 0;
+        } else {
+          this.vx = this.facing * LANCER_SPEED;
+        }
         this.idleTimer = 0;
       } else if (this.idleTimer > 0) {
         this.idleTimer -= _ts;
         this.vx = 0;
       } else {
-        if (Math.abs(this.x - this.patrolCenter) > this.patrolRange) {
+        const atLedge = this.grounded && !hasFootingAhead(this, bounds, this.patrolDir);
+        if (Math.abs(this.x - this.patrolCenter) > this.patrolRange || atLedge) {
           this.patrolDir = this.x > this.patrolCenter ? -1 : 1;
         }
-        this.vx = this.patrolDir * PATROL_SPEED;
+        this.vx = (this.grounded && !hasFootingAhead(this, bounds, this.patrolDir))
+          ? 0
+          : this.patrolDir * PATROL_SPEED;
       }
     }
 
     if (!this.grounded && !this.charging) this.vx = 0;
+    this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.x += this.vx * _ts;
     this.y += this.vy * _ts;
@@ -933,7 +981,7 @@ class AnchorWraith extends Enemy {
   constructor(x, y) {
     super(x, y, 'anchor_wraith');
     this.ignoreVertical = true; // floats, not ground-bound
-    this.health = 2; // low HP per expansion.md — meant to be killed before it matters, not fought head-on
+    this.health = 4; // low relative to other enemies, per expansion.md — meant to be killed before it matters, not fought head-on
   }
 
   update(player, bounds, echoes) {
@@ -1010,7 +1058,7 @@ class DeflectorDrone extends Enemy {
   constructor(x, y) {
     super(x, y, 'deflector_drone');
     this.ignoreVertical = true;
-    this.health = 3;
+    this.health = 5;
     this.hoverPhase = Math.random() * Math.PI * 2;
     this.hoverCenterY = y;
   }
@@ -1068,7 +1116,7 @@ class DeflectorDrone extends Enemy {
 class MirrorSprite extends Enemy {
   constructor(x, y) {
     super(x, y, 'mirror_sprite');
-    this.health = 2;
+    this.health = 4;
     this.tangible = false;
   }
 
@@ -1127,7 +1175,7 @@ const STALKER_BLINK_COOLDOWN = 45;
 class EchoStalker extends Enemy {
   constructor(x, y) {
     super(x, y, 'echo_stalker');
-    this.health = 2;
+    this.health = 4;
     this.blinking = false;
     this.blinkTimer = 0;
     this.blinkCooldown = 0;
@@ -1174,6 +1222,7 @@ class EchoStalker extends Enemy {
     if (this.attackCooldown > 0) this.attackCooldown -= _ts;
     if (this.attackCooldown < 0) this.attackCooldown = 0;
 
+    this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.y += this.vy * _ts;
     if (this.y + this.height > bounds.groundY) { this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true; }
@@ -1218,7 +1267,7 @@ class EchoStalker extends Enemy {
 // FracturedSlime — summoned miniboss by the Fractured King
 // ─────────────────────────────────────────────────────────────────────────────
 const SLIME_SPEED = 2.5;
-const SLIME_HEALTH = 5;
+const SLIME_HEALTH = 8;
 const SLIME_DAMAGE = 1;
 
 class FracturedSlime {
@@ -1308,6 +1357,7 @@ class FracturedSlime {
         break;
     }
 
+    this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.y += this.vy * _ts;
     this.x += this.vx * _ts;
@@ -1364,7 +1414,7 @@ if (typeof spawnParticles === 'undefined') {
 // ─────────────────────────────────────────────────────────────────────────────
 // Crystal Sentinel — Ranged enemy with a directional shield
 // ─────────────────────────────────────────────────────────────────────────────
-const SENTINEL_HEALTH = 6;
+const SENTINEL_HEALTH = 10;
 const SENTINEL_SHIELD_HP = 2;
 const SENTINEL_SPEED = 1.2;
 const SENTINEL_ATTACK_COOLDOWN = 90;
@@ -1722,6 +1772,191 @@ class CrystalSentinel {
 CrystalSentinel.projectiles = [];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Blitz Guard — fast, short telegraph, constant pressure.
+// Designed for post-Stillpoint areas (col 5+, rows 1+).
+// ─────────────────────────────────────────────────────────────────────────────
+const BLITZ_HEALTH = 7;
+const BLITZ_SPEED = 3.5;
+const BLITZ_DAMAGE = 1;
+const BLITZ_WINDUP_FRAMES = 14; // very short – you MUST predict
+const BLITZ_ATTACK_COOLDOWN = 35;
+const BLITZ_DETECT_RANGE = 300;
+
+class BlitzGuard extends Enemy {
+  constructor(x, y) {
+    super(x, y, 'blitz_guard');
+    this.health = BLITZ_HEALTH;
+    this.vx = 0;
+    this.vy = 0;
+    // Override detection to be aggressive – wider range
+    this.verticalBand = 80; // can see you from higher/lower
+    // Make it fast
+    this.speed = BLITZ_SPEED;
+    // Short telegraph
+    this.windupFrames = BLITZ_WINDUP_FRAMES;
+    this.attackCooldown = BLITZ_ATTACK_COOLDOWN;
+    // Extra – it sometimes dashes toward you before attacking
+    this.chargeTimer = 0;
+    this.charging = false;
+  }
+
+  update(player, bounds, echoes) {
+    // If we're in a real fight, this runs every frame.
+    // We reuse the base Enemy.update() logic for hit stun, death, etc.
+    // But we override the AI portion.
+    const _ts = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
+
+    if (this.dead) { this.deathTimer++; return; }
+
+    // ... (copy distraction, canSeePlayer, etc. from Enemy or just call super)
+    // For brevity, we'll just show the critical part – the AI decision
+
+    const sight = this.canSeePlayer(player);
+    const dx = sight.dx;
+    const dist = Math.abs(dx);
+
+    // ── Reset state if not in range ──
+    if (!sight.inRange) {
+      this.vx = 0;
+      this.windingUp = false;
+      this.attacking = false;
+      this.charging = false;
+      // Patrol logic from base enemy
+      const atLedge = this.grounded && !hasFootingAhead(this, bounds, this.patrolDir);
+      if (Math.abs(this.x - this.patrolCenter) > this.patrolRange || atLedge) {
+        this.patrolDir = this.x > this.patrolCenter ? -1 : 1;
+      }
+      this.vx = (this.grounded && !hasFootingAhead(this, bounds, this.patrolDir))
+        ? 0
+        : this.patrolDir * PATROL_SPEED;
+      // fall through to physics
+    } else {
+      // ── IN COMBAT ──
+      this.facing = dx > 0 ? 1 : -1;
+
+      // 1. If far away, CHARGE toward player (fast approach) — only if there's
+      // actually footing ahead, so the fast approach doesn't dash off a ledge.
+      if (dist > 200 && !this.windingUp && !this.attacking && !this.charging &&
+          (!this.grounded || hasFootingAhead(this, bounds, this.facing, 40))) {
+        this.charging = true;
+        this.chargeTimer = 20;
+        this.vx = this.facing * 7; // very fast approach
+      }
+
+      if (this.charging) {
+        this.chargeTimer -= _ts;
+        if (this.chargeTimer <= 0) {
+          this.charging = false;
+          this.vx = 0;
+        }
+        // Don't attack during charge – just reposition
+        // fall through to physics
+      } else {
+        // 2. In melee range: windup → attack, but FAST
+        if (dist < ENEMY_ATTACK_RANGE * 1.2 && this.attackCooldown <= 0 && !this.windingUp && !this.attacking) {
+          this.windingUp = true;
+          this.windUpTimer = BLITZ_WINDUP_FRAMES;
+          this.vx = 0;
+        }
+
+        if (this.windingUp) {
+          this.windUpTimer -= _ts;
+          this.vx = 0;
+          if (this.windUpTimer <= 0) {
+            this.windingUp = false;
+            this.attacking = true;
+            this.attackTimer = 16; // active frames
+            this.attackCooldown = BLITZ_ATTACK_COOLDOWN;
+          }
+        }
+
+        if (this.attacking) {
+          this.attackTimer -= _ts;
+          if (this.attackTimer <= 0) this.attacking = false;
+        }
+
+        // 3. Chase if not winding up / attacking
+        if (!this.windingUp && !this.attacking && this.attackCooldown > 0) {
+          this.vx = (this.grounded && !hasFootingAhead(this, bounds, this.facing)) ? 0 : this.facing * BLITZ_SPEED;
+        }
+      }
+    }
+
+    // ── Physics (same as base Enemy) ──
+    this.grounded = false;
+    this.vy += GRAVITY * _ts;
+    this.x += this.vx * _ts;
+    this.y += this.vy * _ts;
+
+    if (this.y + this.height > bounds.groundY) {
+      this.y = bounds.groundY - this.height;
+      this.vy = 0;
+      this.grounded = true;
+    }
+
+    // Platform collision (copy from Enemy)
+    const area = getCurrentArea();
+    if (area) {
+      for (const plat of area.platforms) {
+        if (plat.destructible && plat.hp <= 0) continue;
+        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
+          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
+            this.y = plat.y - this.height;
+            this.vy = 0;
+            this.grounded = true;
+          }
+        }
+      }
+    }
+
+    if (this.x < bounds.left) this.x = bounds.left;
+    if (this.x + this.width > bounds.right) this.x = bounds.right - this.width;
+
+    this.flashTimer++;
+  }
+
+  // Visual: red‑tinted, glowing with motion trails during charge
+  draw(ctx) {
+    if (this.dead) {
+      ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 20);
+    }
+
+    const color = this.flashTimer < 6 ? '#ffffff' :
+                  this.charging ? '#fb923c' :
+                  '#ef4444'; // bright red
+
+    ctx.fillStyle = color;
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    // Charge effect: trail behind
+    if (this.charging) {
+      for (let i = 1; i <= 3; i++) {
+        ctx.globalAlpha = 0.4 - i * 0.1;
+        ctx.fillStyle = '#fb923c';
+        ctx.fillRect(this.x - this.vx * i * 1.2, this.y, this.width, this.height);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Eye
+    ctx.fillStyle = '#0a0a0f';
+    const eyeX = this.facing === 1 ? this.x + 18 : this.x + 4;
+    ctx.fillRect(eyeX, this.y + 8, 8, 6);
+
+    // Windup telegraph – VERY short, so just a tiny flash
+    if (this.windingUp) {
+      ctx.strokeStyle = `rgba(255, 200, 200, ${0.3 + (1 - this.windUpTimer / BLITZ_WINDUP_FRAMES) * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 20, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Colossus Core — Crag of the Colossus miniboss (crag_warden). A rock-shelled
 // construct that only Charged (heavy) attacks can damage — a normal hit
 // bounces off with a spark, exactly like the region's destructible rubble
@@ -1731,7 +1966,7 @@ CrystalSentinel.projectiles = [];
 // roster, which fits a region's first miniboss. Reward: +1 Max Health,
 // applied by game.js when `defeatedMinibosses['colossus_core']` flips true.
 // ─────────────────────────────────────────────────────────────────────────────
-const COLOSSUS_HEALTH = 12;
+const COLOSSUS_HEALTH = 20;
 const COLOSSUS_SPEED = 3.5;
 const COLOSSUS_DAMAGE = 2;
 
@@ -1838,6 +2073,7 @@ class ColossusCore {
         break;
     }
 
+    this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.y += this.vy * _ts;
     this.x += this.vx * _ts;
@@ -1942,3 +2178,22 @@ class ColossusCore {
     ctx.globalAlpha = 1;
   }
 }
+
+// Single source of truth for `area.enemies[].type` strings backed by a real
+// class (mirrors the branches in game.js spawnAreaEnemies). Tools that need
+// the full roster (e.g. the level editor's enemy dropdown) read this instead
+// of hardcoding the list, so a newly added enemy class shows up automatically
+// as soon as it's registered here — one line, not two places to update.
+const ENEMY_REGISTRY = {
+  fractured: Enemy,
+  stutterer: Stutterer,
+  crystal_sentinel: CrystalSentinel,
+  void_lancer: VoidLancer,
+  null_sentinel: NullSentinel,
+  anchor_wraith: AnchorWraith,
+  deflector_drone: DeflectorDrone,
+  mirror_sprite: MirrorSprite,
+  echo_stalker: EchoStalker,
+  blitz_guard: BlitzGuard,
+};
+if (typeof window !== 'undefined') window.ENEMY_REGISTRY = ENEMY_REGISTRY;

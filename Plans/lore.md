@@ -130,3 +130,27 @@ play order, `col`/`row` in `area.js`):
   engineered from the existing text: each region's lore is a self-contained variation
   on "something built to be permanent, and what happened when it couldn't be" — not a
   new theme per region.
+
+
+Core Principle: Lore is never read. It is felt and seen. Text pop-ups are permanently disabled.
+
+Mechanics:
+
+    Collectibles: Scattered throughout the world are Echo Shards (glowing, fragmented geometric shapes).
+
+    Progression: Collecting a Shard does not reveal text. Instead, it fills a meter for one of 3 Aspects of your choice:
+
+        Amplify (Increases melee/projectile damage over time).
+
+        Resilience (Increases damage-over-time resistance and reduces hitstun).
+
+        Flux (Increases movement speed and dash distance over time).
+
+    Visual Feedback (The "Lore"):
+
+        On Collection: The screen does not pause. Instead, a brief, ghostly flashback overlays the background for 1.5 seconds (e.g., a city crumbling, the King forging a chain, a Stillpoint activating). The player can keep moving during this—it’s atmospheric, not disruptive.
+
+        Permanent Environment Change: As you collect more Shards, the world geometry subtly alters:
+
+
+    Why this works: It ties exploration to tangible stat upgrades, makes the world react to your specific playstyle (damage vs. speed vs. tank), and delivers the King's backstory without a single line of mandatory reading. The inscriptions and flashbacks are environmental paintings, not homework.
