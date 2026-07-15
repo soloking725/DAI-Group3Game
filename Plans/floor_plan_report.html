@@ -1,0 +1,247 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Stillpoint — Floor Plan Path Viewer</title></head><body>
+<style>
+  :root {
+    --bg: #0b0d14;
+    --panel: #12141d;
+    --panel-border: #262b3a;
+    --text: #e7e9f2;
+    --muted: #8890a6;
+    --violet: #8a6bff;
+    --teal: #2fe0c8;
+    --amber: #f0b25a;
+    --rose: #ef6a8f;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f4f5fa; --panel:#ffffff; --panel-border:#dcdfe8; --text:#1a1c26; --muted:#5c6178; }
+  }
+  :root[data-theme="light"] { --bg:#f4f5fa; --panel:#ffffff; --panel-border:#dcdfe8; --text:#1a1c26; --muted:#5c6178; }
+  :root[data-theme="dark"] { --bg:#0b0d14; --panel:#12141d; --panel-border:#262b3a; --text:#e7e9f2; --muted:#8890a6; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 24px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+  .stat { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 14px; min-width: 120px; }
+  .stat .n { font-size: 1.3rem; font-weight: 700; color: var(--teal); }
+  .stat .l { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .columns { grid-template-columns: 1fr; } }
+  .col h2 { font-size: 1rem; margin: 0 0 4px; }
+  .col .col-sub { color: var(--muted); font-size: 0.78rem; margin-bottom: 12px; }
+  .step { position: relative; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 12px; margin-bottom: 4px; }
+  .step.revisit { opacity: 0.6; border-style: dashed; }
+  .step-head { display: flex; align-items: baseline; gap: 8px; }
+  .step-num { color: var(--muted); font-size: 0.75rem; min-width: 22px; }
+  .step-label { font-weight: 600; font-size: 0.92rem; }
+  .badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .badge { font-size: 0.68rem; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--panel-border); color: var(--muted); }
+  .badge.miniboss { color: var(--rose); border-color: var(--rose); }
+  .badge.final { color: var(--rose); border-color: var(--rose); font-weight: 700; }
+  .badge.grant { color: var(--violet); border-color: var(--violet); }
+  .badge.flag { color: var(--amber); border-color: var(--amber); }
+  .via { font-size: 0.7rem; color: var(--muted); margin: 2px 0 2px 4px; padding-left: 10px; border-left: 2px solid var(--panel-border); }
+  .revisit-tag { font-size: 0.68rem; color: var(--amber); margin-left: 6px; }
+  .connector { height: 12px; width: 2px; background: var(--panel-border); margin: 0 0 0 20px; }
+  .divergence { margin-top: 28px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 14px 16px; }
+  .divergence h2 { font-size: 1rem; margin: 0 0 6px; }
+  .legend { margin-top: 20px; font-size: 0.75rem; color: var(--muted); }
+  .checks { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 860px) { .checks { grid-template-columns: 1fr; } }
+  .check-panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 14px 16px; }
+  .check-panel h2 { font-size: 1rem; margin: 0 0 4px; }
+  .check-panel .check-sub { color: var(--muted); font-size: 0.78rem; margin-bottom: 10px; }
+  .check-panel ul { margin: 0; padding-left: 18px; font-size: 0.85rem; }
+  .check-panel li { margin-bottom: 4px; }
+  .risk-trap { color: var(--rose); font-weight: 700; }
+  .risk-loadout { color: var(--amber); }
+  .route-count { font-size: 1.6rem; font-weight: 700; color: var(--teal); margin: 4px 0; }
+</style>
+<h1>Stillpoint — Floor Plan Path Viewer</h1>
+<div class="sub" id="subhead"></div>
+<div class="stats" id="stats"></div>
+<div class="columns">
+  <div class="col">
+    <h2>Normal player (fewest rooms)</h2>
+    <div class="col-sub">Shortest ability-respecting route from Spawn to the Final Boss.</div>
+    <div id="normalSteps"></div>
+  </div>
+  <div class="col">
+    <h2>Speedrunner (fastest, weighted)</h2>
+    <div class="col-sub" id="speedSub">Minimizes estimated time, not room count — see legend for the per-feature time guesses.</div>
+    <div id="speedSteps"></div>
+  </div>
+</div>
+<div class="divergence" id="divergence"></div>
+<div class="legend">
+  ⚔ miniboss · 🏆 final boss · ✨ ability unlock · 🚩 story flag · ◆ fracture pip · 📖 lore pip · 🎨 cosmetic upgrade · ❤ max health ·
+  dashed/faded card = backtracking through a room already visited on this same path.
+</div>
+<div class="checks">
+  <div class="check-panel">
+    <h2>Mandatory rooms</h2>
+    <div class="check-sub">Removing this room alone (any incoming/outgoing door) makes the Final Boss unreachable. This is a stronger test than "is it on the shortest path" — it proves no alternate route exists.</div>
+    <div id="mandatoryList"></div>
+  </div>
+  <div class="check-panel">
+    <h2>Soft-lock risk scan</h2>
+    <div class="check-sub">Checks every one-way / scripted-teleport connection: can the far side still reach the Final Boss? <span class="risk-trap">DEFINITE TRAP</span> = unreachable even with every ability in the game, a real bug. <span class="risk-loadout">DEPENDS ON LOADOUT</span> = fine in the best case, worth a manual check for an underleveled player.</div>
+    <div id="softlockList"></div>
+  </div>
+  <div class="check-panel" style="grid-column: 1 / -1;">
+    <h2>How many ways to beat the game?</h2>
+    <div class="check-sub">Counts distinct room/ability-pickup sequences from Spawn to the Final Boss, including optional detours and backtracks — not just the mandatory skeleton. A huge number mostly reflects how many optional side-rooms and orderings exist, not "meaningfully different strategies"; the mandatory-rooms list above is the more useful measure of the game's actual shape.</div>
+    <div class="route-count" id="routeCount"></div>
+  </div>
+</div>
+<script>
+const DATA = {"generatedNote":"Regenerate with: node Plans/analyze_floor_plan.js --html","startLabel":"Spawn Area (1 cosmetic upgrade)","goalLabel":"\"Tutorial Area\" Final Boss Fight","roomCount":79,"normal":{"steps":[{"index":1,"id":"Spawn_Area_1_cosmeti_b7f53544","label":"Spawn Area (1 cosmetic upgrade)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":1,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":2,"id":"Tutorial_Area_42b6730d","label":"Tutorial Area","isRevisit":false,"viaLabel":"One way Spawn → Tutorial","cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":3,"id":"The_Fracture_part_1__4aadc34d","label":"The Fracture, part 1 (fast travel)","isRevisit":false,"viaLabel":"One way Tutorial → Fracture","cost":null,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":4,"id":"The_Fracture_part_3_13a81420","label":"The Fracture, part 3","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":5,"id":"The_Fracture_part_4_30b30796","label":"The Fracture, part 4","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":6,"id":"Echo_Bridge_part_1_m_99e4e301","label":"Echo Bridge, part 1 (meet the Child) (+1 max health) (on first entry, mandatory to go to Echo Bridge, prison)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":1,"newGrants":[],"newFlags":["met_child"]},{"index":7,"id":"Crystal_Cavern_unloc_04f4af71","label":"Crystal Cavern (unlocks Shard Shot) (shard shot required to leave)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["shard_shot"],"newFlags":[]},{"index":8,"id":"Timeline_X_Roads_Roo_65253a78","label":"Timeline X Roads, Room 2 (Unlocks Void Tether if you give up the Child, if you don't permanently no Void Tether) (locked by Echo Bridge part 1) (unlocks child_choice_resolved) (miniboss) (1 lore pip)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":true,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["void_tether"],"newFlags":["child_choice_resolved"]},{"index":9,"id":"Crystal_Cavern_unloc_04f4af71","label":"Crystal Cavern (unlocks Shard Shot) (shard shot required to leave)","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":10,"id":"Echo_Bridge_part_1_m_99e4e301","label":"Echo Bridge, part 1 (meet the Child) (+1 max health) (on first entry, mandatory to go to Echo Bridge, prison)","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":1,"newGrants":[],"newFlags":[]},{"index":11,"id":"Crag_Warden_miniboss_72af253f","label":"Crag Warden (miniboss)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":true,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":12,"id":"Crag_Altar_unlocks_c_37825bdb","label":"Crag Altar (unlocks charged attack, floor collapses and you must fight Crag warden)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["charged_attack"],"newFlags":[]},{"index":13,"id":"Crag_Warden_miniboss_72af253f","label":"Crag Warden (miniboss)","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":true,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":14,"id":"Echo_Bridge_part_1_m_99e4e301","label":"Echo Bridge, part 1 (meet the Child) (+1 max health) (on first entry, mandatory to go to Echo Bridge, prison)","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":1,"newGrants":[],"newFlags":[]},{"index":15,"id":"The_Void_Expanse_Roo_c32cb52f","label":"The Void Expanse, Room 1 (1 lore pip) (1 cosmetic upgrade)","isRevisit":false,"viaLabel":"entry blocked until prison sequence is finished","cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":1,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":16,"id":"Chrono_Space_Rift_re_05e19d7f","label":"Chrono Space Rift, Echo (requires Void Tether to enter from the Fracture)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":17,"id":"Chrono_Space_Rift_Sa_3690e358","label":"Chrono Space Rift, Sanctum (Miniboss) \"Ally\" (unlocks Stillpoint) (1 Fracture Pip)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":true,"finalBoss":false,"fastTravel":false,"fracturePips":1,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["stillpoint"],"newFlags":[]},{"index":18,"id":"Chrono_Space_Rift_re_05e19d7f","label":"Chrono Space Rift, Echo (requires Void Tether to enter from the Fracture)","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":19,"id":"Chrono_Space_Rift_Lo_3715e812","label":"Chrono Space Rift, Loop, Part 2 (1 Lore Pip)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":20,"id":"Event_Horizon_Pull_1ff0db5e","label":"Event Horizon - Pull","isRevisit":false,"viaLabel":"Void Tether is required for this path","cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":21,"id":"Event_Horizon_Gate_f_7819cf8d","label":"Event Horizon - Gate (fast travel)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":22,"id":"Mirror_Corridor_c9be7338","label":"Mirror Corridor","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":23,"id":"Mirror_Veil_Sanctum__31d7793f","label":"Mirror Veil, Sanctum (unlocks Phase Dash)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["phase_dash"],"newFlags":[]},{"index":24,"id":"Mirror_Corridor_c9be7338","label":"Mirror Corridor","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":25,"id":"Event_Horizon_Gate_f_7819cf8d","label":"Event Horizon - Gate (fast travel)","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":26,"id":"Event_Horizon_Pull_1ff0db5e","label":"Event Horizon - Pull","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":27,"id":"Echo_Bridge_Prison_1_8f7c5e40","label":"Echo Bridge, Prison (1 cosmetic upgrade) (if coming here from mandatory order from Echo Bridge, you cannot go to X Roads Room 1 or enter Mirror Corridor until you go to Timeline X Roads Room 2)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":1,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":28,"id":"Timeline_X_Roads_Roo_65253a78","label":"Timeline X Roads, Room 2 (Unlocks Void Tether if you give up the Child, if you don't permanently no Void Tether) (locked by Echo Bridge part 1) (unlocks child_choice_resolved) (miniboss) (1 lore pip)","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":true,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":29,"id":"Graviton_Core_Room_1_7aa0f207","label":"Graviton Core, Room 1 (entry requires Shard Shot)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":30,"id":"Graviton_Core_Room_2_77e3c3ea","label":"Graviton Core, Room 2 (entry requires Shard Shot) (unlocks Graviton Surge) (1 Fracture Pip here)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":1,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["graviton_surge"],"newFlags":[]},{"index":31,"id":"Inverted_Spire_entry_73199bc7","label":"Inverted Spire (entry requires Gravition Surge) (1 lore pip)","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":32,"id":"Timeline_X_Roads_Roo_65253a78","label":"Timeline X Roads, Room 2 (Unlocks Void Tether if you give up the Child, if you don't permanently no Void Tether) (locked by Echo Bridge part 1) (unlocks child_choice_resolved) (miniboss) (1 lore pip)","isRevisit":true,"viaLabel":null,"cost":null,"miniboss":true,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":33,"id":"The_Rift_entry_requi_c828e742","label":"The Rift (entry requires Charged Attack) (entry requires Graviton Surge) (entry requires Stillpoint) (entry requires child_choice_resolved)","isRevisit":false,"viaLabel":"Graviton Surge and Phase Dash are required for this path","cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":34,"id":"The_Antechamber_1b52237e","label":"The Antechamber","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":35,"id":"Spawn_Area_1_cosmeti_e4e44b1f","label":"\"Spawn Area\" (1 cosmetic upgrade)","isRevisit":false,"viaLabel":"One way (entry requires phase dash)","cost":null,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":1,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":36,"id":"Tutorial_Area_Final__89ceb24c","label":"\"Tutorial Area\" Final Boss Fight","isRevisit":false,"viaLabel":null,"cost":null,"miniboss":false,"finalBoss":true,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]}],"uniqueRooms":26,"backtrackCount":10,"totalRooms":36},"speed":{"steps":[{"index":1,"id":"Spawn_Area_1_cosmeti_b7f53544","label":"Spawn Area (1 cosmetic upgrade)","isRevisit":false,"viaLabel":null,"cost":1.7,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":1,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":2,"id":"Tutorial_Area_42b6730d","label":"Tutorial Area","isRevisit":false,"viaLabel":"One way Spawn → Tutorial","cost":3.2,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":3,"id":"The_Fracture_part_1__4aadc34d","label":"The Fracture, part 1 (fast travel)","isRevisit":false,"viaLabel":"One way Tutorial → Fracture","cost":4.7,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":4,"id":"The_Fracture_part_3_13a81420","label":"The Fracture, part 3","isRevisit":false,"viaLabel":null,"cost":6.2,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":5,"id":"The_Fracture_part_4_30b30796","label":"The Fracture, part 4","isRevisit":false,"viaLabel":null,"cost":7.7,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":6,"id":"Echo_Bridge_part_1_m_99e4e301","label":"Echo Bridge, part 1 (meet the Child) (+1 max health) (on first entry, mandatory to go to Echo Bridge, prison)","isRevisit":false,"viaLabel":null,"cost":9.4,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":1,"newGrants":[],"newFlags":["met_child"]},{"index":7,"id":"Crystal_Cavern_unloc_04f4af71","label":"Crystal Cavern (unlocks Shard Shot) (shard shot required to leave)","isRevisit":false,"viaLabel":null,"cost":11.4,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["shard_shot"],"newFlags":[]},{"index":8,"id":"Timeline_X_Roads_Roo_65253a78","label":"Timeline X Roads, Room 2 (Unlocks Void Tether if you give up the Child, if you don't permanently no Void Tether) (locked by Echo Bridge part 1) (unlocks child_choice_resolved) (miniboss) (1 lore pip)","isRevisit":false,"viaLabel":null,"cost":16.6,"miniboss":true,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["void_tether"],"newFlags":["child_choice_resolved"]},{"index":9,"id":"Graviton_Core_Room_1_7aa0f207","label":"Graviton Core, Room 1 (entry requires Shard Shot)","isRevisit":false,"viaLabel":null,"cost":18.1,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":10,"id":"The_Vault_Room_1_fas_bb32ea0e","label":"The Vault, Room 1 (fast travel)","isRevisit":false,"viaLabel":null,"cost":19.6,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":11,"id":"Graviton_Core_Room_1_7aa0f207","label":"Graviton Core, Room 1 (entry requires Shard Shot)","isRevisit":true,"viaLabel":null,"cost":21.1,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":12,"id":"Graviton_Core_Room_2_77e3c3ea","label":"Graviton Core, Room 2 (entry requires Shard Shot) (unlocks Graviton Surge) (1 Fracture Pip here)","isRevisit":false,"viaLabel":null,"cost":23.3,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":1,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["graviton_surge"],"newFlags":[]},{"index":13,"id":"Graviton_Core_Room_1_7aa0f207","label":"Graviton Core, Room 1 (entry requires Shard Shot)","isRevisit":true,"viaLabel":null,"cost":24.8,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":14,"id":"Teleport_from_Static_8c56de9c","label":"Teleport from Static Field","isRevisit":false,"viaLabel":null,"cost":26.3,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":15,"id":"One_Way_Teleport_to__edbbb037","label":"One Way Teleport to Graviton Core (1 cosmetic upgrade)","isRevisit":false,"viaLabel":"One Way Teleport","cost":28,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":1,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":16,"id":"Static_Field_Room_1_1a1e1c6e","label":"Static Field, Room 1","isRevisit":false,"viaLabel":null,"cost":29.5,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":17,"id":"One_Way_Teleport_to__40607331","label":"One Way Teleport to the Void Expanse , Room 2","isRevisit":false,"viaLabel":null,"cost":31,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":18,"id":"The_Void_Expanse_Roo_d1706789","label":"The Void Expanse, Room 2 (requires Shard Shot)","isRevisit":false,"viaLabel":null,"cost":32.5,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":19,"id":"The_Void_Expanse_Roo_c32cb52f","label":"The Void Expanse, Room 1 (1 lore pip) (1 cosmetic upgrade)","isRevisit":false,"viaLabel":null,"cost":34.4,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":1,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":20,"id":"Sovereign_s_Observatory_u_cf918d3c","label":"Sovereign's Observatory (unlocks fast travel) (entry requires Graviton Surge) (1 lore pip)","isRevisit":false,"viaLabel":null,"cost":36.1,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":["fast_travel_unlocked"]},{"index":21,"id":"The_Void_Expanse_Roo_c32cb52f","label":"The Void Expanse, Room 1 (1 lore pip) (1 cosmetic upgrade)","isRevisit":true,"viaLabel":null,"cost":38,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":1,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":22,"id":"Chrono_Space_Rift_re_05e19d7f","label":"Chrono Space Rift, Echo (requires Void Tether to enter from the Fracture)","isRevisit":false,"viaLabel":null,"cost":39.5,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":23,"id":"Chrono_Space_Rift_Sa_3690e358","label":"Chrono Space Rift, Sanctum (Miniboss) \"Ally\" (unlocks Stillpoint) (1 Fracture Pip)","isRevisit":false,"viaLabel":null,"cost":44.7,"miniboss":true,"finalBoss":false,"fastTravel":false,"fracturePips":1,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["stillpoint"],"newFlags":[]},{"index":24,"id":"Chrono_Space_Rift_re_05e19d7f","label":"Chrono Space Rift, Echo (requires Void Tether to enter from the Fracture)","isRevisit":true,"viaLabel":null,"cost":46.2,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":25,"id":"Chrono_Space_Rift_Lo_3715e812","label":"Chrono Space Rift, Loop, Part 2 (1 Lore Pip)","isRevisit":false,"viaLabel":null,"cost":47.900000000000006,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":1,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":26,"id":"Event_Horizon_Pull_1ff0db5e","label":"Event Horizon - Pull","isRevisit":false,"viaLabel":"Void Tether is required for this path","cost":49.400000000000006,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":27,"id":"Event_Horizon_Gate_f_7819cf8d","label":"Event Horizon - Gate (fast travel)","isRevisit":false,"viaLabel":null,"cost":50.900000000000006,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":28,"id":"Mirror_Corridor_c9be7338","label":"Mirror Corridor","isRevisit":false,"viaLabel":null,"cost":52.400000000000006,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":29,"id":"Mirror_Veil_Sanctum__31d7793f","label":"Mirror Veil, Sanctum (unlocks Phase Dash)","isRevisit":false,"viaLabel":null,"cost":54.400000000000006,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["phase_dash"],"newFlags":[]},{"index":30,"id":"Mirror_Corridor_c9be7338","label":"Mirror Corridor","isRevisit":true,"viaLabel":null,"cost":55.900000000000006,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":31,"id":"Event_Horizon_Gate_f_7819cf8d","label":"Event Horizon - Gate (fast travel)","isRevisit":true,"viaLabel":null,"cost":57.400000000000006,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":32,"id":"The_Fracture_part_1__4aadc34d","label":"The Fracture, part 1 (fast travel)","isRevisit":true,"viaLabel":"fast travel warp","cost":57.7,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":33,"id":"Crag_Entrance_fast_t_14519efb","label":"Crag Entrance (fast travel) (entry requires phase dash)","isRevisit":false,"viaLabel":null,"cost":59.2,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":34,"id":"Crag_Breach_part_1_3184f872","label":"Crag Breach part 1","isRevisit":false,"viaLabel":null,"cost":60.7,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":35,"id":"Crag_Altar_unlocks_c_37825bdb","label":"Crag Altar (unlocks charged attack, floor collapses and you must fight Crag warden)","isRevisit":false,"viaLabel":null,"cost":62.7,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":["charged_attack"],"newFlags":[]},{"index":36,"id":"Crag_Breach_part_1_3184f872","label":"Crag Breach part 1","isRevisit":true,"viaLabel":null,"cost":64.2,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":37,"id":"Crag_Entrance_fast_t_14519efb","label":"Crag Entrance (fast travel) (entry requires phase dash)","isRevisit":true,"viaLabel":null,"cost":65.7,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":38,"id":"The_Vault_Room_1_fas_bb32ea0e","label":"The Vault, Room 1 (fast travel)","isRevisit":true,"viaLabel":"fast travel warp","cost":66,"miniboss":false,"finalBoss":false,"fastTravel":true,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":39,"id":"The_Rift_entry_requi_c828e742","label":"The Rift (entry requires Charged Attack) (entry requires Graviton Surge) (entry requires Stillpoint) (entry requires child_choice_resolved)","isRevisit":false,"viaLabel":null,"cost":67.5,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":40,"id":"The_Antechamber_1b52237e","label":"The Antechamber","isRevisit":false,"viaLabel":null,"cost":69,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":41,"id":"Spawn_Area_1_cosmeti_e4e44b1f","label":"\"Spawn Area\" (1 cosmetic upgrade)","isRevisit":false,"viaLabel":"One way (entry requires phase dash)","cost":70.7,"miniboss":false,"finalBoss":false,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":1,"maxHealth":0,"newGrants":[],"newFlags":[]},{"index":42,"id":"Tutorial_Area_Final__89ceb24c","label":"\"Tutorial Area\" Final Boss Fight","isRevisit":false,"viaLabel":null,"cost":78.2,"miniboss":false,"finalBoss":true,"fastTravel":false,"fracturePips":0,"lorePips":0,"cosmeticUpgrades":0,"maxHealth":0,"newGrants":[],"newFlags":[]}],"uniqueRooms":32,"backtrackCount":10,"totalRooms":42},"speedTotal":78.2,"divergenceIndex":8,"timeWeights":{"baseRoom":1.5,"miniboss":3,"finalBoss":6,"fracturePip":0.2,"lorePip":0.2,"cosmeticUpgrade":0.2,"maxHealth":0.2,"abilityGrant":0.5,"fastTravelWarp":0.3},"mandatoryRooms":["Tutorial Area","The Fracture, part 1 (fast travel)","Echo Bridge, part 1 (meet the Child) (+1 max health) (on first entry, mandatory to go to Echo Bridge, prison)","Crag Altar (unlocks charged attack, floor collapses and you must fight Crag warden)","Crystal Cavern (unlocks Shard Shot) (shard shot required to leave)","Timeline X Roads, Room 2 (Unlocks Void Tether if you give up the Child, if you don't permanently no Void Tether) (locked by Echo Bridge part 1) (unlocks child_choice_resolved) (miniboss) (1 lore pip)","Mirror Veil, Sanctum (unlocks Phase Dash)","Mirror Corridor","Event Horizon - Gate (fast travel)","Event Horizon - Pull","Chrono Space Rift, Sanctum (Miniboss) \"Ally\" (unlocks Stillpoint) (1 Fracture Pip)","The Rift (entry requires Charged Attack) (entry requires Graviton Surge) (entry requires Stillpoint) (entry requires child_choice_resolved)","The Antechamber","Graviton Core, Room 2 (entry requires Shard Shot) (unlocks Graviton Surge) (1 Fracture Pip here)","\"Spawn Area\" (1 cosmetic upgrade)"],"softlockRisks":[{"from":"Polar Shift, Room 2 (miniboss) (1 lore pip)","to":"Paradox Engine, Room 1","label":"One way Polar Shift → Paradox Engine","severity":"DEPENDS ON LOADOUT"}],"routeCount":{"count":"23212273547578511875","capped":false,"statesVisited":175297}};
+
+function badge(cls, text) {
+  const span = document.createElement('span');
+  span.className = 'badge ' + cls;
+  span.textContent = text;
+  return span;
+}
+
+function renderSteps(container, pathData) {
+  container.innerHTML = '';
+  if (!pathData) {
+    container.textContent = 'No path found.';
+    return;
+  }
+  pathData.steps.forEach((s, i) => {
+    if (i > 0) {
+      const c = document.createElement('div');
+      c.className = 'connector';
+      container.appendChild(c);
+    }
+    if (s.viaLabel) {
+      const via = document.createElement('div');
+      via.className = 'via';
+      via.textContent = 'via: ' + s.viaLabel;
+      container.appendChild(via);
+    }
+    const card = document.createElement('div');
+    card.className = 'step' + (s.isRevisit ? ' revisit' : '');
+    const head = document.createElement('div');
+    head.className = 'step-head';
+    const num = document.createElement('span');
+    num.className = 'step-num';
+    num.textContent = s.index + '.';
+    const label = document.createElement('span');
+    label.className = 'step-label';
+    label.textContent = s.label;
+    head.appendChild(num);
+    head.appendChild(label);
+    if (s.isRevisit) {
+      const tag = document.createElement('span');
+      tag.className = 'revisit-tag';
+      tag.textContent = '↩ backtrack';
+      head.appendChild(tag);
+    }
+    card.appendChild(head);
+    const badges = document.createElement('div');
+    badges.className = 'badges';
+    if (s.miniboss) badges.appendChild(badge('miniboss', '⚔ miniboss'));
+    if (s.finalBoss) badges.appendChild(badge('final', '🏆 final boss'));
+    if (s.fastTravel) badges.appendChild(badge('', '⇄ fast travel'));
+    s.newGrants.forEach((a) => badges.appendChild(badge('grant', '✨ ' + a)));
+    s.newFlags.forEach((f) => badges.appendChild(badge('flag', '🚩 ' + f)));
+    if (s.fracturePips) badges.appendChild(badge('', '◆ fracture x' + s.fracturePips));
+    if (s.lorePips) badges.appendChild(badge('', '📖 lore x' + s.lorePips));
+    if (s.cosmeticUpgrades) badges.appendChild(badge('', '🎨 cosmetic x' + s.cosmeticUpgrades));
+    if (s.maxHealth) badges.appendChild(badge('', '❤ max hp x' + s.maxHealth));
+    if (badges.children.length) card.appendChild(badges);
+    container.appendChild(card);
+  });
+}
+
+function renderStats() {
+  const statsEl = document.getElementById('stats');
+  const items = [
+    [DATA.normal ? DATA.normal.totalRooms : '-', 'normal: rooms visited'],
+    [DATA.normal ? DATA.normal.backtrackCount : '-', 'normal: backtrack steps'],
+    [DATA.speed ? DATA.speed.totalRooms : '-', 'speedrun: rooms visited'],
+    [DATA.speed ? DATA.speed.backtrackCount : '-', 'speedrun: backtrack steps'],
+    [DATA.speedTotal !== null ? Math.round(DATA.speedTotal * 10) / 10 : '-', 'speedrun: est. minutes'],
+  ];
+  items.forEach(([n, l]) => {
+    const el = document.createElement('div');
+    el.className = 'stat';
+    const nEl = document.createElement('div'); nEl.className = 'n'; nEl.textContent = n;
+    const lEl = document.createElement('div'); lEl.className = 'l'; lEl.textContent = l;
+    el.appendChild(nEl); el.appendChild(lEl);
+    statsEl.appendChild(el);
+  });
+}
+
+function renderDivergence() {
+  const el = document.getElementById('divergence');
+  if (!DATA.normal || !DATA.speed) { el.style.display = 'none'; return; }
+  const h = document.createElement('h2');
+  h.textContent = 'Where the two routes differ';
+  el.appendChild(h);
+  const p = document.createElement('div');
+  if (DATA.divergenceIndex === -1) {
+    p.textContent = 'The normal and speedrun routes are identical — there is currently no meaningfully faster alternative route through the game.';
+  } else {
+    const roomAtSplit = DATA.normal.steps[DATA.divergenceIndex] ? DATA.normal.steps[DATA.divergenceIndex - 1] : null;
+    p.textContent = 'Both routes match through step ' + DATA.divergenceIndex + (roomAtSplit ? (' (' + roomAtSplit.label + ')') : '') + ', then diverge: the normal route heads to "' + (DATA.normal.steps[DATA.divergenceIndex] ? DATA.normal.steps[DATA.divergenceIndex].label : '?') + '" while the speedrun route heads to "' + (DATA.speed.steps[DATA.divergenceIndex] ? DATA.speed.steps[DATA.divergenceIndex].label : '?') + '" — see the two columns above from that point on.';
+  }
+  el.appendChild(p);
+}
+
+function renderMandatoryList() {
+  const el = document.getElementById('mandatoryList');
+  const p = document.createElement('div');
+  p.style.marginBottom = '8px';
+  p.textContent = DATA.mandatoryRooms.length + ' of ' + DATA.roomCount + ' rooms are mandatory:';
+  el.appendChild(p);
+  const ul = document.createElement('ul');
+  DATA.mandatoryRooms.forEach((label) => {
+    const li = document.createElement('li');
+    li.textContent = label;
+    ul.appendChild(li);
+  });
+  el.appendChild(ul);
+}
+
+function renderSoftlockList() {
+  const el = document.getElementById('softlockList');
+  if (!DATA.softlockRisks.length) {
+    el.textContent = 'None found: every one-way/scripted connection can still reach the Final Boss.';
+    return;
+  }
+  const ul = document.createElement('ul');
+  DATA.softlockRisks.forEach((r) => {
+    const li = document.createElement('li');
+    const sev = document.createElement('span');
+    sev.className = r.severity === 'DEFINITE TRAP' ? 'risk-trap' : 'risk-loadout';
+    sev.textContent = '[' + r.severity + '] ';
+    li.appendChild(sev);
+    li.appendChild(document.createTextNode(r.from + ' → ' + r.to + (r.label ? ' (' + r.label + ')' : '')));
+    ul.appendChild(li);
+  });
+  el.appendChild(ul);
+}
+
+function renderRouteCount() {
+  const el = document.getElementById('routeCount');
+  // DATA.routeCount.count arrives as a digit string (can exceed Number
+  // precision), so comma-group it manually rather than via toLocaleString.
+  const n = DATA.routeCount.count.replace(/B(?=(d{3})+(?!d))/g, ',');
+  el.textContent = (DATA.routeCount.capped ? 'At least ' + n + ' (search capped)' : n) + ' distinct routes';
+}
+
+document.getElementById('subhead').textContent =
+  DATA.startLabel + ' → ' + DATA.goalLabel + '  ·  ' + DATA.roomCount + ' rooms in the full graph  ·  ' + DATA.generatedNote;
+renderStats();
+renderSteps(document.getElementById('normalSteps'), DATA.normal);
+renderSteps(document.getElementById('speedSteps'), DATA.speed);
+renderDivergence();
+renderMandatoryList();
+renderSoftlockList();
+renderRouteCount();
+</script>
+</body></html>

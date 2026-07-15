@@ -622,15 +622,30 @@ PHASE 5 — Extra Depth & Polish
       - A basic "how to play"/controls reference screen, generated FROM the
         current keybinding state (so it's always accurate even after
         remapping), not a separate hardcoded image/text.
-[ ] 5.9 ASPIRATIONAL / FAR FUTURE, NOT SCOPED — Playable-King NG+2 arc
-      - Full design (pitch, why it's compelling, the 2 real narrative risks,
-        the scope risk) lives in `story.md` §9, not here — roadmap.md stays
-        the status/checklist doc, not the narrative-design doc. Summary:
-        a second New Game+ playing AS the King, then a third act fighting
-        the child grown up. Explicitly NOT scoped — close to a second
-        game's worth of work; do not start without reading story.md §9's
-        risk list first (King-sympathy tension, "why does she become a
-        threat" needing a real answer, not just a twist).
+[ ] 5.9 Sovereign Ending postgame — Playable-Sovereign arc (RESCOPED 2026-07-14,
+        no longer aspirational/far-future — see story.md §9's revision history)
+      - Full design lives in `story.md` §9 and §7, not here — roadmap.md stays
+        the status/checklist doc. Summary: True Anchor is retired; the old
+        "Trained her" trigger now leads to a new Sovereign Ending whose
+        postgame is a real, sequenced 5-step arc — play as the Sovereign in
+        the Sovereign Rooms (`floor_plan.md`'s Sovereign Room 1–4 / Sovereign's
+        Observatory nodes, now committed content, not reserved placeholders),
+        a narrative arc built to pull the player toward the same choice the
+        Sovereign made, an intervention from the ally that turns out to BE the
+        base game's own opening cinematic seen from the other side, more
+        Sovereign Rooms, then a closing fight against the grown child that
+        loops back into the base game (NG). Both of the old risk-list items
+        (Sovereign-sympathy tension, "why does she become a threat") are
+        resolved by this structure, not just flagged. Still real, unbuilt
+        work — not started, no room content designed beyond the sequence
+        above — but no longer "don't start without a risk-mitigation design
+        pass first"; the risk mitigation IS the structure now.
+      - Brainstormed, explicitly not locked: an endless boss-rush instead of a
+        single closing fight (next loop's grown child just keeps coming back),
+        a different kit per run, and an adaptive opponent that mirrors the
+        player's own action patterns — possibly reusing `expansion.md` 5.6's
+        (also unbuilt) Archive adaptive-boss spec rather than a second bespoke
+        system. See story.md §9 for the full list.
 
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 6 — Non-Linear World & Meaningful Exploration

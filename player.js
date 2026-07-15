@@ -143,8 +143,8 @@ class Player {
       this.coyoteTimer--;
     }
 
-    // ── Stillpoint toggle (Q) ──────────────────────────────────────────────
-    if ((wasJustPressed('KeyQ') || wasJustPressed('KeyU')) && abilityState.hasStillpoint) {
+    // ── Stillpoint toggle ───────────────────────────────────────────────────
+    if (wasActionJustPressed('stillpoint') && abilityState.hasStillpoint) {
       if (!this.stillpointActive && this.fractureMeter > 0) {
         this.stillpointActive = true;
         if (typeof SFX !== 'undefined') SFX.stillpointActivate();
@@ -170,7 +170,7 @@ class Player {
     }
 
     // ── Duck / Crouch ─────────────────────────────────────────────────────
-    const wantsDuck = (isPressed('ArrowDown') || isPressed('KeyS')) && this.grounded;
+    const wantsDuck = isActionPressed('aimDown') && this.grounded;
     if (wantsDuck && !this.ducking) {
       // Start ducking: shift y down so feet stay planted
       this.y += this.normalHeight - this.duckHeight;
@@ -186,10 +186,10 @@ class Player {
     // ── Movement ───────────────────────────────────────────────────────────
     if (!this.dashing && !this.phaseDashing && this.hitStunTimer <= 0) {
       const speed = this.ducking ? DUCK_SPEED : MOVE_SPEED;
-      if (isPressed('ArrowLeft') || isPressed('KeyA')) {
+      if (isActionPressed('moveLeft')) {
         this.vx = -speed;
         this.facing = -1;
-      } else if (isPressed('ArrowRight') || isPressed('KeyD')) {
+      } else if (isActionPressed('moveRight')) {
         this.vx = speed;
         this.facing = 1;
       } else {
@@ -197,8 +197,8 @@ class Player {
       }
 
       // ── Wall slide: slow descent when holding toward a wall ──
-      const holdingTowardWall = (this.wallNormal === 1 && (isPressed('ArrowRight') || isPressed('KeyD'))) ||
-                                (this.wallNormal === -1 && (isPressed('ArrowLeft') || isPressed('KeyA')));
+      const holdingTowardWall = (this.wallNormal === 1 && isActionPressed('moveRight')) ||
+                                (this.wallNormal === -1 && isActionPressed('moveLeft'));
       if (!this.grounded && this.wallNormal !== 0 && holdingTowardWall && this.vy >= 0) {
         this.wallSliding = true;
         if (this.vy > WALL_SLIDE_SPEED) {
@@ -209,7 +209,7 @@ class Player {
       }
 
       // Block jumping while ducking
-      const jumpPressed = wasJustPressed('ArrowUp') || wasJustPressed('KeyW') || wasJustPressed('Space');
+      const jumpPressed = wasActionJustPressed('jump');
       if (jumpPressed && (this.grounded || this.coyoteTimer > 0)) {
         // ── Normal jump ──
         this.vy = JUMP_FORCE;
@@ -234,7 +234,7 @@ class Player {
     }
 
     // ── Regular Dash ────────────────────────────────────────────────────────
-    if ((wasJustPressed('ShiftLeft') || wasJustPressed('ShiftRight') || wasJustPressed('KeyX')) &&
+    if (wasActionJustPressed('dash') &&
         this.dashCooldown <= 0 && !this.dashing) {
       this.dashing = true;
       this.dashTimer = DASH_DURATION;
@@ -266,7 +266,7 @@ class Player {
     }
 
     // ── Phase Dash ──────────────────────────────────────────────────────────
-    if ((wasJustPressed('KeyC') || wasJustPressed('KeyK')) &&
+    if (wasActionJustPressed('phaseDash') &&
         abilityState.hasPhaseDash && abilityState.phaseDashCooldown <= 0 && !this.phaseDashing) {
       this.phaseDashing = true;
       this.phaseDashTimer = PHASE_DASH_DURATION;
@@ -284,11 +284,12 @@ class Player {
     }
 
     // ── Attack input: hold to charge, release to fire — requires the Charged
-    // Attack ability (crag_altar). Without it, Z/J only ever fires the quick
-    // normal attack on tap; the charge/heavy-attack system doesn't exist yet.
+    // Attack ability (crag_altar). Without it, the attack action only ever
+    // fires the quick normal attack on tap; the charge/heavy-attack system
+    // doesn't exist yet.
     if (abilityState.hasChargedAttack) {
-      // Press Z/J with no cooldown → start charging (don't fire yet)
-      if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
+      // Press attack with no cooldown → start charging (don't fire yet)
+      if (wasActionJustPressed('attack') &&
           this.attackCooldown <= 0 && !this.ducking &&
           !this.charging && !this.parrying) {
         this.charging = true;
@@ -297,7 +298,7 @@ class Player {
       }
 
       // While holding, accumulate charge
-      if (this.charging && (isPressed('KeyZ') || isPressed('KeyJ'))) {
+      if (this.charging && isActionPressed('attack')) {
         this.chargeTimer++;
         if (this.chargeTimer >= CHARGE_FULL) {
           this.chargeTimer = CHARGE_FULL;
@@ -315,14 +316,14 @@ class Player {
         this.fullyCharged = false;
       }
 
-      // Release Z/J → fire attack
-      if (this.charging && !isPressed('KeyZ') && !isPressed('KeyJ')) {
+      // Release attack → fire
+      if (this.charging && !isActionPressed('attack')) {
         this.charging = false;
 
         // Directional attack based on input
-        if (isPressed('ArrowUp') || isPressed('KeyW')) {
+        if (isActionPressed('aimUp')) {
           this.attackDirection = 'up';
-        } else if (isPressed('ArrowDown') || isPressed('KeyS')) {
+        } else if (isActionPressed('aimDown')) {
           this.attackDirection = 'down';
         } else {
           this.attackDirection = 'forward';
@@ -349,13 +350,13 @@ class Player {
         this.chargeTimer = 0;
         this.fullyCharged = false;
       }
-    } else if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
+    } else if (wasActionJustPressed('attack') &&
                this.attackCooldown <= 0 && !this.ducking && !this.parrying) {
-      // No Charged Attack yet — Z/J always fires the quick attack immediately,
+      // No Charged Attack yet — attack always fires the quick hit immediately,
       // no charge timer, no heavy branch, no charge VFX.
-      if (isPressed('ArrowUp') || isPressed('KeyW')) {
+      if (isActionPressed('aimUp')) {
         this.attackDirection = 'up';
-      } else if (isPressed('ArrowDown') || isPressed('KeyS')) {
+      } else if (isActionPressed('aimDown')) {
         this.attackDirection = 'down';
       } else {
         this.attackDirection = 'forward';
@@ -369,8 +370,8 @@ class Player {
       this.hitTargetsThisSwing.clear();
     }
 
-    // ── Parry: tap Z during cooldown (instead of attacking) ────────────────
-    if ((wasJustPressed('KeyZ') || wasJustPressed('KeyJ')) &&
+    // ── Parry: tap attack during cooldown (instead of attacking) ───────────
+    if (wasActionJustPressed('attack') &&
         !this.attacking && this.attackCooldown > 0 && this.parryCooldown <= 0 &&
         !this.ducking && !this.parrying) {
       this.parrying = true;
@@ -395,11 +396,11 @@ class Player {
     if (this.attackCooldown > 0) this.attackCooldown--;
 
     // ── Shard Shot — hold to aim, release to fire (expansion §0.1) ─────────
-    // Press V/N: start aiming; a glowing dotted arc appears (see draw()).
-    // Hold R (up) or T (down) while aiming: tilt the arc smoothly.
+    // Press shardShot: start aiming; a glowing dotted arc appears (see draw()).
+    // Hold aimUp/aimDown while aiming: tilt the arc smoothly.
     // Release: fire along the arc. A quick tap = instant forward shot.
     this.shardShotFired = false;
-    if ((wasJustPressed('KeyV') || wasJustPressed('KeyN')) &&
+    if (wasActionJustPressed('shardShot') &&
         abilityState.hasShardShot && abilityState.shardShotCooldown <= 0 &&
         !this.shardAiming) {
       this.shardAiming = true;
@@ -407,11 +408,11 @@ class Player {
       this.shardAimVy = 0;
     }
     if (this.shardAiming) {
-      if (isPressed('KeyV') || isPressed('KeyN')) {
+      if (isActionPressed('shardShot')) {
         this.shardAimTimer++;
-        if (isPressed('KeyR')) {          // R for up
+        if (isActionPressed('aimUp')) {
           this.shardAimVy = Math.max(this.shardAimVy - SHARD_AIM_TILT_RATE, SHARD_AIM_VY_MIN);
-        } else if (isPressed('KeyT')) {   // T for down
+        } else if (isActionPressed('aimDown')) {
           this.shardAimVy = Math.min(this.shardAimVy + SHARD_AIM_TILT_RATE, SHARD_AIM_VY_MAX);
         }
       } else {

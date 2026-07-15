@@ -106,7 +106,7 @@ const AREAS = {
     ],
     loreFragments: [
       { id: 'lore_f1', x: 995, y: 150,
-        text: '"We built the Stillpoints to anchor time itself. We never imagined what it would mean for one of them to break."' },
+        text: '"She said the fusion would be clean. She said it would be the last thing she ever had to do to us."' },
     ],
     fracturePipRewards: [
       { id: 'fp_fracture_1', x: 200, y: 295 },   // low shelf platform
@@ -209,11 +209,11 @@ const AREAS = {
     anchors: [],
     loreFragments: [
       { id: 'lore_ur1', x: 150, y: 276,
-        text: '"Before the fracture, these halls echoed with our voices. Now only the fracture echoes back."' },
+        text: '"She didn\'t lose control of the Stillpoints. She fused them on purpose, to end every war at once by ending the possibility of anything ever changing again."' },
       { id: 'lore_ur2', x: 340, y: 216,
-        text: '"The King built this place. He was proud of it. He said permanence was the highest art."' },
+        text: '"She told us it was for our own good. That a world which could never change again could never be hurt again. She believed it. That\'s what made her dangerous — not cruelty, certainty."' },
       { id: 'lore_ur3', x: 695, y: 206,
-        text: '"He was wrong. Nothing permanent survives time. Permanence just means you suffer longer when it ends."' },
+        text: '"She is still in there. Not trapped — waiting. Rebuilding what she can reach. She has not stopped ruling; she has just run out of subjects who can still see her coming."' },
     ],
     abilityReward: null,
   },
@@ -263,7 +263,7 @@ const AREAS = {
       { x:60, y:100, index:0 }
     ],
     loreFragments: [
-      { id:'lore_cc1', x:415, y:358, text:"\"The crystals are made of frozen time.\"" }
+      { id:'lore_cc1', x:415, y:358, text:"\"The crystals are made of frozen time. Her time. She didn't ask if we wanted to be frozen with it.\"" }
     ],
   },
 
@@ -321,7 +321,7 @@ const AREAS = {
     ],
     loreFragments: [
       { id: 'lore_tf1', x: 600, y: 244,
-        text: '"He forged his own prison here. Every barrier he built was one more thing that could not bend — and so had to break."' },
+        text: '"Every barrier she built was meant to never be crossed. She is the reason nothing here was ever allowed to bend — so now everything only knows how to break."' },
     ],
     abilityReward: null,
   },
@@ -375,9 +375,9 @@ const AREAS = {
     ],
     loreFragments: [
       { id: 'lore_tv1', x: 260, y: 265,
-        text: '"Stillpoint: the moment between moments. He stole ours. We kept one hidden here — for whoever came next."' },
+        text: '"We stole one Stillpoint back before she fused the rest. She doesn\'t know it exists. Keep it. Keep it hidden. Give it to whoever comes looking for a way to move, not a way to stop."' },
       { id: 'lore_tv2', x: 620, y: 265,
-        text: '"Go. He is waiting. He has always been waiting. Since the fracture he cannot do anything else."' },
+        text: '"She thinks she accounted for everything that could ever move against her. She is very nearly right. Go be the exception."' },
     ],
     fracturePipRewards: [
       { id: 'fp_vault_1', x: 450, y: 176 },   // altar platform
@@ -469,9 +469,9 @@ const AREAS = {
     ],
     loreFragments: [
       { id: 'lore_ac1', x: 220, y: 268,
-        text: '"He was the first of us to step into the fracture. He did it to seal it. He is still there. He is still trying."' },
+        text: '"She knows something is moving through her ruins that she didn\'t authorize. She is looking for it. She is very good at looking."' },
       { id: 'lore_ac2', x: 395, y: 202,
-        text: '"The Fractured King does not want your death. He wants someone to finally stop him. He cannot stop himself."' },
+        text: '"There is a child she cannot see. She knows there is something she cannot see, which is worse, to her, than knowing what it is. She will not stop until there is nothing left she cannot account for."' },
     ],
     abilityReward: null,
   },

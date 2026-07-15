@@ -10,6 +10,7 @@ All tasks are grouped into logical phases for incremental development.
 
 1. [Phase 0: Core Ability Reworks](#phase-0-core-ability-reworks)
 2. [Phase 1: New Ability – Graviton Surge](#phase-1-new-ability--graviton-surge)
+2b. [Phase 1B: Three More New Abilities](#phase-1b-three-more-new-abilities-added-2026-07-13)
 3. [Phase 2: Enemy Roster (26 Normal + 2 Hard)](#phase-2-enemy-roster-26-normal--2-hard)
 4. [Phase 3: New Areas – Spacetime Regions (13 Rooms)](#phase-3-new-areas--spacetime-regions-13-rooms)
 5. [Phase 4: Minibosses (8)](#phase-4-minibosses-8)
@@ -39,6 +40,34 @@ All tasks are grouped into logical phases for incremental development.
 | 1.1 | **Graviton Surge – Core Implementation** | `player.js`, `game.js`, `ability.js` | Press `G` to **reverse gravity** for 3 seconds. The player walks on the ceiling, and enemies “fall” upward (briefly stunned). Jumping during this lets you “fall” upward. **Cost**: Consumes 1 full Fracture pip. Cannot be active simultaneously with Stillpoint. Cooldown: 120 frames (2 seconds) after the effect ends. |
 | 1.2 | **Visual & Audio Feedback** | `player.js`, `audio.js` | Screen tint inverts (cool blue/white shift), particles stream upward. All physics (projectiles, enemies) reverse gravity. Sound: a rising sweep with a low bass pulse. |
 | 1.3 | **Integration into Existing Areas** | `area.js` | Place the ability pickup in the new **Graviton Core** region (see Phase 3). Also add a handful of secret rooms in older areas that require Graviton Surge to reach (e.g., a ceiling‑only platform in The Fracture containing a lore fragment). |
+
+---
+
+## PHASE 1B: THREE MORE NEW ABILITIES (added 2026-07-13)
+
+*Goal: with 13 planned regions and only Graviton Surge (Phase 1) + Void Tether
+(`story.md` §4) as new abilities beyond the original three, most regions grant nothing —
+each of these fills an unclaimed region with a reward, and each is picked to encourage a
+genuinely different play pattern from every other ability, not a reskin of one that
+already exists.*
+
+**Distinctness check** (why each one earns its slot): Phase Dash is momentum-based
+hazard-crossing with i-frames; Shard Shot is ranged poke/crowd control; Stillpoint is
+cautious defensive time-slow with a lifesteal payoff; Graviton Surge is an
+environment-flip puzzle/combat tool; Void Tether is an aggressive grapple/pull. None of
+the three below duplicate any of that:
+
+| # | Task | Files | Description |
+|---|------|-------|-------------|
+| 1B.1 | **Mirror Step (`C`)** | `player.js`, `ability.js`, `game.js` | Throw a mirror-clone marker forward (arcs like a thrown object, stops on the first solid surface). Press `C` again to instantly swap positions with it — you teleport to the clone's spot, it teleports to your old one. Dropped and left alone for 3s, the clone instead acts as a stationary decoy that draws one nearby enemy's aggro. **Encourages**: planning a position in advance and thinking about misdirection, rather than reflexive traversal (contrast Phase Dash, which is about *reacting* to a hazard in front of you right now). Granted in **Mirror Veil** — thematically free, the region is already about reflections/copies. |
+| 1B.2 | **Blink (`B`)** | `player.js`, `ability.js`, `game.js` | Instant short-range teleport (~150px, in the aim direction). Passes through exactly one tile-thickness of solid wall but NOT through open hazards, enemies, or projectiles — no i-frames, no invincibility, you can still be hit immediately after arriving. Cooldown, no Fracture cost (cheap and frequent, deliberately not a combat panic button). **Encourages**: reading room geometry to find the one-tile-thick wall that's the "real" path, i.e. spatial-puzzle precision rather than combat utility — contrast Void Tether (which pulls you toward open space/enemies) and Phase Dash (which is built to survive hazards, not avoid engaging them at all). Granted in **Warp Gate Nexus** — built for its "3-4 challenge vaults" structure (§3.11), each vault can be a Blink-routing puzzle. |
+| 1B.3 | **Overcharge (`O`, hold)** | `player.js`, `ability.js`, `game.js`, `audio.js` | Hold `O` to build a visible charge meter (2s max). Release for a ~2s window of drastically increased attack speed and zero dash/Stillpoint cooldowns — but you take 2x damage and cannot block/parry during the window. No Fracture cost; risk is the cost. **Encourages**: reckless, all-in aggression as a deliberate alternative playstyle to Stillpoint's caution — the two abilities are direct opposites in risk profile (Stillpoint: survive longer, hit softer *unless* you land clean hits; Overcharge: hit much harder, survive much less). Granted in **Static Field** — the region's own hazard (touch the floor and get zapped upward) already primes the player for "channel the danger instead of avoiding it," so the ability reads as a natural extension of the room's own mechanic rather than an arbitrary reward. |
+
+**Integration note**: same pattern as Graviton Surge (1.3) — each ability's pickup lives
+in its granting region, plus a small number of secret spots in earlier/other regions that
+require it to reach (a Mirror Step-only decoy puzzle, a Blink-only gap in an older room,
+etc.), once that region is actually built. See `Plans/regions.md`'s "Abilities — where each
+one is granted" table for the authoritative reward-placement list (updated to match).
 
 ---
 
@@ -79,7 +108,7 @@ All tasks are grouped into logical phases for incremental development.
 22. **Mirror Sprite** – Translucent ghost that only appears in reflections. It attacks from behind when you’re not facing it. *Counter: Face it directly to make it tangible; parry its attack to shatter it.*
 23. **Warp Mite** – Tiny, fast, zips erratically. On contact, it teleports you to a random nearby location (disorienting, no damage). *Counter: Phase‑dash through it—it despawns in confusion.*
 24. **Inertial Shieldbearer** – Runs in a straight line, gaining speed. Cannot turn sharply. *Counter: Use Graviton Surge to flip its gravity, sending it into a wall.*
-25. **Fractured King's Guard** – (Elite normal) – Uses a greatshield with 3 phases: shield bash, aggressive combos, enrage with shard adds. *Counter: Parry the bash, dodge the combos.*
+25. **Fractured Sovereign's Guard** – (Elite normal) – Uses a greatshield with 3 phases: shield bash, aggressive combos, enrage with shard adds. *Counter: Parry the bash, dodge the combos.*
 
 ### 2.2 Hard Enemies (2 total)
 
@@ -93,7 +122,7 @@ All tasks are grouped into logical phases for incremental development.
 
 **Why this matters:** right now every counter runs one direction — abilities beat enemy defenses (shields, walls), but nothing pushes back against careless ability use. If Phase Dash, Shard Shot, and Graviton Surge are ever unconditionally safe against everything, players stop making choices and just default to whichever tool is least risky. Every ability needs at least one enemy that makes using it carelessly a real mistake — not a hard wall that disables the ability, but a situational punish that rewards using it *well* instead of *by reflex*.
 
-**On Stillpoint specifically — deliberately NOT giving regular enemies a hard counter to it:** the King's phase-3 immunity ("he sees through the slow and counter-lunges") is supposed to be the thematic payoff of the game's central lore — <br>*"Stillpoint: the moment between moments. He stole ours."* <br>*"The Fractured King does not want your death. He wants someone to finally stop him."* <br>He is the one thing time cannot touch, because he's the one who broke it. If regular enemies also flatly ignore Stillpoint, that moment gets spent too early and cheaply. Keep the existing partial slow-resistance mechanic (2.5 — 30% resistance after 3+ Stillpoint activations in one fight) as the sanctioned *soft* counter, applied broadly. Full immunity stays reserved for the King. The one exception below (Temporal Warden) is a deliberate, narratively-justified foreshadowing beat, not a precedent to repeat elsewhere.
+**On Stillpoint specifically — deliberately NOT giving regular enemies a hard counter to it:** the Sovereign's phase-3 immunity ("she sees through the slow and counter-lunges") is supposed to be the thematic payoff of the game's central lore — <br>*"Stillpoint: the moment between moments. She stole ours."* <br>*"The Fractured Sovereign does not want your death. She wants someone to finally stop her."* <br>She is the one thing time cannot touch, because she's the one who broke it. If regular enemies also flatly ignore Stillpoint, that moment gets spent too early and cheaply. Keep the existing partial slow-resistance mechanic (2.5 — 30% resistance after 3+ Stillpoint activations in one fight) as the sanctioned *soft* counter, applied broadly. Full immunity stays reserved for the Sovereign. The one exception below (Temporal Warden) is a deliberate, narratively-justified foreshadowing beat, not a precedent to repeat elsewhere.
 
 #### New enemies (add to the 25/2 roster above)
 
@@ -102,7 +131,7 @@ All tasks are grouped into logical phases for incremental development.
 31. **Gravity Anchor** *(counters Graviton Surge)* — A stationary, rooted enemy (plant/crystal-like) that locally nullifies gravity manipulation in its radius: activating Graviton Surge while near one either fizzles instantly (wasting the Fracture pip cost) or briefly re-flips back on you. *Counter: kill the Anchor first (it doesn't move or attack directly, low HP, but is usually guarded by 1-2 other enemies) before trying to Surge in that room.* Spawns in Graviton Core / The Inverted Spire.
 32. **Deflector Drone** *(counters Shard Shot)* — Hovers passively, projecting a small directional energy shield on whichever side currently faces the player. A Shard Shot that hits the shield is reflected straight back at the player (dodgeable, but punishes reflexive spam-firing from safe range). *Counter: circle to its unshielded side (melee or Phase Dash both work to reposition fast), or bait a shot then dodge the reflection and punish the shield's brief cooldown afterward.* Spawns in The Polar Shift / Paradox Engine.
 33. **Absorber Husk** *(counters Shard Shot)* — A slow, tanky enemy that visibly "eats" Shard Shot projectiles fired at it (a shrinking-orb absorb animation) and heals a small amount of HP per shot absorbed, actively punishing ranged spam instead of just ignoring it. Vulnerable to melee and to Graviton Surge (can't absorb while gravity-flipped and disoriented). *Counter: don't feed it Shard Shots — engage in melee, or catch it right after a Surge flip.* Spawns in Paradox Engine / The Void Expanse.
-34. **Temporal Warden** *(partial, narratively-justified Stillpoint resistance — foreshadowing only, not a template to repeat)* — Already listed as Miniboss 4.6. Worth calling out here specifically: this is the ONE enemy below full-boss status that should get anything beyond the standard 30% slow-resistance, and only because its entire identity (a time-rift mage that rewinds its own health) is thematically about resisting time manipulation — it should read as a splinter/servant of whatever broke the world, foreshadowing that something out there can push back against Stillpoint before the King ever does. Do not give this treatment to any other regular enemy; it should stay a singular, memorable beat.
+34. **Temporal Warden** *(partial, narratively-justified Stillpoint resistance — foreshadowing only, not a template to repeat)* — Already listed as Miniboss 4.6. Worth calling out here specifically: this is the ONE enemy below full-boss status that should get anything beyond the standard 30% slow-resistance, and only because its entire identity (a time-rift mage that rewinds its own health) is thematically about resisting time manipulation — it should read as a splinter/servant of whatever broke the world, foreshadowing that something out there can push back against Stillpoint before the Sovereign ever does. Do not give this treatment to any other regular enemy; it should stay a singular, memorable beat.
 35. **Debris Construct** *(new — Paradox Engine)* — Inert scrap-and-crystal wreckage (visually: the Paradox Engine's own broken machine parts) that assembles itself when the player gets close, telegraphed by a 1-second self-assembly animation (parts snapping together, rising hum) before it can move or attack — a free punish window. Slow, wide, telegraphed shove attack; no ranged option. Exposed core on its back takes double Shard Shot damage, mirroring Crystal Sentinel's shield logic inverted. *Counter: punish the assembly window, or circle behind it for the core — riskier since its shove has decent range.* Fits the Paradox Engine's "giant machine" theme as its scattered offspring.
 
 ---
@@ -174,7 +203,7 @@ Each column's own north-south chain is the original tree edge (e.g. Forge→Obse
 
 **Time/Mirror cluster (planned, not built)** — col 5, rows 1-4, south of the Vault (the one cluster without a parallel neighbor, since it runs the opposite direction from the other three). Color: pink-violet `#f472b6`. To avoid this being the one true dead-end tree branch, it gets a single long shortcut instead of a lattice: **Echoing Abyss (5,4) → one-way `shortcut:true` connection back to Crystal Cavern (3,0)**, gated by `stillpoint` (already required to reach Echoing Abyss in the first place, so this is a free return trip, not an extra gate) — turns the deepest room in this cluster into a loop back to the *early* origin spine instead of forcing a full backtrack south-to-north through all 4 rooms again.
 
-**Final boss placement rule (unchanged, re-verified against this atlas)**: no region above — built or planned — connects directly into `antechamber` or `boss_arena`. The Fractured King stays the true end of the critical path regardless of how large the side-content web grows.
+**Final boss placement rule (unchanged, re-verified against this atlas)**: no region above — built or planned — connects directly into `antechamber` or `boss_arena`. The Fractured Sovereign stays the true end of the critical path regardless of how large the side-content web grows.
 
 ---
 
@@ -261,7 +290,7 @@ Right now the game's structure is: many small single-screen rooms, each connecte
 
 | # | Name | Theme | Phase 1 | Phase 2 | Strategy | Reward |
 |---|------|-------|---------|---------|----------|--------|
-| 4.1 | **The Fractured King's Guard** | Elite knight | Shield bash + combos | Enrage with shard adds | Parry the bash; attack during shield recovery. | +1 Max Health |
+| 4.1 | **The Fractured Sovereign's Guard** | Elite knight | Shield bash + combos | Enrage with shard adds | Parry the bash; attack during shield recovery. | +1 Max Health |
 | 4.2 | **The Mirror King** | Reflection world | Reflects 50% damage back at you | Creates a clone that copies your exact movements | Use Stillpoint to slow clone; phase‑dash through reflected projectiles and attack from behind. | Graviton Surge upgrade (duration +1s) |
 | 4.3 | **Gravity Collapse Core** | Black hole | Shoots debris at you | Massive pull that drags you into ceiling spikes | Use Graviton Surge to flip gravity and escape; shard‑shot debris to hit the core. | +1 Fracture pip (max 4) |
 | 4.4 | **Electromagnetic Golem** | Magnetic scrap | Repulsion fields push you left/right | Polarity reverses, pulls you in and slams | Use environmental magnetism (stand on platforms that push you away) to create openings. | Shard Shot upgrade (faster projectile) |
@@ -281,11 +310,11 @@ Right now the game's structure is: many small single-screen rooms, each connecte
 | # | Task | Files | Description |
 |---|------|-------|-------------|
 | 5.1 | **Radiant Mode** | `game.js` | After beating the game once, unlock a toggle in the menu that makes the player die in one hit (health set to 1) but grants a special cosmetic and an achievement. |
-| 5.2 | **Boss Rush** | `boss.js`, `game.js` | A new game mode accessible from the main menu: fight all minibosses + the King back‑to‑back with 3 healing opportunities. Timer and score tracking. |
-| 5.3 | **Secret Ending** | `game.js`, `area.js` | If the player collects all lore fragments, all Stillpoint activations, and defeats the King without using any healing items, a new ending cutscene is triggered. |
+| 5.2 | **Boss Rush** | `boss.js`, `game.js` | A new game mode accessible from the main menu: fight all minibosses + the Sovereign back‑to‑back with 3 healing opportunities. Timer and score tracking. |
+| 5.3 | **Secret Ending** | `game.js`, `area.js` | If the player collects all lore fragments, all Stillpoint activations, and defeats the Sovereign without using any healing items, a new ending cutscene is triggered. |
 | 5.4 | **Journal / Bestiary** | `map.js`, `pause menu` | Add a journal that fills out as you defeat each enemy type – shows name, HP, and a cryptic lore line. Unlocked in the pause menu (drawn like the map overlay). |
-| 5.5 | **Memory Boss Refights** | `boss.js`, `area.js` | Once the King is defeated, a shimmering ghost appears in The Vault. Interacting lets you refight the King (and any defeated miniboss) anytime – great for practice and speedrunners. |
-| 5.6 | **The Archive** *(optional secret postgame boss — proposal, not yet greenlit)* | `boss.js`, `game.js` | A refight-style construct that visibly gets better each attempt rather than being secretly hard from the start: it tracks a rolling window of your recent actions (melee/ranged ratio, dash frequency, average windup reaction time — the same kind of stat-biasing the King's `adapt` system already does, extended into 3–4 more knobs) and its guard/dodge choices *visibly* shift attempt-to-attempt (e.g. it starts parrying your most-used attack after losing to it twice). **Design constraints if built:** the escalation must be capped so a mechanically skilled player can still beat it on attempt one or two, and every adaptation should be telegraphed (a visible stance/color change), never a silent invisible difficulty increase — otherwise it fights the genre's core promise that mastery wins. Worth prototyping small before committing a full moveset. |
+| 5.5 | **Memory Boss Refights** | `boss.js`, `area.js` | Once the Sovereign is defeated, a shimmering ghost appears in The Vault. Interacting lets you refight the Sovereign (and any defeated miniboss) anytime – great for practice and speedrunners. |
+| 5.6 | **The Archive** *(optional secret postgame boss — proposal, not yet greenlit)* | `boss.js`, `game.js` | A refight-style construct that visibly gets better each attempt rather than being secretly hard from the start: it tracks a rolling window of your recent actions (melee/ranged ratio, dash frequency, average windup reaction time — the same kind of stat-biasing the Sovereign's `adapt` system already does, extended into 3–4 more knobs) and its guard/dodge choices *visibly* shift attempt-to-attempt (e.g. it starts parrying your most-used attack after losing to it twice). **Design constraints if built:** the escalation must be capped so a mechanically skilled player can still beat it on attempt one or two, and every adaptation should be telegraphed (a visible stance/color change), never a silent invisible difficulty increase — otherwise it fights the genre's core promise that mastery wins. Worth prototyping small before committing a full moveset. |
 
 ---
 

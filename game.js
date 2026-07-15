@@ -128,6 +128,30 @@ let menuScreen = 'main';       // 'main' | 'play' | 'controls' | 'settings'
 let menuSelection = 0;         // unified selection index per screen
 let menuSelectionPlay = 0;     // save slot selection
 let menuSelectionSettings = 0; // settings option index
+let controlsMenuIndex = 0;     // controls/keybind menu row index
+
+// Remappable actions, in the order they're listed on the Controls screen —
+// see input.js's DEFAULT_KEYBINDS/ACTION_LABELS for the actual bindings.
+const REMAPPABLE_ACTIONS = [
+  'moveLeft', 'moveRight', 'aimUp', 'aimDown', 'jump', 'attack', 'dash',
+  'phaseDash', 'shardShot', 'stillpoint', 'gravitonSurge', 'voidTether',
+  'map', 'pause', 'inventory', 'fullscreen',
+];
+
+// Human-readable label for a KeyboardEvent.code, for the Controls screen.
+function formatKeyLabel(code) {
+  if (!code) return '—';
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  const named = {
+    ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓',
+    Space: 'SPACE', Escape: 'ESC', Tab: 'TAB', Backquote: '`',
+    ShiftLeft: 'L-SHIFT', ShiftRight: 'R-SHIFT',
+    ControlLeft: 'L-CTRL', ControlRight: 'R-CTRL',
+    Enter: 'ENTER',
+  };
+  return named[code] || code;
+}
 
 // ── Canvas HUD state (Phase 0.1) ────────────────────────────────────────
 let hudVisible = false;       // whether the HUD should be drawn at all
@@ -151,6 +175,7 @@ let fracturePipsFound = {};    // pip id -> true, world pickups that raise playe
 let statUpgrades = { strength: 0 }; // spent-upgrade levels per INVENTORY_UPGRADES key, funded by banked lore pips
 let inventoryMessage = null; // { text, timer } — transient feedback line in the inventory screen
 let inventorySelection = 0;  // selected row in the Inventory screen's upgrade list
+let inventoryReturnState = 'paused'; // gameState to restore on exit — 'paused' (via pause menu) or 'playing' (via direct I shortcut)
 
 // Data-driven upgrade list — the Inventory screen's draw/nav code iterates
 // this instead of hand-drawing each stat, so adding a new Lore-Pip-funded
@@ -1157,9 +1182,10 @@ function handleUnstuckKey() {
   }
 }
 
-// Keyboard shortcut: F key — toggle fullscreen (works in any state, like Escape)
+// Keyboard shortcut: toggle fullscreen (works in any state, like pause) —
+// moved off KeyF 2026-07-14 since F is now the Phase Dash binding.
 function handleFullscreenKey() {
-  if (wasJustPressed('KeyF')) {
+  if (wasActionJustPressed('fullscreen')) {
     toggleFullscreen();
   }
 }
@@ -1249,7 +1275,7 @@ function saveSettings() {
 function buildPauseMenu() {
   pauseMenuItems = [
     { label: 'Resume', action: () => { /* just close the menu */ } },
-    { label: 'Inventory', action: () => { gameState = 'inventory'; } },
+    { label: 'Inventory', action: () => { inventoryReturnState = 'paused'; gameState = 'inventory'; } },
     { label: 'Return to Anchor', action: () => returnToAnchor(), disabled: !lastAnchor },
     { label: 'Restart Room', action: () => restartRoom() },
     { label: `Screen Shake: ${screenShakeEnabled ? 'ON' : 'OFF'}`, action: () => {
@@ -1603,10 +1629,16 @@ function update() {
     }
   }
 
-  // Unstuck key (U) and fullscreen key (F) — only during active gameplay
+  // Unstuck key, fullscreen key, and direct inventory shortcut — only during
+  // active gameplay
   if (gameState === 'playing') {
     handleUnstuckKey();
     handleFullscreenKey();
+    if (wasActionJustPressed('inventory')) {
+      inventoryReturnState = 'playing';
+      gameState = 'inventory';
+      SFX.uiSelect();
+    }
   }
 
   // Menu state
@@ -1638,6 +1670,7 @@ function update() {
           SFX.uiSelect();
         } else if (menuSelection === 1) {
           menuScreen = 'controls';
+          controlsMenuIndex = 0;
           SFX.uiSelect();
         } else if (menuSelection === 2) {
           menuScreen = 'settings';
@@ -1689,10 +1722,29 @@ function update() {
           SFX.uiSelect();
         }
       } else if (menuScreen === 'controls') {
-      // Controls screen: ESC to go back
-      if (wasJustPressed('Escape') || wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
-        menuClick = false;
+      // Controls screen: navigate rows, Enter/Space/click a row to rebind it,
+      // last row resets all bindings to defaults. While rebindingAction is
+      // set, input.js's own keydown listener is intercepting the next key
+      // press to capture it (or Escape to cancel) — nothing to poll here.
+      const totalRows = REMAPPABLE_ACTIONS.length + 1; // +1 for Reset to Defaults
+      if (rebindingAction) {
+        // waiting on input.js to capture the next keydown
+      } else if (wasJustPressed('Escape')) {
         menuScreen = 'main';
+        SFX.uiSelect();
+      } else if (wasJustPressed('ArrowUp') || wasJustPressed('KeyW')) {
+        controlsMenuIndex = (controlsMenuIndex - 1 + totalRows) % totalRows;
+        SFX.uiSelect();
+      } else if (wasJustPressed('ArrowDown') || wasJustPressed('KeyS')) {
+        controlsMenuIndex = (controlsMenuIndex + 1) % totalRows;
+        SFX.uiSelect();
+      } else if (wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
+        menuClick = false;
+        if (controlsMenuIndex === REMAPPABLE_ACTIONS.length) {
+          resetKeyBindings();
+        } else {
+          startRebind(REMAPPABLE_ACTIONS[controlsMenuIndex]);
+        }
         SFX.uiSelect();
       }
     } else if (menuScreen === 'settings') {
@@ -1768,8 +1820,9 @@ function update() {
       inventoryMessage.timer--;
       if (inventoryMessage.timer <= 0) inventoryMessage = null;
     }
-    if (wasJustPressed('Escape')) {
-      gameState = 'paused';
+    if (wasJustPressed('Escape') || wasActionJustPressed('inventory')) {
+      gameState = inventoryReturnState;
+      if (gameState === 'paused') buildPauseMenu();
       SFX.uiSelect();
     } else if (wasJustPressed('ArrowUp')) {
       inventorySelection = (inventorySelection - 1 + INVENTORY_UPGRADES.length) % INVENTORY_UPGRADES.length;
@@ -1833,7 +1886,7 @@ function update() {
   }
 
   // Toggle map during gameplay
-  if (wasJustPressed('KeyM')) {
+  if (wasActionJustPressed('map')) {
     mapOpen = !mapOpen;
     SFX.uiSelect();
   }
@@ -1842,9 +1895,10 @@ function update() {
     return;
   }
 
-  // Toggle pause during gameplay — except in the tutorial room, where Escape
-  // skips straight to The Fracture instead (tutorial is meant to be skippable).
-  if (wasJustPressed('Escape')) {
+  // Toggle pause during gameplay — except in the tutorial room, where the
+  // pause action skips straight to The Fracture instead (tutorial is meant
+  // to be skippable).
+  if (wasActionJustPressed('pause')) {
     if (currentAreaId === 'tutorial_area') {
       skipTutorial();
     } else {
@@ -3068,7 +3122,7 @@ function drawConfirmDeleteScreen() {
   ctx.textAlign = 'left';
 }
 
-// ── Controls Screen ───────────────────────────────────────────────────────
+// ── Controls Screen (remappable — roadmap 2026-07-14) ──────────────────────
 function drawControlsScreen() {
   const titlePulse = drawMenuBackground();
 
@@ -3077,54 +3131,74 @@ function drawControlsScreen() {
   // Screen title
   ctx.fillStyle = `rgba(196, 181, 253, ${titlePulse})`;
   ctx.font = 'bold 36px "Courier New", monospace';
-  ctx.fillText('CONTROLS', W / 2, 60);
+  ctx.fillText('CONTROLS', W / 2, 50);
 
-  // Controls panel
-  const panelX = W / 2 - 200;
-  const panelY = 80;
-  const panelW = 400;
-  const panelH = 280;
+  const rowCount = REMAPPABLE_ACTIONS.length + 1; // +1 for Reset row
+  const panelX = W / 2 - 220;
+  const panelY = 68;
+  const panelW = 440;
+  const lineH = 21;
+  const panelH = rowCount * lineH + 20;
 
-  ctx.fillStyle = 'rgba(15, 15, 30, 0.8)';
+  ctx.fillStyle = 'rgba(15, 15, 30, 0.85)';
   ctx.fillRect(panelX, panelY, panelW, panelH);
   ctx.strokeStyle = 'rgba(196, 181, 253, 0.3)';
   ctx.lineWidth = 1;
   ctx.strokeRect(panelX, panelY, panelW, panelH);
 
   ctx.textAlign = 'left';
-  const controls = [
-    ['MOVE', '← → / A D'],
-    ['JUMP', '↑ / W / Space'],
-    ['DASH', 'X'],
-    ['ATTACK', 'Z'],
-    ['MAP', 'M'],
-    ['PAUSE', 'ESC'],
-    ['FULLSCREEN', 'F'],
-    ['UNSTUCK', 'U'],
-  ];
+  const labelW = 260;
+  let cy = panelY + 24;
 
-  const labelW = 110;
-  const lineH = 28;
-  let cy = panelY + 30;
+  for (let i = 0; i < REMAPPABLE_ACTIONS.length; i++) {
+    const action = REMAPPABLE_ACTIONS[i];
+    const selected = controlsMenuIndex === i;
+    const listening = selected && rebindingAction === action;
 
-  for (const [label, key] of controls) {
-    ctx.fillStyle = '#c4b5fd';
-    ctx.font = 'bold 14px "Courier New", monospace';
-    ctx.fillText(label, panelX + 20, cy);
+    if (selected) {
+      ctx.fillStyle = 'rgba(196, 181, 253, 0.12)';
+      ctx.fillRect(panelX + 8, cy - 15, panelW - 16, lineH);
+    }
 
-    ctx.fillStyle = '#67e8f9';
-    ctx.font = '14px "Courier New", monospace';
-    ctx.fillText(key, panelX + 20 + labelW, cy);
+    ctx.fillStyle = selected ? '#e9d5ff' : '#c4b5fd';
+    ctx.font = (selected ? 'bold ' : '') + '13px "Courier New", monospace';
+    ctx.fillText(ACTION_LABELS[action] || action, panelX + 20, cy);
+
+    if (listening) {
+      const pulse = Math.sin(frameCount * 0.15) * 0.3 + 0.7;
+      ctx.fillStyle = `rgba(255, 214, 102, ${pulse})`;
+      ctx.font = 'bold 13px "Courier New", monospace';
+      ctx.fillText('PRESS A KEY…', panelX + 20 + labelW, cy);
+    } else {
+      ctx.fillStyle = '#67e8f9';
+      ctx.font = '13px "Courier New", monospace';
+      ctx.fillText(formatKeyLabel(getBinding(action)), panelX + 20 + labelW, cy);
+    }
 
     cy += lineH;
   }
+
+  // Reset to Defaults row
+  const resetSelected = controlsMenuIndex === REMAPPABLE_ACTIONS.length;
+  if (resetSelected) {
+    ctx.fillStyle = 'rgba(248, 113, 113, 0.12)';
+    ctx.fillRect(panelX + 8, cy - 15, panelW - 16, lineH);
+  }
+  ctx.fillStyle = resetSelected ? '#fca5a5' : '#f87171';
+  ctx.font = (resetSelected ? 'bold ' : '') + '13px "Courier New", monospace';
+  ctx.fillText('Reset to Defaults', panelX + 20, cy);
 
   // Hint
   const promptAlpha = Math.sin(frameCount * 0.05) * 0.4 + 0.6;
   ctx.textAlign = 'center';
   ctx.fillStyle = `rgba(203, 245, 255, ${promptAlpha})`;
-  ctx.font = '13px "Courier New", monospace';
-  ctx.fillText('ESC / Space / Enter : Back to Menu', W / 2, panelY + panelH + 30);
+  ctx.font = '12px "Courier New", monospace';
+  ctx.fillText(
+    rebindingAction
+      ? 'Press any key to bind — ESC to cancel'
+      : '↑↓ / WS : Select   |   Space / Enter : Rebind   |   ESC : Back',
+    W / 2, panelY + panelH + 24
+  );
 
   // Footer
   ctx.fillStyle = 'rgba(58, 58, 94, 0.5)';
@@ -3431,7 +3505,11 @@ function draw() {
   }
 
   // ── Fracture meter pips ───────────────────────────────────────────────────
-  if (abilityState.hasStillpoint && player.fractureMax > 0) {
+  // Shown whenever the player has found at least one Fracture Pip, even
+  // before Stillpoint itself is unlocked — otherwise a pip found early
+  // (roadmap 1.9: The Fracture/The Vault) raises fractureMax with no visible
+  // confirmation on the HUD at all (fixed 2026-07-14).
+  if (player.fractureMax > 0) {
     ctx.font = '9px "Courier New", monospace';
     ctx.fillStyle = 'rgba(103, 232, 249, 0.45)';
     ctx.fillText('FRACTURE', 14, H - 58);

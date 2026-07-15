@@ -15,6 +15,11 @@ python3 -m http.server 8000
 # http://localhost:8000/index.html
 ```
 
+**Don't open a browser to test changes yourself — make the code change, then
+tell the user what to test and how.** (2026-07-14, direct instruction.) This
+overrides the general "verify UI changes in a browser" default for this repo
+specifically.
+
 Visual style: minimalist vector art, dark background, violet/teal/deep-blue
 palette. Tonal references: Hollow Knight, Celeste, Hyper Light Drifter.
 Core mechanic: **Stillpoint**, a time-slow ability tied to a "Fracture"
@@ -49,7 +54,8 @@ Other design docs, read as needed for their specific topic:
   the newest planned ability, **Void Tether** (§4) — newer than
   expansion.md's Graviton Surge, itself still unbuilt.
 - `lore.md` — a real, substantive narrative doc. Rewritten 2026-07-12: the
-  King is now a deliberate conqueror-villain (fused every Stillpoint into
+  Sovereign (renamed from "the King" 2026-07-13 — see her own revision
+  history) is a deliberate conqueror-villain (fused every Stillpoint into
   one on purpose, still actively hunting the companion child from
   story.md), not the earlier sympathetic/tragic framing — see roadmap.md
   1.10 for the full brainstorm and lore.md's own "Revision history".
@@ -58,6 +64,13 @@ Other design docs, read as needed for their specific topic:
   still reflects the OLD King and has NOT been ported to match yet — treat
   lore.md as the current source of truth for characterization, not the
   live in-game strings. Not yet surfaced in-game (`LORE_ENABLED = false`).
+  **JS code (`boss.js`, `game.js`, `area.js`, `enemy.js`) still uses `King`
+  identifiers/text throughout — the rename is docs-only so far** (all of
+  `lore.md`, `story.md`, `expansion.md`, `regions.md`, `floor_plan.md` now
+  say "Sovereign"; `roadmap.md`'s changelog entries intentionally keep
+  "King" where they're describing what was true at the time). Don't rename
+  the JS without being asked — it's a real refactor (state var names, boss
+  dialogue strings, etc.), not a find/replace.
 - `movement_feel_plan.md` — proposal (not started) for pushing player
   movement toward a faster, more fluid ("late Celeste") feel — dash-
   refill-on-landing as the priority lever, camera look-ahead, and matching
@@ -75,6 +88,20 @@ Other design docs, read as needed for their specific topic:
   reachability/safety linter for rooms (static linter + headless bot
   walker). `debug_v1.html`'s R09–R11 checks are a lightweight down-payment
   on this, not the full tool.
+- `floor_plan.md` — **official, 2026-07-13**: the full-game room-to-room
+  connection graph (origin spine + all 3 built regions + all 10 planned
+  regions), as a mermaid flowchart. Topology only — door-by-door connections,
+  fast travel nodes, ability gates, pip/upgrade placement per room. Doesn't
+  replace `regions.md` (mechanical effect, miniboss assignment, cluster
+  position) — the two are meant to be read together. Reinstates Mirror
+  Corridor (see `regions.md`'s connective-content section). Static Field
+  gained a new miniboss, The Conduit (see `lore.md`) — it briefly also
+  granted a new ability, Magnet Climb, which was removed 2026-07-14 along
+  with the Antechamber's ability-gate requirement. Contains "Sovereign Room"
+  nodes for `story.md` §9's Sovereign Ending postgame arc — rescoped
+  2026-07-14 from far-future/unscoped to real planned (if unbuilt) content,
+  see roadmap.md 5.9 — still no room-by-room design yet, so don't build
+  against them without a fuller pass first.
 - `regions.md` — the single planning reference for world layout: which of
   the 13 expansion.md regions exist (built or planned), cluster/col/row,
   room counts, miniboss assignment, and each region's special effect.
@@ -93,6 +120,19 @@ Other design docs, read as needed for their specific topic:
 
 ## Explicit design decisions (do not relitigate without asking)
 
+- **Irreversible, consent-gated choices are an intentional throughline
+  (named 2026-07-14).** Recurring pattern across the design docs: Void
+  Tether (leaving the child at the entrance is now permanent, `story.md`
+  §4), the proposed Hollow Core secret ending-path (explicit "are you sure"
+  warning before an irreversible commitment), the proposed pacifist
+  region (fighting even once forfeits the reward forever). Not a unique
+  *concept* — permanent-choice mechanics exist all over games (Bioshock's
+  Little Sisters, Undertale's genocide route, morality locks in countless
+  RPGs) — the throughline here is *density and consistency*: this game
+  applies it repeatedly, to small traversal/ability choices as much as to
+  big story beats, rather than reserving it for one or two dramatic moments.
+  New optional content should default to this pattern (a real, warned,
+  permanent cost) rather than inventing a softer reversible version.
 - **No charms/badge system.** Rejected. Keep Stillpoint's own identity
   (time-fracture + dashes + Stillpoint); borrow structural lessons from
   metroidvanias, not their mechanics wholesale.
