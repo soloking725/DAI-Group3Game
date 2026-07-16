@@ -371,7 +371,7 @@ const AREAS = {
     enemies: [],   // rest room — no combat
     anchors: [
       { x: 140, y: 370, index: 0 },   // entry side: 390-20=370
-      { x: 730, y: 370, index: 1 },   // exit side (heals before The Rift)
+      { x: 730, y: 370, index: 1, memoryResonance: true },   // exit side (heals before The Rift) — also the one-time full lore-pip reallocation, per Enemy_Design.pdf; UI/interaction not yet built, see roadmap.md
     ],
     loreFragments: [
       { id: 'lore_tv1', x: 260, y: 265,
@@ -432,7 +432,8 @@ const AREAS = {
       { x:1450, y:226, index:0 }
     ],
     loreFragments: [
-      { id:'lore_tr1', x:1450, y:212, text:"\"Every gap is a small surrender.\"" }
+      { id:'lore_tr1', x:1450, y:212, text:"\"Every gap is a small surrender.\"" },
+      { id:'lore_tr2', x:1000, y:230, text:"\"She never doubted. Doubt is a Stillpoint she never let herself feel.\"" }
     ],
   },
 
@@ -812,7 +813,14 @@ const AREAS = {
     ],
     enemies: [],   // Colossus Core is spawned via bossSpawn/miniboss, not the generic enemies array
     anchors: [],
-    loreFragments: [],
+    loreFragments: [
+      // Continues the crag_entrance/crag_breach/crag_altar sequence (see
+      // Plans/lore.md's "Crag of the Colossus" section) — the payoff after
+      // the miniboss fight, reflecting on what was actually lowered into
+      // the crag at crag_altar. Placed above the left reposition platform.
+      { id: 'lore_cw1', x: 590, y: 378,
+        text: '"A heart doesn\'t ask what it\'s protecting. That was the point — build something that would hold the line long after everyone who remembered why was gone."' },
+    ],
     abilityReward: null,
     bossSpawn: { x: 950, y: 440 },   // groundY(500) - miniboss height
   },

@@ -256,13 +256,19 @@ Same category as Crag of the Colossus in one sense only — spatially attached
 to the spine/a region, narratively separate from the Sovereign's 13-region
 empire. **"Side region" ≠ "optional," a distinction this doc got wrong
 2026-07-14 and is correcting here**: Crag is narratively independent from
-the Sovereign's story, but Charged Attack (its reward) is intended to be
+the Sovereign's story, but Charged Attack (its reward) was intended to be
 mandatory — `roadmap.md` has a still-unbuilt, already-planned wall gate on
 the true critical path (The Rift → Antechamber → Boss Arena) specifically to
-stop players from reaching the Sovereign without ever touching Crag, and
-`floor_plan.md`'s own graph already shows The Rift requiring Charged Attack
-to enter. A region can be mandatory content while having zero connection to
-the main villain's plot — those are independent axes, not the same choice.
+stop players from reaching the Sovereign without ever touching Crag. **Update
+2026-07-15**: `floor_plan.md`'s graph no longer shows The Rift requiring
+Charged Attack (or Graviton Surge) to enter — both were removed at the
+user's request, so this specific piece of evidence for Charged Attack being
+mandatory no longer holds. The planned wall gate on the Rift→Antechamber→Boss
+Arena path is unbuilt either way; whether Charged Attack is still meant to be
+mandatory via that gate (or via some other mechanism) needs revisiting with
+the user rather than assumed from this doc. A region can be mandatory content
+while having zero connection to the main villain's plot — those are
+independent axes, not the same choice.
 **Pacifist Enclave and Sovereign's Army Reserve below ARE genuinely optional
 (skippable, bonus-only rewards)** — don't read "side-branch" as implying
 that on its own; check each entry's own reward for whether it's load-bearing.

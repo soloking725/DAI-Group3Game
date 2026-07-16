@@ -239,6 +239,23 @@ function analyzeSegment(seg, node, warnings, context, discoveredFlags) {
     return;
   }
 
+  // Resource-count entry gate, e.g. "locked by 4 Fracture Pips and 10 Lore
+  // Pips" — must be checked BEFORE the generic reward-count parsing below,
+  // since that regex (`/(\d+)\s*fracture pip/`) also matches this text and
+  // was silently misreading a REQUIREMENT as a REWARD (adding 4 bogus
+  // Fracture Pips to the pool, then returning before ever looking at the
+  // "10 Lore Pips" half — the room ended up with no real requirement at
+  // all). Order here matters.
+  if (/locked by/.test(low) && /pip/.test(low)) {
+    let matched = false;
+    const fpMatch = low.match(/(\d+)\s*fracture pips?/);
+    if (fpMatch) { node.requiresFracturePips = parseInt(fpMatch[1], 10); matched = true; }
+    const lpMatch = low.match(/(\d+)\s*lore pips?/);
+    if (lpMatch) { node.requiresLorePips = parseInt(lpMatch[1], 10); matched = true; }
+    if (matched) return;
+    warnings.push(`${context}: "${seg}" — "locked by ... pip(s)" segment didn't match the expected "N Fracture Pips"/"N Lore Pips" shape, treated as unrecognized.`);
+  }
+
   let n;
   if ((n = extractNumber(low, /(\d+)\s*fracture pip/))) { node.fracturePips += n; return; }
   if ((n = extractNumber(low, /(\d+)\s*lore pip/))) { node.lorePips += n; return; }
@@ -246,6 +263,17 @@ function analyzeSegment(seg, node, warnings, context, discoveredFlags) {
   if (/max health/.test(low)) { node.maxHealth += 1; return; }
   if (/new miniboss|\bminiboss\b/.test(low)) { node.miniboss = true; return; }
   if (/final boss/.test(low)) { node.finalBoss = true; return; }
+  // "(post-game)" rooms (the 4 Sovereign Rooms) aren't gated by anything
+  // else in the graph text, so nothing stopped the reachability/simulation
+  // tools from wandering into them during a normal pre-victory playthrough
+  // walk. Gate them behind a flag nothing in the graph ever grants, so
+  // they're provably unreachable until the game actually models a
+  // post-game unlock — matches their intent without inventing content.
+  if (/post-?game/.test(low)) {
+    node.requiresFlags.push('postgame_unlocked');
+    if (discoveredFlags) discoveredFlags.add('postgame_unlocked');
+    return;
+  }
   if (/^fast travel$/.test(low.trim())) { node.fastTravelWaypoint = true; return; }
 
   if (/meet the child|met the child|met child/.test(low)) {
@@ -322,6 +350,8 @@ function newNodeMeta(id, label) {
     requires: [],
     requiresOr: [], // array of ability-arrays; any one full array satisfies
     requiresFlags: [],
+    requiresFracturePips: 0, // minimum cumulative Fracture Pips collected so far to enter
+    requiresLorePips: 0,     // minimum cumulative Lore Pips collected so far to enter
     oneWayNote: null,
     notes: [],
   };
@@ -604,6 +634,7 @@ function simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, opt
   }
   const { list: ftList, indexOf: ftIndex } = getFastTravelIndex(nodes);
   const ftBit = (nodeId, mask) => (ftIndex.has(nodeId) ? mask | (1 << ftIndex.get(nodeId)) : mask);
+  const endgameRush = findEndgameRush(graph);
 
   let [am, fm] = applyNodeGrants(startId, 0, 0, nodes);
   let ft = ftBit(startId, 0);
@@ -613,6 +644,12 @@ function simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, opt
   const log = [];
   let totalTime = 0;
   let totalRetries = 0;
+  // Running pip totals, for resource-count entry gates (e.g. Sovereign Army
+  // Reserve's "locked by 4 Fracture Pips and 10 Lore Pips") — only counted
+  // once per room, on first visit (see the apply-move step below), same as
+  // a real pickup.
+  let heldFracturePips = nodes.get(startId).fracturePips;
+  let heldLorePips = nodes.get(startId).lorePips;
 
   const logStep = (nodeId, viaLabel, extra) => {
     const n = nodes.get(nodeId);
@@ -643,6 +680,8 @@ function simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, opt
       if (!requirementSatisfied(e, abilitiesSet, flagsSet)) continue;
       const targetNode = nodes.get(e.to);
       if (!requirementSatisfied(targetNode, abilitiesSet, flagsSet)) continue;
+      if (targetNode.requiresFracturePips && heldFracturePips < targetNode.requiresFracturePips) continue;
+      if (targetNode.requiresLorePips && heldLorePips < targetNode.requiresLorePips) continue;
       candidates.push({ to: e.to, edge: e });
     }
     if (flagsSet.has('fast_travel_unlocked') && ftIndex.has(cur)) {
@@ -652,12 +691,23 @@ function simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, opt
       }
     }
 
+    // Endgame rush: once a run has been back to the Antechamber more than
+    // once (i.e. already bounced off Hollow Core at least one retry) with
+    // Phase Dash in hand, stop rolling the dice — a real player who's
+    // already poked at the optional lore room would just go finish it.
+    let choice = null;
+    if (endgameRush && cur === endgameRush.antechamberId && (visitCounts.get(cur) || 0) > 1 && abilitiesSet.has('phase_dash')) {
+      const rush = candidates.find((c) => c.to === endgameRush.rushTargetId);
+      if (rush) choice = rush;
+    }
+
     // Deliberate backtrack: sometimes retreat to an earlier room instead of
     // taking a "forward" option, even if forward options exist — but only
     // if we actually have somewhere to retreat to.
-    const canDeliberateBacktrack = history.length > 1 && rng() < backtrackChance;
-    let choice;
-    if (!candidates.length) {
+    const canDeliberateBacktrack = !choice && history.length > 1 && rng() < backtrackChance;
+    if (choice) {
+      // handled above — fall through to the apply-move step at the bottom of the loop
+    } else if (!candidates.length) {
       // A true dead end (e.g. the "Teleport from Static Field" trap this
       // caught): don't just hop to the immediately-previous room, since if
       // THAT room's only way forward is back into this dead end, we'd
@@ -737,7 +787,12 @@ function simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, opt
             // not a score that can outweigh a real fresh-room option.
             const leadsSomewhereNew = (byFrom.get(c.to) || []).some((e2) => !visitCounts.has(e2.to));
             const unexploredNearby = unexploredReach(c.to, byFrom, nodes, visitCounts, abilitiesSet, flagsSet, 3);
-            curiosity = (leadsSomewhereNew ? 3 : 1) + Math.min(unexploredNearby, 4) * 0.5;
+            // Diminishing returns on revisits — see room_difficulty_calculator.js's
+            // matching comment. A hub node gatekeeping a whole unexplored
+            // cluster kept scoring the same full bonus on every pass through
+            // forever, so the walker looped back through it dozens of times
+            // per run instead of treating repeat traffic as routine.
+            curiosity = ((leadsSomewhereNew ? 3 : 1) + Math.min(unexploredNearby, 4) * 0.5) / Math.min(visits, 5);
           }
           const mult = difficultyMultiplier(n, difficultyConfig);
           const wariness = mult > 1 ? 1 / mult : 1; // avoid re-entering known-hard rooms, doesn't block mandatory ones since they're often the only candidate
@@ -752,7 +807,12 @@ function simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, opt
       [am, fm] = applyNodeGrants(choice.to, am, fm, nodes);
       ft = ftBit(choice.to, ft);
       cur = choice.to;
+      const isFirstVisit = !visitCounts.has(cur);
       visitCounts.set(cur, (visitCounts.get(cur) || 0) + 1);
+      if (isFirstVisit) {
+        heldFracturePips += nodes.get(cur).fracturePips;
+        heldLorePips += nodes.get(cur).lorePips;
+      }
       history.push(cur);
       logStep(cur, viaLabel, choice.note || (choice.forcedBacktrack ? 'dead end — forced backtrack' : null));
     }
@@ -815,6 +875,22 @@ function findFinalBoss(nodes) {
     if (n.finalBoss) return n.id;
   }
   throw new Error('Could not find a node flagged as the Final Boss.');
+}
+
+// Finds "The Antechamber" and its one-way, phase-dash-gated edge toward the
+// Final Boss push (currently -> "Spawn Area" -> Tutorial Area Final Boss).
+// Used by the random-walk simulator to force a deliberate "I'm done
+// exploring, go finish it" move once a run has been back to the Antechamber
+// more than once with Phase Dash in hand — a real player who's already
+// poked at Hollow Core wouldn't keep randomly wandering this close to the
+// end. Returns null if the graph doesn't have this shape (renamed rooms,
+// requirement changed, etc.) so callers can just skip the override.
+function findEndgameRush(graph) {
+  const ante = [...graph.nodes.values()].find((n) => /^the antechamber$/i.test(n.label));
+  if (!ante) return null;
+  const edge = graph.edges.find((e) => e.from === ante.id && e.requires && e.requires.includes('phase_dash'));
+  if (!edge) return null;
+  return { antechamberId: ante.id, rushTargetId: edge.to };
 }
 
 function fixpointReachability(graph, startId, seedAbilities, seedFlags) {
@@ -1741,12 +1817,14 @@ function serializeGraphForClient(graph, startId, goalId, difficultyConfig) {
     allFlags: ALL_FLAGS,
     timeWeights: TIME_WEIGHTS,
     difficultyConfig,
+    endgameRush: findEndgameRush(graph),
     nodes: [...graph.nodes.values()].map((n) => ({
       id: n.id, label: n.label, fracturePips: n.fracturePips, lorePips: n.lorePips,
       cosmeticUpgrades: n.cosmeticUpgrades, maxHealth: n.maxHealth, miniboss: n.miniboss,
       finalBoss: n.finalBoss, fastTravelWaypoint: n.fastTravelWaypoint, grants: n.grants,
       grantsFlags: n.grantsFlags, conditionalGrants: n.conditionalGrants, requires: n.requires,
       requiresOr: n.requiresOr, requiresFlags: n.requiresFlags,
+      requiresFracturePips: n.requiresFracturePips, requiresLorePips: n.requiresLorePips,
     })),
     edges: graph.edges.map((e) => ({
       from: e.from, to: e.to, label: e.label, requires: e.requires,
@@ -1803,6 +1881,10 @@ function buildSimulationHtml(runs, graph, startId, goalId, difficultyConfig) {
 <div class="toolbar">
   <button id="runBtn">🎲 Run another simulation</button>
   <label>seed <input type="number" id="seedInput" placeholder="random"></label>
+  <label>walk style <select id="modeSelect">
+    <option value="explore">Thorough explorer (wanders, backtracks for fun)</option>
+    <option value="direct">Direct (only backtracks when actually stuck)</option>
+  </select></label>
   <button id="batchBtn">📊 Run 100 &amp; show stats</button>
   <button class="secondary" id="clearBtn">Clear runs</button>
 </div>
@@ -1900,7 +1982,7 @@ function getFastTravelIndex(nodesById) {
   const indexOf = new Map(list.map((id, i) => [id, i]));
   return { list, indexOf };
 }
-function runSimulation(seed) {
+function runSimulation(seed, mode) {
   const nodesById = new Map(GRAPH.nodes.map((n) => [n.id, n]));
   const byFrom = new Map();
   for (const e of GRAPH.edges) { if (!byFrom.has(e.from)) byFrom.set(e.from, []); byFrom.get(e.from).push(e); }
@@ -1908,7 +1990,7 @@ function runSimulation(seed) {
   const ftBit = (nodeId, mask) => (ftIndex.has(nodeId) ? mask | (1 << ftIndex.get(nodeId)) : mask);
   const WARP_EDGE = { label: 'fast travel warp', requires: [], requiresOr: [], requiresFlags: [] };
   const rng = mulberry32(seed);
-  const backtrackChance = 0.12, maxSteps = 500;
+  const backtrackChance = mode === 'direct' ? 0 : 0.12, maxSteps = 500;
 
   let [am, fm] = applyNodeGrants(GRAPH.startId, 0, 0, nodesById);
   let ft = ftBit(GRAPH.startId, 0);
@@ -1917,6 +1999,8 @@ function runSimulation(seed) {
   const history = [GRAPH.startId];
   const log = [];
   let totalTime = 0, totalRetries = 0;
+  let heldFracturePips = nodesById.get(GRAPH.startId).fracturePips;
+  let heldLorePips = nodesById.get(GRAPH.startId).lorePips;
 
   const logStep = (nodeId, viaLabel, note) => {
     const n = nodesById.get(nodeId);
@@ -1942,6 +2026,8 @@ function runSimulation(seed) {
       if (!requirementSatisfied(e, abilitiesSet, flagsSet)) continue;
       const targetNode = nodesById.get(e.to);
       if (!requirementSatisfied(targetNode, abilitiesSet, flagsSet)) continue;
+      if (targetNode.requiresFracturePips && heldFracturePips < targetNode.requiresFracturePips) continue;
+      if (targetNode.requiresLorePips && heldLorePips < targetNode.requiresLorePips) continue;
       candidates.push({ to: e.to, edge: e });
     }
     if (flagsSet.has('fast_travel_unlocked') && ftIndex.has(cur)) {
@@ -1951,9 +2037,15 @@ function runSimulation(seed) {
       }
     }
 
-    const canDeliberateBacktrack = history.length > 1 && rng() < backtrackChance;
-    let choice;
-    if (!candidates.length) {
+    let choice = null;
+    if (GRAPH.endgameRush && cur === GRAPH.endgameRush.antechamberId && (visitCounts.get(cur) || 0) > 1 && abilitiesSet.has('phase_dash')) {
+      const rush = candidates.find((c) => c.to === GRAPH.endgameRush.rushTargetId);
+      if (rush) choice = rush;
+    }
+    const canDeliberateBacktrack = !choice && history.length > 1 && rng() < backtrackChance;
+    if (choice) {
+      // handled above — fall through to the apply-move step below
+    } else if (!candidates.length) {
       let backTo = null;
       for (let i = history.length - 2; i >= 0; i--) {
         const candId = history[i];
@@ -2005,7 +2097,10 @@ function runSimulation(seed) {
           else {
             const leadsSomewhereNew = (byFrom.get(c.to) || []).some((e2) => !visitCounts.has(e2.to));
             const unexploredNearby = unexploredReach(c.to, byFrom, nodesById, visitCounts, abilitiesSet, flagsSet, 3);
-            curiosity = (leadsSomewhereNew ? 3 : 1) + Math.min(unexploredNearby, 4) * 0.5;
+            // Diminishing returns on revisits — see the server-side engine's
+            // matching comment (a hub node was scoring the same full bonus
+            // forever, causing dozens of redundant passes through it).
+            curiosity = ((leadsSomewhereNew ? 3 : 1) + Math.min(unexploredNearby, 4) * 0.5) / Math.min(visits, 5);
           }
           const mult = difficultyMultiplier(n);
           const wariness = mult > 1 ? 1 / mult : 1;
@@ -2020,7 +2115,12 @@ function runSimulation(seed) {
       [am, fm] = applyNodeGrants(choice.to, am, fm, nodesById);
       ft = ftBit(choice.to, ft);
       cur = choice.to;
+      const isFirstVisit = !visitCounts.has(cur);
       visitCounts.set(cur, (visitCounts.get(cur) || 0) + 1);
+      if (isFirstVisit) {
+        heldFracturePips += nodesById.get(cur).fracturePips;
+        heldLorePips += nodesById.get(cur).lorePips;
+      }
       history.push(cur);
       logStep(cur, viaLabel, choice.note || (choice.forcedBacktrack ? 'dead end — forced backtrack' : null));
     }
@@ -2074,7 +2174,8 @@ DATA.runs.forEach((run) => { runCounter++; runsEl.appendChild(renderRun(run, 'Ru
 document.getElementById('runBtn').addEventListener('click', () => {
   const seedField = document.getElementById('seedInput');
   const seed = seedField.value ? parseInt(seedField.value, 10) : (Date.now() & 0xffffffff);
-  const run = runSimulation(seed);
+  const mode = document.getElementById('modeSelect').value;
+  const run = runSimulation(seed, mode);
   runCounter++;
   runsEl.insertBefore(renderRun(run, 'Run ' + runCounter + ' (seed ' + seed + ')', true), runsEl.firstChild);
 });
@@ -2087,8 +2188,9 @@ document.getElementById('batchBtn').addEventListener('click', () => {
   // frame — defer to let the "Running..." label paint first.
   setTimeout(() => {
     const N = 100;
+    const mode = document.getElementById('modeSelect').value;
     const results = [];
-    for (let i = 0; i < N; i++) results.push(runSimulation((Date.now() & 0xffffffff) + i * 7919));
+    for (let i = 0; i < N; i++) results.push(runSimulation((Date.now() & 0xffffffff) + i * 7919, mode));
     const finished = results.filter((r) => r.reachedGoal);
     const failed = results.filter((r) => !r.reachedGoal);
     const avg = (arr, key) => arr.length ? Math.round((arr.reduce((s, r) => s + r[key], 0) / arr.length) * 10) / 10 : 0;
@@ -2141,9 +2243,10 @@ function main() {
     const runCount = parseInt(getArgValue(args, '--runs') || '1', 10);
     const seedArg = getArgValue(args, '--seed');
     const baseSeed = seedArg ? parseInt(seedArg, 10) : Date.now() & 0xffffffff;
+    const directMode = args.includes('--direct');
     const runs = [];
     for (let i = 0; i < runCount; i++) {
-      runs.push(simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, { seed: baseSeed + i }));
+      runs.push(simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, { seed: baseSeed + i, backtrackChance: directMode ? 0 : undefined }));
     }
     printSimulationReport(null, runs);
     if (args.includes('--html')) {
@@ -2175,4 +2278,18 @@ function main() {
   }
 }
 
-main();
+// Exported for reuse by other Plans/ tools (e.g. room_difficulty_calculator.js)
+// so they share the exact same graph parser/simulation engine instead of a
+// second copy drifting out of sync. Purely additive — doesn't change CLI
+// behavior, which still runs via the require.main guard below.
+module.exports = {
+  extractMermaidBlock, buildGraph, findStart, findFinalBoss,
+  applyNodeGrants, requirementSatisfied, getFastTravelIndex,
+  mulberry32, weightedPick, unexploredReach, nodeWeight,
+  difficultyMultiplier, loadDifficultyConfig,
+  abilityBitmask, flagBitmask, maskToSet, serializeGraphForClient, findEndgameRush,
+  ALL_ABILITIES, get ALL_FLAGS() { return ALL_FLAGS; }, TIME_WEIGHTS,
+  MD_PATH, PLANS_DIR,
+};
+
+if (require.main === module) main();

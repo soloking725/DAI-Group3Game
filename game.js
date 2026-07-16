@@ -179,18 +179,29 @@ let inventoryReturnState = 'paused'; // gameState to restore on exit — 'paused
 
 // Data-driven upgrade list — the Inventory screen's draw/nav code iterates
 // this instead of hand-drawing each stat, so adding a new Lore-Pip-funded
-// upgrade line (see roadmap.md 1.9's "Ability upgrade shop" design) only
-// means adding an entry here, not touching the screen itself. Only
-// 'strength' has a real gameplay effect right now (playerMeleeDamage()
-// below) — the rest of the design (Dash/Phase Dash/Shard Shot/Parry/
-// Stillpoint/Charged Attack lines) is still a design doc, not built.
+// upgrade line only means adding an entry here, not touching the screen
+// itself. Per-level costs (Lv1/Lv2/Lv3 = 2/3/4 lore pips, Enemy_Design.pdf
+// 2026-07-16) — `max: 3` is the lore-pip-purchasable ceiling; Lv4 (Limit
+// Break) is a separate one-time endgame unlock, see `grantLimitBreak()`.
 const INVENTORY_UPGRADES = [
-  { key: 'strength', label: 'Strength', desc: 'Flat bonus melee damage per level.', color: '#c4b5fd', cost: 2, max: 3 },
+  { key: 'strength', label: 'Strength', desc: 'Attack speed, melee damage, and knockback resistance per level.', color: '#c4b5fd', costs: [2, 3, 4], max: 3 },
+  { key: 'phase_dash', label: 'Phase Dash', desc: '8-directional aim, longer echo stun, echo counter-attack.', color: '#a78bfa', costs: [2, 3, 4], max: 3 },
+  { key: 'shard_shot', label: 'Shard Shot', desc: 'More damage, a second shard, then a piercing beam.', color: '#fbbf24', costs: [2, 3, 4], max: 3 },
+  { key: 'stillpoint', label: 'Stillpoint', desc: 'Longer slow, deeper slow, higher lifesteal cap.', color: '#67e8f9', costs: [2, 3, 4], max: 3 },
+  { key: 'graviton_surge', label: 'Graviton Surge', desc: 'Longer flip, slam damage, Gravity Ball pull + explosion.', color: '#f472b6', costs: [2, 3, 4], max: 3 },
+  { key: 'void_tether', label: 'Void Tether', desc: 'Longer range, electrified stun, chained arc stun.', color: '#34d399', costs: [2, 3, 4], max: 3 },
 ];
+
+// Cumulative lore-pip cost to own `level` levels of a given upgrade def.
+function upgradeCostToLevel(def, level) {
+  let total = 0;
+  for (let i = 0; i < level; i++) total += def.costs[i] || def.costs[def.costs.length - 1];
+  return total;
+}
 
 function totalPipsSpent() {
   let spent = 0;
-  for (const def of INVENTORY_UPGRADES) spent += (statUpgrades[def.key] || 0) * def.cost;
+  for (const def of INVENTORY_UPGRADES) spent += upgradeCostToLevel(def, Math.min(statUpgrades[def.key] || 0, def.max));
   return spent;
 }
 
@@ -199,13 +210,30 @@ function lorePipsBanked() {
   return Object.keys(collectedLore).length - totalPipsSpent();
 }
 
-// Spends a line's lore-pip cost for +1 level. Returns true on success.
+// Spends a line's next lore-pip cost for +1 level. Returns true on success.
 function tryUpgrade(key) {
   const def = INVENTORY_UPGRADES.find(d => d.key === key);
   if (!def) return false;
-  if ((statUpgrades[key] || 0) >= def.max) return false;
-  if (lorePipsBanked() < def.cost) return false;
-  statUpgrades[key] = (statUpgrades[key] || 0) + 1;
+  const current = statUpgrades[key] || 0;
+  if (current >= def.max) return false;
+  const cost = def.costs[current];
+  if (lorePipsBanked() < cost) return false;
+  statUpgrades[key] = current + 1;
+  saveGame();
+  return true;
+}
+
+// ── Limit Break (Lv4) — one-time endgame unlock, Rule 0 in the design doc:
+// only ONE ability may ever reach Lv4 per playthrough. Not wired to any
+// room yet (the planned endgame region isn't built — see roadmap.md), but
+// enemy_test.html calls this directly to test Lv4 behavior in isolation.
+let limitBreakChosen = null; // ability key, or null
+
+function grantLimitBreak(key) {
+  if (limitBreakChosen) return false; // already spent the one Lv4 slot
+  if (!INVENTORY_UPGRADES.find(d => d.key === key)) return false;
+  limitBreakChosen = key;
+  statUpgrades[key] = 4;
   saveGame();
   return true;
 }
@@ -366,13 +394,44 @@ function addAbilityNotification(text) {
 // Fire shard shot projectile along the aimed arc (expansion §0.1 — aimVy
 // comes from player.shardAimVy, set by the hold-to-aim input in player.js;
 // 0 = flat forward shot, the quick-tap default).
+// Shard Shot damage per level (Enemy_Design.pdf): Lv0 = 1, Lv1 = +25%
+// (1.25), Lv4 Enhanced State (if Shard Shot is the chosen Limit Break)
+// replaces melee with 150%-damage blasts — handled by the melee-swing
+// override in game.js's attack loop, not here.
+function shardShotDamage() {
+  const lvl = statUpgrades.shard_shot || 0;
+  return lvl >= 1 ? 1.25 : 1;
+}
+
+// Returns an array of 1 or 2 Projectiles — Lv2+ fires a second shard with a
+// slight spread (Enemy_Design.pdf).
 function useShardShot(player, aimVy) {
   const speed = 8;
   const vx = speed * (player.facing || 1);
   const startX = (player.facing || 1) > 0 ? player.x + player.width : player.x - 8;
   const startY = player.y + player.height / 2;
-  const proj = new Projectile(startX, startY, vx, aimVy || 0, 1, '#fbbf24');
-  proj.seekWalls = true; // slight magnetism toward destructible crystal walls
+  const dmg = shardShotDamage();
+  const shots = [new Projectile(startX, startY, vx, aimVy || 0, dmg, '#fbbf24')];
+  if ((statUpgrades.shard_shot || 0) >= 2) {
+    shots.push(new Projectile(startX, startY, vx, (aimVy || 0) + 1.2, dmg, '#fbbf24'));
+  }
+  for (const s of shots) s.seekWalls = true; // slight magnetism toward destructible crystal walls
+  return shots;
+}
+
+// Lv3 Beam Attack: a piercing projectile that doesn't die on first hit
+// (Enemy_Design.pdf — "passes through enemies"). 2 damage tap variant; the
+// Limit Break Enhanced State bumps this to 3 + infinite pierce, applied by
+// the caller when limitBreak.active && limitBreak.ability === 'shard_shot'.
+function useShardBeam(player, aimVy) {
+  const speed = 11;
+  const vx = speed * (player.facing || 1);
+  const startX = (player.facing || 1) > 0 ? player.x + player.width : player.x - 8;
+  const startY = player.y + player.height / 2;
+  const piercing = limitBreak.active && limitBreak.ability === 'shard_shot' ? 3 : 2;
+  const proj = new Projectile(startX, startY, vx, aimVy || 0, piercing, '#67e8f9');
+  proj.pierce = true;
+  proj.pierceInfinite = limitBreak.active && limitBreak.ability === 'shard_shot';
   return proj;
 }
 
@@ -416,8 +475,8 @@ class Projectile {
     }
     this.x += this.vx;
     this.y += this.vy;
-    this.vy += 0.15; // gravity
-    this.life--;
+    if (!this.pierceInfinite) this.vy += 0.15; // gravity — the infinite Lv4 beam flies dead straight
+    if (!this.pierceInfinite) this.life--;
     if (this.life <= 0) {
       this.alive = false;
     }
@@ -442,17 +501,43 @@ class Projectile {
 // landed melee hit restores 1 health pip (capped at MAX_HEALTH). Shared by
 // all three melee hit loops (enemies, the King, minibosses) so the numbers
 // can never drift apart between them.
+// Strength Lv2/Lv3 damage multipliers (Enemy_Design.pdf): Lv2 +20%, Lv3 an
+// additional +25% (total +45% over base). Limit Break (Lv4, when active
+// and Strength is the chosen ability) adds another +50% (total +95%).
+function strengthDamageMultiplier() {
+  const lvl = statUpgrades.strength || 0;
+  let mult = 1;
+  if (lvl >= 2) mult += 0.2;
+  if (lvl >= 3) mult += 0.25;
+  if (limitBreak.active && limitBreak.ability === 'strength') mult += 0.5;
+  return mult;
+}
+
 function playerMeleeDamage() {
   let dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
-  dmg += statUpgrades.strength; // roadmap 1.9 — flat bonus per lore-pip-funded strength level
+  dmg *= strengthDamageMultiplier();
   if (player.stillpointActive && abilityState.hasStillpoint) dmg *= 1.5;
   return dmg;
 }
 
+// Stillpoint lifesteal cap by level (Enemy_Design.pdf): Lv0/1 = 1 HP,
+// Lv2 = 2 HP, Lv3 = 3 HP, Lv4 Limit Break = 4 HP — per Stillpoint
+// *activation*, tracked on the player instance and reset each time
+// Stillpoint (re)activates (see Player.update()'s tap/hold block).
+function stillpointLifestealCap() {
+  const lvl = statUpgrades.stillpoint || 0;
+  if (limitBreak.active && limitBreak.ability === 'stillpoint') return 4;
+  if (lvl >= 3) return 3;
+  if (lvl >= 2) return 2;
+  return 1;
+}
+
 function applyStillpointLifeSteal() {
   if (!player.stillpointActive || !abilityState.hasStillpoint) return;
+  if (player.stillpointHealed >= stillpointLifestealCap()) return;
   if (player.health >= MAX_HEALTH) return;
   player.health = Math.min(MAX_HEALTH, player.health + 1);
+  player.stillpointHealed = (player.stillpointHealed || 0) + 1;
   spawnParticles(player.x + player.width / 2, player.y + 4, '#2dd4bf', 6);
 }
 
@@ -542,6 +627,13 @@ function spawnAreaEnemies(areaId) {
   // fell through to a generic base Enemy with none of its real behavior)
   // whenever a new enemy class was added here but not also added there.
   for (const eDef of area.enemies) {
+    // ComposedEnemy (enemy_designer.html, roadmap.md 2.8) takes a required
+    // 3rd constructor arg — special-cased here, same way ColossusCore's
+    // miniboss spawn path is separate from this generic loop.
+    if (eDef.type === 'composed' && eDef.def) {
+      areaEnemies[areaId].push(new ComposedEnemy(eDef.x, eDef.y, eDef.def));
+      continue;
+    }
     const Cls = (typeof ENEMY_REGISTRY !== 'undefined') ? ENEMY_REGISTRY[eDef.type] : undefined;
     if (Cls && Cls !== Enemy) {
       areaEnemies[areaId].push(new Cls(eDef.x, eDef.y));
@@ -1222,10 +1314,14 @@ function init() {
   // Reset ability state
   abilityState.phaseDashCooldown = 0;
   abilityState.shardShotCooldown = 0;
+  abilityState.gravitonSurgeCooldown = 0;
+  abilityState.voidTetherCooldown = 0;
   abilityState.hasPhaseDash = false;
   abilityState.hasShardShot = false;
   abilityState.hasStillpoint = false;
   abilityState.hasChargedAttack = false;
+  abilityState.hasGravitonSurge = false;
+  abilityState.hasVoidTether = false;
   gameTimeScale = 1.0;
 
   // Spawn menu particles
@@ -1341,11 +1437,14 @@ function saveGame(slot) {
       },
       fracturePipsFound,
       statUpgrades,
+      limitBreakChosen,
       abilityState: {
         hasPhaseDash: abilityState.hasPhaseDash,
         hasShardShot: abilityState.hasShardShot,
         hasStillpoint: abilityState.hasStillpoint,
         hasChargedAttack: abilityState.hasChargedAttack,
+        hasGravitonSurge: abilityState.hasGravitonSurge,
+        hasVoidTether: abilityState.hasVoidTether,
       },
       anchorActivated,
       lastAnchor,
@@ -1377,13 +1476,18 @@ function loadGame(slot) {
     player.fractureMeter = typeof data.player.fractureMeter === 'number' ? Math.min(data.player.fractureMeter, player.fractureMax) : 0;
     fracturePipsFound = data.fracturePipsFound || {};
     statUpgrades = data.statUpgrades || { strength: 0 };
+    limitBreakChosen = data.limitBreakChosen || null;
 
     abilityState.hasPhaseDash = !!(data.abilityState && data.abilityState.hasPhaseDash);
     abilityState.hasShardShot = !!(data.abilityState && data.abilityState.hasShardShot);
     abilityState.hasStillpoint = !!(data.abilityState && data.abilityState.hasStillpoint);
     abilityState.hasChargedAttack = !!(data.abilityState && data.abilityState.hasChargedAttack);
+    abilityState.hasGravitonSurge = !!(data.abilityState && data.abilityState.hasGravitonSurge);
+    abilityState.hasVoidTether = !!(data.abilityState && data.abilityState.hasVoidTether);
     abilityState.phaseDashCooldown = 0;
     abilityState.shardShotCooldown = 0;
+    abilityState.gravitonSurgeCooldown = 0;
+    abilityState.voidTetherCooldown = 0;
     abilityState.notifications = [];
 
     anchorActivated = data.anchorActivated || {};
@@ -1475,13 +1579,18 @@ function startNewGame() {
   collectedLore = {};
   fracturePipsFound = {};
   statUpgrades = { strength: 0 };
+  limitBreakChosen = null;
   bossDefeated = false;
   abilityState.hasPhaseDash = false;
   abilityState.hasShardShot = false;
   abilityState.hasStillpoint = false;
   abilityState.hasChargedAttack = false;
+  abilityState.hasGravitonSurge = false;
+  abilityState.hasVoidTether = false;
   abilityState.phaseDashCooldown = 0;
   abilityState.shardShotCooldown = 0;
+  abilityState.gravitonSurgeCooldown = 0;
+  abilityState.voidTetherCooldown = 0;
   abilityState.notifications = [];
   resetTutorial();
   spawnAreaEnemies('tutorial_area');
@@ -1967,10 +2076,12 @@ function update() {
   // Cooldowns
   // ── Stillpoint world-slow ───────────────────────────────────────────────
   // Update gameTimeScale — everything except the player and Phase-3 boss reads this.
-  gameTimeScale = (player.stillpointActive && abilityState.hasStillpoint) ? 0.15 : 1.0;
+  gameTimeScale = (player.stillpointActive && abilityState.hasStillpoint) ? (1 - player.stillpointSlow) : 1.0;
 
   if (abilityState.phaseDashCooldown > 0) abilityState.phaseDashCooldown--;
   if (abilityState.shardShotCooldown > 0) abilityState.shardShotCooldown--;
+  if (abilityState.gravitonSurgeCooldown > 0) abilityState.gravitonSurgeCooldown--;
+  if (abilityState.voidTetherCooldown > 0) abilityState.voidTetherCooldown--;
 
   // Ambient area particles
   ambientTimer++;
@@ -2033,7 +2144,9 @@ function update() {
   // per the project's no-fall-death-by-default rule (CLAUDE.md). Rooms
   // that want a real pit set `pitDeathY` explicitly, same as always.
   const pitDeathY = typeof bounds.pitDeathY === 'number' ? bounds.pitDeathY : Infinity;
-  const pitDeath = player.y > pitDeathY;
+  // Limit Break (Lv4, any ability): "immunity to environmental hazards
+  // (spikes, pits, lava) for the duration" — see Enemy_Design.pdf Rule 0.
+  const pitDeath = player.y > pitDeathY && !limitBreak.active;
   if ((playerDead || pitDeath) && (playerDead || player.invincibleTimer <= 0)) {
     screenShake = 15;
     screenShakeIntensity = 6;
@@ -2059,12 +2172,152 @@ function update() {
 
   // Shard Shot firing
   if (player.shardShotFired) {
-    const proj = useShardShot(player, player.shardAimVy);
-    if (proj) {
+    const shots = useShardShot(player, player.shardAimVy);
+    for (const proj of shots) {
       projectiles.push(proj);
       spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 4);
-      SFX.shardShot();
     }
+    SFX.shardShot();
+  }
+  // Lv3 Beam Attack firing
+  if (player.shardBeamFired) {
+    const beam = useShardBeam(player, player.shardAimVy);
+    projectiles.push(beam);
+    spawnParticles(beam.x + 5, beam.y + 3, '#67e8f9', 8);
+    SFX.shardShot();
+  }
+
+  // Phase Dash Lv3 — "when you swing your sword, the echo attacks once from
+  // its position (deals 50% of your normal damage), then fades" (Enemy_Design.pdf).
+  if (player.echoAttackPending) {
+    player.echoAttackPending = false;
+    if (abilityLevel('phase_dash') >= 3 && echoes.length > 0) {
+      const echo = echoes[0];
+      const echoDmg = playerMeleeDamage() * 0.5;
+      const enemiesHere = areaEnemies[currentAreaId] || [];
+      for (const enemy of enemiesHere) {
+        if (enemy.dead) continue;
+        const d = Math.hypot((enemy.x + enemy.width / 2) - (echo.x + echo.width / 2), (enemy.y + enemy.height / 2) - (echo.y + echo.height / 2));
+        if (d <= ECHO_DISTRACT_RADIUS) {
+          enemy.takeDamage(echoDmg, echo.x);
+          spawnParticles(echo.x + echo.width / 2, echo.y + echo.height / 2, '#c4b5fd', 6);
+        }
+      }
+      echo.life = 0; // fades immediately after attacking, per the design doc
+    }
+  }
+
+  // ── Void Tether (base ability built 2026-07-16, Enemy_Design.pdf) ───────
+  // Lv0: pulls the nearest enemy in range to the player, no bonus effect.
+  // Lv1: +30% range. Lv2: electrified — +1 dmg & 15f stun on arrival. Lv3:
+  // +50% pull speed, arc-stuns 1 other nearby enemy too. Lv4 Limit Break:
+  // 0-pip/1.5s-cooldown cast + a 3s/2dps burning DoT on arrival.
+  if (player.voidTetherFired) {
+    const lvl = abilityLevel('void_tether');
+    const range = VOID_TETHER_RANGE_BASE * (lvl >= 1 ? 1.3 : 1);
+    const enemiesHere = areaEnemies[currentAreaId] || [];
+    let target = null, bestD = range;
+    for (const enemy of enemiesHere) {
+      if (enemy.dead) continue;
+      const d = Math.hypot((enemy.x + enemy.width / 2) - (player.x + player.width / 2), (enemy.y + enemy.height / 2) - (player.y + player.height / 2));
+      if (d < bestD) { bestD = d; target = enemy; }
+    }
+    if (target) {
+      player.tether = { targetEnemy: target, speed: VOID_TETHER_PULL_SPEED_BASE * (lvl >= 3 ? 1.5 : 1) };
+      SFX.dash();
+    }
+  }
+  if (player.tether && player.tether.targetEnemy) {
+    const enemy = player.tether.targetEnemy;
+    if (enemy.dead) {
+      player.tether = null;
+    } else {
+      const px = player.x + player.width / 2, py = player.y + player.height / 2;
+      const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
+      const d = Math.hypot(px - ex, py - ey);
+      if (d <= player.tether.speed + 4) {
+        // Arrival
+        const lvl = abilityLevel('void_tether');
+        if (lvl >= 2 || (limitBreak.active && limitBreak.ability === 'void_tether')) {
+          enemy.takeDamage(1, px);
+          enemy.stunTimer = 15;
+        }
+        if (lvl >= 3) {
+          // Arc: stun (no damage) the next-nearest enemy too
+          let arcTarget = null, arcD = 120;
+          for (const other of (areaEnemies[currentAreaId] || [])) {
+            if (other === enemy || other.dead) continue;
+            const od = Math.hypot((other.x + other.width / 2) - ex, (other.y + other.height / 2) - ey);
+            if (od < arcD) { arcD = od; arcTarget = other; }
+          }
+          if (arcTarget) arcTarget.stunTimer = 15;
+        }
+        if (limitBreak.active && limitBreak.ability === 'void_tether') {
+          enemy.burning = { timer: 180, tickTimer: 0 }; // 3s @ 2dmg/s (game.js's enemy-update tick applies this)
+        }
+        spawnParticles(ex, ey, '#34d399', 10);
+        player.tether = null;
+      } else {
+        enemy.vx = ((px - ex) / d) * player.tether.speed;
+        enemy.vy = ((py - ey) / d) * player.tether.speed;
+      }
+    }
+  }
+
+  // ── Graviton Surge Gravity Ball (Lv2+, built 2026-07-16) ─────────────────
+  if (player.gravitonBallCharging) {
+    const enemiesHere = areaEnemies[currentAreaId] || [];
+    for (const enemy of enemiesHere) {
+      if (enemy.dead) continue;
+      const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
+      const d = Math.hypot(ex - player.gravitonBallX, ey - player.gravitonBallY);
+      if (d > 0 && d <= GRAVITON_BALL_PULL_RADIUS) {
+        const pullSpeed = GRAVITON_BALL_PULL_FORCE * (limitBreak.active && limitBreak.ability === 'graviton_surge' ? 1.5 : 1);
+        enemy.vx += ((player.gravitonBallX - ex) / d) * pullSpeed;
+        enemy.vy += ((player.gravitonBallY - ey) / d) * pullSpeed;
+      }
+    }
+  }
+  if (player.gravitonBallPop) {
+    player.gravitonBallPop = false;
+    const lvl = abilityLevel('graviton_surge');
+    if (lvl >= 3 || (limitBreak.active && limitBreak.ability === 'graviton_surge')) {
+      const dmg = limitBreak.active && limitBreak.ability === 'graviton_surge' ? 6 : 4;
+      const kb = limitBreak.active && limitBreak.ability === 'graviton_surge' ? 8 : 4; // 300%/200% knockback multiplier on a base of ~2-4
+      const enemiesHere = areaEnemies[currentAreaId] || [];
+      for (const enemy of enemiesHere) {
+        if (enemy.dead) continue;
+        const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
+        const d = Math.hypot(ex - player.gravitonBallX, ey - player.gravitonBallY);
+        if (d <= GRAVITON_BALL_PULL_RADIUS) {
+          enemy.takeDamage(dmg, player.gravitonBallX);
+          enemy.vx = ((ex - player.gravitonBallX) / (d || 1)) * kb;
+          enemy.vy = -kb * 0.5;
+        }
+      }
+      spawnParticles(player.gravitonBallX, player.gravitonBallY, '#f472b6', 20);
+      screenShake = 14; screenShakeIntensity = 8; hitstopTimer = 8;
+    }
+  }
+
+  // ── Graviton Surge slam damage (Lv1+): enemies whose vertical velocity
+  // just reversed hard while the flip is active take 1 damage instead of a
+  // free stun (Enemy_Design.pdf's "0 damage Lv0 / 1 damage Lv1+" ceiling
+  // /floor slam). Approximated here as "hit a wall/platform while the flip
+  // is active" via the existing grounded-transition each enemy already
+  // computes in its own update() — a lightweight per-frame check next to
+  // the pull loop above, not a physics rewrite.
+  if (player.gravitonActive && (abilityLevel('graviton_surge') >= 1 || (limitBreak.active && limitBreak.ability === 'graviton_surge'))) {
+    const enemiesHere = areaEnemies[currentAreaId] || [];
+    for (const enemy of enemiesHere) {
+      if (enemy.dead || !enemy.grounded) continue;
+      if (!enemy.gravitonSlammed) {
+        enemy.gravitonSlammed = true;
+        enemy.takeDamage(1, enemy.x);
+      }
+    }
+  } else {
+    for (const enemy of (areaEnemies[currentAreaId] || [])) enemy.gravitonSlammed = false;
   }
 
   // Update echoes
@@ -2101,11 +2354,26 @@ function update() {
 
   // ── Crystal Sentinel projectiles ──────────────────────────────────────
   CrystalSentinel.updateProjectiles(player);
+  // ── ComposedEnemy projectiles (enemy_designer.html "ranged_projectile") ──
+  ComposedEnemy.updateProjectiles(player);
 
   // Update enemies
   const enemies = areaEnemies[currentAreaId] || [];
   for (const enemy of enemies) {
     enemy.update(player, bounds, echoes);
+
+    // Void Tether Lv4 Limit Break burning DoT (2dmg/s for 3s) — see the
+    // Void Tether arrival block above, which sets `enemy.burning`.
+    if (enemy.burning && !enemy.dead) {
+      enemy.burning.timer--;
+      enemy.burning.tickTimer--;
+      if (enemy.burning.tickTimer <= 0) {
+        enemy.burning.tickTimer = 30; // every 0.5s = 2dmg/s
+        enemy.takeDamage(1, enemy.x);
+        spawnParticles(enemy.x + enemy.width / 2, enemy.y, '#fb923c', 3);
+      }
+      if (enemy.burning.timer <= 0) enemy.burning = null;
+    }
 
     // Player attack hits enemy — gated to once per swing (see
     // player.hitTargetsThisSwing) so an enemy that stays inside a multi-frame
@@ -2114,6 +2382,17 @@ function update() {
     const playerAtk = player.getAttackHitbox();
     if (playerAtk && !enemy.dead && rectsOverlap(playerAtk, enemy) && !player.hitTargetsThisSwing.has(enemy)) {
       player.hitTargetsThisSwing.add(enemy);
+
+      // ComposedEnemy counter_stance (enemy_designer.html) — a hit landed
+      // while the enemy is actively countering negates the player's damage
+      // entirely and lands a counter-hit on the player instead. Still counts
+      // as "swung at" (hitTargetsThisSwing above) so it doesn't retry mid-swing.
+      if (enemy.isCountering && enemy.isCountering()) {
+        enemy.onCountered(player);
+        SFX.parry();
+        continue;
+      }
+
       const dmg = playerMeleeDamage();
       enemy.takeDamage(dmg, player.x, playerAtk.dir);
       applyStillpointLifeSteal();
@@ -2170,13 +2449,14 @@ function update() {
     for (let j = projectiles.length - 1; j >= 0; j--) {
       const proj = projectiles[j];
       const projBounds = proj.getBounds();
+      if (proj.pierce && proj.hitEnemies && proj.hitEnemies.has(enemy)) continue; // Lv3 Beam already hit this one, keep flying
       if (!enemy.dead && rectsOverlap(projBounds, enemy)) {
         // Deflector Drone (expansion.md 2.3 #31) — a shot hitting its
         // currently-shielded side is reflected back instead of damaging it,
         // punishing reflexive spam-firing from safe range. Doesn't consume
         // the shot; it keeps flying, now able to hit the player (see the
         // reflected-projectile-vs-player check below).
-        if (enemy instanceof DeflectorDrone && !proj.reflected && enemy.shieldFacesPoint(proj.x)) {
+        if ((enemy instanceof DeflectorDrone || enemy.reflectsProjectiles) && !proj.reflected && enemy.shieldFacesPoint(proj.x)) {
           proj.vx *= -1;
           proj.reflected = true;
           spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 8);
@@ -2190,7 +2470,15 @@ function update() {
           enemy.takeDamage(proj.damage, proj.x);
         }
         spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 6);
-        projectiles.splice(j, 1);
+        if (proj.pierce) {
+          // Lv3 Beam — passes through instead of being consumed. Track hit
+          // enemies so the same target isn't re-damaged every frame it
+          // overlaps the beam (mirrors the melee per-swing dedup pattern).
+          proj.hitEnemies = proj.hitEnemies || new Set();
+          proj.hitEnemies.add(enemy);
+        } else {
+          projectiles.splice(j, 1);
+        }
         screenShake = 4;
         screenShakeIntensity = 2;
         hitstopTimer = 3;
@@ -2224,9 +2512,13 @@ function update() {
       }
     }
 
-    // Enemy attack hits player
+    // Enemy attack hits player — gated on invincibility/Phase Dash like every
+    // other player-damage check (boss body/projectiles, miniboss, enemy body
+    // contact below). This block was missing that gate: an enemy's attack
+    // hitbox could still land during a Phase Dash even though body contact
+    // couldn't, since the two checks weren't kept consistent with each other.
     const enemyAtk = enemy.getAttackHitbox();
-    if (enemyAtk && rectsOverlap(enemyAtk, player)) {
+    if (enemyAtk && rectsOverlap(enemyAtk, player) && player.invincibleTimer <= 0 && !player.phaseDashing) {
       if (player.parrying) {
         // SUCCESSFUL PARRY — deflect and stun enemy
         enemy.stunTimer = PARRY_STUN;
@@ -2240,7 +2532,12 @@ function update() {
         hitstopTimer = 5;
         SFX.parry();
       } else {
-        player.takeDamage(ENEMY_DAMAGE, enemy.x + enemy.width / 2);
+        // ComposedEnemy attacks (enemy.js) can define their own damage/
+        // knockback per attack (e.g. a grab-throw or a heavy dash_charge
+        // that should send the player flying) instead of the flat default.
+        const custom = enemy.getAttackDamageAndKnockback && enemy.getAttackDamageAndKnockback();
+        if (custom) player.takeDamage(custom.damage, enemy.x + enemy.width / 2, custom.knockback);
+        else player.takeDamage(ENEMY_DAMAGE, enemy.x + enemy.width / 2);
         spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
         SFX.playerHurt();
       }
@@ -2248,9 +2545,13 @@ function update() {
 
     // Enemy body contact with player — push apart every frame there's overlap
     // (regardless of invincibility) so the two boxes never sit inside each
-    // other; damage/parry are still gated the same as before.
+    // other; damage/parry are still gated the same as before. EXCEPT during
+    // Phase Dash: the whole point of the ability is passing through enemies
+    // to appear on the other side, so skip the physical separation then too
+    // — otherwise this push-apart fought the dash's velocity every frame and
+    // just shoved the player back out instead of letting them through.
     if (!enemy.dead && rectsOverlap(player, enemy)) {
-      separateFromEnemy(player, enemy);
+      if (!player.phaseDashing) separateFromEnemy(player, enemy);
 
       if (player.invincibleTimer <= 0 && !player.phaseDashing) {
         if (player.parrying) {
@@ -2710,6 +3011,27 @@ function drawHUD(ctx) {
     drawTutorialBanner(ctx);
   }
   drawControlsHint(ctx);
+  drawLimitBreakBar(ctx);
+}
+
+// Limit Break (Lv4) 6s countdown bar — "To add" list in Enemy_Design.pdf.
+// Flat blue to match the player's aura; no per-ability art yet.
+function drawLimitBreakBar(ctx) {
+  if (!limitBreak.active) return;
+  const barW = 160, barH = 8;
+  const x = W / 2 - barW / 2, y = 40;
+  const frac = limitBreak.timer / LIMIT_BREAK_DURATION;
+  ctx.fillStyle = 'rgba(10, 20, 40, 0.6)';
+  ctx.fillRect(x, y, barW, barH);
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillRect(x, y, barW * frac, barH);
+  ctx.strokeStyle = '#60a5fa';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, barW, barH);
+  ctx.textAlign = 'center';
+  ctx.font = '9px "Courier New", monospace';
+  ctx.fillStyle = '#93c5fd';
+  ctx.fillText('LIMIT BREAK', W / 2, y - 3);
 }
 
 // Top-center checklist banner for the tutorial room: current objective
@@ -3454,6 +3776,7 @@ function draw() {
 
    // ── Crystal Sentinel projectiles ──────────────────────────────────────
   CrystalSentinel.drawProjectiles(ctx);
+  ComposedEnemy.drawProjectiles(ctx);
 
   // Particles
   for (const p of particles) {

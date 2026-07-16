@@ -96,6 +96,20 @@ attempt failed or worked:
 
 ## Open problem #2 — Stillpoint needs a new mandatory anchor
 
+**Update 2026-07-15**: The Rift's Charged Attack and Graviton Surge entry
+requirements described below were removed at the user's request — The
+Rift now only requires Stillpoint + `child_choice_resolved`. The
+reasoning below is kept as historical context for why Stillpoint was
+anchored here, not as a current description of the room's gates.
+
+**Update 2026-07-15 (2)**: user's stated intent is to make The Rift a
+**difficulty check, not a further ability gate** — i.e. don't add more
+`requires: <ability>` entries here to raise its bar; raise the actual
+in-room combat/platforming difficulty (enemy density, hazard layout)
+instead, on top of the two requirements it already has. Not yet designed
+or built — no room content changes made yet, this is a note for whoever
+next works on `area.js`'s `the_rift` entry.
+
 Direct follow-on from (3c) above. Not yet applied or tested. Leading
 recommendation: add **"entry requires Stillpoint"** to **The Rift**
 (already requires Charged Attack + Graviton Surge, already confirmed

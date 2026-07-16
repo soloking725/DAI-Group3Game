@@ -12,10 +12,11 @@ flowchart TD
     The_Fracture_part_4_30b30796 --> Echo_Bridge_part_1_m_99e4e301["Echo Bridge, part 1<br>(meet the Child)<br>(+1 max health)<br>(on first entry, mandatory to go to Echo Bridge, prison)"]
     Crag_Entrance_fast_t_14519efb --> Crag_Breach_part_1_3184f872[Crag Breach part 1]
     Crag_Breach_part_1_3184f872 --> Crag_Altar_unlocks_c_37825bdb["Crag Altar<br>(unlocks charged attack, floor collapses and you must fight  Crag warden)"]
-    Crag_Altar_unlocks_c_37825bdb --> Crag_Warden_miniboss_72af253f["Crag Warden<br>(miniboss)"]
+    Crag_Altar_unlocks_c_37825bdb --> Crag_Warden_miniboss_72af253f["Crag Warden<br>(miniboss)<br>(1 lore pip)"]
     Crag_Warden_miniboss_72af253f --> Echo_Bridge_part_1_m_99e4e301
     Crag_Warden_miniboss_72af253f --> Sovereign_Room_3_f4051da9["Sovereign Room 3<br>(post-game)"]
-    Echo_Bridge_part_1_m_99e4e301 --> Crystal_Cavern_unloc_04f4af71["Crystal Cavern<br>(unlocks Shard Shot)<br>(shard shot required to leave)"]
+    Echo_Bridge_part_1_m_99e4e301 -->|One way — teleported here immediately after meeting the Child (mandatory, first entry only)| Echo_Bridge_Prison_1_8f7c5e40
+    Echo_Bridge_part_1_m_99e4e301 --> Crystal_Cavern_unloc_04f4af71["Crystal Cavern<br>(unlocks Shard Shot)<br>(shard shot required to leave)<br>(entry requires child_choice_resolved)"]
     Echo_Bridge_part_1_m_99e4e301 --> Upper_Ruins_bfebb55e[Upper Ruins]
     Echo_Bridge_part_1_m_99e4e301 --> Timeline_X_Roads_Roo_6da4d1dd["Timeline X Roads, Room 1<br>(fast travel)"]
     Echo_Bridge_part_1_m_99e4e301 -->|entry blocked until prison sequence is finished| The_Void_Expanse_Roo_c32cb52f["The Void Expanse,<br>Room 1<br>(1 lore pip)<br>(1 cosmetic upgrade)"]
@@ -26,9 +27,9 @@ flowchart TD
     Upper_Ruins_bfebb55e --> Pacifist_Region_1_lo_d8b63f32["Pacifist Region<br>(1 lore pip)"]
     Mirror_Veil_Gate_fas_8d5ae934 --> Timeline_X_Roads_Roo_6da4d1dd
     Timeline_X_Roads_Roo_6da4d1dd --> Timeline_X_Roads_Roo_65253a78["Timeline X Roads, Room 2<br>(Unlocks Void Tether if you give up the Child, if you don't permanently no Void Tether)<br>(locked by Echo Bridge part 1)<br>(unlocks child_choice_resolved)<br>(miniboss)<br>(1 lore pip)"]
-    Timeline_X_Roads_Roo_6da4d1dd --> Echo_Bridge_Prison_1_8f7c5e40["Echo Bridge, Prison<br>(1 cosmetic upgrade)<br>(if coming here from mandatory order from Echo Bridge, you cannot go to X Roads Room 1 or enter Mirror Corridor until you go to Timeline X Roads Room 2)"]
+    Timeline_X_Roads_Roo_6da4d1dd --> Echo_Bridge_Prison_1_8f7c5e40["Echo Bridge, Prison<br>(1 cosmetic upgrade)<br>(no way back to X Roads Room 1 from here — the only way out is forward to Room 2)"]
     Mirror_Veil_Hollow_m_991cd9fc --> Mirror_Veil_Sanctum__31d7793f["Mirror Veil, Sanctum<br>(unlocks Phase Dash)"]
-    Mirror_Veil_Sanctum__31d7793f --> Mirror_Corridor_c9be7338[Mirror Corridor]
+    Mirror_Veil_Sanctum__31d7793f --> Mirror_Corridor_c9be7338["Mirror Corridor<br>(entry requires child_choice_resolved)"]
     Mirror_Corridor_c9be7338 --> Event_Horizon_Gate_f_7819cf8d["Event Horizon - Gate<br>(fast travel)"]
     Event_Horizon_Gate_f_7819cf8d --> Event_Horizon_Pull_1ff0db5e[Event Horizon - Pull]
     Chrono_Space_Rift_re_05e19d7f --> Chrono_Space_Rift_Sa_3690e358["Chrono Space Rift, Sanctum<br>(Miniboss) “Ally”<br>(unlocks Stillpoint)<br>(1 Fracture Pip)"]
@@ -63,7 +64,7 @@ flowchart TD
     Timeline_X_Roads_Roo_65253a78 --> The_Observatory_Room_18d031aa["The Observatory, Room 1<br>(entry requires charged attack)"]
     Timeline_X_Roads_Roo_65253a78 --> Sovereign_Room_2_7d22bac7["Sovereign Room 2<br>(post-game)"]
     Timeline_X_Roads_Roo_65253a78 --> Graviton_Core_Room_1_7aa0f207["Graviton Core, Room 1<br>(entry requires Shard Shot)"]
-    Timeline_X_Roads_Roo_65253a78 -->|Graviton Surge and Phase Dash are required for this path| The_Rift_entry_requi_c828e742
+    Timeline_X_Roads_Roo_65253a78 -->|Phase Dash is required for this path| The_Rift_entry_requi_c828e742
     Echo_Bridge_Prison_1_8f7c5e40 --> Timeline_X_Roads_Roo_65253a78
     Event_Horizon_Pull_1ff0db5e --> Echo_Bridge_Prison_1_8f7c5e40
     Event_Horizon_Pull_1ff0db5e --> Event_Horizon_Drift__41409fad["Event Horizon - Drift<br>(1 Lore Pip)"]
@@ -77,7 +78,7 @@ flowchart TD
     Polar_Shift_Room_2_m_bb762f9a["Polar Shift, Room 2<br>(miniboss)<br>(1 lore pip)"] -->|One way Polar Shift → Paradox Engine| Paradox_Engine_Room__e57e2854
     Paradox_Engine_Room__e57e2854 --> Paradox_Engine_Room__739c76e5["Paradox Engine, Room 2<br>(miniboss)<br>(entry requires Shard Shot)<br>(1 lore pip)"]
     Polar_Shift_Room_1_f_dbd9a683["Polar Shift, Room 1<br>(fast travel)<br>(+1 max health)"] --> Polar_Shift_Room_2_m_bb762f9a
-    The_Rift_entry_requi_c828e742["The Rift<br>(entry requires Charged Attack)<br>(entry requires Graviton Surge)<br>(entry requires Stillpoint)<br>(entry requires child_choice_resolved)"] --> Polar_Shift_Room_1_f_dbd9a683
+    The_Rift_entry_requi_c828e742["The Rift<br>(entry requires Stillpoint)<br>(entry requires child_choice_resolved)<br>(entry requires Phase Dash)<br>(1 lore pip)"] --> Polar_Shift_Room_1_f_dbd9a683
     The_Rift_entry_requi_c828e742 --> The_Antechamber_1b52237e[The Antechamber]
     The_Vault_Room_1_fas_bb32ea0e["The Vault, Room 1<br>(fast travel)"] --> Polar_Shift_Room_1_f_dbd9a683
     The_Vault_Room_1_fas_bb32ea0e --> The_Vault_Room_2_1_l_2e5b94d7["The Vault, Room 2<br>(1 lore pip)"]

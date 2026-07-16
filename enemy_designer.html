@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Enemy Designer</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #06060e; color: #c4b5fd; font-family: 'Courier New', monospace; font-size: 12px;
+         display: flex; height: 100vh; overflow: hidden; }
+  #stage { position: relative; background: #000; }
+  canvas#game { display: block; image-rendering: pixelated; }
+  #hint { position: absolute; bottom: 6px; left: 6px; font-size: 10px; color: #6a6a9e; background: rgba(6,6,14,0.7); padding: 4px 8px; }
+  #side { width: 380px; flex-shrink: 0; background: #0a0a18; border-left: 1px solid #1e1e3e;
+          overflow-y: auto; padding: 10px; }
+  h1 { font-size: 13px; margin: 0 0 4px; color: #e0d7ff; }
+  h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #4a4a7e;
+       border-bottom: 1px solid #1a1a2e; margin: 14px 0 6px; padding-bottom: 3px; }
+  p.note { color: #5a5a8e; font-size: 10.5px; line-height: 1.5; margin: 0 0 8px; }
+  select, button, input[type=text] { width: 100%; background: #141428; border: 1px solid #2e2e5e; color: #c4b5fd;
+    font-family: inherit; font-size: 11px; padding: 5px; margin-bottom: 6px; cursor: pointer; }
+  input[type=text] { cursor: text; }
+  button.primary { border-color: #2dd4bf; color: #2dd4bf; }
+  button.warn { border-color: #f87171; color: #f87171; }
+  button.small { width: auto; padding: 3px 8px; margin: 0; font-size: 10px; }
+  button:hover { background: #1e1e3e; }
+  .row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .row label { flex: 1; color: #8888aa; font-size: 10.5px; }
+  .row .val { width: 44px; text-align: right; color: #67e8f9; font-size: 10px; }
+  .row input[type=range] { flex: 1.4; }
+  .row input[type=checkbox] { width: auto; margin: 0; }
+  .row input[type=color] { width: 40px; padding: 0; height: 22px; border: 1px solid #2e2e5e; background: none; }
+  .card { background: #0e0e1e; border: 1px solid #1e1e3e; border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .card-head b { color: #e0d7ff; font-size: 10.5px; text-transform: uppercase; }
+  #exp-out { width: 100%; height: 140px; background: #04040a; border: 1px solid #1e1e3e; color: #67e8f9;
+    font-size: 9.5px; resize: none; font-family: monospace; padding: 4px; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="game"></canvas>
+  <div id="hint">← → move · Z jump · X attack · C dash · F phase dash · V shard shot — you ARE the playtester</div>
+</div>
+
+<div id="side">
+  <h1>⚙ Enemy Designer</h1>
+  <p class="note">
+    Compose movement + a list of attacks + counters + on-death effects — no code. This is a real
+    <code>ComposedEnemy</code> instance (enemy.js), not a mock. Movement/attack sliders update the live enemy
+    instantly. Anything that adds/removes a list entry, changes a <i>type</i>, or is under Stats needs
+    "Respawn Here" (structural — those are only read when the enemy is created). Control the real player
+    with the keyboard to playtest reactions yourself.
+  </p>
+
+  <h2>Identity</h2>
+  <div class="row"><label>Name / id</label><input type="text" id="idInput" value="my_enemy"></div>
+  <div class="row"><label>Color</label><input type="color" id="colorInput" value="#f87171"></div>
+
+  <h2>Stats</h2>
+  <div id="statFields"></div>
+
+  <h2>Movement</h2>
+  <select id="movementType"></select>
+  <div id="movementFields"></div>
+
+  <h2>Attacks</h2>
+  <div class="row"><label>Selection Mode</label>
+    <select id="attackSelection" style="width:150px">
+      <option value="weighted">weighted (random)</option>
+      <option value="range">range (by distance)</option>
+      <option value="combo">combo (fixed sequence)</option>
+    </select>
+  </div>
+  <p class="note">
+    <b>weighted</b> — among ready attacks in range, pick randomly by weight.
+    <b>range</b> — each attack's min/max range decides which one fires (e.g. melee up close, ranged far away).
+    <b>combo</b> — cycles the list in order every time one finishes, no randomness.
+  </p>
+  <div id="attacksList"></div>
+  <button id="addAttackBtn">+ Add Attack</button>
+
+  <h2>Counters</h2>
+  <p class="note">Reacts to a specific player ability, independent of the attack list above — an enemy can have zero attacks and still be a pure counter.</p>
+  <div id="countersList"></div>
+  <button id="addCounterBtn">+ Add Counter</button>
+
+  <h2>Rage (optional)</h2>
+  <div class="row"><label>Enable Rage</label><input type="checkbox" id="rageEnabled"></div>
+  <div id="rageFields"></div>
+
+  <h2>On Death</h2>
+  <select id="onDeathType">
+    <option value="none">none</option>
+    <option value="explode">explode</option>
+    <option value="spawn_projectiles">spawn_projectiles</option>
+    <option value="split">split</option>
+  </select>
+  <div id="onDeathFields"></div>
+
+  <h2>Spawn</h2>
+  <button class="primary" id="respawnBtn">↺ Respawn Here (apply structural changes)</button>
+
+  <h2>Test / Export</h2>
+  <button class="primary" id="testArenaBtn">▶ Test in Full Arena (enemy_test.html)</button>
+  <button id="exportBtn">⬇ Export JSON</button>
+  <button id="loadBtn">⬆ Load JSON (paste below, then click)</button>
+  <textarea id="exp-out" placeholder="Export prints here. To load: paste a def JSON here, then click Load JSON."></textarea>
+  <p class="note">The exported block goes straight into <code>area.js</code>:
+    <code>{ type: 'composed', x: 900, y: 460, def: &lt;paste&gt; }</code> inside any room's <code>enemies: []</code>.</p>
+</div>
+
+<!-- ─── Real game scripts — same as enemy_test.html ─────────────────────── -->
+<script src="audio.js"></script>
+<script src="input.js"></script>
+<script src="area.js"></script>
+<script src="map.js"></script>
+<script src="ability.js"></script>
+<script src="boss.js"></script>
+<script src="enemy.js"></script>
+<script src="player.js"></script>
+<script src="game.js"></script>
+
+<script>
+// ─── Parameter schemas (UI metadata only — defaults live in enemy.js's
+// MOVEMENT_BEHAVIORS/ATTACK_BEHAVIORS.*.params, read from there so this file
+// never drifts out of sync with the real behavior code). ───
+const MOVEMENT_UI = {
+  ground_chase: [
+    { key: 'speed', label: 'Chase Speed', min: 0.3, max: 6, step: 0.1 },
+    { key: 'patrolSpeed', label: 'Patrol Speed', min: 0.1, max: 3, step: 0.1 },
+  ],
+  hover: [
+    { key: 'mode', label: 'Mode', options: ['approach', 'maintain_distance', 'stationary_bob'] },
+    { key: 'speed', label: 'Speed', min: 0.1, max: 4, step: 0.1 },
+    { key: 'idealDistance', label: 'Ideal Distance (px)', min: 50, max: 500, step: 10 },
+    { key: 'bobAmplitude', label: 'Bob Amplitude (px)', min: 0, max: 40, step: 1 },
+    { key: 'bobSpeed', label: 'Bob Speed', min: 0.005, max: 0.15, step: 0.005 },
+  ],
+  stationary: [],
+  teleport_blink: [
+    { key: 'mode', label: 'Trigger', options: ['interval', 'on_player_dash_end'] },
+    { key: 'interval', label: 'Interval (frames)', min: 30, max: 300, step: 10 },
+    { key: 'blinkDistance', label: 'Blink Distance (px)', min: 10, max: 150, step: 5 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 10, max: 180, step: 5 },
+  ],
+};
+
+// Every field common to all ACTIVE attack types (range/windup/active/cooldown)
+// plus type-specific ones below it.
+const ATTACK_UI = {
+  melee_swing: [
+    { key: 'range', label: 'Attack Range (px)', min: 10, max: 150, step: 5 },
+    { key: 'windupFrames', label: 'Windup (frames)', min: 5, max: 90, step: 1 },
+    { key: 'activeFrames', label: 'Active (frames)', min: 5, max: 60, step: 1 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 10, max: 300, step: 5 },
+    { key: 'damage', label: 'Damage', min: 1, max: 10, step: 1 },
+    { key: 'hitboxWidth', label: 'Hitbox Width', min: 10, max: 80, step: 2 },
+    { key: 'hitboxHeight', label: 'Hitbox Height', min: 10, max: 60, step: 2 },
+    { key: 'knockbackX', label: 'Knockback X', min: 0, max: 20, step: 0.5 },
+    { key: 'knockbackY', label: 'Knockback Y (neg = up)', min: -20, max: 5, step: 0.5 },
+    { key: 'knockbackHitStun', label: 'Knockback Hit Stun (frames)', min: 0, max: 40, step: 1 },
+  ],
+  grab: [
+    { key: 'range', label: 'Grab Range (px)', min: 10, max: 100, step: 2 },
+    { key: 'windupFrames', label: 'Windup (frames)', min: 5, max: 90, step: 1 },
+    { key: 'activeFrames', label: 'Hold Duration (frames)', min: 5, max: 100, step: 1 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 20, max: 400, step: 5 },
+    { key: 'damagePerTick', label: 'Damage / Tick', min: 1, max: 10, step: 1 },
+    { key: 'tickCooldown', label: 'Tick Cooldown (frames)', min: 5, max: 90, step: 1 },
+    { key: 'throwKnockbackX', label: 'Throw Knockback X', min: 0, max: 30, step: 1 },
+    { key: 'throwKnockbackY', label: 'Throw Knockback Y (neg = up)', min: -30, max: 10, step: 1 },
+    { key: 'throwHitStun', label: 'Throw Hit Stun (frames)', min: 0, max: 60, step: 1 },
+  ],
+  dash_charge: [
+    { key: 'range', label: 'Trigger Range (px)', min: 50, max: 500, step: 10 },
+    { key: 'windupFrames', label: 'Windup (frames)', min: 5, max: 90, step: 1 },
+    { key: 'activeFrames', label: 'Charge Duration (frames)', min: 5, max: 60, step: 1 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 20, max: 400, step: 5 },
+    { key: 'damage', label: 'Damage', min: 1, max: 12, step: 1 },
+    { key: 'chargeSpeed', label: 'Charge Speed', min: 2, max: 18, step: 0.5 },
+    { key: 'knockbackX', label: 'Knockback X', min: 0, max: 20, step: 0.5 },
+    { key: 'knockbackY', label: 'Knockback Y (neg = up)', min: -20, max: 5, step: 0.5 },
+    { key: 'knockbackHitStun', label: 'Knockback Hit Stun (frames)', min: 0, max: 40, step: 1 },
+  ],
+  beam: [
+    { key: 'range', label: 'Trigger Range (px)', min: 50, max: 800, step: 10 },
+    { key: 'windupFrames', label: 'Windup (frames)', min: 5, max: 90, step: 1 },
+    { key: 'activeFrames', label: 'Beam Duration (frames)', min: 10, max: 150, step: 5 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 20, max: 400, step: 5 },
+    { key: 'damage', label: 'Damage / Tick', min: 1, max: 10, step: 1 },
+    { key: 'tickCooldown', label: 'Tick Cooldown (frames)', min: 2, max: 60, step: 1 },
+    { key: 'beamWidth', label: 'Beam Width (px)', min: 4, max: 60, step: 2 },
+    { key: 'tracksPlayer', label: 'Tracks Player Height', bool: true },
+  ],
+  counter_stance: [
+    { key: 'range', label: 'Trigger Range (px)', min: 10, max: 150, step: 5 },
+    { key: 'windupFrames', label: 'Windup (frames)', min: 5, max: 90, step: 1 },
+    { key: 'activeFrames', label: 'Stance Duration (frames)', min: 5, max: 90, step: 1 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 20, max: 400, step: 5 },
+    { key: 'counterDamage', label: 'Counter Damage', min: 1, max: 12, step: 1 },
+    { key: 'counterKnockbackX', label: 'Counter Knockback X', min: 0, max: 20, step: 0.5 },
+    { key: 'counterKnockbackY', label: 'Counter Knockback Y (neg = up)', min: -20, max: 5, step: 0.5 },
+    { key: 'counterHitStun', label: 'Counter Hit Stun (frames)', min: 0, max: 40, step: 1 },
+  ],
+  ranged_projectile: [
+    { key: 'range', label: 'Fire Range (px)', min: 50, max: 600, step: 10 },
+    { key: 'windupFrames', label: 'Windup (frames)', min: 5, max: 90, step: 1 },
+    { key: 'activeFrames', label: 'Active (frames)', min: 5, max: 60, step: 1 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 10, max: 300, step: 5 },
+    { key: 'damage', label: 'Damage', min: 1, max: 20, step: 1 },
+    { key: 'projectileSpeed', label: 'Projectile Speed', min: 1, max: 12, step: 0.5 },
+    { key: 'pattern', label: 'Pattern', options: ['straight', 'homing', 'arc', 'bounce', 'spread', 'piercing'] },
+    { key: 'projectileCount', label: 'Count (spread only)', min: 1, max: 8, step: 1 },
+    { key: 'spreadAngle', label: 'Spread Angle° (spread only)', min: 5, max: 180, step: 5 },
+    { key: 'maxBounces', label: 'Max Bounces (bounce only)', min: 0, max: 6, step: 1 },
+  ],
+  contact_field: [
+    { key: 'radius', label: 'Field Radius (px)', min: 20, max: 300, step: 10 },
+    { key: 'damage', label: 'Damage / Tick', min: 1, max: 10, step: 1 },
+    { key: 'tickCooldown', label: 'Tick Cooldown (frames)', min: 10, max: 180, step: 5 },
+    { key: 'cancelsPhaseDash', label: 'Cancels Phase Dash', bool: true },
+  ],
+  shield_reflect: [],
+};
+
+const STAT_UI = [
+  { key: 'health', label: 'Health', min: 1, max: 30, step: 1 },
+  { key: 'patrolRange', label: 'Patrol Range (px)', min: 0, max: 400, step: 10 },
+  { key: 'ignoreVertical', label: 'Ignore Vertical (flying)', bool: true },
+  { key: 'knockbackResistance', label: 'Knockback Resistance', min: 0, max: 1, step: 0.05 },
+  { key: 'stunResistance', label: 'Stun Resistance', min: 0, max: 1, step: 0.05 },
+];
+
+const COUNTER_UI = {
+  phase_dash: { effects: ['cancel_and_damage'], fields: {
+    cancel_and_damage: [
+      { key: 'radius', label: 'Radius (px)', min: 20, max: 200, step: 10 },
+      { key: 'damage', label: 'Damage', min: 1, max: 10, step: 1 },
+    ] } },
+  shard_shot: { effects: ['reflect'], fields: { reflect: [] } },
+  melee_parry: { effects: ['stun_and_double_damage'], fields: { stun_and_double_damage: [] } },
+  stillpoint: { effects: ['cancel'], fields: {
+    cancel: [ { key: 'radius', label: 'Radius (px)', min: 20, max: 200, step: 10 } ] } },
+  graviton_surge: { effects: ['null_field'], fields: { null_field: [] } },
+};
+
+const ONDEATH_UI = {
+  none: [],
+  explode: [
+    { key: 'radius', label: 'Radius (px)', min: 20, max: 250, step: 10 },
+    { key: 'damage', label: 'Damage', min: 1, max: 10, step: 1 },
+  ],
+  spawn_projectiles: [
+    { key: 'count', label: 'Count', min: 2, max: 16, step: 1 },
+    { key: 'projectileSpeed', label: 'Speed', min: 1, max: 8, step: 0.5 },
+    { key: 'damage', label: 'Damage', min: 1, max: 10, step: 1 },
+  ],
+  split: [
+    { key: 'count', label: 'Split Count', min: 2, max: 4, step: 1 },
+    { key: 'healthFrac', label: 'Health Fraction', min: 0.1, max: 0.9, step: 0.05 },
+    { key: 'spread', label: 'Spread (px)', min: 10, max: 100, step: 5 },
+  ],
+};
+
+function freshDef() {
+  return {
+    id: 'my_enemy',
+    color: '#f87171',
+    movement: { type: 'ground_chase', ...MOVEMENT_BEHAVIORS.ground_chase.params },
+    attacks: [{ type: 'melee_swing', weight: 1, minRange: 0, ...ATTACK_BEHAVIORS.melee_swing.params }],
+    attackSelection: 'weighted',
+    counters: [],
+    onDeath: { type: 'none' },
+    rage: null,
+    stats: { health: 4, patrolRange: 120, ignoreVertical: false, knockbackResistance: 0, stunResistance: 0 },
+  };
+}
+let def = freshDef();
+let currentEnemy = null;
+
+// ─── Canvas sizing (same override enemy_test.html uses) ───
+function fitCanvasToStage() {
+  const sideWidth = document.getElementById('side').offsetWidth;
+  const availW = window.innerWidth - sideWidth;
+  const availH = window.innerHeight;
+  const scale = Math.min(availW / W, availH / H);
+  canvas.style.width = Math.floor(W * scale) + 'px';
+  canvas.style.height = Math.floor(H * scale) + 'px';
+}
+window.addEventListener('resize', fitCanvasToStage);
+fitCanvasToStage();
+
+function ensureSession() {
+  if (gameState === 'playing' && currentAreaId === 'enemy_test_arena') return;
+  gameState = 'playing';
+  try { SFX.init(); } catch (e) {}
+  currentAreaId = 'enemy_test_arena';
+  try { SFX.setAreaAmbient('enemy_test_arena'); } catch (e) {}
+  const area = getCurrentArea();
+  player = new Player(200, area.groundY - 60);
+  echoes = []; projectiles = []; particles = []; bossProjectiles = [];
+  boss = null; miniboss = null; defeatedMinibosses = {};
+  areaEnemiesSpawned = {}; areaEnemies['enemy_test_arena'] = [];
+  discoveredAreas = { enemy_test_arena: true };
+  anchorActivated = {}; lastAnchor = null; collectedLore = {}; bossDefeated = false;
+  resetCamera();
+  showUI(true);
+  abilityState.hasPhaseDash = true;
+  abilityState.hasShardShot = true;
+  abilityState.hasStillpoint = true;
+  abilityState.hasChargedAttack = true;
+}
+
+function respawn() {
+  ensureSession();
+  const area = getCurrentArea();
+  currentEnemy = new ComposedEnemy(900, area.groundY - 60, def);
+  areaEnemies['enemy_test_arena'] = [currentEnemy];
+}
+
+// ─── Form generation ───
+// `liveGetter`, if given, returns the corresponding object on the CURRENTLY
+// RUNNING enemy instance (a fresh clone made at construction, per
+// enemy.js's rage-safety design — see ComposedEnemy's constructor comments)
+// so a slider can write to both the exported `def` AND the live instance in
+// one motion, without needing a full respawn for non-structural edits.
+function makeField(container, obj, field, liveGetter) {
+  const row = document.createElement('div');
+  row.className = 'row';
+  const label = document.createElement('label');
+  label.textContent = field.label;
+  row.appendChild(label);
+
+  if (field.options) {
+    const sel = document.createElement('select');
+    sel.style.width = '150px';
+    for (const opt of field.options) {
+      const o = document.createElement('option');
+      o.value = opt; o.textContent = opt;
+      if (obj[field.key] === opt) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.addEventListener('change', () => {
+      obj[field.key] = sel.value;
+      const live = liveGetter && liveGetter();
+      if (live) live[field.key] = sel.value;
+    });
+    row.appendChild(sel);
+  } else if (field.bool) {
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!obj[field.key];
+    cb.addEventListener('change', () => {
+      obj[field.key] = cb.checked;
+      const live = liveGetter && liveGetter();
+      if (live) live[field.key] = cb.checked;
+    });
+    row.appendChild(cb);
+  } else {
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = field.min; input.max = field.max; input.step = field.step;
+    input.value = obj[field.key] ?? field.min;
+    const val = document.createElement('span');
+    val.className = 'val';
+    val.textContent = input.value;
+    input.addEventListener('input', () => {
+      const v = parseFloat(input.value);
+      obj[field.key] = v;
+      val.textContent = v;
+      const live = liveGetter && liveGetter();
+      if (live) live[field.key] = v;
+    });
+    row.appendChild(input);
+    row.appendChild(val);
+  }
+  container.appendChild(row);
+}
+
+function renderStatFields() {
+  const container = document.getElementById('statFields');
+  container.innerHTML = '';
+  for (const field of STAT_UI) makeField(container, def.stats, field, null); // stats are respawn-only, see note in the panel
+}
+
+function renderMovementFields() {
+  const container = document.getElementById('movementFields');
+  container.innerHTML = '';
+  const schema = MOVEMENT_UI[def.movement.type] || [];
+  for (const field of schema) makeField(container, def.movement, field, () => currentEnemy && currentEnemy.movement);
+}
+
+function renderAttacksList() {
+  const container = document.getElementById('attacksList');
+  container.innerHTML = '';
+  def.attacks.forEach((atk, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const head = document.createElement('div');
+    head.className = 'card-head';
+    const b = document.createElement('b'); b.textContent = `Attack ${i + 1}`;
+    const rm = document.createElement('button'); rm.className = 'small warn'; rm.textContent = '✕ Remove';
+    rm.addEventListener('click', () => { def.attacks.splice(i, 1); renderAttacksList(); respawn(); });
+    head.appendChild(b); head.appendChild(rm);
+    card.appendChild(head);
+
+    const typeRow = document.createElement('div'); typeRow.className = 'row';
+    const typeLabel = document.createElement('label'); typeLabel.textContent = 'Type';
+    const typeSel = document.createElement('select'); typeSel.style.width = '160px';
+    for (const t in ATTACK_BEHAVIORS) {
+      const o = document.createElement('option'); o.value = t; o.textContent = t;
+      if (atk.type === t) o.selected = true;
+      typeSel.appendChild(o);
+    }
+    typeSel.addEventListener('change', () => {
+      def.attacks[i] = { type: typeSel.value, weight: atk.weight, minRange: atk.minRange, ...ATTACK_BEHAVIORS[typeSel.value].params };
+      renderAttacksList(); respawn();
+    });
+    typeRow.appendChild(typeLabel); typeRow.appendChild(typeSel);
+    card.appendChild(typeRow);
+
+    // weight/minRange only matter for 'weighted'/'range' selection, but harmless to always show
+    makeField(card, atk, { key: 'weight', label: 'Weight (weighted mode)', min: 0.1, max: 5, step: 0.1 }, () => currentEnemy && currentEnemy.attacks[i]);
+    makeField(card, atk, { key: 'minRange', label: 'Min Range (range mode)', min: 0, max: 400, step: 10 }, () => currentEnemy && currentEnemy.attacks[i]);
+
+    const schema = ATTACK_UI[atk.type] || [];
+    for (const field of schema) makeField(card, atk, field, () => currentEnemy && currentEnemy.attacks[i]);
+
+    container.appendChild(card);
+  });
+}
+
+function renderCountersList() {
+  const container = document.getElementById('countersList');
+  container.innerHTML = '';
+  def.counters.forEach((c, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const head = document.createElement('div');
+    head.className = 'card-head';
+    const b = document.createElement('b'); b.textContent = `Counter ${i + 1}`;
+    const rm = document.createElement('button'); rm.className = 'small warn'; rm.textContent = '✕ Remove';
+    rm.addEventListener('click', () => { def.counters.splice(i, 1); renderCountersList(); respawn(); });
+    head.appendChild(b); head.appendChild(rm);
+    card.appendChild(head);
+
+    const abilityRow = document.createElement('div'); abilityRow.className = 'row';
+    const abilityLabel = document.createElement('label'); abilityLabel.textContent = 'Ability';
+    const abilitySel = document.createElement('select'); abilitySel.style.width = '150px';
+    for (const a in COUNTER_UI) {
+      const o = document.createElement('option'); o.value = a; o.textContent = a;
+      if (c.ability === a) o.selected = true;
+      abilitySel.appendChild(o);
+    }
+    abilityRow.appendChild(abilityLabel); abilityRow.appendChild(abilitySel);
+    card.appendChild(abilityRow);
+
+    const effectRow = document.createElement('div'); effectRow.className = 'row';
+    const effectLabel = document.createElement('label'); effectLabel.textContent = 'Effect';
+    const effectSel = document.createElement('select'); effectSel.style.width = '150px';
+    function populateEffects(ability) {
+      effectSel.innerHTML = '';
+      for (const e of COUNTER_UI[ability].effects) {
+        const o = document.createElement('option'); o.value = e; o.textContent = e;
+        if (c.effect === e) o.selected = true;
+        effectSel.appendChild(o);
+      }
+    }
+    populateEffects(c.ability || 'phase_dash');
+    effectRow.appendChild(effectLabel); effectRow.appendChild(effectSel);
+    card.appendChild(effectRow);
+
+    const paramsDiv = document.createElement('div');
+    card.appendChild(paramsDiv);
+    function renderParams() {
+      paramsDiv.innerHTML = '';
+      const fields = COUNTER_UI[c.ability]?.fields[c.effect] || [];
+      for (const field of fields) makeField(paramsDiv, c, field, () => currentEnemy && currentEnemy.counters[i]);
+    }
+
+    abilitySel.addEventListener('change', () => {
+      c.ability = abilitySel.value;
+      c.effect = COUNTER_UI[c.ability].effects[0];
+      populateEffects(c.ability);
+      renderParams();
+      respawn();
+    });
+    effectSel.addEventListener('change', () => { c.effect = effectSel.value; renderParams(); respawn(); });
+
+    c.ability = c.ability || abilitySel.value;
+    c.effect = c.effect || effectSel.value;
+    renderParams();
+
+    container.appendChild(card);
+  });
+}
+
+function renderRageFields() {
+  const container = document.getElementById('rageFields');
+  container.innerHTML = '';
+  document.getElementById('rageEnabled').checked = !!def.rage;
+  if (!def.rage) return;
+  const fields = [
+    { key: 'thresholdFrac', label: 'Trigger at Health Fraction', min: 0.05, max: 0.9, step: 0.05 },
+    { key: 'speedMult', label: 'Speed Multiplier', min: 0.5, max: 3, step: 0.1 },
+    { key: 'cooldownMult', label: 'Cooldown Multiplier', min: 0.2, max: 1.5, step: 0.05 },
+    { key: 'damageMult', label: 'Damage Multiplier', min: 0.5, max: 3, step: 0.1 },
+  ];
+  for (const field of fields) makeField(container, def.rage, field, null); // rage trigger is one-way/runtime — always respawn to re-test
+}
+
+function renderOnDeathFields() {
+  const container = document.getElementById('onDeathFields');
+  container.innerHTML = '';
+  const schema = ONDEATH_UI[def.onDeath.type] || [];
+  for (const field of schema) makeField(container, def.onDeath, field, null);
+}
+
+// ─── Wire up static controls ───
+const movementSelect = document.getElementById('movementType');
+for (const type in MOVEMENT_BEHAVIORS) {
+  const o = document.createElement('option'); o.value = type; o.textContent = type;
+  movementSelect.appendChild(o);
+}
+movementSelect.value = def.movement.type;
+movementSelect.addEventListener('change', () => {
+  def.movement = { type: movementSelect.value, ...MOVEMENT_BEHAVIORS[movementSelect.value].params };
+  renderMovementFields();
+  respawn();
+});
+
+document.getElementById('attackSelection').addEventListener('change', (e) => { def.attackSelection = e.target.value; if (currentEnemy) currentEnemy.attackSelection = e.target.value; });
+document.getElementById('addAttackBtn').addEventListener('click', () => {
+  def.attacks.push({ type: 'melee_swing', weight: 1, minRange: 0, ...ATTACK_BEHAVIORS.melee_swing.params });
+  renderAttacksList(); respawn();
+});
+document.getElementById('addCounterBtn').addEventListener('click', () => {
+  def.counters.push({ ability: 'phase_dash', effect: 'cancel_and_damage', radius: 70, damage: 1 });
+  renderCountersList(); respawn();
+});
+document.getElementById('rageEnabled').addEventListener('change', (e) => {
+  def.rage = e.target.checked ? { thresholdFrac: 0.3, speedMult: 1.4, cooldownMult: 0.6, damageMult: 1.2 } : null;
+  renderRageFields(); respawn();
+});
+document.getElementById('onDeathType').addEventListener('change', (e) => {
+  def.onDeath = { type: e.target.value, ...ONDEATH_UI[e.target.value].reduce((acc, f) => { acc[f.key] = f.min; return acc; }, {}) };
+  renderOnDeathFields(); respawn();
+});
+
+document.getElementById('idInput').addEventListener('input', (e) => { def.id = e.target.value || 'my_enemy'; });
+document.getElementById('colorInput').addEventListener('input', (e) => { def.color = e.target.value; if (currentEnemy) currentEnemy.color = e.target.value; });
+
+document.getElementById('respawnBtn').addEventListener('click', respawn);
+
+document.getElementById('testArenaBtn').addEventListener('click', () => {
+  localStorage.setItem('stillpoint_enemy_designer_test', JSON.stringify({ def }));
+  window.open('enemy_test.html', '_blank');
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  document.getElementById('exp-out').value = JSON.stringify(def, null, 2);
+});
+
+document.getElementById('loadBtn').addEventListener('click', () => {
+  try {
+    const parsed = JSON.parse(document.getElementById('exp-out').value);
+    if (!parsed.movement || !parsed.attacks || !parsed.stats) throw new Error('missing movement/attacks/stats');
+    def = parsed;
+    def.counters = def.counters || [];
+    def.onDeath = def.onDeath || { type: 'none' };
+    def.attackSelection = def.attackSelection || 'weighted';
+    document.getElementById('idInput').value = def.id || 'my_enemy';
+    document.getElementById('colorInput').value = def.color || '#f87171';
+    document.getElementById('attackSelection').value = def.attackSelection;
+    document.getElementById('onDeathType').value = def.onDeath.type;
+    movementSelect.value = def.movement.type;
+    renderStatFields(); renderMovementFields(); renderAttacksList(); renderCountersList(); renderRageFields(); renderOnDeathFields();
+    respawn();
+  } catch (err) {
+    alert('Could not load def: ' + err.message);
+  }
+});
+
+renderStatFields();
+renderMovementFields();
+renderAttacksList();
+renderCountersList();
+renderRageFields();
+renderOnDeathFields();
+respawn();
+
+setInterval(() => {
+  if (!currentEnemy) return;
+  document.title = currentEnemy.dead
+    ? 'Stillpoint — Enemy Designer (dead — Respawn to reset)'
+    : `Stillpoint — Enemy Designer (HP ${currentEnemy.health})`;
+}, 250);
+</script>
+</body>
+</html>

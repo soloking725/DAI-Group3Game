@@ -2179,11 +2179,901 @@ class ColossusCore {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ComposedEnemy — data-driven enemy for no-code authoring (roadmap.md 2.8's
+// "design enemies without help" tool, `enemy_designer.html`;
+// Plans/enemy_system_plan.md is the full design doc this implements —
+// "Phase A", 2026-07-15). Every enemy above this point is a bespoke
+// hand-coded subclass; ComposedEnemy is the opposite: ONE class that
+// interprets a plain `def` object at runtime, picking a movement behavior
+// and a LIST of attack behaviors (+ counters) from the registries below.
+// This does NOT replace or retrofit the 9 classes above — those stay
+// untouched (zero regression risk) — it's a new, additive authoring path.
+//
+// def shape:
+//   {
+//     id: 'my_enemy', color: '#f87171',
+//     movement: { type: 'ground_chase'|'hover'|'stationary'|'teleport_blink', ...params },
+//     attacks: [ { type, weight, minRange, ...params }, ... ],
+//     attackSelection: 'weighted' | 'range' | 'combo',  // how to pick among ready ACTIVE attacks — see plan doc
+//     counters: [ { ability: 'phase_dash'|'shard_shot'|'melee_parry'|'stillpoint', effect, ...params }, ... ],
+//     onDeath: { type: 'none'|'explode'|'spawn_projectiles'|'split', ...params },
+//     rage: { thresholdFrac, speedMult, cooldownMult, damageMult } | null,
+//     stats: { health, patrolRange, ignoreVertical, verticalBand, knockbackResistance, stunResistance },
+//   }
+// Backward compat: a def with the old singular `attack: {...}` field (from
+// before multi-attack landed) is wrapped into `attacks: [attack]` at
+// construction — nothing already exported breaks.
+//
+// Spawned two ways:
+//   - Real game: area.js `enemies: [{ type: 'composed', x, y, def }]` —
+//     game.js's spawnAreaEnemies() special-cases 'composed' to pass `def`
+//     through (see the comment at that call site).
+//   - enemy_designer.html's own live preview canvas, and its "Test in
+//     Arena" handoff into enemy_test.html (same localStorage pattern
+//     enemy_editor.html already uses).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Movement behaviors ──────────────────────────────────────────────────────
+// Each behavior is `run(enemy, player, bounds, _ts, sight)`, called once per
+// frame from ComposedEnemy.update() when no ACTIVE attack is in progress.
+// Reads its own params from `enemy.movement` (a per-instance clone of
+// `def.movement`, so rage-state multipliers can mutate it safely without
+// touching the shared def object). Free to set enemy.vx/vy directly;
+// ComposedEnemy handles gravity/platform collision/world-bounds clamp
+// afterward exactly like the base Enemy class does, EXCEPT for 'hover' and
+// 'teleport_blink' which opt out of gravity via `enemy._movementFlies`.
+const MOVEMENT_BEHAVIORS = {
+  // Walks the ground, chasing when the player is sighted (respecting ledges
+  // via hasFootingAhead — never walks off a platform edge into a pit) and
+  // patrolling back and forth otherwise. This is the base Enemy class's own
+  // chase/patrol state machine, generalized to read its speeds from params
+  // instead of the ENEMY_SPEED/PATROL_SPEED consts.
+  ground_chase: {
+    params: { speed: 1.5, patrolSpeed: 0.7 }, // patrol RANGE lives in def.stats.patrolRange (ComposedEnemy ctor), not here
+    run(enemy, player, bounds, _ts, sight) {
+      const p = enemy.movement;
+      if (sight.inRange) {
+        if (enemy.grounded && !hasFootingAhead(enemy, bounds, enemy.facing)) enemy.vx = 0;
+        else enemy.vx = enemy.facing * p.speed;
+        enemy.idleTimer = 0;
+      } else if (enemy.idleTimer > 0) {
+        enemy.idleTimer -= _ts;
+        enemy.vx = 0;
+      } else {
+        const atLedge = enemy.grounded && !hasFootingAhead(enemy, bounds, enemy.patrolDir);
+        if (Math.abs(enemy.x - enemy.patrolCenter) > enemy.patrolRange || atLedge) {
+          enemy.patrolDir = enemy.x > enemy.patrolCenter ? -1 : 1;
+        }
+        enemy.vx = (enemy.grounded && !hasFootingAhead(enemy, bounds, enemy.patrolDir))
+          ? 0 : enemy.patrolDir * p.patrolSpeed;
+      }
+    },
+  },
+
+  // Flies, ignores gravity. Three sub-modes via `mode`:
+  //   'approach'          — drifts toward the player when sighted (Anchor Wraith style)
+  //   'maintain_distance' — hovers, bobs in place, nudges toward an ideal distance (Deflector Drone style)
+  //   'stationary_bob'    — bobs in place only, never moves horizontally
+  hover: {
+    params: { mode: 'approach', speed: 0.8, idealDistance: 200, bobAmplitude: 12, bobSpeed: 0.03 },
+    run(enemy, player, bounds, _ts, sight) {
+      const p = enemy.movement;
+      enemy._mState.bobPhase = (enemy._mState.bobPhase || Math.random() * Math.PI * 2) + p.bobSpeed * _ts;
+      if (enemy._mState.baseY === undefined) enemy._mState.baseY = enemy.y;
+
+      if (p.mode === 'approach') {
+        if (sight.inRange) {
+          const dist = Math.max(1, Math.hypot(sight.dx, sight.dy));
+          enemy.vx = (sight.dx / dist) * p.speed;
+          enemy.vy = (sight.dy / dist) * p.speed;
+        } else {
+          enemy.vx *= 0.9; enemy.vy *= 0.9;
+        }
+        enemy.x += enemy.vx * _ts;
+        enemy.y += enemy.vy * _ts;
+      } else if (p.mode === 'maintain_distance') {
+        const dist = Math.abs(sight.dx);
+        if (dist > p.idealDistance + 50) enemy.vx = enemy.facing * p.speed;
+        else if (dist < p.idealDistance - 50) enemy.vx = -enemy.facing * p.speed;
+        else enemy.vx *= 0.5;
+        enemy.x += enemy.vx * _ts;
+        enemy.y = enemy._mState.baseY + Math.sin(enemy._mState.bobPhase) * p.bobAmplitude;
+      } else {
+        enemy.vx = 0;
+        enemy.y = enemy._mState.baseY + Math.sin(enemy._mState.bobPhase) * p.bobAmplitude;
+      }
+      enemy.x = Math.max(bounds.left, Math.min(enemy.x, bounds.right - enemy.width));
+    },
+  },
+
+  // Never moves under its own power — a turret. Still faces the player.
+  stationary: {
+    params: {},
+    run(enemy) { enemy.vx = 0; enemy.vy = 0; },
+  },
+
+  // Blinks near/behind the player, either on a fixed interval or the instant
+  // the player's Phase Dash ends (Echo Stalker style). Doesn't chase on foot.
+  teleport_blink: {
+    params: { mode: 'interval', interval: 120, blinkDistance: 40, cooldown: 45 },
+    run(enemy, player, bounds, _ts, sight) {
+      const p = enemy.movement;
+      enemy.vx = 0; enemy.vy = 0;
+      if (enemy._mState.blinkCooldown > 0) enemy._mState.blinkCooldown -= _ts;
+
+      let shouldBlink = false;
+      if (p.mode === 'interval') {
+        enemy._mState.timer = (enemy._mState.timer || 0) + _ts;
+        if (enemy._mState.timer >= p.interval) { enemy._mState.timer = 0; shouldBlink = true; }
+      } else { // on_player_dash_end
+        const wasDashing = enemy._mState.wasDashing;
+        enemy._mState.wasDashing = player.phaseDashing;
+        if (wasDashing && !player.phaseDashing && !(enemy._mState.blinkCooldown > 0)) shouldBlink = true;
+      }
+
+      if (shouldBlink) {
+        const behindDir = -player.facing;
+        enemy.x = player.x + behindDir * (player.width + p.blinkDistance);
+        enemy.y = player.y;
+        enemy.x = Math.max(bounds.left, Math.min(enemy.x, bounds.right - enemy.width));
+        enemy._mState.blinkCooldown = p.cooldown;
+        enemy._blinkFlash = 15;
+        if (typeof spawnParticlesAt !== 'undefined') spawnParticlesAt(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#a78bfa', 6);
+      }
+      if (enemy._blinkFlash > 0) enemy._blinkFlash -= _ts;
+    },
+  },
+};
+
+// ── Attack behaviors ────────────────────────────────────────────────────────
+// Two shapes:
+//   - PASSIVE (`passive: true`) — `run(enemy, player, bounds, _ts, sight, atkDef)`
+//     called unconditionally every frame, independent of the active-attack
+//     selection below (contact_field, shield_reflect — always-on, never "chosen").
+//   - ACTIVE (default) — owns a shared windup→active→cooldown timeline
+//     driven by ComposedEnemy.update() itself (NOT by the behavior), so
+//     every active attack gets multi-attack selection for free. A behavior
+//     only defines what happens at specific moments:
+//       range        — how close the player must be to be a *candidate* (used by all selection modes)
+//       onFire(enemy, player, atkDef)          — windup just ended, attack begins
+//       onTick(enemy, player, atkDef, _ts)      — called every frame while active (optional)
+//       onEnd(enemy, player, atkDef)             — active phase just ended (optional)
+//       getHitbox(enemy, atkDef)                 — melee-style hitbox while active, or null
+const ATTACK_BEHAVIORS = {
+  melee_swing: {
+    params: { range: 40, windupFrames: 28, activeFrames: 15, cooldown: 90, damage: 1,
+              hitboxWidth: 30, hitboxHeight: 24, knockbackX: 5, knockbackY: -4, knockbackHitStun: 10 },
+    getHitbox(enemy, atkDef) {
+      if (!enemy.attacking) return null;
+      return {
+        x: enemy.facing === 1 ? enemy.x + enemy.width : enemy.x - atkDef.hitboxWidth,
+        y: enemy.y + 4, width: atkDef.hitboxWidth, height: atkDef.hitboxHeight,
+      };
+    },
+  },
+
+  // Grabs the player at close range, roots them (movement zeroed, dragged
+  // alongside the enemy) for `grabDuration` frames dealing `damagePerTick`
+  // every `tickCooldown` frames, then throws them with a large configurable
+  // knockback — the user's explicit "grab and throw into a wall" ask.
+  grab: {
+    params: { range: 36, windupFrames: 24, activeFrames: 40, cooldown: 120,
+              damagePerTick: 1, tickCooldown: 15,
+              throwKnockbackX: 14, throwKnockbackY: -8, throwHitStun: 22 },
+    onFire(enemy, player) { enemy._aRuntime.grabTick = 0; },
+    onTick(enemy, player, atkDef, _ts) {
+      // Drag the player alongside the enemy — a direct position hold is the
+      // same trick AnchorWraith/DeflectorDrone already use for their
+      // player-field interactions, no player.js changes needed.
+      const holdX = enemy.x + enemy.facing * (enemy.width * 0.6);
+      player.x = holdX; player.y = enemy.y;
+      player.vx = 0; player.vy = 0;
+      enemy._aRuntime.grabTick -= _ts;
+      if (enemy._aRuntime.grabTick <= 0 && player.invincibleTimer <= 0) {
+        player.takeDamage(atkDef.damagePerTick, enemy.x);
+        enemy._aRuntime.grabTick = atkDef.tickCooldown;
+      }
+    },
+    onEnd(enemy, player, atkDef) {
+      // The throw — a pure knockback launch, deliberately bypassing
+      // invincibility (it's a release, not a new damage instance).
+      const dir = enemy.facing;
+      player.vx = dir * atkDef.throwKnockbackX;
+      player.vy = atkDef.throwKnockbackY;
+      player.hitStunTimer = atkDef.throwHitStun;
+    },
+    getHitbox() { return null; }, // damage applied directly in onTick, not via the generic hitbox loop
+  },
+
+  // Telegraphed dash-lunge (generalizes Void Lancer's charge into a
+  // configurable behavior). While charging, the enemy's own body becomes
+  // the "hitbox" (via getHitbox returning its bounds) so the generic
+  // enemy-attack-hits-player loop applies this attack's own damage/knockback
+  // instead of the flat default contact damage.
+  dash_charge: {
+    params: { range: 260, windupFrames: 30, activeFrames: 20, cooldown: 130,
+              damage: 2, chargeSpeed: 9, knockbackX: 6, knockbackY: -4, knockbackHitStun: 12 },
+    onFire(enemy, player, atkDef) {
+      enemy.vx = enemy.facing * atkDef.chargeSpeed;
+    },
+    onTick(enemy) { /* velocity already set at onFire; gravity/collision handled by ComposedEnemy's own physics step */ },
+    onEnd(enemy) { enemy.vx = 0; },
+    getHitbox(enemy) {
+      if (!enemy.attacking) return null;
+      return { x: enemy.x, y: enemy.y, width: enemy.width, height: enemy.height };
+    },
+  },
+
+  // Continuous rectangular beam tracking the player's y for `activeFrames`,
+  // ticking damage every `tickCooldown` frames. Size/duration configurable
+  // per the user's "beam attacks and their sizes" ask.
+  beam: {
+    params: { range: 400, windupFrames: 35, activeFrames: 45, cooldown: 150,
+              damage: 1, tickCooldown: 12, beamWidth: 12, tracksPlayer: true },
+    onFire(enemy) { enemy._aRuntime.beamTick = 0; },
+    onTick(enemy, player, atkDef, _ts) {
+      enemy._aRuntime.beamTick -= _ts;
+      const hb = ATTACK_BEHAVIORS.beam.visualRect(enemy, atkDef);
+      if (hb && enemy._aRuntime.beamTick <= 0 && rectsOverlap(hb, player) && player.invincibleTimer <= 0) {
+        player.takeDamage(atkDef.damage, enemy.x);
+        enemy._aRuntime.beamTick = atkDef.tickCooldown;
+      }
+    },
+    // NOT named getHitbox — beam deliberately does NOT participate in
+    // ComposedEnemy.getAttackHitbox() (game.js's generic per-frame
+    // enemy-hits-player check). That check has no cooldown of its own; it
+    // just relies on player invincibility frames, which would fight with
+    // this behavior's own configurable `tickCooldown` for the same hit —
+    // two independent damage timers racing over one overlap. Beam owns its
+    // damage exclusively via onTick above; `visualRect` exists only so
+    // onTick and ComposedEnemy.draw() can share the same rectangle math for
+    // rendering. getHitbox() is a real method (see far below) that returns
+    // null unconditionally for this type, by design.
+    getHitbox() { return null; },
+    visualRect(enemy, atkDef) {
+      if (!enemy.attacking) return null;
+      const y = atkDef.tracksPlayer ? enemy._lastSightY ?? enemy.y : enemy.y;
+      const len = 600;
+      return {
+        x: enemy.facing === 1 ? enemy.x + enemy.width : enemy.x - len,
+        y: y + enemy.height / 2 - atkDef.beamWidth / 2,
+        width: len, height: atkDef.beamWidth,
+      };
+    },
+  },
+
+  // Defensive-only: for `activeFrames`, the enemy is "countering." If the
+  // player's melee hitbox overlaps during that window, game.js's hit loop
+  // (see the isCountering() check added there) negates the player's hit and
+  // lands a counter-hit instead — the user's literal ask.
+  counter_stance: {
+    params: { range: 50, windupFrames: 20, activeFrames: 30, cooldown: 140,
+              counterDamage: 2, counterKnockbackX: 6, counterKnockbackY: -5, counterHitStun: 14 },
+    getHitbox() { return null; }, // never deals damage via the generic hitbox path — only via onCountered
+  },
+
+  ranged_projectile: {
+    // pattern: 'straight' | 'homing' | 'arc' | 'bounce' | 'spread' | 'piercing'
+    params: { range: 350, windupFrames: 35, activeFrames: 20, cooldown: 100, damage: 1,
+              projectileSpeed: 3.5, pattern: 'homing', projectileCount: 3, spreadAngle: 30,
+              maxBounces: 2, color: '#2dd4bf' },
+    onFire(enemy, player, atkDef) { ComposedEnemy.fireProjectiles(enemy, player, atkDef); },
+    getHitbox() { return null; }, // no melee — damage happens via the projectile array
+  },
+
+  // Passive damage aura — no windup/telegraph, ticks damage on a cooldown
+  // whenever the player is within `radius`. Optionally cancels a Phase Dash
+  // the same way Anchor Wraith's field does (`cancelsPhaseDash`).
+  contact_field: {
+    passive: true,
+    params: { radius: 100, damage: 1, tickCooldown: 45, cancelsPhaseDash: false },
+    run(enemy, player, bounds, _ts, sight, atkDef) {
+      if (enemy._aState.tick > 0) enemy._aState.tick -= _ts;
+      const cx = enemy.x + enemy.width / 2, cy = enemy.y + enemy.height / 2;
+      const pcx = player.x + player.width / 2, pcy = player.y + player.height / 2;
+      const dist = Math.hypot(pcx - cx, pcy - cy);
+      if (dist > atkDef.radius) return;
+
+      if (atkDef.cancelsPhaseDash && player.phaseDashing) {
+        player.phaseDashing = false;
+        player.phaseDashTimer = 0;
+        player.vx *= 0.3;
+        player.invincibleTimer = 0;
+        player.takeDamage(atkDef.damage);
+        enemy._aState.tick = atkDef.tickCooldown;
+        return;
+      }
+      if (enemy._aState.tick <= 0 && player.invincibleTimer <= 0) {
+        player.takeDamage(atkDef.damage);
+        enemy._aState.tick = atkDef.tickCooldown;
+      }
+    },
+  },
+
+  // Purely defensive — no attack of its own. A shield always faces the
+  // player; a ranged projectile hitting the shielded side is reflected back
+  // instead of dealing damage (see game.js's projectile/enemy collision
+  // loop's generalized check for `enemy.reflectsProjectiles`).
+  shield_reflect: {
+    passive: true,
+    params: {},
+    run() { /* no-op — the shield direction is just enemy.facing, updated every frame in ComposedEnemy.update() */ },
+  },
+};
+
+// ── Ability-counter effects ─────────────────────────────────────────────────
+// Each `def.counters[]` entry names a player ability + an effect. Checked
+// every frame in ComposedEnemy._checkCounters(), independent of the attack
+// list above — an enemy can have zero attacks and still be a pure counter
+// (e.g. a stationary Null-Field enemy). This is the module that generalizes
+// what used to be one-off per-class code (Null Sentinel/Anchor Wraith's
+// phase-dash cancel, Deflector Drone's reflect, Void Lancer's parry-stun-2x)
+// into something the editor can configure.
+const COUNTER_EFFECTS = {
+  phase_dash: {
+    cancel_and_damage: {
+      params: { radius: 70, damage: 1 },
+      check(enemy, player, c) {
+        if (!player.phaseDashing) return;
+        const cx = enemy.x + enemy.width / 2, cy = enemy.y + enemy.height / 2;
+        const pcx = player.x + player.width / 2, pcy = player.y + player.height / 2;
+        if (Math.hypot(pcx - cx, pcy - cy) > c.radius) return;
+        player.phaseDashing = false;
+        player.phaseDashTimer = 0;
+        player.vx *= 0.3;
+        player.invincibleTimer = 0;
+        player.takeDamage(c.damage);
+      },
+    },
+  },
+  shard_shot: {
+    // 'reflect' doesn't need a per-frame check — it just sets
+    // enemy.reflectsProjectiles = true at construction (see ComposedEnemy
+    // ctor), same flag shield_reflect uses, checked by game.js's projectile
+    // collision loop. Listed here for the editor's dropdown only.
+    reflect: { params: {}, check() {} },
+  },
+  melee_parry: {
+    // 'stun_and_double_damage' also needs no per-frame check — it's read by
+    // ComposedEnemy.takeDamage() at the moment of a hit (this.stunTimer > 0
+    // means a successful parry just landed, per game.js's existing generic
+    // parry-success code which sets stunTimer on ANY enemy).
+    stun_and_double_damage: { params: {}, check() {} },
+  },
+  stillpoint: {
+    cancel: {
+      params: { radius: 90 },
+      check(enemy, player, c) {
+        if (!player.stillpointActive) return;
+        const cx = enemy.x + enemy.width / 2, cy = enemy.y + enemy.height / 2;
+        const pcx = player.x + player.width / 2, pcy = player.y + player.height / 2;
+        if (Math.hypot(pcx - cx, pcy - cy) > c.radius) return;
+        player.stillpointActive = false;
+        if (typeof SFX !== 'undefined' && SFX.stillpointEnd) SFX.stillpointEnd();
+      },
+    },
+  },
+  // graviton_surge: not implemented — the ability itself doesn't exist in
+  // the game yet (story.md/expansion.md, still unbuilt). Listed as a no-op
+  // option in the editor for forward-compat only; do not wire real logic
+  // here until Graviton Surge ships.
+  graviton_surge: { null_field: { params: {}, check() {} } },
+};
+
+// ── On-death effects ─────────────────────────────────────────────────────────
+const ON_DEATH_EFFECTS = {
+  none: { params: {}, apply() {} },
+  // NOTE: the actual player-damage check for this effect lives in
+  // ComposedEnemy.update()'s dead-branch, not here — takeDamage() (where
+  // `apply()` is called from) only receives a bare sourceX number, not the
+  // real player object with a position/invincibility state to check against.
+  explode: {
+    params: { radius: 90, damage: 2 },
+    apply(enemy, d) {
+      spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color, 20);
+      if (typeof screenShake !== 'undefined') { screenShake = Math.max(screenShake, 10); screenShakeIntensity = Math.max(screenShakeIntensity, 5); }
+    },
+  },
+  spawn_projectiles: {
+    params: { count: 6, projectileSpeed: 3, damage: 1, color: '#f87171' },
+    apply(enemy, d) {
+      const cx = enemy.x + enemy.width / 2, cy = enemy.y + enemy.height / 2;
+      for (let i = 0; i < d.count; i++) {
+        const angle = (i / d.count) * Math.PI * 2;
+        ComposedEnemy.projectiles.push({
+          x: cx - 6, y: cy - 6, width: 12, height: 12,
+          vx: Math.cos(angle) * d.projectileSpeed, vy: Math.sin(angle) * d.projectileSpeed,
+          speed: d.projectileSpeed, homingStrength: 0,
+          damage: d.damage, life: 90, alive: true, color: d.color,
+        });
+      }
+    },
+  },
+  split: {
+    params: { count: 2, healthFrac: 0.5, spread: 40 },
+    apply(enemy, d, bounds) {
+      const area = getCurrentArea();
+      const enemies = (typeof areaEnemies !== 'undefined' && area) ? areaEnemies[area.id] : null;
+      if (!enemies) return;
+      for (let i = 0; i < d.count; i++) {
+        const childDef = JSON.parse(JSON.stringify(enemy.def));
+        childDef.onDeath = { type: 'none' }; // splits don't chain-split forever
+        childDef.stats = { ...childDef.stats, health: Math.max(1, Math.round(enemy.maxHealth * d.healthFrac)) };
+        const child = new ComposedEnemy(enemy.x + (i === 0 ? -d.spread : d.spread), enemy.y, childDef);
+        enemies.push(child);
+      }
+    },
+  },
+};
+
+class ComposedEnemy extends Enemy {
+  constructor(x, y, def) {
+    super(x, y, def.id || 'composed');
+    this.def = def;
+    this.maxHealth = def.stats?.health ?? 4;
+    this.health = this.maxHealth;
+    this.patrolRange = def.stats?.patrolRange ?? 120;
+    this.patrolCenter = x;
+    this.verticalBand = def.stats?.verticalBand ?? null;
+    this.ignoreVertical = !!def.stats?.ignoreVertical;
+    this.knockbackResistance = Math.max(0, Math.min(1, def.stats?.knockbackResistance ?? 0));
+    this.stunResistance = Math.max(0, Math.min(1, def.stats?.stunResistance ?? 0));
+    this.color = def.color || '#f87171';
+
+    this.movement = { ...MOVEMENT_BEHAVIORS[def.movement?.type]?.params, ...def.movement }; // per-instance clone — safe for rage to mutate
+    this._movementFlies = def.movement?.type === 'hover' || def.movement?.type === 'teleport_blink';
+    this._mState = {};
+
+    // Backward compat: old single `def.attack` becomes a 1-entry list.
+    const attacksInput = def.attacks || (def.attack ? [def.attack] : [{ type: 'melee_swing' }]);
+    this.attacks = attacksInput.map((a) => ({ ...ATTACK_BEHAVIORS[a.type]?.params, weight: 1, minRange: 0, ...a }));
+    this.attackSelection = def.attackSelection || 'weighted';
+    this._activeIdxList = []; this._passiveIdxList = [];
+    this.attacks.forEach((a, i) => { (ATTACK_BEHAVIORS[a.type]?.passive ? this._passiveIdxList : this._activeIdxList).push(i); });
+    this._attackCooldowns = this.attacks.map(() => 0);
+    this._activeAttack = null;
+    this._comboIndex = 0;
+    this._aState = {};    // shared scratch for passive behaviors
+    this._aRuntime = {};  // shared scratch for the currently-active attack (onFire/onTick/onEnd)
+
+    this.counters = def.counters || [];
+    this.reflectsProjectiles = this.attacks.some((a) => a.type === 'shield_reflect')
+      || this.counters.some((c) => c.ability === 'shard_shot' && c.effect === 'reflect');
+
+    this.onDeathDef = { type: 'none', ...ON_DEATH_EFFECTS[def.onDeath?.type]?.params, ...def.onDeath };
+    this.rageDef = def.rage || null;
+    this._raged = false;
+
+    this._blinkFlash = 0;
+    this._lastSightY = y;
+  }
+
+  // Same "is a ranged shot approaching from my currently-shielded side"
+  // check DeflectorDrone already has — needed here too for shield_reflect.
+  shieldFacesPoint(px) {
+    return (px < this.x + this.width / 2) === (this.facing === -1);
+  }
+
+  // counter_stance (attack module) integration point — game.js's melee-hit
+  // loop calls this before applying player-attack-hits-enemy damage.
+  isCountering() {
+    if (this._activeAttack === null || !this.attacking) return false;
+    return this.attacks[this._activeAttack].type === 'counter_stance';
+  }
+  onCountered(player) {
+    const atkDef = this.attacks[this._activeAttack];
+    player.takeDamage(atkDef.counterDamage, this.x, {
+      vx: atkDef.counterKnockbackX, vy: atkDef.counterKnockbackY, hitStun: atkDef.counterHitStun,
+    });
+    this.flashTimer = 10;
+    if (typeof spawnParticles !== 'undefined') spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 8);
+  }
+
+  // Overrides Enemy.takeDamage to add: melee_parry stun-and-double-damage
+  // counter, knockback/stun resistance stats, and the on-death effect hook.
+  takeDamage(dmg, sourceX, attackDir = 'forward') {
+    const parryCounter = this.counters.find((c) => c.ability === 'melee_parry' && c.effect === 'stun_and_double_damage');
+    const wasStunned = parryCounter && this.stunTimer > 0;
+    const finalDmg = wasStunned ? dmg * 2 : dmg;
+
+    this.health -= finalDmg;
+    this.flashTimer = 0;
+    this.windingUp = false; this.windUpTimer = 0;
+    this.stunTimer = 0;
+    this.hitStun = Math.round(14 * (1 - this.stunResistance));
+
+    if (sourceX !== undefined) {
+      const dir = (this.x > sourceX ? 1 : -1);
+      const kb = 1 - this.knockbackResistance;
+      if (attackDir === 'up') { this.vx = dir * 3 * kb; this.vy = -12 * kb; this.juggling = true; }
+      else if (attackDir === 'down') { this.vx = dir * 6 * kb; this.vy = 8 * kb; }
+      else { this.vx = dir * 5 * kb; this.vy = -4 * kb; if (!this.grounded) this.juggling = true; }
+    }
+    if (this.health <= 0 && !this.dead) {
+      this.health = 0; this.dead = true;
+      const effect = ON_DEATH_EFFECTS[this.onDeathDef.type];
+      if (effect) effect.apply(this, this.onDeathDef);
+    }
+  }
+
+  _decideActiveAttack(player, sight) {
+    if (!this._activeIdxList.length) return null;
+    const dist = Math.abs(sight.dx);
+    const ready = this._activeIdxList.filter((i) => {
+      if (this._attackCooldowns[i] > 0) return false;
+      if (!sight.verticalOk) return false;
+      const a = this.attacks[i];
+      return dist >= (a.minRange || 0) && dist <= (a.range ?? Infinity);
+    });
+    if (!ready.length) return null;
+
+    if (this.attackSelection === 'combo') {
+      for (let step = 0; step < this._activeIdxList.length; step++) {
+        const idx = this._activeIdxList[(this._comboIndex + step) % this._activeIdxList.length];
+        if (ready.includes(idx)) { this._comboIndex = (this._activeIdxList.indexOf(idx) + 1) % this._activeIdxList.length; return idx; }
+      }
+      return null;
+    }
+    // 'weighted' and 'range' both end in a weighted pick among the eligible
+    // set — 'range' just means the range window above already did the real
+    // work of narrowing which attacks are eligible in the first place.
+    const total = ready.reduce((s, i) => s + (this.attacks[i].weight || 1), 0);
+    let r = Math.random() * total;
+    for (const i of ready) { r -= (this.attacks[i].weight || 1); if (r <= 0) return i; }
+    return ready[ready.length - 1];
+  }
+
+  _checkCounters(player) {
+    for (const c of this.counters) {
+      const eff = COUNTER_EFFECTS[c.ability]?.[c.effect];
+      if (eff) eff.check(this, player, { ...eff.params, ...c });
+    }
+  }
+
+  update(player, bounds, echoes) {
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    if (this.dead) {
+      // explode's actual player-damage check — done here (not in takeDamage's
+      // apply() above) because this is the only place with a real `player`
+      // reference to check distance/invincibility against. Only on the exact
+      // first dead frame, so it can't repeat-hit while the death fades out.
+      if (this.deathTimer === 0 && this.onDeathDef.type === 'explode') {
+        const cx = this.x + this.width / 2, cy = this.y + this.height / 2;
+        const pcx = player.x + player.width / 2, pcy = player.y + player.height / 2;
+        if (Math.hypot(pcx - cx, pcy - cy) <= this.onDeathDef.radius && player.invincibleTimer <= 0) {
+          player.takeDamage(this.onDeathDef.damage, this.x);
+        }
+      }
+      this.deathTimer++;
+      return;
+    }
+
+    // Echo distraction — identical convention to every other enemy class.
+    if (this.distractionTimer > 0) {
+      this.distractionTimer -= _ts;
+      if (this.distractionTimer <= 0) this.distractionTarget = null;
+      this.flashTimer++;
+      return;
+    }
+    let nearestEcho = null, nearestDist = ECHO_DISTRACT_RADIUS;
+    for (const echo of echoes) {
+      if (!echo.alive) continue;
+      const d = Math.abs((this.x + this.width / 2) - (echo.x + echo.width / 2));
+      if (d < nearestDist) { nearestDist = d; nearestEcho = echo; }
+    }
+    if (nearestEcho) { this.distractionTarget = nearestEcho; this.distractionTimer = ECHO_DISTRACT_DURATION; return; }
+
+    // Hit stun — same physics-during-stun pattern as the base Enemy class.
+    if (this.hitStun > 0) {
+      this.hitStun--;
+      if (!this._movementFlies) {
+        this.grounded = false;
+        this.vy += GRAVITY * _ts;
+      }
+      this.x += this.vx * _ts;
+      this.y += this.vy * _ts;
+      if (!this._movementFlies && this.y + this.height > bounds.groundY) {
+        this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
+      }
+      if (this.x < bounds.left) this.x = bounds.left;
+      if (this.x + this.width > bounds.right) this.x = bounds.right - this.width;
+      this.flashTimer = Math.max(-1, this.flashTimer - 1);
+      return;
+    }
+
+    const sight = this.canSeePlayer(player);
+    this._lastSightY = player.y;
+    if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE && !this.windingUp) {
+      this.facing = sight.dx > 0 ? 1 : -1;
+    }
+
+    // Rage — one-way threshold trigger, mutates the per-instance movement/
+    // attack clones directly (never the shared def object).
+    if (this.rageDef && !this._raged && this.health <= this.maxHealth * (this.rageDef.thresholdFrac ?? 0.3)) {
+      this._raged = true;
+      if (this.movement.speed !== undefined) this.movement.speed *= (this.rageDef.speedMult ?? 1);
+      if (this.movement.patrolSpeed !== undefined) this.movement.patrolSpeed *= (this.rageDef.speedMult ?? 1);
+      for (const a of this.attacks) {
+        if (a.cooldown !== undefined) a.cooldown = Math.max(5, a.cooldown * (this.rageDef.cooldownMult ?? 1));
+        if (a.damage !== undefined) a.damage *= (this.rageDef.damageMult ?? 1);
+        if (a.damagePerTick !== undefined) a.damagePerTick *= (this.rageDef.damageMult ?? 1);
+      }
+      if (typeof spawnParticles !== 'undefined') spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#f87171', 14);
+    }
+
+    this._checkCounters(player);
+
+    // Passive attacks (contact_field, shield_reflect) run unconditionally.
+    for (const i of this._passiveIdxList) {
+      ATTACK_BEHAVIORS[this.attacks[i].type].run(this, player, bounds, _ts, sight, this.attacks[i]);
+    }
+
+    // Active-attack selection state machine.
+    if (this._activeAttack === null) {
+      const idx = this._decideActiveAttack(player, sight);
+      if (idx !== null) {
+        this._activeAttack = idx;
+        this.windingUp = true;
+        this.windUpTimer = this.attacks[idx].windupFrames ?? 20;
+        this.vx = 0;
+      }
+    }
+    if (this._activeAttack !== null) {
+      const idx = this._activeAttack;
+      const atkDef = this.attacks[idx];
+      const behavior = ATTACK_BEHAVIORS[atkDef.type];
+      if (this.windingUp) {
+        this.windUpTimer -= _ts;
+        this.vx = 0; // stationary during windup for every attack type, including dash_charge — it only bursts once onFire() sets vx
+        if (this.windUpTimer <= 0) {
+          this.windingUp = false;
+          this.attacking = true;
+          this.attackTimer = atkDef.activeFrames ?? 20;
+          behavior.onFire?.(this, player, atkDef);
+        }
+      } else if (this.attacking) {
+        behavior.onTick?.(this, player, atkDef, _ts);
+        this.attackTimer -= _ts;
+        if (this.attackTimer <= 0) {
+          this.attacking = false;
+          behavior.onEnd?.(this, player, atkDef);
+          this._attackCooldowns[idx] = atkDef.cooldown ?? 60;
+          this._activeAttack = null;
+        }
+      }
+    }
+    for (let i = 0; i < this._attackCooldowns.length; i++) if (this._attackCooldowns[i] > 0) this._attackCooldowns[i] -= _ts;
+
+    // Movement only runs when no active attack is winding up/firing.
+    if (this._activeAttack === null) {
+      MOVEMENT_BEHAVIORS[this.def.movement?.type]?.run(this, player, bounds, _ts, sight)
+        ?? MOVEMENT_BEHAVIORS.ground_chase.run(this, player, bounds, _ts, sight);
+    }
+
+    // Physics — grounded enemies use the same gravity/platform-collision
+    // pattern as the base Enemy class; flying ones (hover/teleport_blink)
+    // opt out entirely, since their behavior already sets this.y directly.
+    if (!this._movementFlies) {
+      // Zero horizontal velocity when airborne — except mid-attack (dash_charge
+      // needs to keep its burst velocity even if it runs off a ledge while charging).
+      if (!this.grounded && !this.juggling && this._activeAttack === null) this.vx = 0;
+      this.grounded = false;
+      this.vy += GRAVITY * _ts;
+      this.x += this.vx * _ts;
+      this.y += this.vy * _ts;
+
+      if (this.y + this.height > bounds.groundY) {
+        this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
+        this.juggling = false;
+      }
+      const area = getCurrentArea();
+      if (area) {
+        for (const plat of area.platforms) {
+          if (plat.destructible && plat.hp <= 0) continue;
+          if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
+            if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
+              this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
+              this.juggling = false;
+            }
+          }
+        }
+      }
+      if (this.x < bounds.left) { this.x = bounds.left; if (this._activeAttack !== null) this.vx = 0; }
+      if (this.x + this.width > bounds.right) { this.x = bounds.right - this.width; if (this._activeAttack !== null) this.vx = 0; }
+    }
+
+    this.flashTimer++;
+  }
+
+  getAttackHitbox() {
+    if (this._activeAttack === null) return null;
+    const atkDef = this.attacks[this._activeAttack];
+    return ATTACK_BEHAVIORS[atkDef.type].getHitbox(this, atkDef);
+  }
+
+  // Custom knockback for whichever attack is currently active — read by
+  // game.js's generic enemy-attack-hits-player loop instead of the flat
+  // ENEMY_DAMAGE/default-knockback every other enemy uses.
+  getAttackDamageAndKnockback() {
+    if (this._activeAttack === null) return null;
+    const a = this.attacks[this._activeAttack];
+    return {
+      damage: a.damage ?? 1,
+      knockback: { vx: a.knockbackX ?? 4, vy: a.knockbackY ?? -3, hitStun: a.knockbackHitStun ?? 10 },
+    };
+  }
+
+  static fireProjectiles(enemy, player, atkDef) {
+    if (!ComposedEnemy.projectiles) ComposedEnemy.projectiles = [];
+    const startX = enemy.x + enemy.width / 2, startY = enemy.y + enemy.height / 2;
+    const targetX = player.x + player.width / 2, targetY = player.y + player.height / 2;
+    const baseAngle = Math.atan2(targetY - startY, targetX - startX);
+
+    const makeShot = (angle) => {
+      const proj = {
+        x: startX - 6, y: startY - 6, width: 12, height: 12,
+        vx: Math.cos(angle) * atkDef.projectileSpeed, vy: Math.sin(angle) * atkDef.projectileSpeed,
+        targetX, targetY, speed: atkDef.projectileSpeed,
+        homingStrength: atkDef.pattern === 'homing' ? 0.03 : 0,
+        gravity: atkDef.pattern === 'arc',
+        bounces: atkDef.pattern === 'bounce' ? atkDef.maxBounces : 0,
+        piercing: atkDef.pattern === 'piercing',
+        damage: atkDef.damage, life: 120, alive: true, color: atkDef.color,
+      };
+      ComposedEnemy.projectiles.push(proj);
+    };
+
+    if (atkDef.pattern === 'spread') {
+      const n = Math.max(1, atkDef.projectileCount);
+      const spreadRad = (atkDef.spreadAngle * Math.PI) / 180;
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0 : i / (n - 1) - 0.5;
+        makeShot(baseAngle + t * spreadRad);
+      }
+    } else {
+      makeShot(baseAngle);
+    }
+    if (typeof SFX !== 'undefined' && SFX.shardShot) SFX.shardShot();
+  }
+
+  static updateProjectiles(player) {
+    if (!ComposedEnemy.projectiles) return;
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    const area = getCurrentArea();
+    for (const proj of ComposedEnemy.projectiles) {
+      if (!proj.alive) continue;
+      if (proj.homingStrength > 0) {
+        const dx = proj.targetX - (proj.x + proj.width / 2);
+        const dy = proj.targetY - (proj.y + proj.height / 2);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 1) {
+          proj.vx += (dx / dist) * proj.homingStrength * _ts;
+          proj.vy += (dy / dist) * proj.homingStrength * _ts;
+          const speed = Math.sqrt(proj.vx * proj.vx + proj.vy * proj.vy);
+          if (speed > proj.speed) { proj.vx = (proj.vx / speed) * proj.speed; proj.vy = (proj.vy / speed) * proj.speed; }
+        }
+      }
+      if (proj.gravity) proj.vy += 0.15 * _ts;
+      proj.x += proj.vx * _ts;
+      proj.y += proj.vy * _ts;
+      proj.life -= _ts;
+      if (proj.life <= 0) proj.alive = false;
+
+      // Bounce off platforms instead of just dying on wall contact.
+      if (proj.alive && proj.bounces > 0 && area) {
+        for (const plat of area.platforms) {
+          if (plat.destructible && plat.hp <= 0) continue;
+          if (rectsOverlap(proj, { x: plat.x, y: plat.y, width: plat.w, height: plat.h })) {
+            proj.vy *= -0.8; proj.vx *= 0.9;
+            proj.bounces--;
+            break;
+          }
+        }
+      }
+
+      if (proj.alive && rectsOverlap(proj, player) && player.invincibleTimer <= 0) {
+        player.takeDamage(proj.damage);
+        if (!proj.piercing) proj.alive = false;
+      }
+    }
+    ComposedEnemy.projectiles = ComposedEnemy.projectiles.filter((p) => p.alive);
+  }
+
+  static drawProjectiles(ctx) {
+    if (!ComposedEnemy.projectiles) return;
+    for (const p of ComposedEnemy.projectiles) {
+      ctx.globalAlpha = p.life / 120;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 10;
+      ctx.fillRect(p.x, p.y, p.width, p.height);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  draw(ctx) {
+    if (this.dead) ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 20);
+
+    if (this.reflectsProjectiles) {
+      const shieldX = this.facing === -1 ? this.x - 3 : this.x + this.width - 3;
+      ctx.fillStyle = 'rgba(103, 232, 249, 0.7)';
+      ctx.fillRect(shieldX, this.y - 2, 6, this.height + 4);
+    }
+
+    if (this._blinkFlash > 0 && Math.floor(this._blinkFlash) % 4 < 2) { ctx.globalAlpha = 1; return; }
+
+    const countering = this.isCountering();
+    ctx.fillStyle = this.flashTimer < 6 ? '#ffffff' : (countering ? '#60a5fa' : (this.windingUp ? '#fbbf24' : this.color));
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillStyle = '#0a0a0f';
+    const eyeX = this.facing === 1 ? this.x + 18 : this.x + 4;
+    ctx.fillRect(eyeX, this.y + 8, 8, 6);
+
+    // Passive contact_field radius, drawn faint.
+    for (const i of this._passiveIdxList) {
+      if (this.attacks[i].type === 'contact_field') {
+        ctx.strokeStyle = 'rgba(248, 113, 113, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.attacks[i].radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    if (this.windingUp) {
+      const wf = this.attacks[this._activeAttack]?.windupFrames || ENEMY_WINDUP_FRAMES;
+      const progress = 1 - this.windUpTimer / wf;
+      ctx.strokeStyle = `rgba(255, 120, 40, ${0.3 + progress * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 8 + progress * 20, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', this.x + this.width / 2, this.y - 6);
+      ctx.textAlign = 'left';
+    }
+
+    const hitbox = this.getAttackHitbox();
+    if (this.attacking && hitbox) {
+      ctx.strokeStyle = countering ? 'rgba(96, 165, 250, 0.6)' : 'rgba(255, 200, 100, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(hitbox.x, hitbox.y, hitbox.width, hitbox.height);
+      ctx.lineWidth = 1;
+    }
+
+    // beam doesn't use getAttackHitbox() (see ATTACK_BEHAVIORS.beam's note
+    // on why) — draw its visual rectangle separately via visualRect.
+    if (this.attacking && this._activeAttack !== null && this.attacks[this._activeAttack].type === 'beam') {
+      const beamRect = ATTACK_BEHAVIORS.beam.visualRect(this, this.attacks[this._activeAttack]);
+      if (beamRect) {
+        ctx.fillStyle = 'rgba(103, 232, 249, 0.35)';
+        ctx.fillRect(beamRect.x, beamRect.y, beamRect.width, beamRect.height);
+        ctx.strokeStyle = 'rgba(224, 250, 255, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(beamRect.x, beamRect.y, beamRect.width, beamRect.height);
+      }
+    }
+
+    ctx.globalAlpha = 1;
+  }
+}
+ComposedEnemy.projectiles = [];
+
 // Single source of truth for `area.enemies[].type` strings backed by a real
 // class (mirrors the branches in game.js spawnAreaEnemies). Tools that need
 // the full roster (e.g. the level editor's enemy dropdown) read this instead
 // of hardcoding the list, so a newly added enemy class shows up automatically
 // as soon as it's registered here — one line, not two places to update.
+// NOTE: 'composed' is listed for discoverability only — unlike every other
+// entry, ComposedEnemy's constructor takes a required 3rd argument (`def`),
+// so it's never auto-constructed via `new ENEMY_REGISTRY[type](x, y)` the
+// way the rest of the roster is. See game.js's spawnAreaEnemies() for the
+// special-cased 'composed' branch that actually instantiates it.
 const ENEMY_REGISTRY = {
   fractured: Enemy,
   stutterer: Stutterer,
@@ -2195,5 +3085,6 @@ const ENEMY_REGISTRY = {
   mirror_sprite: MirrorSprite,
   echo_stalker: EchoStalker,
   blitz_guard: BlitzGuard,
+  composed: ComposedEnemy,
 };
 if (typeof window !== 'undefined') window.ENEMY_REGISTRY = ENEMY_REGISTRY;

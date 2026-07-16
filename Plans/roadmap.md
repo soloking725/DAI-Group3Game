@@ -34,6 +34,30 @@ DESIGN DECISIONS FROM THE USER (apply to all future phases):
   lore OFF pending redesign, no lock-and-key gating) — that file is the
   single source of truth for these; not re-listed here to avoid drift.
 
+DESIGN NOTE (added 2026-07-15) — the game is a loop, the Sovereign should
+always be stronger than the player:
+  The Sovereign fused every other Stillpoint into herself, so structurally
+  she should never feel like a fair fight in raw power — the player wins
+  through the same toolkit-mastery loop the whole game teaches (dash,
+  Phase Dash, Stillpoint, melee timing), not by out-scaling her stats.
+  Two concrete implications for future boss/final-fight work:
+    - The Sovereign's kit should echo the player's own abilities back at
+      them (a "you vs. a stronger you" fight) rather than being a wholly
+      unrelated moveset — e.g. her own Stillpoint-adjacent time tricks,
+      dash-like gap closers, phase-adjacent teleports. Loosely similar
+      to how `expansion.md`'s Mirror King (4.2) already copies player
+      movement/reflects damage — that fight's pattern is a reasonable
+      template for the Sovereign herself, not just a one-off miniboss gimmick.
+    - "Stronger than you" should read as raw power/scale (more HP, harder
+      hits, bigger AoE), not as a wider ability kit than the player has —
+      the player should never need an ability they don't have to answer
+      her (see the Charged Attack/Graviton Surge removal from The Rift's
+      entry requirements, 2026-07-15 — same philosophy: minimize hard
+      ability gates on critical-path content, keep difficulty as a skill
+      check instead of a checklist).
+  Not yet built or scoped into a phase — flagging here so it's on record
+  before the actual final-boss (`boss.js`'s King/Sovereign) rework starts.
+
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 0 — Core UX & Quality of Life
 ─────────────────────────────────────────────────────────────────────────────
@@ -1622,3 +1646,149 @@ was never meant to be landed on."
     Re-ran `validateAllRoomLayouts()`/`validateAreaGraph()` — still 27/0
     graph errors, 26/0 layout failures (no existing room uses `ceiling`
     yet, purely additive).
+
+PHASE 15 — Phase Dash broken by the composable enemy system (2026-07-15)
+─────────────────────────────────────────────────────────────────────────────
+User report: Phase Dash stopped letting the player pass through enemies to
+appear on the other side, since the new `ComposedEnemy` system (see
+`Plans/enemy_system_plan.md`) landed. Root cause was in `game.js`'s
+per-enemy collision loop, not in `enemy.js`/`ability.js`:
+
+[x] `separateFromEnemy(player, enemy)` (physically pushes the player out of
+    an overlapping enemy) was called unconditionally on every overlapping
+    frame, with no Phase Dash exemption. During a dash, this fought the
+    dash's own velocity every frame and just shoved the player back out
+    the way they came instead of letting them through — so the player was
+    invincible during Phase Dash but still physically blocked by enemies,
+    which read as "Phase Dash doesn't work anymore." Fixed by skipping the
+    separation call while `player.phaseDashing` is true (still runs
+    normally otherwise, so enemies remain solid outside of a dash).
+[x] Separately, the "enemy attack hits player" block (the `enemyAtk`
+    hitbox check, just above the body-contact block) had no
+    `player.invincibleTimer <= 0 && !player.phaseDashing` gate at all —
+    every other player-damage check in this file (boss body/projectiles,
+    miniboss, the enemy body-contact block right below it) has this gate,
+    this one just didn't. Meant an enemy's attack hitbox (as opposed to
+    its body) could still land during a Phase Dash. Added the same gate
+    used everywhere else for consistency.
+    Not yet verified in-browser (see `CLAUDE.md`'s hard rule) — user to
+    confirm Phase Dash passes through enemies cleanly again.
+
+PHASE 16 — Ability leveling system (Lv0-4) + enemy_test.html tuning panel (2026-07-16)
+─────────────────────────────────────────────────────────────────────────────
+Implemented the full leveling design from `Plans/Enemy_Design.pdf`: all 6
+abilities (Strength, Phase Dash, Shard Shot, Stillpoint, Graviton Surge,
+Void Tether) now have real Lv0-3 numeric scaling plus a shared Lv4 "Limit
+Break" Enhanced State. Graviton Surge and Void Tether did not exist in code
+before this session (see `CLAUDE.md`'s "not yet built" note, now stale) —
+both are built from scratch here, base ability + all levels.
+
+[x] Lore-pip cost curve: Lv1/2/3 = 2/3/4 pips per ability (`INVENTORY_UPGRADES`
+    in game.js, `costs: [2,3,4]`), matching the user's spec against the
+    corrected 18-pip total (see the Rift fix below). `tryUpgrade()`/
+    `totalPipsSpent()` reworked for per-level costs instead of a flat cost.
+[x] Lv4 (Limit Break) is NOT lore-pip-purchasable — it's the one-time
+    endgame-region unlock per the doc's Rule 0 (`grantLimitBreak()` in
+    game.js, not yet wired to any room since that endgame region isn't
+    built — see `floor_plan.md`'s Sovereign Room nodes). enemy_test.html
+    bypasses this entirely for testing (see below).
+[x] Strength: attack speed +15% Lv1 (18f->15f cooldown), damage +20%/+45%
+    Lv2/3, incoming knockback -30% Lv3. Lv4: full-charge-Z release
+    activates a 6s Enhanced State (+25% atk speed, +50% dmg, zero
+    knockback, hazard immunity) — matches the doc's "Full Hold activates
+    Limit Break on release" rule exactly. Not implemented: the Lv4 3-hit
+    combo and wall-bounce bonus damage (flagged as follow-up, not blocking).
+[x] Phase Dash: 8-directional dash/Phase Dash at Lv1+ (`getDashDirection()`
+    reads aimUp/aimDown + moveLeft/moveRight at cast time, falls back to the
+    old facing-only horizontal dash below Lv1 or with no directional input
+    held — applies to both the regular Dash and Phase Dash, per the doc).
+    Echo stun duration +30% at Lv2 (`ECHO_DISTRACT_DURATION` is now a `let`
+    recomputed every frame off the ability level, ability.js). Lv3: the
+    active echo counter-attacks once (50% player damage, AoE at its
+    position) the moment the player swings, then fades — new
+    `player.echoAttackPending` flag set at all 3 swing-start sites,
+    consumed in game.js.
+[x] Shard Shot: damage +25% Lv1 (`shardShotDamage()`), fires a 2nd shard
+    with a spread at Lv2 (`useShardShot()` now returns an array). Lv3 Beam:
+    holding past 1s (`BEAM_CHARGE_TIME`) with 1 Fracture Pip available fires
+    a piercing beam instead of the normal aimed shot (`useShardBeam()`);
+    added real multi-hit-pierce support to the projectile-vs-enemy loop
+    (per-projectile `hitEnemies` Set, mirrors the melee per-swing dedup
+    pattern) since it didn't exist before. Found in passing but NOT fixed
+    (out of scope, pre-existing): Shard Shot's cooldown is never actually
+    set after firing (`abilityState.shardShotCooldown` has a decrement and
+    a UI-ring read, but nothing ever assigns it `SHARD_SHOT_COOLDOWN`) —
+    worth a follow-up session.
+[x] Stillpoint: rebuilt the activation model from an indefinite
+    toggle-drains-a-pip-per-60-frames mechanic into the doc's tap (1 Pip,
+    short fixed duration)/hold (3 Pips, long fixed duration) model — a real,
+    deliberate mechanic change, not just a numbers tweak (`player.js`'s
+    stillpoint block). Lv1 duration +25%, Lv2 lifesteal cap 2 HP, Lv3 slow
+    90%/cap 3 HP (`stillpointLifestealCap()`, game.js). Lv4: 2s full freeze
+    + 4s at 90% slow, cap 4 HP. Also fixed a real Global Rule gap: nothing
+    previously stopped Fracture Pip gain during Stillpoint or Limit Break
+    ("prevents infinite chaining") — `Player.gainFracture()` now gates on
+    both.
+[x] Graviton Surge — built from scratch (base + Lv0-4). Flip is
+    player-only gravity inversion (not room-wide — see follow-up note
+    below), 3s/4s duration Lv0/1, 1 dmg on landing after a flip at Lv1+
+    (`gravitonSlammed` one-shot-per-flip flag on each enemy). Lv2+: holding
+    the button raises a Gravity Ball that pulls nearby enemies each frame;
+    releasing at Lv3+ detonates it (4 dmg/300% knockback, 6 dmg/faster pull
+    at Lv4 Limit Break, which also grants true flight — zero gravity, not
+    just flipped).
+[x] Void Tether — built from scratch (base + Lv0-4). Tap targets the
+    nearest enemy in range and reels it toward the player (game.js, since
+    it needs the enemy list); Lv1 +30% range, Lv2 electrified (+1 dmg/15f
+    stun on arrival), Lv3 +50% pull speed + arcs a stun to one nearby
+    enemy, Lv4 0-pip/1.5s-cooldown cast + a 3s/2dps burning DoT (new
+    `enemy.burning` tick handler in the main enemy-update loop).
+[x] Limit Break (Lv4) shared framework: flat blue aura on the player
+    (per direct instruction — no bespoke per-ability VFX yet), a HUD
+    countdown bar (`drawLimitBreakBar()`), zero knockback
+    (`Player.takeDamage()`) and pit-hazard immunity (`pitDeath` check),
+    both gated on `limitBreak.active` rather than per-ability.
+[~] Follow-ups not done this session (flagging, not blocking): Strength
+    Lv4's exact 3-hit-combo/wall-bounce mechanic; a real input for
+    non-Strength abilities' Lv4 activation in actual play (only Strength's
+    full-charge trigger is wired — the other 5 have no in-game way to
+    *start* their Limit Break yet, only enemy_test.html's force-toggle);
+    the 3 combo inputs from the design doc (Tether Slam, Dash-Cancel
+    Overhead, Gravity Spike) — none implemented yet; Graviton Surge's
+    gravity flip is player-only, not room-wide (enemies don't fall
+    upward themselves, only get slam-damaged when the player's own flip
+    ends near them at ground contact) — revisit if it doesn't read right
+    in a playtest; the pre-existing Shard Shot cooldown bug noted above.
+[x] enemy_test.html: replaced the single ability-preset dropdown with a
+    per-ability checkbox + Lv0-4 select (Lv4 forces that ability's Limit
+    Break active for testing, bypassing the real cost/one-per-playthrough
+    rule), plus Fracture Pip cap/current and Lore Pip inputs, all writing
+    directly into the real `abilityState`/`statUpgrades`/`limitBreak`/
+    `player` globals (no mock layer). Live-applies on any control change,
+    plus an explicit "Apply Loadout" button — no respawn required to
+    retune mid-test. Live Stats panel now also shows Fracture/Lore Pip
+    counts and an active Limit Break countdown.
+[x] Design decisions locked in from this session (see chat, not re-litigated
+    here): loadout stays the full 8-button kit (Z/X/C/F/V/Q/E/R) rather
+    than a reduced 3-ability swappable loadout — core kit (jump/attack/
+    dash/phase dash) is only 4 buttons since movement is on the arrow keys,
+    and Phase Dash is core-not-optional while Void Tether is the one
+    genuinely optional ability, so trimming to 3 active loadout slots
+    would have punished Void Tether choosers for no real gain (per
+    `input.js`'s existing E/R bindings for Graviton Surge/Void Tether,
+    already conflict-free against arrow-key movement).
+[x] Rift fix applied everywhere: `floor_plan.md`/`floor_plan_mermaid.txt`
+    node label now shows `(1 lore pip)` on The Rift, matching a new real
+    `loreFragments` entry (`lore_tr2`) added to `area.js`'s `the_rift` room.
+    Total lore pips 17 -> 18, confirmed via `analyze_floor_plan.js`;
+    regenerated `floor_plan_report.html`/`floor_plan_simulation.html`.
+[x] Memory Resonance (one-time full lore-pip reallocation) placed at The
+    Vault's exit-side anchor (`area.js`, `memoryResonance: true` flag on
+    that anchor entry) — chosen because every playthrough already passes
+    through it late (just before The Rift), and it sits outside every
+    choice-locked branch. UI/interaction for the actual respec flow is not
+    built yet, just the placement decision + a marker for a future session
+    to hang the UI off of.
+Not yet verified in-browser (see `CLAUDE.md`'s hard rule) — needs a human
+playtest, especially Stillpoint's activation-model change (a real feel
+change, not just numbers) and the two brand-new abilities.

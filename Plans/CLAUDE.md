@@ -4,6 +4,22 @@ Context file for Claude (or Claude Code) working in this repo. Read this
 before making changes — it points to the fuller docs and encodes decisions
 that aren't obvious from the code alone.
 
+## ⛔ HARD RULE — NEVER test in a browser yourself
+
+**Do not open a browser, start a preview server, or use any browser/preview
+tool (Claude_Browser, javascript_tool, computer, etc.) on this repo, for any
+reason, including "just verifying my own change" or "just checking for
+errors."** Make the code change, describe exactly what to test and how
+(specific page, specific steps, specific expected result), and stop there.
+The user tests it themselves.
+
+This is a repeat instruction (first given 2026-07-14, restated 2026-07-15
+after it was violated mid-session) — it overrides this assistant's own
+general "verify UI changes in a browser" default completely for this repo.
+If a task seems to require browser verification to be confident in it, that
+confidence gap is expected and fine to leave with the user, not a reason to
+open the browser anyway.
+
 ## What this is
 
 **Stillpoint** — a 2D Metroidvania action-platformer. Vanilla HTML5
@@ -14,11 +30,6 @@ opening `index.html` directly or serving the folder statically:
 python3 -m http.server 8000
 # http://localhost:8000/index.html
 ```
-
-**Don't open a browser to test changes yourself — make the code change, then
-tell the user what to test and how.** (2026-07-14, direct instruction.) This
-overrides the general "verify UI changes in a browser" default for this repo
-specifically.
 
 Visual style: minimalist vector art, dark background, violet/teal/deep-blue
 palette. Tonal references: Hollow Knight, Celeste, Hyper Light Drifter.

@@ -47,9 +47,16 @@ const PARRY_COOLDOWN = 60;  // frames between parry attempts (1s)
 const PARRY_STUN = 30;      // frames the enemy is stunned (0.5s)
 const PARRY_IFRAMES = 20;   // player invincibility after successful parry
 
-// Stillpoint (time-slow)
+// Stillpoint (time-slow) — tap/hold timed model (Enemy_Design.pdf, replaces
+// the old indefinite-toggle-drains-a-pip-per-60f mechanic 2026-07-16)
 const FRACTURE_ABS_MAX = 4; // absolute ceiling on fractureMax, reached by finding all Fracture Pips
-const FRACTURE_DRAIN_RATE = 60; // frames per pip drained while active
+const STILLPOINT_HOLD_THRESHOLD = 12; // frames held before release counts as "Hold" not "Tap"
+const STILLPOINT_TAP_COST = 1;
+const STILLPOINT_HOLD_COST = 3;
+const STILLPOINT_TAP_DURATION_BASE = 25;   // 0.4s
+const STILLPOINT_HOLD_DURATION_BASE = 90;  // 1.5s
+const STILLPOINT_SLOW_BASE = 0.6;   // Lv0-2: 60% slow (gameTimeScale = 1 - this)
+const STILLPOINT_SLOW_LV3 = 0.9;    // Lv3+: 90% slow (near-complete stop)
 
 class Player {
   constructor(x, y) {
@@ -72,6 +79,7 @@ class Player {
     // point-blank range took damage on every overlapping frame instead of
     // once per swing.
     this.hitTargetsThisSwing = new Set();
+    this.echoAttackPending = false; // Phase Dash Lv3 — set true at swing start, consumed by game.js
     this.dashing = false;
     this.dashTimer = 0;
     this.dashCooldown = 0;
@@ -84,6 +92,20 @@ class Player {
 
     this.phaseDashing = false;
     this.phaseDashTimer = 0;
+
+    // Graviton Surge (Enemy_Design.pdf, built 2026-07-16)
+    this.gravitonActive = false;
+    this.gravitonTimer = 0;
+    this.gravitonBallCharging = false;
+    this.gravitonBallTimer = 0;
+    this.gravitonBallPop = false;
+    this.gravitonBallX = 0;
+    this.gravitonBallY = 0;
+
+    // Void Tether (Enemy_Design.pdf, built 2026-07-16)
+    this.voidTetherFired = false;
+    this.tether = null; // { targetEnemy | targetPoint, timer } while a pull is in flight — see game.js
+
     this.shardShotFired = false;
     this.shardAiming = false;   // holding V/N — aiming arc visible (see draw())
     this.shardAimTimer = 0;     // frames the aim has been held
@@ -97,8 +119,12 @@ class Player {
     // Stillpoint / Fracture meter
     this.fractureMeter = 0;        // current pips, 0-fractureMax
     this.fractureMax = 0;          // cap on fractureMeter; starts at 0 (unusable) until Fracture Pips are found, up to FRACTURE_ABS_MAX
-    this.fractureDrain = 0;        // sub-pip drain counter
     this.stillpointActive = false;
+    this.stillpointCharging = false; // holding the button, deciding tap vs hold
+    this.stillpointHoldTimer = 0;
+    this.stillpointTimer = 0;      // frames left in the current activation (fixed duration, not meter-drain-based)
+    this.stillpointSlow = 0;       // 0-1, how much enemies/projectiles are slowed this activation
+    this.stillpointHealed = 0;     // HP healed via lifesteal this activation, capped by stillpointLifestealCap()
 
     // Squash/stretch
     this.justLanded = false;
@@ -121,8 +147,33 @@ class Player {
     this.wallJumpJustFired = false; // prevent double-wall-jump mid-air
   }
 
-  // Called by game.js when a melee hit lands
+  // Strength Lv1+: attack speed +15% (18f cooldown -> 15f). Lv4 Limit Break:
+  // an additional +25% on top (Enemy_Design.pdf).
+  getAttackCooldown() {
+    const lvl = (typeof statUpgrades !== 'undefined' && statUpgrades.strength) || 0;
+    let cd = lvl >= 1 ? 15 : ATTACK_COOLDOWN;
+    if (typeof limitBreak !== 'undefined' && limitBreak.active && limitBreak.ability === 'strength') cd = Math.round(cd * 0.75);
+    return cd;
+  }
+
+  // Phase Dash Lv1+: "Dash becomes 8-directional (aim with WASD/arrows).
+  // Applies to the regular dash (C) too." (Enemy_Design.pdf). Below Lv1,
+  // or with no directional input held, falls back to the old
+  // facing-only horizontal dash. Returns null (no override) below Lv1.
+  getDashDirection(speed) {
+    if (abilityLevel('phase_dash') < 1) return null;
+    let dx = (isActionPressed('moveLeft') ? -1 : 0) + (isActionPressed('moveRight') ? 1 : 0);
+    let dy = (isActionPressed('aimUp') ? -1 : 0) + (isActionPressed('aimDown') ? 1 : 0);
+    if (dx === 0 && dy === 0) return null;
+    const len = Math.hypot(dx, dy);
+    return { vx: (dx / len) * speed, vy: (dy / len) * speed };
+  }
+
+  // Called by game.js when a melee hit lands. Blocked during Stillpoint or
+  // Limit Break — "prevents infinite chaining" (Global Rules, Enemy_Design.pdf).
   gainFracture() {
+    if (this.stillpointActive) return;
+    if (typeof limitBreak !== 'undefined' && limitBreak.active) return;
     if (this.fractureMeter < this.fractureMax) {
       this.fractureMeter++;
       if (typeof SFX !== 'undefined') SFX.fractureGain();
@@ -135,6 +186,9 @@ class Player {
   }
 
   update(bounds, platforms) {
+    if (typeof updateEchoDistractDuration === 'function') updateEchoDistractDuration();
+    if (typeof updateLimitBreak === 'function') updateLimitBreak();
+
     // ── Coyote Timer ────────────────────────────────────────────────────────
     if (this.grounded) {
       this.coyoteTimer = COYOTE_FRAMES;
@@ -143,30 +197,41 @@ class Player {
       this.coyoteTimer--;
     }
 
-    // ── Stillpoint toggle ───────────────────────────────────────────────────
-    if (wasActionJustPressed('stillpoint') && abilityState.hasStillpoint) {
-      if (!this.stillpointActive && this.fractureMeter > 0) {
-        this.stillpointActive = true;
-        if (typeof SFX !== 'undefined') SFX.stillpointActivate();
-      } else if (this.stillpointActive) {
-        this.stillpointActive = false;
-        if (typeof SFX !== 'undefined') SFX.stillpointEnd();
+    // ── Stillpoint — tap (1 Pip, short) / hold (3 Pips, long) ──────────────
+    // Press-and-release quickly (Tap) or hold past STILLPOINT_HOLD_THRESHOLD
+    // (Hold) to decide which variant fires, same press/decide-on-release
+    // shape as the charged attack below (Enemy_Design.pdf Rule 2).
+    if (wasActionJustPressed('stillpoint') && abilityState.hasStillpoint && !this.stillpointActive && !this.stillpointCharging) {
+      this.stillpointCharging = true;
+      this.stillpointHoldTimer = 0;
+    }
+    if (this.stillpointCharging) {
+      if (isActionPressed('stillpoint')) {
+        this.stillpointHoldTimer++;
+      } else {
+        this.stillpointCharging = false;
+        const isHold = this.stillpointHoldTimer >= STILLPOINT_HOLD_THRESHOLD;
+        const cost = isHold ? STILLPOINT_HOLD_COST : STILLPOINT_TAP_COST;
+        if (this.fractureMeter >= cost) {
+          this.fractureMeter -= cost;
+          const lvl = (typeof statUpgrades !== 'undefined' && statUpgrades.stillpoint) || 0;
+          const durationMult = lvl >= 1 ? 1.25 : 1; // Lv1+ duration +25%
+          const baseDuration = isHold ? STILLPOINT_HOLD_DURATION_BASE : STILLPOINT_TAP_DURATION_BASE;
+          this.stillpointTimer = Math.round(baseDuration * durationMult);
+          this.stillpointSlow = lvl >= 3 ? STILLPOINT_SLOW_LV3 : STILLPOINT_SLOW_BASE;
+          this.stillpointActive = true;
+          this.stillpointHealed = 0;
+          if (typeof SFX !== 'undefined') SFX.stillpointActivate();
+        }
       }
     }
 
-    // Drain fracture meter while Stillpoint is active
     if (this.stillpointActive) {
-      this.fractureDrain++;
-      if (this.fractureDrain >= FRACTURE_DRAIN_RATE) {
-        this.fractureDrain = 0;
-        this.fractureMeter = Math.max(0, this.fractureMeter - 1);
-        if (this.fractureMeter === 0) {
-          this.stillpointActive = false;
-          if (typeof SFX !== 'undefined') SFX.stillpointEnd();
-        }
+      this.stillpointTimer--;
+      if (this.stillpointTimer <= 0) {
+        this.stillpointActive = false;
+        if (typeof SFX !== 'undefined') SFX.stillpointEnd();
       }
-    } else {
-      this.fractureDrain = 0; // reset sub-pip counter when idle
     }
 
     // ── Duck / Crouch ─────────────────────────────────────────────────────
@@ -244,8 +309,14 @@ class Player {
       this.dashCooldown = DASH_COOLDOWN + (this.dashChain - 1) * 10;
       // Momentum blend: preserve some existing velocity for curving/accelerating
       const momentumBlend = 0.3 + this.dashChain * 0.1; // more momentum on higher chains
-      this.vx = this.facing * DASH_SPEED * (1 - momentumBlend) + this.vx * momentumBlend;
-      this.vy *= (1 - momentumBlend); // preserve some vertical momentum too
+      const dashDir = this.getDashDirection(DASH_SPEED);
+      if (dashDir) {
+        this.vx = dashDir.vx * (1 - momentumBlend) + this.vx * momentumBlend;
+        this.vy = dashDir.vy * (1 - momentumBlend) + this.vy * momentumBlend;
+      } else {
+        this.vx = this.facing * DASH_SPEED * (1 - momentumBlend) + this.vx * momentumBlend;
+        this.vy *= (1 - momentumBlend); // preserve some vertical momentum too
+      }
       if (typeof SFX !== 'undefined') SFX.dash();
     }
 
@@ -271,8 +342,9 @@ class Player {
       this.phaseDashing = true;
       this.phaseDashTimer = PHASE_DASH_DURATION;
       abilityState.phaseDashCooldown = PHASE_DASH_COOLDOWN;
-      this.vx = this.facing * PHASE_DASH_SPEED;
-      this.vy = 0;
+      const phaseDashDir = this.getDashDirection(PHASE_DASH_SPEED);
+      this.vx = phaseDashDir ? phaseDashDir.vx : this.facing * PHASE_DASH_SPEED;
+      this.vy = phaseDashDir ? phaseDashDir.vy : 0;
       this.invincibleTimer = PHASE_DASH_DURATION + 5;
       if (typeof SFX !== 'undefined') SFX.phaseDash();
       if (typeof boss !== 'undefined' && boss) boss.notifyPlayerDash();
@@ -281,6 +353,57 @@ class Player {
     if (this.phaseDashing) {
       this.phaseDashTimer--;
       if (this.phaseDashTimer <= 0) { this.phaseDashing = false; this.vx *= 0.4; }
+    }
+
+    // ── Graviton Surge (base ability built 2026-07-16, Enemy_Design.pdf) ────
+    // Lv0: flip gravity 3s. Lv1: 4s. Lv2+: hold to also raise a Gravity Ball
+    // (game.js pulls/damages nearby enemies while it's up); tap duration
+    // becomes 5s at Lv2, 6s at Lv3. Release with a ball up detonates it at
+    // Lv3+. Actual gravity flip / ball pull-and-damage happens in game.js
+    // (needs the enemy list); this block only tracks input + timers.
+    if (wasActionJustPressed('gravitonSurge') && abilityState.hasGravitonSurge &&
+        abilityState.gravitonSurgeCooldown <= 0 && !this.gravitonActive) {
+      const lvl = abilityLevel('graviton_surge');
+      this.gravitonBallCharging = lvl >= 2; // Lv2+: holding builds a Gravity Ball instead of firing immediately
+      this.gravitonBallTimer = 0;
+      if (!this.gravitonBallCharging) {
+        this.gravitonActive = true;
+        this.gravitonTimer = GRAVITON_SURGE_BASE_DURATION + (lvl >= 1 ? 60 : 0);
+        abilityState.gravitonSurgeCooldown = GRAVITON_SURGE_COOLDOWN;
+        if (typeof SFX !== 'undefined') SFX.phaseDash();
+      }
+    }
+    if (this.gravitonBallCharging) {
+      if (isActionPressed('gravitonSurge')) {
+        this.gravitonBallTimer++;
+      } else {
+        // Release: pop the Gravity Ball (game.js handles the pull/explosion
+        // AoE using this.gravitonBallX/Y, set each frame below), then start
+        // the timed gravity flip same as Lv0/1.
+        this.gravitonBallCharging = false;
+        this.gravitonBallPop = true; // one-shot flag, consumed by game.js
+        const lvl = abilityLevel('graviton_surge');
+        this.gravitonActive = true;
+        this.gravitonTimer = 300 + (lvl >= 3 ? 60 : 0); // Lv2: 5s, Lv3+: 6s
+        abilityState.gravitonSurgeCooldown = GRAVITON_SURGE_COOLDOWN;
+      }
+      this.gravitonBallX = this.x + this.width / 2;
+      this.gravitonBallY = this.y + this.height / 2;
+    }
+    if (this.gravitonActive) {
+      this.gravitonTimer--;
+      if (this.gravitonTimer <= 0) this.gravitonActive = false;
+    }
+
+    // ── Void Tether (base ability built 2026-07-16, Enemy_Design.pdf) ───────
+    // Targeting/pull/arrival effects live in game.js (needs the enemy list);
+    // this just fires the one-shot flag on tap, gated by cooldown.
+    this.voidTetherFired = false;
+    if (wasActionJustPressed('voidTether') && abilityState.hasVoidTether &&
+        abilityState.voidTetherCooldown <= 0) {
+      const lvl = abilityLevel('void_tether');
+      abilityState.voidTetherCooldown = (limitBreak.active && limitBreak.ability === 'void_tether') ? 90 : VOID_TETHER_COOLDOWN;
+      this.voidTetherFired = true;
     }
 
     // ── Attack input: hold to charge, release to fire — requires the Charged
@@ -331,9 +454,17 @@ class Player {
 
         if (this.chargeTimer >= CHARGE_TAP) {
           // ── Heavy attack ──
+          // Strength Lv4 Limit Break: a full-charge (26f+) release activates
+          // the Enhanced State instead of just a bigger swing, per Rule 1's
+          // "Full Hold: if you have the Lv4 Strength unlock, this activates
+          // your Limit Break on release" (Enemy_Design.pdf).
+          if (this.chargeTimer >= 26 && canActivateLimitBreak('strength', this.fractureMeter)) {
+            this.fractureMeter -= LIMIT_BREAK_COST;
+            startLimitBreak('strength');
+          }
           this.attacking = true;
           this.attackTimer = ATTACK_DURATION + 4; // slightly longer animation
-          this.attackCooldown = ATTACK_COOLDOWN + 8; // longer recovery
+          this.attackCooldown = this.getAttackCooldown() + 8; // longer recovery
           this.heavy = true;
           this.heavyCharge = this.chargeTimer / CHARGE_FULL; // 0-1 charge ratio
           if (typeof SFX !== 'undefined') SFX.heavyAttack();
@@ -341,12 +472,13 @@ class Player {
           // ── Normal attack (quick tap) ──
           this.attacking = true;
           this.attackTimer = ATTACK_DURATION;
-          this.attackCooldown = ATTACK_COOLDOWN;
+          this.attackCooldown = this.getAttackCooldown();
           this.heavy = false;
           if (typeof SFX !== 'undefined') SFX.attack();
         }
         this.dashRefundedThisAttack = false; // Phase 1.8: one dash refund per attack
         this.hitTargetsThisSwing.clear();
+        this.echoAttackPending = true; // Phase Dash Lv3 — consumed in game.js
         this.chargeTimer = 0;
         this.fullyCharged = false;
       }
@@ -363,11 +495,12 @@ class Player {
       }
       this.attacking = true;
       this.attackTimer = ATTACK_DURATION;
-      this.attackCooldown = ATTACK_COOLDOWN;
+      this.attackCooldown = this.getAttackCooldown();
       this.heavy = false;
       if (typeof SFX !== 'undefined') SFX.attack();
       this.dashRefundedThisAttack = false;
       this.hitTargetsThisSwing.clear();
+      this.echoAttackPending = true; // Phase Dash Lv3 — consumed in game.js
     }
 
     // ── Parry: tap attack during cooldown (instead of attacking) ───────────
@@ -400,6 +533,7 @@ class Player {
     // Hold aimUp/aimDown while aiming: tilt the arc smoothly.
     // Release: fire along the arc. A quick tap = instant forward shot.
     this.shardShotFired = false;
+    this.shardBeamFired = false; // Lv3 — game.js consumes this + shardAimVy
     if (wasActionJustPressed('shardShot') &&
         abilityState.hasShardShot && abilityState.shardShotCooldown <= 0 &&
         !this.shardAiming) {
@@ -417,12 +551,30 @@ class Player {
         }
       } else {
         this.shardAiming = false;
-        this.shardShotFired = true; // game.js consumes this + shardAimVy
+        // Lv3 Beam Attack: held past BEAM_CHARGE_TIME with a Fracture Pip
+        // to spend fires a piercing beam instead of the normal tap/aim shot
+        // — tap variation is unaffected below that threshold or without a
+        // pip (Enemy_Design.pdf).
+        if (abilityLevel('shard_shot') >= 3 && this.shardAimTimer >= BEAM_CHARGE_TIME && this.fractureMeter >= BEAM_PIP_COST) {
+          this.fractureMeter -= BEAM_PIP_COST;
+          this.shardBeamFired = true;
+        } else {
+          this.shardShotFired = true; // game.js consumes this + shardAimVy
+        }
       }
     }
 
     // ── Physics ─────────────────────────────────────────────────────────────
-    this.vy += GRAVITY;
+    // Graviton Surge: flips the player's own gravity for its duration. Lv4
+    // Limit Break replaces this with true flight (no gravity at all) — see
+    // Rule 0's Lv4 Enhanced State.
+    if (this.gravitonActive && limitBreak.active && limitBreak.ability === 'graviton_surge') {
+      // Flight — ignore gravity entirely, vy only changes from player input/knockback.
+    } else if (this.gravitonActive) {
+      this.vy -= GRAVITY;
+    } else {
+      this.vy += GRAVITY;
+    }
     this.x += this.vx;
     this.y += this.vy;
 
@@ -554,7 +706,13 @@ class Player {
   // `sourceX` (the hitting enemy's x) is optional — when given, applies a
   // small knockback impulse + brief hitstun away from the source, mirroring
   // the convention already used by Enemy.takeDamage(dmg, sourceX, ...).
-  takeDamage(dmg, sourceX) {
+  // `knockback` (optional 3rd arg, {vx, vy, hitStun}) overrides the default
+  // impulse — added for ComposedEnemy attacks (enemy.js) that want a
+  // specific, configurable knockback (e.g. a grab-throw sending the player
+  // into a wall) instead of the generic small pop-up every other hit uses.
+  // `vx` here is a magnitude — direction (away from sourceX) is still
+  // applied automatically, same as the default case.
+  takeDamage(dmg, sourceX, knockback) {
     if (this.invincibleTimer > 0) return;
     this.health -= dmg;
     this.invincibleTimer = INVINCIBLE_FRAMES;
@@ -564,10 +722,16 @@ class Player {
       if (typeof SFX !== 'undefined') SFX.stillpointEnd();
     }
     if (sourceX !== undefined) {
+      // Limit Break (any ability, Enemy_Design.pdf): "complete immunity to
+      // knockback" for the Enhanced State's 6s window.
+      if (typeof limitBreak !== 'undefined' && limitBreak.active) return;
+      // Strength Lv3: incoming knockback -30%.
+      const strengthLvl = (typeof statUpgrades !== 'undefined' && statUpgrades.strength) || 0;
+      const kbMult = strengthLvl >= 3 ? 0.7 : 1;
       const dir = (this.x + this.width / 2 > sourceX) ? 1 : -1;
-      this.vx = dir * 4;
-      this.vy = -3;
-      this.hitStunTimer = 10;
+      this.vx = dir * (knockback?.vx ?? 4) * kbMult;
+      this.vy = (knockback?.vy ?? -3) * kbMult;
+      this.hitStunTimer = knockback?.hitStun ?? 10;
     }
   }
 
@@ -603,6 +767,20 @@ class Player {
       ctx.strokeStyle = `rgba(103, 232, 249, ${0.55 * pulse})`;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(this.x - 3, this.y - 3, this.width + 6, this.height + 6);
+      ctx.lineWidth = 1;
+    }
+
+    // ── Limit Break (Lv4) aura — flat blue glow, per user direction
+    // 2026-07-16 (no bespoke per-ability VFX yet). Drawn over everything
+    // else, including Stillpoint's own cyan halo, so it reads as the
+    // dominant state while active.
+    if (typeof limitBreak !== 'undefined' && limitBreak.active) {
+      const pulse = Math.sin(typeof frameCount !== 'undefined' ? frameCount * 0.3 : 0) * 0.15 + 0.85;
+      ctx.fillStyle = `rgba(59, 130, 246, ${0.22 * pulse})`;
+      ctx.fillRect(this.x - 12, this.y - 12, this.width + 24, this.height + 24);
+      ctx.strokeStyle = `rgba(96, 165, 250, ${0.8 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(this.x - 6, this.y - 6, this.width + 12, this.height + 12);
       ctx.lineWidth = 1;
     }
 

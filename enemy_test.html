@@ -55,15 +55,24 @@
   <select id="enemySelect"></select>
   <div id="blurb">Pick an enemy above.</div>
 
-  <h2>2. Ability Loadout</h2>
-  <select id="presetSelect">
-    <option value="none">None (day 1)</option>
-    <option value="phase_dash">+ Phase Dash</option>
-    <option value="shard_shot">+ Shard Shot</option>
-    <option value="stillpoint">+ Stillpoint</option>
-    <option value="charged_attack" selected>+ Charged Attack (post-Crag, current full kit)</option>
-  </select>
+  <h2>2. Ability Loadout (Enemy_Design.pdf leveling doc)</h2>
+  <p class="note">Check an ability on, pick its level (0-3 = the real lore-pip-funded tiers; "4 — Limit Break" forces
+    that ability's Enhanced State permanently active for testing, no pip cost, ignoring the real one-per-playthrough
+    rule). Applies live — no respawn needed, use <b>Apply Loadout</b> or just change a control.</p>
+  <div id="abilityLoadout"></div>
 
+  <h2>3. Fracture &amp; Lore Pips</h2>
+  <label style="display:block; margin-bottom:6px;">Fracture Pip cap (0-4)
+    <input type="number" id="fractureMaxInput" min="0" max="4" value="4" style="width:100%; background:#141428; border:1px solid #2e2e5e; color:#c4b5fd; font-family:inherit; padding:4px;">
+  </label>
+  <label style="display:block; margin-bottom:6px;">Fracture meter (current pips)
+    <input type="number" id="fractureMeterInput" min="0" max="4" value="4" style="width:100%; background:#141428; border:1px solid #2e2e5e; color:#c4b5fd; font-family:inherit; padding:4px;">
+  </label>
+  <label style="display:block; margin-bottom:10px;">Lore pips banked (0-18)
+    <input type="number" id="lorePipsInput" min="0" max="18" value="18" style="width:100%; background:#141428; border:1px solid #2e2e5e; color:#c4b5fd; font-family:inherit; padding:4px;">
+  </label>
+
+  <button class="primary" id="applyLoadoutBtn">⟳ Apply Loadout (no respawn)</button>
   <button class="primary" id="spawnBtn">▶ Spawn in Test Arena</button>
   <button id="respawnPlayerBtn">↺ Reset Player Position/Health</button>
 
@@ -125,6 +134,8 @@ const ROSTER = [
     blurb: 'Only tangible when you\'re facing it (takeDamage no-ops otherwise) — attacks from behind when you\'re not. Not yet placed in Mirror Veil\'s AREAS entry.' },
   { id: 'echo_stalker', name: 'Echo Stalker', group: 'Built', built: true, region: 'Mirror Veil',
     blurb: 'Teleports to just behind you the instant a Phase Dash ends (real teleport, ~0.75s cooldown between blinks). Not yet placed in Mirror Veil\'s AREAS entry.' },
+  { id: 'composed', name: '⚙ Composed (from Enemy Designer)', group: 'Built', built: true,
+    blurb: 'Spawns whatever definition enemy_designer.html last sent via "Test in Arena". Selecting this manually (without a fresh handoff) respawns the last one tested.' },
 
   // ── Planned normal enemies (expansion.md §2.1, not built) ──
   { id: 'temporal_shard', name: 'Temporal Shard', group: 'Planned — Normal', built: false, region: 'Timeline Crossroads',
@@ -267,16 +278,87 @@ for (const [region, list] of REGION_ROWS) {
   regionTable.appendChild(tr);
 }
 
-function applyPreset(preset) {
-  abilityState.hasPhaseDash = false;
-  abilityState.hasShardShot = false;
-  abilityState.hasStillpoint = false;
-  abilityState.hasChargedAttack = false;
-  if (preset === 'phase_dash' || preset === 'shard_shot' || preset === 'stillpoint' || preset === 'charged_attack') abilityState.hasPhaseDash = true;
-  if (preset === 'shard_shot' || preset === 'stillpoint' || preset === 'charged_attack') abilityState.hasShardShot = true;
-  if (preset === 'stillpoint' || preset === 'charged_attack') abilityState.hasStillpoint = true;
-  if (preset === 'charged_attack') abilityState.hasChargedAttack = true;
+// ─── Ability Loadout panel (Enemy_Design.pdf leveling doc, 2026-07-16) ───
+// One row per ability: a checkbox (has it at all) + a level select (0-3
+// real lore-pip tiers, "4 — Limit Break" forces that ability's Enhanced
+// State on for testing). Strength/Charged Attack is always melee-capable —
+// its checkbox instead gates the hold-to-charge input, same as the real
+// game's `abilityState.hasChargedAttack`.
+const ABILITY_ROWS = [
+  { key: 'strength', label: 'Strength', hasFlag: 'hasChargedAttack', hasLabel: 'Charged Attack unlocked' },
+  { key: 'phase_dash', label: 'Phase Dash', hasFlag: 'hasPhaseDash', hasLabel: 'Have it' },
+  { key: 'shard_shot', label: 'Shard Shot', hasFlag: 'hasShardShot', hasLabel: 'Have it' },
+  { key: 'stillpoint', label: 'Stillpoint', hasFlag: 'hasStillpoint', hasLabel: 'Have it' },
+  { key: 'graviton_surge', label: 'Graviton Surge', hasFlag: 'hasGravitonSurge', hasLabel: 'Have it' },
+  { key: 'void_tether', label: 'Void Tether', hasFlag: 'hasVoidTether', hasLabel: 'Have it' },
+];
+
+const abilityLoadoutEl = document.getElementById('abilityLoadout');
+for (const row of ABILITY_ROWS) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:11px;';
+  wrap.innerHTML = `
+    <label style="flex:1; display:flex; align-items:center; gap:4px;">
+      <input type="checkbox" id="has_${row.key}" checked style="margin:0;">
+      ${row.label}
+    </label>
+    <select id="lvl_${row.key}" style="width:120px; margin:0;">
+      <option value="0">Lv0</option>
+      <option value="1">Lv1</option>
+      <option value="2">Lv2</option>
+      <option value="3" selected>Lv3</option>
+      <option value="4">Lv4 — Limit Break</option>
+    </select>
+  `;
+  abilityLoadoutEl.appendChild(wrap);
 }
+
+// Reads the panel and writes it straight into the real abilityState /
+// statUpgrades / limitBreak globals — no mock layer, same objects the live
+// game reads every frame.
+function applyLoadout() {
+  let limitBreakKey = null;
+  for (const row of ABILITY_ROWS) {
+    const has = document.getElementById(`has_${row.key}`).checked;
+    const lvl = parseInt(document.getElementById(`lvl_${row.key}`).value, 10);
+    abilityState[row.hasFlag] = has;
+    statUpgrades[row.key] = has ? Math.min(lvl, 4) : 0;
+    if (has && lvl >= 4) limitBreakKey = row.key;
+  }
+  // Force Limit Break active for whichever ability (if any) is set to Lv4 —
+  // bypasses the real Fracture Pip cost / one-per-playthrough rule, since
+  // this is a test bench, not a real run.
+  if (limitBreakKey) {
+    limitBreak.active = true;
+    limitBreak.ability = limitBreakKey;
+    limitBreak.timer = LIMIT_BREAK_DURATION;
+    limitBreakChosen = limitBreakKey;
+  } else {
+    limitBreak.active = false;
+    limitBreak.ability = null;
+    limitBreak.timer = 0;
+  }
+
+  if (player) {
+    const fractureMax = parseInt(document.getElementById('fractureMaxInput').value, 10) || 0;
+    const fractureMeter = parseInt(document.getElementById('fractureMeterInput').value, 10) || 0;
+    player.fractureMax = Math.max(0, Math.min(4, fractureMax));
+    player.fractureMeter = Math.max(0, Math.min(player.fractureMax, fractureMeter));
+  }
+  const lorePips = parseInt(document.getElementById('lorePipsInput').value, 10) || 0;
+  collectedLore = {};
+  for (let i = 0; i < Math.max(0, Math.min(18, lorePips)); i++) collectedLore['test_pip_' + i] = true;
+}
+document.getElementById('applyLoadoutBtn').addEventListener('click', applyLoadout);
+// Live-apply on any control change, not just the button — "slightly tweak
+// it if anything's off" without needing a respawn.
+for (const row of ABILITY_ROWS) {
+  document.getElementById(`has_${row.key}`).addEventListener('change', applyLoadout);
+  document.getElementById(`lvl_${row.key}`).addEventListener('change', applyLoadout);
+}
+document.getElementById('fractureMaxInput').addEventListener('change', applyLoadout);
+document.getElementById('fractureMeterInput').addEventListener('change', applyLoadout);
+document.getElementById('lorePipsInput').addEventListener('change', applyLoadout);
 
 function ensureSession() {
   if (gameState === 'playing' && currentAreaId === 'enemy_test_arena') return;
@@ -306,6 +388,7 @@ const CLASS_MAP = {
   deflector_drone: () => new DeflectorDrone(900, 400),
   mirror_sprite: () => new MirrorSprite(900, 472),
   echo_stalker: () => new EchoStalker(900, 472),
+  composed: () => new ComposedEnemy(900, 472, window.__composedDef || { movement: { type: 'ground_chase' }, attack: { type: 'melee_swing' }, stats: { health: 4 } }),
 };
 
 // ─── Enemy Editor handoff (enemy_editor.html "Test in Arena" button) ───
@@ -324,8 +407,8 @@ function applyEditorOverrides(instance, overrides) {
 function spawnSelected(overrides) {
   const e = ROSTER.find(r => r.id === enemySelect.value);
   if (!e || !e.built) return;
-  applyPreset(document.getElementById('presetSelect').value);
   ensureSession();
+  applyLoadout();
   areaEnemies['enemy_test_arena'] = [];
   miniboss = null;
   player.x = 400; player.y = getCurrentArea().groundY - 60; player.health = MAX_HEALTH; player.vx = 0; player.vy = 0;
@@ -368,6 +451,28 @@ document.getElementById('spawnBtn').addEventListener('click', () => spawnSelecte
   }
 })();
 
+// ─── Enemy Designer handoff (enemy_designer.html "Test in Arena" button) ───
+// enemy_designer.html writes { def } (a full ComposedEnemy definition) to
+// localStorage and opens this page in a new tab. Same one-shot-consume
+// pattern as the editor handoff above, just a different key/shape since a
+// composed def isn't one of the fixed ROSTER ids.
+const DESIGNER_HANDOFF_KEY = 'stillpoint_enemy_designer_test';
+(function runDesignerHandoffIfPresent() {
+  const raw = localStorage.getItem(DESIGNER_HANDOFF_KEY);
+  if (!raw) return;
+  localStorage.removeItem(DESIGNER_HANDOFF_KEY);
+  try {
+    const handoff = JSON.parse(raw);
+    if (!handoff.def) return;
+    window.__composedDef = handoff.def;
+    enemySelect.value = 'composed';
+    updateBlurb();
+    spawnSelected(null);
+  } catch (e) {
+    console.error('[enemy_designer handoff] failed to parse:', e);
+  }
+})();
+
 document.getElementById('respawnPlayerBtn').addEventListener('click', () => {
   if (gameState !== 'playing') return;
   player.x = 400; player.y = getCurrentArea().groundY - 60; player.health = MAX_HEALTH; player.vx = 0; player.vy = 0; player.invincibleTimer = 30;
@@ -378,6 +483,9 @@ setInterval(() => {
   if (gameState !== 'playing' || currentAreaId !== 'enemy_test_arena') { el.textContent = 'Not spawned yet.'; return; }
   const list = areaEnemies['enemy_test_arena'] || [];
   let html = `<div><span>Player HP</span><span>${player.health}/${MAX_HEALTH}</span></div>`;
+  html += `<div><span>Fracture Pips</span><span>${player.fractureMeter}/${player.fractureMax}</span></div>`;
+  html += `<div><span>Lore Pips</span><span>${Object.keys(collectedLore).length}</span></div>`;
+  if (limitBreak.active) html += `<div><span style="color:#60a5fa">LIMIT BREAK (${limitBreak.ability})</span><span>${(limitBreak.timer / 60).toFixed(1)}s</span></div>`;
   if (miniboss) html += `<div><span>${miniboss.dead ? 'Miniboss (dead)' : 'Miniboss HP'}</span><span>${miniboss.health}/${miniboss.maxHealth}</span></div>`;
   for (const en of list) html += `<div><span>${en.type || en.constructor.name}${en.dead ? ' (dead)' : ''}</span><span>HP ${en.health}</span></div>`;
   if (!miniboss && list.length === 0) html += `<div>Nothing spawned</div>`;
