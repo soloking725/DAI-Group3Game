@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Animation / Hitbox Editor</title>
+<style>
+  /* Same dark editor theme family as levelEditor.html / enemy_editor.html */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #e2e8f0; font: 13px/1.5 "Courier New", monospace; display: flex; height: 100vh; overflow: hidden; }
+  h2 { font-size: 14px; color: #c4b5fd; margin-bottom: 8px; }
+  h3 { font-size: 12px; color: #94a3b8; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 1px; }
+  button { background: #1e1e32; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 4px 10px; font: inherit; cursor: pointer; border-radius: 3px; }
+  button:hover { background: #2a2a44; }
+  button.active { background: #4c3a8e; border-color: #a78bfa; }
+  button.danger { border-color: #7f1d1d; color: #fca5a5; }
+  input, select { background: #14141f; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 3px 6px; font: inherit; border-radius: 3px; }
+  input[type=number] { width: 62px; }
+  label { display: inline-flex; align-items: center; gap: 5px; margin: 2px 6px 2px 0; }
+  .panel { padding: 12px; overflow-y: auto; }
+  #left { width: 230px; border-right: 1px solid #26263c; flex-shrink: 0; }
+  #center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #right { width: 300px; border-left: 1px solid #26263c; flex-shrink: 0; }
+  #animList div { padding: 4px 8px; cursor: pointer; border-radius: 3px; margin-bottom: 2px; }
+  #animList div:hover { background: #1e1e32; }
+  #animList div.sel { background: #4c3a8e; }
+  #canvasWrap { flex: 1; position: relative; min-height: 0; }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  #timeline { border-top: 1px solid #26263c; padding: 8px 12px; }
+  #frameStrip { display: flex; gap: 4px; overflow-x: auto; padding: 6px 0; }
+  .frameCell { min-width: 64px; border: 1px solid #3a3a5e; border-radius: 4px; padding: 4px 6px; cursor: pointer; text-align: center; flex-shrink: 0; background: #14141f; }
+  .frameCell.sel { border-color: #a78bfa; background: #2a2050; }
+  .frameCell .dur { color: #94a3b8; font-size: 11px; }
+  .frameCell .tag { font-size: 10px; color: #34d399; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 4px 0; }
+  .hitboxEntry { border: 1px solid #3a3a5e; border-radius: 4px; padding: 6px; margin: 6px 0; }
+  .hint { color: #64748b; font-size: 11px; margin-top: 4px; }
+  textarea { width: 100%; height: 120px; background: #14141f; color: #a5f3c4; border: 1px solid #3a3a5e; font: 11px monospace; padding: 6px; }
+</style>
+</head>
+<body>
+
+<div id="left" class="panel">
+  <h2>Animations</h2>
+  <div id="animList"></div>
+  <div class="row" style="margin-top:8px">
+    <input id="newAnimName" placeholder="new_anim_key" style="width:130px">
+    <button onclick="createAnim()">+ New</button>
+  </div>
+  <div class="hint">Keys are free-form — convention is <b>entity_action</b> (player_run, child_heal, lancer_thrust).</div>
+
+  <h3>Entity mock</h3>
+  <div class="row">
+    <label>W <input type="number" id="entW" value="24" onchange="applyEntity()"></label>
+    <label>H <input type="number" id="entH" value="32" onchange="applyEntity()"></label>
+  </div>
+  <div class="hint">The gray box = the entity's collision size (player is 24×32, basic enemies 28×28). Boxes are authored relative to its top-left, facing right.</div>
+
+  <h3>Save / export</h3>
+  <button onclick="saveOverrides()" style="width:100%; margin-bottom:4px">💾 Save to game (localStorage)</button>
+  <button onclick="exportJSON()" style="width:100%; margin-bottom:4px">📋 Export JSON</button>
+  <button class="danger" onclick="clearOverrides()" style="width:100%">Clear saved overrides</button>
+  <div class="hint">"Save to game": the real game (and enemy_test.html) loads these overrides on next reload. "Export": paste-ready block for game/animdata.js.</div>
+  <textarea id="exportBox" placeholder="Export appears here…" style="margin-top:6px"></textarea>
+</div>
+
+<div id="center">
+  <div id="canvasWrap"><canvas id="cv"></canvas></div>
+  <div id="timeline">
+    <div class="row">
+      <button id="playBtn" onclick="togglePlay()">▶ Play</button>
+      <label>Zoom <input type="range" id="zoom" min="2" max="10" value="5" oninput="draw()"></label>
+      <label><input type="checkbox" id="showBoxes" checked onchange="draw()"> show boxes</label>
+      <label><input type="checkbox" id="onion" onchange="draw()"> onion skin</label>
+      <span class="hint" style="margin-left:auto">drag = move box · drag corner = resize · scroll list below = frames</span>
+    </div>
+    <div id="frameStrip"></div>
+    <div class="row">
+      <button onclick="addFrame()">+ Frame</button>
+      <button onclick="dupFrame()">⧉ Duplicate</button>
+      <button onclick="moveFrame(-1)">◀ Move</button>
+      <button onclick="moveFrame(1)">Move ▶</button>
+      <button class="danger" onclick="deleteFrame()">✕ Delete frame</button>
+    </div>
+  </div>
+</div>
+
+<div id="right" class="panel">
+  <h2 id="frameTitle">Frame</h2>
+
+  <h3>Timing</h3>
+  <div class="row">
+    <label>Duration (frames @60fps) <input type="number" id="fDuration" min="1" onchange="applyFrame()"></label>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="fCancel" onchange="applyFrame()"> combo-cancelable from this frame</label>
+  </div>
+  <div class="hint">Cancel windows are what combo chains hook into — the next queued action may start during a ✓ frame.</div>
+
+  <h3>Visual</h3>
+  <div class="row">
+    <label>Pose <select id="fPose" onchange="applyFrame()"></select></label>
+  </div>
+  <div class="row">
+    <label>Drawing <input type="file" id="fImage" accept="image/*" onchange="uploadImage(event)"></label>
+  </div>
+  <div class="row" id="imageRow" style="display:none">
+    <label>Scale <input type="number" id="fImageScale" step="0.1" value="1" onchange="applyFrame()"></label>
+    <button class="danger" onclick="removeImage()">Remove drawing</button>
+  </div>
+  <div class="hint">An uploaded drawing wins over the pose. It's stored inside the exported JSON (data URL) — no separate asset files.</div>
+
+  <h3>Hurtbox <span class="hint">(where this entity can be hit)</span></h3>
+  <div class="row">
+    <label><input type="checkbox" id="fHurtOn" onchange="toggleHurtbox()"> custom hurtbox</label>
+  </div>
+  <div class="row" id="hurtRow" style="display:none">
+    <label>x <input type="number" id="hbX" onchange="applyHurtbox()"></label>
+    <label>y <input type="number" id="hbY" onchange="applyHurtbox()"></label>
+    <label>w <input type="number" id="hbW" onchange="applyHurtbox()"></label>
+    <label>h <input type="number" id="hbH" onchange="applyHurtbox()"></label>
+  </div>
+
+  <h3>Hitboxes <span class="hint">(damage-dealing)</span></h3>
+  <div id="hitboxList"></div>
+  <button onclick="addHitbox()">+ Hitbox</button>
+  <div class="hint">Drag boxes on the canvas too — yellow = hitbox, teal = hurtbox.</div>
+</div>
+
+<script src="../game/animdata.js"></script>
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────────
+// Animation / Hitbox editor — edits ANIM_DEFS (game/animdata.js) visually.
+// Save path: localStorage overrides (read by animdata.js on load in the real
+// game) or a paste-ready JSON export. This file never touches game code.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+// Mock entity the poses/boxes are drawn against (matches Animator's contract)
+const entity = { x: 0, y: 0, width: 24, height: 32, facing: 1, color: '#c4b5fd' };
+
+let currentKey = Object.keys(ANIM_DEFS)[0] || null;
+let frameIdx = 0;
+let selectedBox = null;   // {kind:'hurt'} | {kind:'hit', index} — canvas selection
+let playing = false;
+let playTimer = 0;
+let playFrame = 0;
+
+function def() { return currentKey ? ANIM_DEFS[currentKey] : null; }
+function frame() { const d = def(); return d ? d.frames[frameIdx] : null; }
+
+// ── Left panel: animation list ──────────────────────────────────────────────
+function renderAnimList() {
+  const el = document.getElementById('animList');
+  el.innerHTML = '';
+  for (const key of Object.keys(ANIM_DEFS)) {
+    const div = document.createElement('div');
+    div.textContent = key;
+    if (key === currentKey) div.className = 'sel';
+    div.onclick = () => { currentKey = key; frameIdx = 0; selectedBox = null; refresh(); };
+    el.appendChild(div);
+  }
+}
+
+function createAnim() {
+  const name = document.getElementById('newAnimName').value.trim();
+  if (!name) return alert('Give the animation a key first (e.g. player_run).');
+  if (ANIM_DEFS[name]) return alert('That key already exists.');
+  ANIM_DEFS[name] = { entity: 'player', loop: false, frames: [
+    { duration: 4, pose: 'idle', cancelableFrom: false },
+  ]};
+  currentKey = name; frameIdx = 0;
+  document.getElementById('newAnimName').value = '';
+  refresh();
+}
+
+function applyEntity() {
+  entity.width = +document.getElementById('entW').value || 24;
+  entity.height = +document.getElementById('entH').value || 32;
+  draw();
+}
+
+// ── Timeline ────────────────────────────────────────────────────────────────
+function renderStrip() {
+  const strip = document.getElementById('frameStrip');
+  strip.innerHTML = '';
+  const d = def();
+  if (!d) return;
+  d.frames.forEach((f, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'frameCell' + (i === frameIdx ? ' sel' : '');
+    cell.innerHTML = `#${i}<div class="dur">${f.duration || 4}f</div>` +
+      `<div class="tag">${f.hitboxes && f.hitboxes.length ? '⚔' : ''}${f.cancelableFrom ? ' ✓' : ''}${f.image ? ' 🖼' : ''}</div>`;
+    cell.onclick = () => { frameIdx = i; selectedBox = null; refresh(); };
+    strip.appendChild(cell);
+  });
+}
+
+function addFrame() {
+  const d = def(); if (!d) return;
+  d.frames.splice(frameIdx + 1, 0, { duration: 4, pose: frame()?.pose || 'idle', cancelableFrom: false });
+  frameIdx++;
+  refresh();
+}
+function dupFrame() {
+  const d = def(); const f = frame(); if (!d || !f) return;
+  d.frames.splice(frameIdx + 1, 0, JSON.parse(JSON.stringify(f)));
+  frameIdx++;
+  refresh();
+}
+function deleteFrame() {
+  const d = def(); if (!d || d.frames.length <= 1) return alert('An animation needs at least one frame.');
+  d.frames.splice(frameIdx, 1);
+  frameIdx = Math.min(frameIdx, d.frames.length - 1);
+  refresh();
+}
+function moveFrame(dir) {
+  const d = def(); if (!d) return;
+  const j = frameIdx + dir;
+  if (j < 0 || j >= d.frames.length) return;
+  [d.frames[frameIdx], d.frames[j]] = [d.frames[j], d.frames[frameIdx]];
+  frameIdx = j;
+  refresh();
+}
+
+// ── Right panel: frame properties ───────────────────────────────────────────
+function renderFramePanel() {
+  const f = frame(); if (!f) return;
+  document.getElementById('frameTitle').textContent = `Frame #${frameIdx} of ${currentKey}`;
+  document.getElementById('fDuration').value = f.duration || 4;
+  document.getElementById('fCancel').checked = !!f.cancelableFrom;
+
+  const poseSel = document.getElementById('fPose');
+  poseSel.innerHTML = '';
+  for (const p of Object.keys(POSE_RENDERERS)) {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    poseSel.appendChild(opt);
+  }
+  poseSel.value = f.pose || 'idle';
+
+  document.getElementById('imageRow').style.display = f.image ? '' : 'none';
+  document.getElementById('fImageScale').value = f.imageScale || 1;
+
+  document.getElementById('fHurtOn').checked = !!f.hurtbox;
+  document.getElementById('hurtRow').style.display = f.hurtbox ? '' : 'none';
+  if (f.hurtbox) {
+    document.getElementById('hbX').value = f.hurtbox.x;
+    document.getElementById('hbY').value = f.hurtbox.y;
+    document.getElementById('hbW').value = f.hurtbox.w;
+    document.getElementById('hbH').value = f.hurtbox.h;
+  }
+
+  const list = document.getElementById('hitboxList');
+  list.innerHTML = '';
+  (f.hitboxes || []).forEach((hb, i) => {
+    const div = document.createElement('div');
+    div.className = 'hitboxEntry';
+    div.innerHTML = `<b style="color:#fbbf24">Hitbox ${i}</b>
+      <div class="row">
+        <label>x <input type="number" value="${hb.x}" onchange="setHB(${i},'x',this.value)"></label>
+        <label>y <input type="number" value="${hb.y}" onchange="setHB(${i},'y',this.value)"></label>
+        <label>w <input type="number" value="${hb.w}" onchange="setHB(${i},'w',this.value)"></label>
+        <label>h <input type="number" value="${hb.h}" onchange="setHB(${i},'h',this.value)"></label>
+      </div>
+      <div class="row">
+        <label>dmg <input type="number" value="${hb.damage ?? 1}" step="0.5" onchange="setHB(${i},'damage',this.value)"></label>
+        <label>kb-x <input type="number" value="${hb.knockbackX ?? 4}" onchange="setHB(${i},'knockbackX',this.value)"></label>
+        <label>kb-y <input type="number" value="${hb.knockbackY ?? -3}" onchange="setHB(${i},'knockbackY',this.value)"></label>
+        <button class="danger" onclick="delHB(${i})">✕</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function applyFrame() {
+  const f = frame(); if (!f) return;
+  f.duration = Math.max(1, +document.getElementById('fDuration').value || 4);
+  f.cancelableFrom = document.getElementById('fCancel').checked;
+  f.pose = document.getElementById('fPose').value;
+  if (f.image) f.imageScale = +document.getElementById('fImageScale').value || 1;
+  refresh();
+}
+
+function toggleHurtbox() {
+  const f = frame(); if (!f) return;
+  if (document.getElementById('fHurtOn').checked) {
+    f.hurtbox = f.hurtbox || { x: 0, y: 0, w: entity.width, h: entity.height };
+  } else {
+    delete f.hurtbox;
+  }
+  refresh();
+}
+function applyHurtbox() {
+  const f = frame(); if (!f || !f.hurtbox) return;
+  f.hurtbox = {
+    x: +document.getElementById('hbX').value || 0,
+    y: +document.getElementById('hbY').value || 0,
+    w: +document.getElementById('hbW').value || 10,
+    h: +document.getElementById('hbH').value || 10,
+  };
+  draw();
+}
+
+function addHitbox() {
+  const f = frame(); if (!f) return;
+  f.hitboxes = f.hitboxes || [];
+  f.hitboxes.push({ x: entity.width, y: 0, w: 40, h: 28, damage: 1, knockbackX: 4, knockbackY: -3 });
+  refresh();
+}
+function setHB(i, prop, val) {
+  const f = frame(); if (!f || !f.hitboxes || !f.hitboxes[i]) return;
+  f.hitboxes[i][prop] = +val;
+  draw(); renderStrip();
+}
+function delHB(i) {
+  const f = frame(); if (!f || !f.hitboxes) return;
+  f.hitboxes.splice(i, 1);
+  refresh();
+}
+
+function uploadImage(ev) {
+  const file = ev.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const f = frame(); if (!f) return;
+    f.image = reader.result; // data URL — self-contained in the export
+    f.imageScale = f.imageScale || 1;
+    refresh();
+  };
+  reader.readAsDataURL(file);
+  ev.target.value = '';
+}
+function removeImage() {
+  const f = frame(); if (!f) return;
+  delete f.image; delete f.imageScale;
+  refresh();
+}
+
+// ── Canvas: preview + box dragging ──────────────────────────────────────────
+function canvasTransform() {
+  const zoom = +document.getElementById('zoom').value;
+  const ox = cv.width / 2 - (entity.width * zoom) / 2;
+  const oy = cv.height / 2 - (entity.height * zoom) / 2;
+  return { zoom, ox, oy };
+}
+function toWorld(mx, my) {
+  const { zoom, ox, oy } = canvasTransform();
+  return { x: (mx - ox) / zoom, y: (my - oy) / zoom };
+}
+
+function drawBox(b, color, t) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(t.ox + b.x * t.zoom, t.oy + b.y * t.zoom, b.w * t.zoom, b.h * t.zoom);
+  ctx.fillStyle = color.replace(')', ', 0.12)').replace('rgb', 'rgba');
+  ctx.fillRect(t.ox + b.x * t.zoom, t.oy + b.y * t.zoom, b.w * t.zoom, b.h * t.zoom);
+  // corner resize handle
+  ctx.fillStyle = color;
+  ctx.fillRect(t.ox + (b.x + b.w) * t.zoom - 4, t.oy + (b.y + b.h) * t.zoom - 4, 8, 8);
+}
+
+function drawFrameAt(f, t, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(t.ox, t.oy);
+  ctx.scale(t.zoom, t.zoom);
+  if (f.image) {
+    const img = getAnimImage(f.image);
+    if (img.complete && img.naturalWidth > 0) {
+      const s = f.imageScale || 1;
+      const w = img.naturalWidth * s, h = img.naturalHeight * s;
+      ctx.drawImage(img, entity.width / 2 - w / 2, entity.height - h, w, h);
+    }
+  } else if (f.pose && POSE_RENDERERS[f.pose]) {
+    POSE_RENDERERS[f.pose](ctx, entity, f);
+  }
+  ctx.restore();
+}
+
+function draw() {
+  const wrap = document.getElementById('canvasWrap');
+  cv.width = wrap.clientWidth; cv.height = wrap.clientHeight;
+  ctx.fillStyle = '#0e0e16';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  const t = canvasTransform();
+
+  // Ground line + entity outline for spatial reference
+  ctx.strokeStyle = '#26263c';
+  ctx.beginPath();
+  ctx.moveTo(0, t.oy + entity.height * t.zoom);
+  ctx.lineTo(cv.width, t.oy + entity.height * t.zoom);
+  ctx.stroke();
+  ctx.strokeStyle = '#3a3a5e';
+  ctx.setLineDash([4, 3]);
+  ctx.strokeRect(t.ox, t.oy, entity.width * t.zoom, entity.height * t.zoom);
+  ctx.setLineDash([]);
+
+  const d = def();
+  if (!d) return;
+  const showIdx = playing ? playFrame : frameIdx;
+  const f = d.frames[showIdx];
+  if (!f) return;
+
+  // Onion skin: previous frame ghosted behind
+  if (document.getElementById('onion').checked && showIdx > 0) {
+    drawFrameAt(d.frames[showIdx - 1], t, 0.25);
+  }
+  drawFrameAt(f, t, 1);
+
+  if (document.getElementById('showBoxes').checked && !playing) {
+    if (f.hurtbox) drawBox(f.hurtbox, 'rgb(45, 212, 191)', t);
+    (f.hitboxes || []).forEach((hb) => drawBox(hb, 'rgb(251, 191, 36)', t));
+  }
+  // While playing, still flash hitboxes so timing reads at a glance
+  if (playing && f.hitboxes) {
+    (f.hitboxes || []).forEach((hb) => drawBox(hb, 'rgb(251, 191, 36)', t));
+  }
+}
+
+// Box drag/resize
+let drag = null; // { box, mode:'move'|'resize', startX, startY, orig }
+cv.addEventListener('mousedown', (e) => {
+  if (playing) return;
+  const f = frame(); if (!f) return;
+  const m = toWorld(e.offsetX, e.offsetY);
+  const boxes = [];
+  (f.hitboxes || []).forEach((hb, i) => boxes.push({ box: hb, kind: 'hit', index: i }));
+  if (f.hurtbox) boxes.push({ box: f.hurtbox, kind: 'hurt' });
+  // topmost first — hitboxes over hurtbox
+  for (const entry of boxes) {
+    const b = entry.box;
+    const nearCorner = Math.abs(m.x - (b.x + b.w)) < 3 && Math.abs(m.y - (b.y + b.h)) < 3;
+    const inside = m.x >= b.x && m.x <= b.x + b.w && m.y >= b.y && m.y <= b.y + b.h;
+    if (nearCorner || inside) {
+      drag = { entry, mode: nearCorner ? 'resize' : 'move', startX: m.x, startY: m.y, orig: { ...b } };
+      selectedBox = entry;
+      return;
+    }
+  }
+});
+cv.addEventListener('mousemove', (e) => {
+  if (!drag) return;
+  const m = toWorld(e.offsetX, e.offsetY);
+  const b = drag.entry.box;
+  const dx = Math.round(m.x - drag.startX), dy = Math.round(m.y - drag.startY);
+  if (drag.mode === 'move') { b.x = drag.orig.x + dx; b.y = drag.orig.y + dy; }
+  else { b.w = Math.max(4, drag.orig.w + dx); b.h = Math.max(4, drag.orig.h + dy); }
+  draw();
+});
+window.addEventListener('mouseup', () => { if (drag) { drag = null; renderFramePanel(); } });
+
+// ── Playback ────────────────────────────────────────────────────────────────
+function togglePlay() {
+  playing = !playing;
+  playFrame = 0; playTimer = 0;
+  document.getElementById('playBtn').textContent = playing ? '⏸ Stop' : '▶ Play';
+  document.getElementById('playBtn').classList.toggle('active', playing);
+}
+function tick() {
+  if (playing) {
+    const d = def();
+    if (d) {
+      playTimer++;
+      if (playTimer >= (d.frames[playFrame].duration || 4)) {
+        playTimer = 0;
+        playFrame = (playFrame + 1) % d.frames.length;
+      }
+      draw();
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// ── Save / export ───────────────────────────────────────────────────────────
+function saveOverrides() {
+  try {
+    localStorage.setItem(ANIM_OVERRIDES_KEY, JSON.stringify(ANIM_DEFS));
+    alert('Saved. The game (and enemy_test.html) will use these on next load.');
+  } catch (e) {
+    alert('Save failed — likely over the localStorage size limit (large uploaded images). Export JSON instead.');
+  }
+}
+function clearOverrides() {
+  localStorage.removeItem(ANIM_OVERRIDES_KEY);
+  alert('Saved overrides cleared — the game is back to the built-in ANIM_DEFS.');
+}
+function exportJSON() {
+  const box = document.getElementById('exportBox');
+  box.value = `// Paste into game/animdata.js — replaces the ANIM_DEFS entries below.\n`
+    + `Object.assign(ANIM_DEFS, ${JSON.stringify(ANIM_DEFS, null, 2)});`;
+  box.select();
+}
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+function refresh() { renderAnimList(); renderStrip(); renderFramePanel(); draw(); }
+window.addEventListener('resize', draw);
+refresh();
+tick();
+</script>
+</body>
+</html>

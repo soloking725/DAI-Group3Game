@@ -629,7 +629,7 @@ PHASE 5 — Extra Depth & Polish
         constraint.
         """
 
-[ ] 5.3 Currency System (Fractured Essence)
+[ ] 5.3 Debug check
 [ ] 5.4 Boss Rush / Radiant Mode
 [ ] 5.5 NPCs & Side Quests
 [~] 5.6 In-Game Bestiary / Journal — NOT built as a journal yet, but note:
@@ -1792,3 +1792,384 @@ both are built from scratch here, base ability + all levels.
 Not yet verified in-browser (see `CLAUDE.md`'s hard rule) — needs a human
 playtest, especially Stillpoint's activation-model change (a real feel
 change, not just numbers) and the two brand-new abilities.
+
+PHASE 17 — Phase 16 follow-up fixes from user playtesting feedback (2026-07-16)
+─────────────────────────────────────────────────────────────────────────────
+[x] Graviton Surge now flips gravity for every living enemy within
+    `GRAVITON_SURGE_RANGE` (350px) of the player, not just the player
+    (user report: "should apply to all enemies in range"). The engine has
+    no real ceiling-collision physics for enemies (only ever checks
+    landing on a floor from above — confirmed by reading every enemy
+    subclass's platform-collision block), so flipped enemies float upward
+    and are clamped at a synthetic ceiling line (`GRAVITON_CEILING_Y`,
+    game.js) — the closest real approximation to "slams into the ceiling"
+    without a full physics rewrite across every enemy subclass. Lv0 = stun
+    only, Lv1+ = stun + 1 dmg, as before.
+[x] Normal vs. charged attack now genuinely differ in both hitbox and
+    animation (Enemy_Design.pdf's original "To Fix" note, plus user
+    feedback wanting Hollow-Knight-style clarity): normal attack is a
+    tight forward poke at chest height (small hitbox, quick 2-line jab
+    animation, no arc); charged/heavy attack gets a new taller hitbox
+    (`ATK_HEAVY_FWD_W/H`, player.js) starting above the head and keeps the
+    existing big overhead-sweep arc animation. Up/down-directional attacks
+    unaffected (already had their own distinct hitboxes/animations).
+[x] Confirmed (no code change needed): Strength's Lv4 really can't be
+    reached in real play right now, by design — `grantLimitBreak()` isn't
+    called from any room since the endgame region that's supposed to grant
+    it isn't built. Matches what was implemented in Phase 16.
+[~] Phase Dash Lv4 (Limit Break) implemented — was a real gap flagged in
+    Phase 16 (only Lv0-3 existed). The echo becomes a Stand (`standEcho`,
+    game.js) that follows the player every frame instead of staying
+    planted, and mirrors every melee swing at 100% damage (vs. the normal
+    Lv3 echo's one-shot 50% before fading) for the Enhanced State's
+    duration. Still not done: an in-game way to *activate* this Limit
+    Break (same gap as the other 4 non-Strength abilities, noted in
+    Phase 16) — only enemy_test.html's force-toggle can trigger it today.
+[x] Shard Shot Lv3/Lv4 Beam reworked into a true continuous channel
+    ("a beam as in continuous energy, like a kamehameha" — user
+    clarification; the Phase 16 version fired one strong piercing
+    projectile on release, which wasn't what was meant). Holding shardShot
+    past 1s with a Fracture Pip in reserve now opens a channel instead of
+    charging a release-shot: a straight line (no gravity/arc, angle
+    live-adjustable with aimUp/aimDown while channeling) ticks damage
+    every 6 frames to everything it touches, draining 1 Fracture Pip/sec,
+    until released or pips run out. Lv3 = 2 dps, Limit Break = 3 dps.
+    Removed the now-unused single-shot beam plumbing (`useShardBeam()`,
+    the projectile `pierce`/`pierceInfinite`/`hitEnemies` dedup machinery)
+    rather than leave it as dead code alongside the new channel.
+[x] Beam now draws as a solid straight line while charging/channeling
+    (was the same dotted-parabola aim guide as the normal shot, which the
+    user found hard to aim with for something that doesn't actually arc).
+[ ] Not done this pass (still open, unchanged from Phase 16's list):
+    non-Strength Lv4 activation inputs (Phase Dash's is now the 2nd of 6
+    built), the Tether Slam / Dash-Cancel Overhead / Gravity Spike combo
+    inputs, the pre-existing unset Shard Shot cooldown bug.
+Not yet verified in-browser (see `CLAUDE.md`'s hard rule) — the gravity
+flip, the new attack hitbox split, the Stand echo, and the beam rework are
+all real behavior changes that need a human playtest, not just a numbers
+check.
+
+PHASE 18 — Second playtesting feedback round + repo reorg (2026-07-16)
+─────────────────────────────────────────────────────────────────────────────
+A large batch of fixes from actually playing the Phase 16/17 build:
+
+[x] Normal attack range widened (`ATK_FWD_W` 40->58px, poke animation reach
+    26->40px to match) — user feedback: too short to reliably land.
+[x] Tap-vs-charge leniency: `CHARGE_TAP` 5f->16f (was firing a barely-
+    charged, wrong-looking "heavy" swing on any tap slightly slower than
+    83ms) and `STILLPOINT_HOLD_THRESHOLD` 12f->20f (same issue, tap vs
+    hold). "I can hardly get the normal attack" — root cause was the tap
+    window being too narrow, not a targeting/hitbox bug.
+[x] Variable jump height (short hop): releasing Jump early now cuts the
+    current ascent by 55% once per jump (`player.jumping`/`jumpCut`,
+    direction-agnostic so it also works during Graviton Surge's flipped
+    gravity).
+[x] Enemies "stunned" from non-parry sources (Void Tether's electrified
+    stun, Graviton Surge's ceiling slam) were silently immune to their own
+    knockback — root cause: they reused `enemy.stunTimer`, which is
+    specifically the PARRY-freeze mechanic (zeroes vx and skips all
+    physics/position updates for the frame, see enemy.js's per-type
+    `update()`). Switched both to `enemy.hitStun` instead, which permits
+    normal knockback physics — the correct field for "briefly can't act but
+    still flies from a hit."
+[x] Dash and Phase Dash merged onto one button (`dash`/KeyC) — "too many
+    buttons." Phase Dash now fires automatically whenever it's unlocked and
+    off its own cooldown; the same button falls back to a normal Dash
+    (its own short cooldown/chain, unaffected) while Phase Dash is
+    cooling down. Retired the separate `phaseDash` input action/binding
+    entirely (input.js, game.js's REMAPPABLE_ACTIONS) rather than leave a
+    dead remap entry. 8-directional aiming (Lv1+) already applied to both
+    dash types via the shared `getDashDirection()`, so merging the trigger
+    needed no extra work there.
+[x] Phase Dash Lv3/4 echo swing is now visually shown even when it doesn't
+    hit anything (`Echo.swingFlash`, ability.js) — was previously invisible
+    unless it actually connected with an enemy.
+[x] Shard Shot: removed gravity from `Projectile` entirely (only Shard Shot
+    ever instantiates that class) — "too hard to aim... without holding it
+    to readjust." Shots now fly perfectly straight along the aimed angle.
+    2-shard spread (Lv2) changed from a velocity offset (would have
+    diverged forever with no gravity to settle it) to a spawn-position
+    offset. Aim-preview line updated to match (straight, not a parabola).
+[x] Clarified with the user: the Lv3/4 "Beam" should be continuous energy
+    ("like a kamehameha"), not the single strong piercing shot built in
+    Phase 16/17. Reworked into a real continuous channel: holding past 1s
+    with a pip in reserve opens a straight-line beam (angle live-
+    adjustable) that ticks damage every 6 frames and drains 1 pip/sec until
+    released or pips run out. Removed the now-dead single-shot-beam
+    plumbing (`useShardBeam()`, the projectile `pierce`/`hitEnemies` dedup
+    machinery) rather than leave it alongside the replacement.
+[x] Shard Shot Lv4 Limit Break ("melee swings replaced with Shard Blasts")
+    was simply never implemented in Phase 16/17 despite being documented as
+    done — now actually implemented: the attack button is intercepted entirely
+    while this Enhanced State is active and fires a 150%-damage blast
+    instead of a melee swing.
+[x] Stillpoint Lv4 was reportedly freezing the whole game (player included)
+    instead of "the smallest number that still runs." Root cause not
+    fully confirmed without a live repro (this may partly have been an
+    unrelated runtime error — flag it if it persists), but hardened two
+    ways regardless: `gameTimeScale` is now hard-floored at 0.05 (game.js)
+    so it can never literally reach 0 no matter what sets it, and Lv4's own
+    slow value is 0.95 (not a plan to ever hit 1.0). Confirmed pip costs
+    were already correct as originally built (1 tap / 3 hold at every
+    level) — no change needed there.
+[x] Graviton Surge ceiling collision was completely fake — a fixed
+    `y <= 40` clamp with no awareness of real platform geometry, so
+    entities clipped straight through any actual ceiling platform, and the
+    PLAYER had no clamp at all (flew off-screen in an open-topped room).
+    Replaced with `resolveCeilingY()` (game.js): finds the real underside of
+    whichever platform an entity has reached, or a synthetic room-top bound
+    otherwise — applied to both enemies (existing bounce/slam logic) and,
+    newly, the player (lands and sets `grounded`, so jump — already
+    direction-flipped for this state — works from the ceiling too).
+[x] Gravity Ball (Lv2+) visual was completely missing — the pull/damage
+    logic in game.js was real, just never drawn. Added a pulsing radial
+    gradient + core dot at the ball's position (Player.draw()).
+[x] Void Tether's "or pulls you to walls" half (when no enemy is in range)
+    was never built — likely why it looked entirely non-functional in
+    testing (whiffing with no enemy nearby did nothing at all). Added: when
+    no enemy target is found, grapples the player to the nearest solid
+    platform edge in their facing direction instead.
+[x] Added a real wall-bounce system — enemies previously had NO horizontal
+    wall collision at all (confirmed by grep: zero hits across every
+    subclass), so a knocked-back enemy just clipped straight through any
+    wall. New post-update correction (game.js, same pattern as the
+    Graviton Surge fixes) reflects an enemy's vx hard (85% retained) off
+    any `wall: true` platform it's overlapping fast enough, with
+    particles/screenshake — explicitly a HARD bounce per the user's
+    combo-focused ask. Added a dedicated thin `wall: true` platform near
+    the default spawn in `enemy_test_arena` (area.js) to test it on.
+[x] Player collision margins were fixed pixel constants (4/8/10px) sized
+    for slow, gravity-only motion — a fast knockback impulse, a dash, or a
+    diagonal corner approach could move the player further than that in
+    one frame, tunneling clean through the check before it ever triggered
+    ("easy to fall through the floor," "jump into a wall and go under,"
+    "enemy hits me from above and I fall through"). Margins now scale with
+    how far the player actually moved this frame
+    (`Math.max(8, |vy|+2)` / `Math.max(10, |vx|+2)`, player.js) — same
+    discrete-collision approach, just safe across realistic speed ranges
+    instead of only normal walking/falling.
+[x] enemy_editor.html gained a Speed stat (+ wired through
+    enemy_test.html's override handoff). Only the base `Enemy` class's own
+    movement reads it so far (`this.speed`, enemy.js) — most subclasses
+    fully override `update()` with their own hardcoded movement and won't
+    respond to it yet; documented as a known limitation in the tool itself
+    rather than silently no-op.
+[x] Repo reorg (user request): moved everything except `index.html` out of
+    the flat root into `game/` (the 9 runtime scripts + style.css) and
+    `editor/` (every dev-tool HTML + export_graph.js). `Plans/` unchanged.
+    Updated every script/fetch path accordingly, including the trickier
+    ones: `debug_v1.html`/`debug_new.html`'s `srcdoc` injection (resolves
+    relative paths against the tool's OWN location, not wherever the
+    fetched `index.html` came from, so its rewritten content needs a second
+    path rewrite pass — see the comment in `loadSandbox()`) and
+    `export_graph.js`'s CLI defaults (now `__dirname`-relative so they work
+    regardless of the caller's cwd). See `CLAUDE.md`'s new "File locations"
+    section for the full map. Verified via `node --check` on every script
+    and every tool's extracted inline `<script>` block — not live-browser-
+    verified per the hard rule, but this class of change (path strings) is
+    fully checkable by static inspection, unlike the gameplay changes above.
+[ ] Not done this pass: non-Strength Lv4 activation inputs (still only
+    Strength + Phase Dash have one), the 3 combo inputs (Tether Slam,
+    Dash-Cancel Overhead, Gravity Spike), the pre-existing unset Shard Shot
+    cooldown bug, per-enemy-subclass vy-based squash/stretch parity with
+    the player's (deferred — would mean touching ~13 separate `draw()`
+    methods for a cosmetic-only request), and normal-vs-charged-attack's
+    exact 3-hit-combo/wall-bounce numeric bonuses from Strength Lv4 (the
+    hitbox/animation split landed, the combo mechanics didn't).
+Not yet verified in-browser (see `CLAUDE.md`'s hard rule) — this is the
+largest single batch of gameplay behavior changes yet; a full playtest
+pass is strongly recommended before assuming any of the above "works,"
+especially Stillpoint Lv4 (unresolved root cause), Void Tether, and the
+wall bounce.
+
+────────────────────────────────────────────────────────────────────────
+PHASE 17 — Systems build-out: physics, AI, cutscenes, combos, healing,
+the Child, and 4 new editors (2026-07-16, same day as Phase 16)
+────────────────────────────────────────────────────────────────────────
+The single largest batch of new systems yet — user green-lit "everything we
+just planned" (Plans/child_companion_system_plan.md,
+combat_ai_overhaul_plan.md, healing_items_plan.md, animation_editor_plan.md).
+Verified via `node --check` on every script + a Node VM smoke test that
+loads all 15 scripts in index.html's order and exercises each new system
+(scratchpad test: enemy AI 120-frame run, Child follow, tether targeting,
+motes healing, cutscene start→end→flag, TETHER SLAM combo, max-health math
+— all passing). NOT browser-verified per CLAUDE.md's hard rule; manual
+test steps are listed at the end of this phase.
+
+New runtime scripts (index.html load order: audio, input, physics,
+animdata, area, map, ability, cutscene, combo, healing, boss, enemy,
+companion, player, game):
+
+[x] game/physics.js — ONE shared collision resolver
+    (`resolveEntityCollision`) for every non-player entity: velocity-scaled
+    margins, prevBottom landing guard (kills "enemy walks into a tall wall
+    and snaps to its top"), real ceiling collision for enemies, wall
+    stop/bounce (the game.js wall-bounce pass moved here — game.js now just
+    plays the impact VFX off `enemy.wallBouncedThisFrame`). Also
+    `nudgeOutOfPlatforms()` spawn safety: enemy spawns, door destinations
+    (switchArea), Stutterer teleports, and Child spawns all push out of
+    overlapping geometry (console-warns on authored-position errors).
+    Migrated every enemy physics tail (base Enemy both blocks, Stutterer,
+    VoidLancer, EchoStalker, FracturedSlime, BlitzGuard, ColossusCore,
+    ComposedEnemy) onto it — ~11 duplicated inline loops removed. Node
+    test harness passes 9/9 collision cases.
+[x] Enemy AI overhaul (enemy.js, all in the BASE class so every subclass
+    inherits): notice delay (ENEMY_NOTICE_FRAMES alert beat with an
+    eye-warm + "?" tell before `aware` flips — enemies react, not know),
+    decision commit (ENEMY_DECISION_FRAMES — chase/patrol/facing only
+    re-evaluate at decision points via updateMovementIntent(), which
+    VoidLancer now also reuses instead of its pasted copy; ledge safety
+    still checked every frame), facing-cone initial detection (front
+    half-plane + ENEMY_HEARING_RADIUS omni close range; omnidirectional
+    once aware — nobody forgets an attacker).
+[x] Enemy defense verbs (enemy.js `this.defense` config, opt-in per enemy;
+    ComposedEnemy defs pass `defense` straight through for
+    enemy_designer.html JSON): block (guard arc tell; broken by heavies,
+    bypassed from behind, ripped open by Void Tether pulls — incl. the
+    Child's assist tether), dodge (telegraphed back-hop + i-frames +
+    landing recovery, never off a ledge), breakout (anti-juggle: 4 hits in
+    120f → 15f white charge flash → radial shove, minimal damage, ~10s
+    cooldown — caps infinite juggles, baitable), dash-punish (2 Phase-Dash
+    passes in 4s → instant turn + fast swipe), mix-ups (±25% windup
+    variance on every enemy; feints — cancel at 60%, faster real swing;
+    parry-respect: recently-parried enemies feint 20% more), per-attack
+    player knockback overrides on the base class
+    (attackDamage/attackKnockback). Assigned: VoidLancer = dodge +
+    dashPunish + 15% feint; NullSentinel = block + breakout.
+[x] Void Tether actually obtainable + usable: root cause of "button does
+    nothing" was that NOTHING ever granted `hasVoidTether` — the pickup
+    grant chain was a hand-grown if/else that silently ignored unlisted
+    abilities (graviton_surge's placed pickup in graviton_core_room2 was
+    equally dead, and so were all 3 max_health_upgrade_* pickups!).
+    Replaced with a data-driven ABILITY_GRANTS table covering all 6
+    abilities; placed an INTERIM void_tether pickup in Mirror Corridor
+    (already child-choice-gated in the floor plan; move the grant into the
+    real Child-choice scene when it exists). Also: whiff refund (a cast
+    with no target/wall now refunds the 90f cooldown down to 20f + fizzle
+    VFX instead of silently eating it), facing auto-aim (never pulls from
+    behind; distance + vertical-offset scoring), and a pulsing target
+    telegraph ring on whichever enemy WOULD be pulled (shared
+    findVoidTetherTarget() so the ring and the pull can never disagree).
+[x] game/cutscene.js — data-driven cutscene system: CUTSCENES{} step
+    scripts (wait/text/cameraPan/cameraReturn/movePlayer/setFlag/call),
+    gameState 'cutscene' (input locked, world rendered, letterbox + text
+    overlay, HUD suppressed), hold-attack-to-skip (setFlag/call steps STILL
+    execute on skip — skipping can never eat a story flag), `storyFlags{}`
+    persisted in saves. Sample scene `echo_bridge_intro` plays on first
+    entry to Echo Bridge part 1 — it's the wiring template for the real
+    Child scenes.
+[x] game/animdata.js + editor/anim_editor.html — the full animation/hitbox
+    system from Plans/animation_editor_plan.md, BOTH parts: ANIM_DEFS
+    frame timelines (duration, procedural pose OR uploaded drawing as a
+    data-URL image, hurtbox, damage hitboxes, cancelableFrom combo
+    windows), Animator playback class (world-space hitbox/hurtbox
+    resolution with facing mirroring), POSE_RENDERERS procedural poses,
+    localStorage override channel. The editor: frame-strip timeline,
+    per-frame duration, drag/resize hitboxes+hurtbox on canvas, image
+    upload per frame, onion skin, play/scrub, JSON export + save-to-game.
+    NOTE: the game still draws/hits the original procedural way — starter
+    defs mirror the live player attack numbers; migrating entities onto
+    Animator is deliberate follow-up work, per the plan doc.
+[x] game/combo.js + editor/combo_editor.html — combo chains as data:
+    COMBO_DEFS sequences (action + per-step frame window) matched against
+    action events detected from player state flags (rising-edge detectors
+    in _detectActions() — no player.js input changes needed; new abilities
+    = one line there). Rewards: damage_buff (wired into
+    playerMeleeDamage()), cooldown_refresh, fracture, heal. Built-ins:
+    TETHER SLAM (tether → down-slam), PHASE RUSH (dash→dash→attack),
+    GRAVITY SPIKE (graviton→jump→down-slam) — the 3 combo inputs Phase 16
+    left undone now exist in data form. The editor builds/edits chains
+    visually with the documented action vocabulary, localStorage overrides
+    + JSON export.
+[x] HUD_LAYOUT (game.js) + editor/hud_editor.html — every drawHUD element's
+    position/anchor/size/visibility extracted into one table
+    (anchor-relative so layouts survive canvas resizes), applied by
+    hudResolve(); the editor drags mock elements on a fake game frame,
+    toggles visibility, saves overrides to localStorage / exports JSON.
+    (DEFAULTS copy in the editor mirrors game.js — keep in sync by hand.)
+[x] levelEditor.html walls/ceilings clarity: the old "Wall" tool (which
+    actually made destructible crystal barriers) is now labeled "Crystal
+    Barrier"; NEW dedicated "Solid Wall" (Shift+W) and "Ceiling" (C) tools
+    set plat.wall / plat.ceiling directly; legend now shows all four
+    platform kinds; checkbox help text updated to the physics.js-era
+    semantics (walls bounce knocked-back enemies, ceilings block enemies
+    too). Export already preserved the flags (generic serializer).
+[x] game/companion.js + editor/companion_test.html — the Child, per
+    child_companion_system_plan.md: real locomotion (runs at 3.4 vs the
+    player's 4, gap-probe jumps, jump-up-to-player, mirror-jumps), catch-up
+    failsafe that only blink-teleports OFF-SCREEN (or when fallen out of
+    the world) — never on camera; modes follow/hiding/fighting/scripted
+    (combat auto-switches: hides while any enemy is `aware`, walks back
+    after — touch-heal 1 HP on ~70s cooldown with an in-world heal-ready
+    pulse ring, no HUD chrome); Phase 2 (`companionState.canFight`) tether
+    assist every ~9s: drags the enemy in front of the player 70px toward
+    them + hitStun + guard-break (the keep-her branch's mirror of Void
+    Tether, per the plan's symmetry note — she sets up YOUR combos, never
+    out-damages you); call button (F, remappable 'callChild'); save data
+    (companion {active, canFight}). Arena tool boots the real game into
+    the test arena with her active: mode override, canFight toggle, wave/
+    lancer spawners, player-teleport fuzzer, damage button, live tuning
+    sliders (logged constants for hand-transfer), live stats.
+[x] game/healing.js — healing economy per healing_items_plan.md (no
+    potions, no consumable inventory): vitality motes (enemies drop
+    2 + width/30 motes on death, +1 on a heavy kill; drift-collect within
+    120px, expire 4s, 4 motes = +1 HP), max-health shards (the 3 existing
+    max_health_upgrade_* pickups now actually work — +1 max HP each via
+    maxHealthBonus/playerMaxHealth(), which every heal cap/full-heal/HUD
+    hearts site now reads instead of the MAX_HEALTH const; persisted with
+    per-id collected flags), strike-open healing crystals
+    (area.healingCrystals — attack to full-heal, regrows on anchor rest or
+    death; per-swing dedup via hitTargetsThisSwing per CLAUDE.md's rule;
+    first placements: crag_altar + the test arena).
+[x] REGRESSION FOUND & FIXED: the `enemy_test_arena` AREAS entry existed in
+    the committed root area.js but was silently missing from the working
+    tree's game/area.js after the folder reorg — enemy_test.html,
+    enemy_designer.html (and the new companion_test.html) were all booting
+    into an undefined room. Restored, with two extra platforms for the
+    Child's jump/gap tests. Also updated enemy_test/enemy_designer script
+    lists for the new runtime files (they'd have crashed on game.js's new
+    calls otherwise).
+[ ] Not done this pass / follow-ups: migrate player/enemy rendering onto
+    Animator (animdata.js is live but the game still draws procedurally);
+    per-frame ANIM_DEFS hitboxes driving real combat (same); block/dodge/
+    breakout knobs exposed as enemy_editor.html sliders (available via
+    enemy_designer JSON `defense` blocks today); the real Child-choice
+    cutscene + moving the void_tether/companion grants into it; Child
+    Phase-2 unlock beat ("teach her to fight" scene); mote drops from
+    bosses/minibosses at phase transitions; healingCrystals UI in
+    levelEditor (author by hand in area.js for now).
+
+MANUAL TEST CHECKLIST (browser, human — the no-browser rule stands):
+1. index.html console: no errors on boot; `[physics]`/`[compass graph]`
+   warnings are informational.
+2. Enemies: walk at a patrolling Fractured from behind — it should NOT
+   react until you're very close (hearing) or in front; watch the eye warm
+   + "?" before it engages; in a fight, watch for windup-timing variance.
+   Knock an enemy into a wall — hard bounce + particles; enemies should
+   stop at walls/ceilings, never perch on wall tops.
+3. Void Tether: new pickup in Mirror Corridor; R pulls the RING-marked
+   enemy (always in front); R with nothing in front = quick fizzle, ~20f
+   cooldown; near a wall with no enemy = grapple to the wall.
+4. NullSentinel (enemy_test.html): frontal light hits clank off its guard;
+   charged attack breaks it (× marker); juggle it 4 fast hits → white
+   flash → get shoved. VoidLancer: back-hops your swings; phase-dash
+   through it twice fast → instant punish swipe.
+5. Cutscene: fresh run → first entry to Echo Bridge part 1 → letterbox,
+   two text lines, camera pan; hold Z to skip; re-enter — should NOT
+   replay (storyFlags persists through save/load).
+6. Combos: dash→dash→attack quickly → "COMBO: PHASE RUSH" popup + damage
+   buff; tether an enemy then down-slam it as it arrives → TETHER SLAM.
+7. Healing: kill enemies → green motes drift in; 4 motes = +1 HP; strike
+   the crystal left of crag_altar's anchor → full heal, husk until you
+   rest at an anchor; the max-health pickups in echo_bridge_part1 /
+   event_horizon_pull-area / the_rift now grant a 7th/8th/9th heart.
+8. Child: editor/companion_test.html → Start Arena → run/jump around (she
+   follows, jumps gaps, mirror-jumps); spawn a wave (she hides, cowering);
+   clear it (she returns; touch her → +1 HP if hurt); toggle "can fight" +
+   spawn (pink tether assists); use the fuzzer (she should only ever
+   teleport while off-screen); F calls her.
+9. Editors: anim_editor (make an animation, drag hitboxes, upload a PNG
+   frame, Save → reload → still there), combo_editor (edit PHASE RUSH's
+   window to 10f, Save, verify it's now hard to trigger; Clear overrides),
+   hud_editor (drag hearts to top-center, Save, boot game → moved; Reset),
+   levelEditor (draw Solid Wall + Ceiling pieces, check the legend/export).

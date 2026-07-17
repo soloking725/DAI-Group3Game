@@ -176,22 +176,81 @@ Other design docs, read as needed for their specific topic:
   main progression gate, procedural generation, multiplayer, lock-and-key
   item gating (see above).
 
+## File locations (2026-07-16 reorg)
+
+The repo root used to be flat (every `.js`/dev-tool `.html` alongside
+`index.html`). Reorganized on user request into three folders — **only
+`index.html` itself stays at the root**:
+
+- `game/` — the 9 core runtime scripts (`audio.js` through `game.js`,
+  listed below) plus `style.css` (currently unused — `index.html`'s CSS is
+  inline; kept here anyway since it's thematically a game asset).
+- `editor/` — every dev/debug tool (`debug_v1.html`, `debug_new.html`,
+  `levelEditor.html`, `enemy_test.html`, `enemy_editor.html`,
+  `enemy_designer.html`, `worldmap.html`, `graph_analyzer.html`,
+  `export_graph.js`). Cross-references between these tools (e.g.
+  `enemy_editor.html`'s "Test in Arena" opening `enemy_test.html`) are
+  same-folder and needed no changes; each tool's own `<script src="...">`
+  tags now read `../game/foo.js`. `export_graph.js` (a Node CLI, not
+  loaded by any page) resolves its `../game/area.js` / `../world_map.graphml`
+  defaults off `__dirname`, so it works regardless of the caller's cwd.
+- `Plans/` — unchanged, all planning docs (this file included).
+- Root — `index.html`, `world_map.graphml` (an export artifact, not a
+  tool — nothing loads it programmatically), `Enemy_Design.pdf`.
+
+`index.html`'s own script tags now read `game/foo.js` (it didn't move, so
+these are still simple root-relative paths, just one folder deeper than
+before). `debug_v1.html`/`debug_new.html` fetch `../index.html` and text-
+rewrite its `game/foo.js` paths to `../game/foo.js` before injecting via
+`srcdoc` (a `srcdoc` document resolves relative paths against the *host*
+file's location, not the fetched content's original location — see the
+comment at each file's `loadSandbox()`).
+
 ## Architecture map
 
-Plain `<script>` tags in `index.html`, load order matters (globals depend
-on earlier files):
+Plain `<script>` tags in `index.html` (now `game/<name>.js` each, see
+above), load order matters (globals depend on earlier files). The six
+files marked NEW landed 2026-07-16 (roadmap Phase 17):
 
 ```
-audio.js    → SFX (procedural Web Audio, no audio files, per-area drone)
-input.js    → keys{}/justPressed{} via e.code, isPressed()/wasJustPressed()
-area.js     → AREAS{} data + compass graph (col/row/connections) + validateAreaGraph()
-map.js      → builds map overlay FROM area.js's compass graph (never hand-authored)
-ability.js  → Phase Dash / Shard Shot / Echo class / abilityState
-boss.js     → Boss (The Fractured King) — 3-phase state machine
-enemy.js    → Enemy, Stutterer, FracturedSlime, CrystalSentinel, ColossusCore
-player.js   → Player class — movement, combat, all physics constants
-game.js     → main loop, game state machine, HUD, save/load, everything else
+game/audio.js     → SFX (procedural Web Audio, no audio files, per-area drone)
+game/input.js     → keys{}/justPressed{} via e.code, remappable keyBindings
+game/physics.js   → NEW shared collision: resolveEntityCollision()/resolveEnemyPhysics()
+                    (velocity-scaled margins, prevBottom guard, walls/ceilings/bounce)
+                    + nudgeOutOfPlatforms() spawn safety. EVERY enemy physics tail
+                    calls this — never write a new inline platform loop.
+game/animdata.js  → NEW ANIM_DEFS frame/hitbox timelines + Animator + POSE_RENDERERS.
+                    Edited by editor/anim_editor.html. The game does NOT yet render
+                    through it — migration is deliberate per-entity work.
+game/area.js      → AREAS{} data + compass graph (col/row/connections) + validateAreaGraph()
+                    (+ per-room healingCrystals[]; enemy_test_arena is the dev-only room)
+game/map.js       → builds map overlay FROM area.js's compass graph (never hand-authored)
+game/ability.js   → Phase Dash / Shard Shot / Graviton Surge / Void Tether / Echo / abilityState
+game/cutscene.js  → NEW CUTSCENES{} scripts + playCutscene() + storyFlags{} (saved).
+                    gameState 'cutscene': input locked, hold-attack-to-skip; skipped
+                    setFlag/call steps STILL execute (progression safety).
+game/combo.js     → NEW COMBO_DEFS chains + action-event tracker (rising-edge detection
+                    off player flags — add new abilities in _detectActions(), one line)
+game/healing.js   → NEW vitality motes, maxHealthBonus/playerMaxHealth(), healing
+                    crystals. Heal caps must use playerMaxHealth(), not MAX_HEALTH.
+game/boss.js      → Boss (The Fractured King) — 3-phase state machine
+game/enemy.js     → all enemy classes + ComposedEnemy. Base-class AI: notice delay,
+                    decision commit (updateMovementIntent), facing-cone detection;
+                    opt-in defense verbs via this.defense (block/dodge/breakout/
+                    dashPunish) + windupVariance/feintChance mix-ups.
+game/companion.js → NEW the Child (companionState + Child class) — follow/hide/heal/
+                    tether-assist; never dies, teleport failsafe only off-screen.
+game/player.js    → Player class — movement, combat, all physics constants
+game/game.js      → main loop, game state machine, HUD (HUD_LAYOUT data table),
+                    ABILITY_GRANTS pickup table, save/load, everything else
 ```
+
+New-ability checklist (2026-07-16): a grantable ability needs (1) an
+`abilityState.hasX` flag + reset in BOTH reset paths + save/load, (2) one
+line in game.js's `ABILITY_GRANTS` (the pickup grant is generic — the old
+if/else chain silently ignored unlisted abilities, which is exactly how
+Void Tether/Graviton Surge/max-health pickups were dead for a while),
+(3) optionally one line in combo.js's `_detectActions()` to be combo-able.
 
 Key global state lives in `game.js` (not modularized — `player`, `boss`,
 `miniboss`, `areaEnemies`, `camera`, `gameState`, etc. are top-level
@@ -292,6 +351,20 @@ gate only the damage checks on `!dead`.
   2026-07-12. Keep `PLANNED_REGIONS`/`CROSS_LINKS` in sync with
   `expansion.md` §3.13b by hand — there's no automatic validation between
   the two.
+- **`anim_editor.html`** — NEW (2026-07-16): frame-strip animation/hitbox
+  editor over `game/animdata.js`'s `ANIM_DEFS` — durations, drag-resize
+  hitboxes/hurtbox, per-frame image upload (data URLs, self-contained),
+  cancelableFrom combo windows, onion skin, localStorage save (the game
+  applies overrides on load) + paste-ready JSON export.
+- **`combo_editor.html`** — NEW: visual editor for `game/combo.js`'s
+  `COMBO_DEFS` (steps from the documented action vocabulary, per-step
+  frame windows, rewards). Same save/export pattern.
+- **`hud_editor.html`** — NEW: drag/toggle the HUD elements `drawHUD()`
+  renders, via game.js's `HUD_LAYOUT` table. The editor keeps a DEFAULTS
+  copy of that table — if you change one, change the other.
+- **`companion_test.html`** — NEW: boots the real game into
+  `enemy_test_arena` with the Child active (mode override, canFight
+  toggle, wave spawner, player-teleport fuzzer, live tuning sliders).
 - **`level_designer.html`** — PLANNED, not built (see roadmap.md's tail
   end for the full spec). Would be a live visual tuning tool for the Task
   4 decoration system (`REGION_STYLES` etc.) — palette/parameter controls

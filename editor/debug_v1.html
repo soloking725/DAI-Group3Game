@@ -1,6 +1,6 @@
 //HOW TO USE:
 // python3 -m http.server 8000
-// http://localhost:8000/debug_new.html
+// http://localhost:8000/debug_v1.html
 
 
 <!DOCTYPE html>
@@ -115,8 +115,12 @@ async function loadSandbox() {
 
   // Fetch index.html's markup and re-inject it via srcdoc so we can prepend a
   // small instrumentation script (frame-timing hook) BEFORE game.js runs,
-  // without touching the real game files at all.
-  const html = await fetch('index.html').then((r) => r.text());
+  // without touching the real game files at all. index.html now lives one
+  // folder up (2026-07-16 reorg) — its own script tags read "game/foo.js"
+  // (root-relative to itself), but a srcdoc'd document resolves relative
+  // paths against THIS file's location instead, so those need rewriting to
+  // "../game/foo.js" before injecting.
+  const html = await fetch('../index.html').then((r) => r.text());
   const patch = `
     <script>
       window.__frameLog = [];
@@ -130,7 +134,8 @@ async function loadSandbox() {
       };
     <\/script>
   `;
-  const patched = html.replace('<script src="audio.js">', patch + '<script src="audio.js">');
+  const rebased = html.replace(/src="game\//g, 'src="../game/');
+  const patched = rebased.replace('<script src="../game/audio.js">', patch + '<script src="../game/audio.js">');
 
   return new Promise((resolve) => {
     iframe.onload = () => resolve(iframe);
@@ -141,7 +146,7 @@ async function loadSandbox() {
 async function runChecks() {
   document.getElementById('run-btn').disabled = true;
   clearLog();
-  checksTotal = 8;
+  checksTotal = 11;
   updateStats();
   log('Booting sandboxed game instance...', 'dim');
 
@@ -198,7 +203,16 @@ async function runChecks() {
   // ── Check 6: save → quit to menu → load doesn't freeze (the exact bug you hit) ──
   await pressKey(win, 'Escape'); await sleep(400); // skip tutorial -> autosave
   await pressKey(win, 'Escape'); await sleep(200); // open pause menu
-  for (let i = 0; i < 5; i++) { await pressKey(win, 'ArrowDown', 30); await sleep(60); } // navigate to Quit to Menu
+  // pauseMenuItems (game.js) has 8 entries — Resume, Inventory, Return to
+  // Anchor, Restart Room, Controls, Screen Shake, Hitstop, Quit to Menu
+  // (index 7) — so reaching the last item from index 0 needs 7 ArrowDown
+  // presses. (This count moves whenever an item is added/removed from
+  // buildPauseMenu() in game.js — keep it in sync by hand.) An earlier,
+  // too-low count landed on a toggle item instead, which never leaves the
+  // pause menu — everything downstream (the assumed quit/reload/load
+  // sequence) silently no-opped, and R06 then correctly reported "nothing
+  // moved" because the game was still just sitting paused.
+  for (let i = 0; i < 7; i++) { await pressKey(win, 'ArrowDown', 30); await sleep(60); } // navigate to Quit to Menu
   await pressKey(win, 'Space'); await sleep(400); // confirm quit
   await pressKey(win, 'Space'); await sleep(300); // open Play/select-save screen
   await pressKey(win, 'Space'); await sleep(500); // load slot 1
@@ -242,6 +256,89 @@ async function runChecks() {
   // ── Check 8: no uncaught exceptions were thrown anywhere in the run ─────
   report('R08', win.__sawError ? 'err' : 'ok',
     win.__sawError ? ('uncaught error during run: ' + win.__sawError) : 'no uncaught exceptions during the whole run');
+
+  // ── Check 9: the compass graph (area.js connections/col/row) validates ──
+  // Reuses the real validateAreaGraph() function — same one that runs
+  // automatically on load — so this check can never drift out of sync with
+  // what the game itself considers valid.
+  try {
+    const graphOk = win.validateAreaGraph();
+    report('R09', graphOk ? 'ok' : 'err',
+      graphOk ? 'compass graph (area.js connections) validated with no errors'
+              : 'compass graph validation failed — see console warnings above for which room/connection');
+  } catch (e) {
+    report('R09', 'err', 'validateAreaGraph() threw: ' + e.message);
+  }
+
+  // ── Check 10: every room reachable via a real switchArea() call survives ──
+  // A room can load with zero console errors and still instantly kill the
+  // player (wrong spawn Y, a pit-death threshold that doesn't match the
+  // room's actual floor, etc.) — this is exactly the bug class R01-R08 can't
+  // see, since the canvas legitimately changes either way. Walks every room
+  // that declares a compass position, teleports in, runs 90 real frames, and
+  // fails if the player dies or the game state leaves 'playing'.
+  try {
+    const allAreaIds = Object.keys(win.AREAS).filter((id) => typeof win.AREAS[id].col === 'number');
+    const deaths = [];
+    for (const areaId of allAreaIds) {
+      win.abilityState.hasPhaseDash = true;
+      win.abilityState.hasShardShot = true;
+      win.abilityState.hasStillpoint = true;
+      win.switchArea(areaId, 60, Math.max(40, win.AREAS[areaId].groundY - 400));
+      let t = performance.now();
+      for (let i = 0; i < 90; i++) { t += 16.7; win.gameLoop(t); }
+      if (win.gameState !== 'playing' || win.player.health <= 0) {
+        deaths.push(areaId + ' (gameState=' + win.gameState + ', health=' + win.player.health + ')');
+      }
+    }
+    report('R10', deaths.length === 0 ? 'ok' : 'err',
+      deaths.length === 0
+        ? `all ${allAreaIds.length} rooms survived a 90-frame teleport-in test`
+        : `died/gameover in: ${deaths.join(', ')} — likely a bad spawn Y or pitDeathY mismatch for that room`);
+  } catch (e) {
+    report('R10', 'err', 'R10 threw and was skipped: ' + e.message);
+  }
+
+  // ── Check 11: no door is embedded inside the platform it sits next to ──
+  // Static check, no simulation needed. Catches the exact bug found while
+  // building Crag of the Colossus: a transition hitbox positioned at
+  // `y: platform.y` extending DOWN into the platform's own solid body,
+  // instead of `y: platform.y - height` extending UP into the air where the
+  // player's standing hitbox actually is — physically untouchable in
+  // practice even though it loads and renders with no errors. See
+  // Plans/room_verification_tool_plan.md for the fuller version of this idea
+  // (this is a lightweight permanent regression guard, not that full tool).
+  try {
+    const embeddedDoors = [];
+    for (const id in win.AREAS) {
+      const room = win.AREAS[id];
+      (room.transitions || []).forEach((t, i) => {
+        for (const p of room.platforms || []) {
+          if (p.destructible) continue; // walls aren't floor references
+          const xOverlap = t.x < p.x + p.w && t.x + t.w > p.x;
+          if (!xOverlap) continue;
+          // A door with zero actual vertical overlap with this platform (e.g.
+          // a south-edge door at y:450 sitting right where a y:390/h:60
+          // ground platform ends at 450) can never be "inside" it — checking
+          // x-overlap and the y-heuristic alone without this real AABB
+          // y-overlap produced false positives for exactly that common case.
+          const yOverlap = t.y < p.y + p.h && (t.y + t.h) > p.y;
+          if (!yOverlap) continue;
+          // Embedded = the door's entire vertical span sits at/below the
+          // platform's own top surface with no part reaching above it.
+          if (t.y >= p.y - 2 && (t.y + t.h) > p.y + 5) {
+            embeddedDoors.push(`${id}.transitions[${i}] (to '${t.to}') inside platform at (${p.x},${p.y})`);
+          }
+        }
+      });
+    }
+    report('R11', embeddedDoors.length === 0 ? 'ok' : 'err',
+      embeddedDoors.length === 0
+        ? 'no transition hitboxes found embedded inside solid platform geometry'
+        : `possibly embedded doors: ${embeddedDoors.join('; ')}`);
+  } catch (e) {
+    report('R11', 'err', 'R11 threw and was skipped: ' + e.message);
+  }
 
   log('Done. ' + checksPassed + ' pass, ' + checksWarn + ' warn, ' + checksErr + ' fail.', checksErr ? 'err' : checksWarn ? 'warn' : 'ok');
   document.getElementById('run-btn').disabled = false;

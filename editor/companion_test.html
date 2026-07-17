@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Companion Test Arena</title>
+<style>
+  /* Same layout family as enemy_test.html */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #e2e8f0; font: 13px/1.5 "Courier New", monospace; display: flex; height: 100vh; overflow: hidden; }
+  #side { width: 340px; border-right: 1px solid #26263c; padding: 14px; overflow-y: auto; flex-shrink: 0; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; background: #05050a; }
+  h1 { font-size: 15px; color: #f9a8d4; margin-bottom: 4px; }
+  h2 { font-size: 12px; color: #94a3b8; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 1px; }
+  p.note { color: #64748b; font-size: 11px; margin-bottom: 8px; }
+  button { background: #1e1e32; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 6px 10px; font: inherit; cursor: pointer; border-radius: 3px; width: 100%; margin-bottom: 6px; }
+  button:hover { background: #2a2a44; }
+  button.primary { border-color: #f9a8d4; color: #f9a8d4; }
+  label { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 12px; }
+  input[type=range] { flex: 1; }
+  input[type=number] { width: 66px; background: #14141f; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 3px 6px; font: inherit; }
+  select { background: #14141f; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 3px 6px; font: inherit; width: 100%; }
+  #liveStats div { display: flex; justify-content: space-between; border-bottom: 1px dotted #1e1e32; padding: 2px 0; font-size: 11px; }
+  canvas { display: block; }
+  .val { color: #f9a8d4; min-width: 44px; text-align: right; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div id="side">
+  <h1>👧 Companion Test Arena</h1>
+  <p class="note">Boots the real game into the Test Arena with the Child active. Play normally
+    (arrows + Z/X/C…) and watch her follow, jump gaps, hide when enemies engage, heal you by touch after
+    fights, and — with fighting unlocked — tether-assist your combos. This drives the REAL
+    <code>game/companion.js</code> code, not a mock.</p>
+
+  <button class="primary" id="startBtn">▶ Start / Reset Arena</button>
+
+  <h2>Her state</h2>
+  <label><input type="checkbox" id="canFight"> She can fight (Phase 2 — tether assist)</label>
+  <label>Mode override
+    <select id="modeOverride">
+      <option value="auto" selected>auto (combat decides)</option>
+      <option value="follow">follow</option>
+      <option value="hiding">hiding</option>
+      <option value="fighting">fighting</option>
+      <option value="scripted">scripted (park at click)</option>
+    </select>
+  </label>
+  <p class="note">"scripted": click anywhere on the arena to set her waypoint — models cutscene positioning.</p>
+  <button id="healReadyBtn">💗 Make heal ready now (skip cooldown)</button>
+
+  <h2>Tuning (live)</h2>
+  <label>Follow dist <input type="range" id="tFollow" min="30" max="160" value="70"><span class="val" id="vFollow">70</span></label>
+  <label>Run speed <input type="range" id="tSpeed" min="15" max="60" value="34"><span class="val" id="vSpeed">3.4</span></label>
+  <label>Heal cooldown (s) <input type="range" id="tHeal" min="10" max="180" value="70"><span class="val" id="vHeal">70</span></label>
+  <label>Assist interval (s) <input type="range" id="tTether" min="3" max="20" value="9"><span class="val" id="vTether">9</span></label>
+  <button id="exportBtn">📋 Log tuned constants to console</button>
+  <p class="note">Sliders write the real constants live (they're <code>const</code> in companion.js for the game,
+    but this bench redefines the instance fields). Final numbers go back into <code>game/companion.js</code> by hand.</p>
+
+  <h2>Stress tests</h2>
+  <button id="waveBtn">👾 Spawn enemy wave (3× Fractured)</button>
+  <button id="lancerBtn">👾 Spawn a Void Lancer</button>
+  <button id="clearBtn">✕ Clear enemies</button>
+  <button id="fuzzBtn">🎲 Teleport PLAYER somewhere random (catch-up test)</button>
+  <button id="hurtBtn">💔 Damage player (heal-loop test)</button>
+
+  <h2>Live state</h2>
+  <div id="liveStats">Not started.</div>
+
+  <h2>Controls</h2>
+  <p class="note">Everything is the real game's bindings — including <b>F</b> to call her to you.</p>
+</div>
+
+<div id="stage"><canvas id="game" width="960" height="540"></canvas></div>
+
+<!-- Real game scripts — same load order as index.html -->
+<script src="../game/audio.js"></script>
+<script src="../game/input.js"></script>
+<script src="../game/physics.js"></script>
+<script src="../game/animdata.js"></script>
+<script src="../game/area.js"></script>
+<script src="../game/map.js"></script>
+<script src="../game/ability.js"></script>
+<script src="../game/cutscene.js"></script>
+<script src="../game/combo.js"></script>
+<script src="../game/healing.js"></script>
+<script src="../game/boss.js"></script>
+<script src="../game/enemy.js"></script>
+<script src="../game/companion.js"></script>
+<script src="../game/player.js"></script>
+<script src="../game/game.js"></script>
+
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────────
+// Companion test bench — boots the real game into enemy_test_arena with
+// companionState.active = true. Same session pattern as enemy_test.html.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Canvas fit (same override enemy_test.html uses — game.js sizes against
+// the full window and doesn't know about the sidebar).
+function fitCanvasToStage() {
+  const sideWidth = document.getElementById('side').offsetWidth;
+  const availW = window.innerWidth - sideWidth;
+  const availH = window.innerHeight;
+  const scale = Math.min(availW / W, availH / H);
+  canvas.style.width = Math.floor(W * scale) + 'px';
+  canvas.style.height = Math.floor(H * scale) + 'px';
+}
+window.addEventListener('resize', fitCanvasToStage);
+fitCanvasToStage();
+
+function startArena() {
+  gameState = 'playing';
+  try { SFX.init(); } catch (e) {}
+  currentAreaId = 'enemy_test_arena';
+  try { SFX.setAreaAmbient('enemy_test_arena'); } catch (e) {}
+  const area = getCurrentArea();
+  player = new Player(300, area.groundY - 60);
+  echoes = []; projectiles = []; particles = []; bossProjectiles = [];
+  boss = null; miniboss = null; defeatedMinibosses = {};
+  areaEnemiesSpawned = {}; areaEnemies['enemy_test_arena'] = [];
+  discoveredAreas = { enemy_test_arena: true };
+  anchorActivated = {}; lastAnchor = null; collectedLore = {}; bossDefeated = false;
+  resetCamera();
+  showUI(true);
+  // Full kit so combat interactions are all testable
+  abilityState.hasPhaseDash = true;
+  abilityState.hasShardShot = true;
+  abilityState.hasStillpoint = true;
+  abilityState.hasChargedAttack = true;
+  abilityState.hasVoidTether = true;
+  abilityState.hasGravitonSurge = true;
+  player.fractureMax = 4; player.fractureMeter = 4;
+
+  // Activate her
+  companionState.active = true;
+  companionState.canFight = document.getElementById('canFight').checked;
+  companionState.mode = 'follow';
+  companionState.healCooldown = 0;
+  child = null; // game.js recreates her next frame at the player's side
+}
+document.getElementById('startBtn').addEventListener('click', startArena);
+
+// ── Her-state controls ──────────────────────────────────────────────────────
+document.getElementById('canFight').addEventListener('change', (e) => {
+  companionState.canFight = e.target.checked;
+});
+let modeOverride = 'auto';
+document.getElementById('modeOverride').addEventListener('change', (e) => {
+  modeOverride = e.target.value;
+  if (modeOverride === 'scripted') companionState.mode = 'scripted';
+});
+// Enforce a manual mode override every frame (auto lets companion.js decide).
+setInterval(() => {
+  if (modeOverride !== 'auto' && companionState.active) companionState.mode = modeOverride;
+}, 50);
+document.getElementById('healReadyBtn').addEventListener('click', () => { companionState.healCooldown = 0; });
+
+// Scripted-mode waypoint: click the canvas to park her there.
+canvas.addEventListener('mousedown', (e) => {
+  if (modeOverride !== 'scripted' || !companionState.active) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width, scaleY = H / rect.height;
+  companionState.scriptTarget = {
+    x: camera.x + (e.clientX - rect.left) * scaleX,
+    y: camera.y + (e.clientY - rect.top) * scaleY,
+  };
+});
+
+// ── Tuning sliders — write the live instance's fields ───────────────────────
+// The game reads the CHILD_* consts; this bench pokes equivalent per-frame
+// values by wrapping child.update. Simplest live-tuning without rebuilding
+// companion.js's constants as lets: we monkey-patch the values the instance
+// derives from them where they're instance-reachable, and log final numbers
+// for hand-transfer.
+const tuned = { follow: 70, speed: 3.4, healS: 70, tetherS: 9 };
+function bindSlider(id, valId, fmt, apply) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    const v = +el.value;
+    document.getElementById(valId).textContent = fmt(v);
+    apply(v);
+  });
+}
+bindSlider('tFollow', 'vFollow', (v) => v, (v) => { tuned.follow = v; });
+bindSlider('tSpeed', 'vSpeed', (v) => (v / 10).toFixed(1), (v) => { tuned.speed = v / 10; });
+bindSlider('tHeal', 'vHeal', (v) => v, (v) => { tuned.healS = v; });
+bindSlider('tTether', 'vTether', (v) => v, (v) => { tuned.tetherS = v; });
+
+// Apply tuned values by patching the Child prototype's update inputs: the
+// constants are consts, so instead we adjust the instance each tick.
+setInterval(() => {
+  if (!child) return;
+  // These three are readable knobs on the instance path:
+  // follow distance + speed are used via constants — emulate by scaling.
+  child._tunedFollow = tuned.follow;    // read below in the wrapped update
+  child._tunedSpeed = tuned.speed;
+  if (companionState.healCooldown > tuned.healS * 60) companionState.healCooldown = tuned.healS * 60;
+  if (child.tetherTimer > tuned.tetherS * 60) child.tetherTimer = tuned.tetherS * 60;
+}, 100);
+
+// Wrap update so tuned follow/speed apply without editing companion.js:
+// override the target x and clamp vx after the real update ran.
+const _origUpdate = Child.prototype.update;
+Child.prototype.update = function (player, area, bounds, enemies, ts) {
+  _origUpdate.call(this, player, area, bounds, enemies, ts);
+  if (this._tunedSpeed && Math.abs(this.vx) > 0.01) {
+    this.vx = Math.sign(this.vx) * this._tunedSpeed;
+  }
+};
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  console.log('[companion tuning] transfer into game/companion.js:',
+    `CHILD_FOLLOW_DIST = ${tuned.follow}; CHILD_RUN_SPEED = ${tuned.speed}; ` +
+    `CHILD_HEAL_COOLDOWN = ${tuned.healS * 60}; CHILD_TETHER_INTERVAL = ${tuned.tetherS * 60};`);
+  alert('Logged to the browser console (F12).');
+});
+
+// ── Stress tests ────────────────────────────────────────────────────────────
+document.getElementById('waveBtn').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  const list = areaEnemies['enemy_test_arena'];
+  for (let i = 0; i < 3; i++) list.push(new Enemy(1000 + i * 140, 400, 'fractured'));
+});
+document.getElementById('lancerBtn').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  areaEnemies['enemy_test_arena'].push(new VoidLancer(1200, 400));
+});
+document.getElementById('clearBtn').addEventListener('click', () => {
+  areaEnemies['enemy_test_arena'] = [];
+});
+document.getElementById('fuzzBtn').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  const area = getCurrentArea();
+  player.x = 100 + Math.random() * (area.width - 200);
+  player.y = 100;
+  player.vx = 0; player.vy = 0;
+});
+document.getElementById('hurtBtn').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  player.health = Math.max(1, player.health - 2);
+});
+
+// ── Live stats ──────────────────────────────────────────────────────────────
+setInterval(() => {
+  const el = document.getElementById('liveStats');
+  if (gameState !== 'playing' || currentAreaId !== 'enemy_test_arena') { el.textContent = 'Not started.'; return; }
+  const enemies = areaEnemies['enemy_test_arena'] || [];
+  let html = `<div><span>Player HP</span><span>${player.health}/${MAX_HEALTH}</span></div>`;
+  html += `<div><span>Her mode</span><span>${companionState.mode}${modeOverride !== 'auto' ? ' (forced)' : ''}</span></div>`;
+  html += `<div><span>Can fight</span><span>${companionState.canFight}</span></div>`;
+  html += `<div><span>Heal ready in</span><span>${Math.ceil(Math.max(0, companionState.healCooldown) / 60)}s</span></div>`;
+  if (child) {
+    html += `<div><span>Her pos</span><span>${Math.round(child.x)}, ${Math.round(child.y)}</span></div>`;
+    html += `<div><span>Stuck timer</span><span>${Math.round(child.stuckTimer)}f / 90f</span></div>`;
+    html += `<div><span>Assist in</span><span>${Math.ceil(Math.max(0, child.tetherTimer) / 60)}s</span></div>`;
+  }
+  html += `<div><span>Enemies alive</span><span>${enemies.filter((e) => !e.dead).length}</span></div>`;
+  el.innerHTML = html;
+}, 250);
+</script>
+</body>
+</html>

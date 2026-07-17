@@ -148,7 +148,7 @@
 
   <div class="input-group">
     <label>Start room:</label>
-    <input id="startInput" value="tutorial_area" />
+    <input id="startInput" value="spawn_area_1" />
     <label>End room:</label>
     <input id="endInput" value="boss_arena" />
   </div>
@@ -182,7 +182,7 @@
           resolve(AREAS);
           return;
         }
-        fetch('area.js')
+        fetch('../game/area.js')
           .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.text();
@@ -395,7 +395,7 @@
       const resultsEl = document.getElementById('results');
       resultsEl.innerHTML = '<span style="color:#6a6a8e;">Loading area.js...</span>';
 
-      const startId = document.getElementById('startInput').value.trim() || 'tutorial_area';
+      const startId = document.getElementById('startInput').value.trim() || 'spawn_area_1';
       const endId = document.getElementById('endInput').value.trim() || 'boss_arena';
 
       try {
@@ -423,7 +423,7 @@
     // Auto-run on load if AREAS is already present (e.g. if opened from the game's page)
     if (typeof window.AREAS !== 'undefined' && window.AREAS) {
       setTimeout(() => {
-        const startId = document.getElementById('startInput').value || 'tutorial_area';
+        const startId = document.getElementById('startInput').value || 'spawn_area_1';
         const endId = document.getElementById('endInput').value || 'boss_arena';
         const result = analyze(window.AREAS, startId, endId);
         renderResults(result);

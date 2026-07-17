@@ -96,15 +96,21 @@
 </div>
 
 <!-- ─── Real game scripts — same as index.html ─────────────────────────── -->
-<script src="audio.js"></script>
-<script src="input.js"></script>
-<script src="area.js"></script>
-<script src="map.js"></script>
-<script src="ability.js"></script>
-<script src="boss.js"></script>
-<script src="enemy.js"></script>
-<script src="player.js"></script>
-<script src="game.js"></script>
+<script src="../game/audio.js"></script>
+<script src="../game/input.js"></script>
+<script src="../game/physics.js"></script>
+<script src="../game/animdata.js"></script>
+<script src="../game/area.js"></script>
+<script src="../game/map.js"></script>
+<script src="../game/ability.js"></script>
+<script src="../game/cutscene.js"></script>
+<script src="../game/combo.js"></script>
+<script src="../game/healing.js"></script>
+<script src="../game/boss.js"></script>
+<script src="../game/enemy.js"></script>
+<script src="../game/companion.js"></script>
+<script src="../game/player.js"></script>
+<script src="../game/game.js"></script>
 
 <script>
 // ─── Enemy roster — built (real, spawnable) + planned (from expansion.md) ───
@@ -399,7 +405,9 @@ const CLASS_MAP = {
 const EDITOR_HANDOFF_KEY = 'stillpoint_enemy_editor_test';
 function applyEditorOverrides(instance, overrides) {
   if (!overrides) return;
-  for (const key of ['health', 'attackCooldown', 'patrolRange']) {
+  // 'speed' added 2026-07-16 (user request) — only the base Enemy class's
+  // own movement reads it so far, see enemy.js's constructor comment.
+  for (const key of ['health', 'attackCooldown', 'patrolRange', 'speed']) {
     if (typeof overrides[key] === 'number' && !isNaN(overrides[key])) instance[key] = overrides[key];
   }
 }

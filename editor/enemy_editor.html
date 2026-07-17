@@ -59,6 +59,10 @@ button.reset{border-color:#f87171;color:#f87171}
   <div class="row"><label>Max HP</label><input type="number" id="statHealth" min="1" max="99" step="1"></div>
   <div class="row"><label>Attack Cooldown (frames)</label><input type="number" id="statAttackCooldown" min="10" max="300" step="1"></div>
   <div class="row"><label>Patrol Range (px)</label><input type="number" id="statPatrolRange" min="0" max="600" step="10"></div>
+  <div class="row"><label>Speed</label><input type="number" id="statSpeed" min="0.1" max="10" step="0.1"></div>
+  <p class="note" style="font-size:10px; opacity:0.7;">Speed currently only affects enemy types that use the base
+    Enemy class's own movement (patrol + chase) — a few types fully override movement with their own hardcoded
+    speed and won't respond to this yet.</p>
   <button id="resetStatsBtn" class="reset">↺ Reset to enemy.js defaults</button>
 
   <h2>Ability Loadout</h2>
@@ -80,24 +84,38 @@ button.reset{border-color:#f87171;color:#f87171}
   <textarea id="exp-out" readonly placeholder="Press Save JSON to generate an overrides block..."></textarea>
 </div>
 
+<script src="../game/enemy.js"></script>
 <script>
-// Real defaults per built enemy — read directly off enemy.js's own base
-// values (ENEMY_HEALTH/ENEMY_ATTACK_COOLDOWN for the base class, each
-// subclass's own const where it overrides one, e.g. LANCER_HEALTH). Kept as
-// plain data here (not by loading enemy.js) since this tool only needs the
-// numbers, not the classes themselves — it hands off to enemy_test.html
-// (which DOES load the real classes) to actually spawn anything.
-const ENEMY_DEFAULTS = {
-  fractured:        { name: 'Fractured',        health: 3, attackCooldown: 90,  patrolRange: 120, color: '#f87171' },
-  stutterer:        { name: 'Stutterer',        health: 3, attackCooldown: 90,  patrolRange: 120, color: '#a78bfa' },
-  crystal_sentinel: { name: 'Crystal Sentinel', health: 4, attackCooldown: 90,  patrolRange: 120, color: '#2dd4bf' },
-  void_lancer:       { name: 'Void Lancer',      health: 4, attackCooldown: 100, patrolRange: 120, color: '#7c3aed' },
-  null_sentinel:    { name: 'Null Sentinel',    health: 3, attackCooldown: 90,  patrolRange: 120, color: '#e0d4ff' },
-  anchor_wraith:    { name: 'Anchor Wraith',    health: 2, attackCooldown: 90,  patrolRange: 0,   color: '#818cf8' },
-  deflector_drone:  { name: 'Deflector Drone',  health: 3, attackCooldown: 90,  patrolRange: 0,   color: '#67e8f9' },
-  mirror_sprite:    { name: 'Mirror Sprite',    health: 2, attackCooldown: 90,  patrolRange: 120, color: '#c084fc' },
-  echo_stalker:     { name: 'Echo Stalker',     health: 2, attackCooldown: 90,  patrolRange: 120, color: '#7c3aed' },
+// Real defaults per built enemy — read live off enemy.js's own window-
+// exported consts (see the "if (typeof window !== 'undefined')" block at
+// the bottom of enemy.js) instead of a hand-copied duplicate. That old copy
+// is exactly how this editor used to show "health: 3" for Fractured while
+// its real ENEMY_HEALTH was 6 — this can't drift out of sync anymore since
+// it's the same numbers enemy.js itself uses.
+const ENEMY_STAT_SOURCE = {
+  fractured:        { name: 'Fractured',        color: '#f87171', health: 'ENEMY_HEALTH',         attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
+  stutterer:        { name: 'Stutterer',        color: '#a78bfa', health: 'ENEMY_HEALTH',         attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
+  crystal_sentinel: { name: 'Crystal Sentinel', color: '#2dd4bf', health: 'SENTINEL_HEALTH',       attackCooldown: 'SENTINEL_ATTACK_COOLDOWN', speed: 'SENTINEL_SPEED',   patrolRange: 150 },
+  void_lancer:      { name: 'Void Lancer',      color: '#7c3aed', health: 'LANCER_HEALTH',        attackCooldown: 'LANCER_CHARGE_COOLDOWN', speed: 'LANCER_SPEED',       patrolRange: 120 },
+  null_sentinel:    { name: 'Null Sentinel',    color: '#e0d4ff', health: 'ENEMY_HEALTH',         attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
+  anchor_wraith:    { name: 'Anchor Wraith',    color: '#818cf8', health: 'ANCHOR_WRAITH_HEALTH', attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'WRAITH_DRIFT_SPEED',  patrolRange: 0 },
+  deflector_drone:  { name: 'Deflector Drone',  color: '#67e8f9', health: 'DEFLECTOR_HEALTH',     attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'DEFLECTOR_HOVER_SPEED', patrolRange: 0 },
+  mirror_sprite:    { name: 'Mirror Sprite',    color: '#c084fc', health: 'SPRITE_HEALTH',        attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
+  echo_stalker:     { name: 'Echo Stalker',     color: '#7c3aed', health: 'STALKER_HEALTH',       attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
 };
+
+const ENEMY_DEFAULTS = {};
+for (const id in ENEMY_STAT_SOURCE) {
+  const src = ENEMY_STAT_SOURCE[id];
+  ENEMY_DEFAULTS[id] = {
+    name: src.name,
+    color: src.color,
+    health: window[src.health],
+    attackCooldown: window[src.attackCooldown],
+    speed: window[src.speed],
+    patrolRange: src.patrolRange,
+  };
+}
 
 const enemySelect = document.getElementById('enemySelect');
 for (const id in ENEMY_DEFAULTS) {
@@ -109,6 +127,7 @@ for (const id in ENEMY_DEFAULTS) {
 const statHealth = document.getElementById('statHealth');
 const statAttackCooldown = document.getElementById('statAttackCooldown');
 const statPatrolRange = document.getElementById('statPatrolRange');
+const statSpeed = document.getElementById('statSpeed');
 const stageTag = document.getElementById('stageTag');
 const canvas = document.getElementById('preview');
 const ctx = canvas.getContext('2d');
@@ -120,6 +139,7 @@ function loadDefaultsIntoInputs() {
   statHealth.value = d.health;
   statAttackCooldown.value = d.attackCooldown;
   statPatrolRange.value = d.patrolRange;
+  statSpeed.value = d.speed ?? 1.5;
   stageTag.textContent = enemySelect.value;
   draw();
 }
@@ -158,7 +178,7 @@ function draw() {
 }
 
 enemySelect.addEventListener('change', loadDefaultsIntoInputs);
-[statHealth, statAttackCooldown, statPatrolRange].forEach((el) => el.addEventListener('input', draw));
+[statHealth, statAttackCooldown, statPatrolRange, statSpeed].forEach((el) => el.addEventListener('input', draw));
 document.getElementById('resetStatsBtn').addEventListener('click', loadDefaultsIntoInputs);
 
 function buildOverrides() {
@@ -169,6 +189,7 @@ function buildOverrides() {
       health: Number(statHealth.value),
       attackCooldown: Number(statAttackCooldown.value),
       patrolRange: Number(statPatrolRange.value),
+      speed: Number(statSpeed.value),
     },
   };
 }

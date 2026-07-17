@@ -7,9 +7,10 @@
 // code the game actually runs (the same "single source of truth" convention
 // map.js's buildMapGraph() and area.js's validateAreaGraph() already use).
 //
-// Usage:
+// Usage (run from this editor/ folder — 2026-07-16 reorg moved this file
+// alongside the other dev tools, one level below area.js and the repo root):
 //   node export_graph.js [path/to/area.js] [output.graphml]
-//   node export_graph.js                      # defaults: ./area.js -> ./world_map.graphml
+//   node export_graph.js                      # defaults: ../game/area.js -> ../world_map.graphml
 //
 // Open the output file in yEd (Layout > One-Click layouts, or just drag
 // nodes around — initial positions are seeded from col/row so it opens
@@ -41,8 +42,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const areaJsPath = path.resolve(process.argv[2] || 'area.js');
-const outPath = path.resolve(process.argv[3] || 'world_map.graphml');
+const areaJsPath = path.resolve(process.argv[2] || path.join(__dirname, '../game/area.js'));
+const outPath = path.resolve(process.argv[3] || path.join(__dirname, '../world_map.graphml'));
 
 // ── Load the real AREAS object by actually running area.js ──────────────────
 function loadAreas(filePath) {

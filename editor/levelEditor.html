@@ -76,7 +76,9 @@ canvas{display:block}
   <label>Tool:</label>
   <button class="on" data-tool="select" title="V">◈ Select</button>
   <button data-tool="plat" title="P">⬛ Platform</button>
-  <button data-tool="wall" title="W">🔷 Wall</button>
+  <button data-tool="wall" title="W — destructible crystal barrier (break with attacks). For a SOLID side wall or ceiling, draw a Platform and tick its wall/ceiling checkbox.">🔷 Crystal Barrier</button>
+  <button data-tool="solidwall" title="Shift+W — solid side wall: blocks sideways movement, can't be stood on, knocked-back enemies bounce off it">▮ Solid Wall</button>
+  <button data-tool="ceilingtool" title="C — ceiling piece: full collision (player AND enemies bump their heads), exempt from the room linter's reachability check">▽ Ceiling</button>
   <select id="enemy-type"></select>
   <button data-tool="enemy" title="E">👾 Enemy</button>
   <button data-tool="sp" title="T">◆ Anchor</button>
@@ -146,7 +148,9 @@ canvas{display:block}
 
 <div id="legend">
   <div class="leg"><div class="lc" style="background:#4a4a7080;border-color:#6a6a9e"></div> Platform</div>
-  <div class="leg"><div class="lc" style="background:#2dd4bf20;border-color:#2dd4bf"></div> Wall</div>
+  <div class="leg"><div class="lc" style="background:#2dd4bf20;border-color:#2dd4bf"></div> Crystal Barrier (breakable)</div>
+  <div class="leg"><div class="lc" style="background:#94606030;border-color:#946060"></div> Solid Wall (no top-landing)</div>
+  <div class="leg"><div class="lc" style="background:#d9775730;border-color:#d97757"></div> Ceiling (full collision)</div>
   <div class="leg"><div class="lc" style="background:#f8717140;border-color:#f87171"></div> Enemy</div>
   <div class="leg"><div class="lc" style="background:#67e8f940;border-color:#67e8f9"></div> Anchor</div>
   <div class="leg"><div class="lc" style="background:#c4b5fd40;border-color:#c4b5fd"></div> Ability</div>
@@ -156,8 +160,9 @@ canvas{display:block}
   <span style="color:#3a3a5e;font-size:9px;margin-left:auto">Keys: V P W E T A X L B R — tools | G — cycle grid | Del — remove | Arrows — nudge | Ctrl+Z/Y — undo/redo | Ctrl+C/V — copy/paste</span>
 </div>
 
-<script src="area.js"></script>
-<script src="enemy.js"></script>
+<script src="../game/physics.js"></script>
+<script src="../game/area.js"></script>
+<script src="../game/enemy.js"></script>
 <script>
 // ─── ENEMY ROSTER (auto-derived from enemy.js's ENEMY_REGISTRY — see the
 // comment above that registry for why this is the single source of truth) ──
@@ -508,7 +513,7 @@ cv.addEventListener('mousedown',e=>{
       if(rh){ resizing=rh; }
       else { setSingleSel(null,null); updateSideProps(); }
     }
-  }else if(tool==='plat'||tool==='wall'||tool==='trans'){
+  }else if(tool==='plat'||tool==='wall'||tool==='solidwall'||tool==='ceilingtool'||tool==='trans'){
     creating=true;cs={cx:aC(snp(ax)),cy:aC(snp(ay)),ax:snp(ax),ay:snp(ay)};
   }else{
     const sx=snp(ax),sy=snp(ay);
@@ -599,9 +604,14 @@ cv.addEventListener('mouseup',e=>{
     const x1=Math.min(cs.ax,snp(ax)),y1=Math.min(cs.ay,snp(ay));
     const w=Math.abs(snp(ax)-cs.ax),h=Math.abs(snp(ay)-cs.ay);
     if(w>=10||h>=4){
-      if(tool==='plat'||tool==='wall'){
+      if(tool==='plat'||tool==='wall'||tool==='solidwall'||tool==='ceilingtool'){
         const p={x:x1,y:y1,w:Math.max(10,w),h:Math.max(4,h)};
+        // 'wall' (legacy name) = destructible crystal barrier; 'solidwall'
+        // = plain side wall (plat.wall, no top-landing, enemies bounce);
+        // 'ceilingtool' = plat.ceiling (full collision, linter-exempt).
         if(tool==='wall'){p.destructible=true;p.hp=2;p.wall=true;}
+        else if(tool==='solidwall'){p.wall=true;}
+        else if(tool==='ceilingtool'){p.ceiling=true;}
         area.platforms.push(p);setSingleSel(p,'plat');
       }else if(tool==='trans'){
         const t={x:x1,y:y1,w:Math.max(20,w),h:Math.max(20,h),to:ALL_ROOM_IDS[0],toX:60,toY:348};
@@ -659,10 +669,11 @@ document.addEventListener('keydown',e=>{
     window._nudgeHistTimer=setTimeout(pushHistory,300);
     return;
   }
-  const km={v:'select',p:'plat',w:'wall',e:'enemy',t:'sp',a:'ab',x:'trans',l:'lore',b:'bossspawn',r:'testspawn',g:null};
+  const km={v:'select',p:'plat',w:'wall',c:'ceilingtool',e:'enemy',t:'sp',a:'ab',x:'trans',l:'lore',b:'bossspawn',r:'testspawn',g:null};
   const k=e.key.toLowerCase();
   if(km[k]!==undefined){
     if(k==='g'){ cycleGrid(); }
+    else if(k==='w'&&e.shiftKey){ setTool('solidwall'); } // Shift+W = solid wall, plain W = crystal barrier
     else setTool(km[k]);
   }
 });
@@ -885,8 +896,8 @@ function updateSideProps(){
     h=`<div class="section-title">Platform</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pi('p-w','w',sel.w,10)}${pi('p-h','h',sel.h,1)}
     <div class="row"><label>💥</label><input type="checkbox" id="p-dest" ${sel.destructible?'checked':''}><span style="color:#2dd4bf;font-size:10px"> Destructible</span></div>
     ${sel.destructible?pi('p-hp','hp',sel.hp||2,1):''}
-    <div class="row"><label>wall</label><input type="checkbox" id="p-wall" ${sel.wall?'checked':''}><span style="color:#5a5a8e;font-size:10px"> No top-landing (side wall)</span></div>
-    <div class="row"><label>ceiling</label><input type="checkbox" id="p-ceiling" ${sel.ceiling?'checked':''}><span style="color:#5a5a8e;font-size:10px"> Normal collision, exempt from reachability check</span></div>
+    <div class="row"><label>wall</label><input type="checkbox" id="p-wall" ${sel.wall?'checked':''}><span style="color:#5a5a8e;font-size:10px"> Side wall: can't be stood on; player wall-slides on it; knocked-back enemies bounce off it</span></div>
+    <div class="row"><label>ceiling</label><input type="checkbox" id="p-ceiling" ${sel.ceiling?'checked':''}><span style="color:#5a5a8e;font-size:10px"> Ceiling: full collision for player AND enemies (physics.js); only exempt from the room linter's reachability check</span></div>
     ${layerButtons('plat')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='enemy'){

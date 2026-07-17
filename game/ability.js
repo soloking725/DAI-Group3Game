@@ -29,14 +29,19 @@ const SHARD_SHOT_SPEED = 7;
 const SHARD_SHOT_COOLDOWN = 35;
 const SHARD_SHOT_DAMAGE = 1;
 const SHARD_SHOT_ARC = 0.12; // curvature force per frame
-const BEAM_CHARGE_TIME = 60; // frames to start charging the Lv3 beam (~1s)
-const BEAM_PIP_COST = 1; // Fracture Pip cost if the beam is held past BEAM_CHARGE_TIME
+const BEAM_CHARGE_TIME = 60; // frames of holding shardShot before the Lv3 beam channel starts (~1s)
+const BEAM_PIP_COST = 1; // Fracture Pip required in reserve to start channeling (1 more per second after, see game.js)
 
 // Graviton Surge ability (Enemy_Design.pdf leveling doc, 2026-07-16 —
 // previously reserved/unbuilt, see input.js's gravitonSurge binding)
 const GRAVITON_SURGE_BASE_DURATION = 180; // 3s @ 60fps, Lv0
 const GRAVITON_SURGE_COOLDOWN = 240; // 4s between casts
 const GRAVITON_BALL_PULL_RADIUS = 160;
+// Gravity flip affects every living enemy within this radius, not just the
+// player. See game.js's resolveCeilingY() for the real platform-aware
+// ceiling stop (fixed 2026-07-16 — a naive fixed clamp line let entities
+// clip through any real ceiling platform instead of landing on it).
+const GRAVITON_SURGE_RANGE = 350;
 const GRAVITON_BALL_PULL_FORCE = 0.5;
 
 // Void Tether ability (Enemy_Design.pdf leveling doc, 2026-07-16 —
@@ -44,6 +49,10 @@ const GRAVITON_BALL_PULL_FORCE = 0.5;
 const VOID_TETHER_RANGE_BASE = 260;
 const VOID_TETHER_COOLDOWN = 90;
 const VOID_TETHER_PULL_SPEED_BASE = 9;
+// A whiffed cast (no enemy in front, no wall) refunds the cooldown down to
+// this small tax instead of burning the full 90f with zero feedback
+// (2026-07-16 — see game.js's whiff branch).
+const VOID_TETHER_WHIFF_COOLDOWN = 20;
 
 // ── Ability levels (Lv0-4) ────────────────────────────────────────────────
 // Lv0-3 are lore-pip-funded via statUpgrades/INVENTORY_UPGRADES (game.js).
@@ -100,11 +109,13 @@ class Echo {
     this.life = ECHO_LIFETIME;
     this.maxLife = ECHO_LIFETIME;
     this.pulseTimer = 0;
+    this.swingFlash = 0; // Phase Dash Lv3/4 — frames left in the "just swung" visual, set by game.js
   }
 
   update() {
     this.life--;
     this.pulseTimer++;
+    if (this.swingFlash > 0) this.swingFlash--;
   }
 
   draw(ctx) {
@@ -124,6 +135,20 @@ class Echo {
     ctx.stroke();
 
     ctx.globalAlpha = 1;
+
+    // Phase Dash Lv3/4 swing — a visible slash from the echo, hit or not
+    // (user feedback 2026-07-16: was invisible unless it actually connected).
+    if (this.swingFlash > 0) {
+      const t = this.swingFlash / 10;
+      const cx = this.x + this.width / 2, cy = this.y + this.height / 2;
+      ctx.strokeStyle = `rgba(196, 181, 253, ${0.9 * t})`;
+      ctx.lineWidth = 3 * t;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(cx, cy, this.width * 0.9, -Math.PI * 0.3, Math.PI * 0.3);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
   }
 
   get alive() {

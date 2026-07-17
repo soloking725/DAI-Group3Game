@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — HUD Layout Editor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #e2e8f0; font: 13px/1.5 "Courier New", monospace; display: flex; height: 100vh; overflow: hidden; }
+  h2 { font-size: 14px; color: #c4b5fd; margin-bottom: 8px; }
+  h3 { font-size: 12px; color: #94a3b8; margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 1px; }
+  button { background: #1e1e32; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 4px 10px; font: inherit; cursor: pointer; border-radius: 3px; }
+  button:hover { background: #2a2a44; }
+  button.danger { border-color: #7f1d1d; color: #fca5a5; }
+  input, select { background: #14141f; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 3px 6px; font: inherit; border-radius: 3px; }
+  input[type=number] { width: 62px; }
+  label { display: flex; align-items: center; gap: 5px; margin: 3px 0; }
+  #side { width: 300px; border-right: 1px solid #26263c; padding: 12px; overflow-y: auto; flex-shrink: 0; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; background: #05050a; }
+  canvas { background: #0a0a0f; border: 1px solid #26263c; cursor: grab; }
+  .elCard { border: 1px solid #3a3a5e; border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+  .elCard.sel { border-color: #a78bfa; }
+  .elCard b { color: #c4b5fd; cursor: pointer; }
+  .hint { color: #64748b; font-size: 11px; margin-top: 4px; }
+  textarea { width: 100%; height: 110px; background: #14141f; color: #a5f3c4; border: 1px solid #3a3a5e; font: 11px monospace; padding: 6px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div id="side">
+  <h2>HUD Layout</h2>
+  <div class="hint" style="margin-bottom:8px">Drag elements on the mock screen, or type exact values. Coordinates are anchored (top-left / top-center / bottom-…) so layouts survive any canvas size.</div>
+  <div id="elements"></div>
+
+  <h3>Save / export</h3>
+  <button onclick="save()" style="width:100%; margin-bottom:4px">💾 Save to game (localStorage)</button>
+  <button onclick="exportJSON()" style="width:100%; margin-bottom:4px">📋 Export JSON</button>
+  <button class="danger" onclick="resetAll()" style="width:100%">Reset to defaults</button>
+  <div class="hint">"Save": the game reads this on next load (HUD_LAYOUT overrides in game.js). "Export": paste-ready values for game.js's HUD_LAYOUT if you want them permanent. "Reset": clears the saved override AND restores defaults here.</div>
+  <textarea id="exportBox" placeholder="Export appears here…"></textarea>
+</div>
+
+<div id="stage"><canvas id="cv" width="960" height="540"></canvas></div>
+
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────────
+// HUD layout editor — moves/toggles the elements game.js's drawHUD renders.
+// DEFAULTS below mirror game.js's HUD_LAYOUT — if you change one, change the
+// other (they're the same table; game.js is authoritative).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const HUD_LAYOUT_KEY = 'stillpoint_hud_layout_v1';
+
+const DEFAULTS = {
+  healthHearts:  { anchor: 'top-left',     x: 16, y: 14, size: 16, gap: 3,  visible: true },
+  areaLabel:     { anchor: 'top-left',     x: 16, y: 42,                    visible: true },
+  bossBar:       { anchor: 'top-center',   x: 0,  y: 18, w: 320, h: 12,    visible: true },
+  limitBreakBar: { anchor: 'top-center',   x: 0,  y: 40, w: 160, h: 8,     visible: true },
+  controlsHint:  { anchor: 'bottom-right', x: 16, y: 12,                    visible: true },
+  fracturePips:  { anchor: 'bottom-left',  x: 14, y: 58, gap: 22,          visible: true },
+};
+
+const DESCRIPTIONS = {
+  healthHearts:  'Health hearts (top-left row)',
+  areaLabel:     'Area name + checkpoint dot',
+  bossBar:       'Boss health bar',
+  limitBreakBar: 'Limit Break countdown bar',
+  controlsHint:  'Controls hint (fades after ~10s)',
+  fracturePips:  'Fracture meter pips',
+};
+
+let layout = JSON.parse(JSON.stringify(DEFAULTS));
+try {
+  const saved = JSON.parse(localStorage.getItem(HUD_LAYOUT_KEY) || 'null');
+  if (saved) for (const k in saved) if (layout[k]) Object.assign(layout[k], saved[k]);
+} catch (e) { /* defaults */ }
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+let selected = null;
+
+function resolve(el) {
+  switch (el.anchor) {
+    case 'top-center':   return { x: W / 2 + el.x, y: el.y };
+    case 'bottom-left':  return { x: el.x, y: H - el.y };
+    case 'bottom-right': return { x: W - el.x, y: H - el.y };
+    default:             return { x: el.x, y: el.y };
+  }
+}
+
+// Approximate on-screen bounds per element, for drawing + hit-testing.
+// These are mock shapes — the REAL rendering lives in game.js; this just
+// needs to occupy the same space.
+function boundsFor(key) {
+  const el = layout[key];
+  const p = resolve(el);
+  switch (key) {
+    case 'healthHearts':  return { x: p.x, y: p.y, w: 6 * (el.size + el.gap), h: el.size + 4 };
+    case 'areaLabel':     return { x: p.x, y: p.y - 11, w: 150, h: 14 };
+    case 'bossBar':       return { x: p.x - el.w / 2, y: p.y, w: el.w, h: el.h + 18 };
+    case 'limitBreakBar': return { x: p.x - el.w / 2, y: p.y - 12, w: el.w, h: el.h + 14 };
+    case 'controlsHint':  return { x: p.x - 300, y: p.y - 26, w: 300, h: 30 };
+    case 'fracturePips':  return { x: p.x, y: p.y - 10, w: 4 * el.gap + 10, h: 34 };
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+  // faint mock game scene so positions read in context
+  ctx.fillStyle = '#12121e';
+  ctx.fillRect(0, H - 90, W, 90);
+  ctx.fillStyle = '#c4b5fd';
+  ctx.fillRect(W / 2 - 12, H - 122, 24, 32); // "player"
+  ctx.fillStyle = '#f87171';
+  ctx.fillRect(W / 2 + 120, H - 118, 28, 28); // "enemy"
+
+  for (const key in layout) {
+    const el = layout[key];
+    if (!el.visible) continue;
+    const p = resolve(el);
+    ctx.globalAlpha = 1;
+
+    if (key === 'healthHearts') {
+      ctx.font = `${el.size}px "Courier New", monospace`;
+      ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+      ctx.fillStyle = '#c4b5fd';
+      for (let i = 0; i < 6; i++) ctx.fillText(i < 4 ? '♥' : '♡', p.x + i * (el.size + el.gap), p.y);
+      ctx.textBaseline = 'alphabetic';
+    } else if (key === 'areaLabel') {
+      ctx.font = '11px "Courier New", monospace'; ctx.textAlign = 'left';
+      ctx.fillStyle = '#6a6a8e';
+      ctx.fillText('The Fracture, part 1  ●', p.x, p.y);
+    } else if (key === 'bossBar') {
+      ctx.fillStyle = '#1a1a2e'; ctx.fillRect(p.x - el.w / 2, p.y, el.w, el.h);
+      ctx.fillStyle = '#dc2626'; ctx.fillRect(p.x - el.w / 2, p.y, el.w * 0.6, el.h);
+      ctx.strokeStyle = '#7f1d1d'; ctx.strokeRect(p.x - el.w / 2, p.y, el.w, el.h);
+      ctx.font = '12px "Courier New", monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#f87171'; ctx.fillText('THE FRACTURED KING', p.x, p.y + el.h + 15);
+      ctx.textAlign = 'left';
+    } else if (key === 'limitBreakBar') {
+      ctx.fillStyle = 'rgba(10,20,40,0.6)'; ctx.fillRect(p.x - el.w / 2, p.y, el.w, el.h);
+      ctx.fillStyle = '#3b82f6'; ctx.fillRect(p.x - el.w / 2, p.y, el.w * 0.7, el.h);
+      ctx.font = '9px "Courier New", monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#93c5fd'; ctx.fillText('LIMIT BREAK', p.x, p.y - 3);
+      ctx.textAlign = 'left';
+    } else if (key === 'controlsHint') {
+      ctx.font = '10px "Courier New", monospace'; ctx.textAlign = 'right';
+      ctx.fillStyle = '#3a3a52';
+      ctx.fillText('MOVE ←→  JUMP SPACE  DASH X  ATTACK Z', p.x, p.y - 13);
+      ctx.fillText('SHARD: V  MAP M  PAUSE ESC', p.x, p.y);
+      ctx.textAlign = 'left';
+    } else if (key === 'fracturePips') {
+      ctx.font = '9px "Courier New", monospace'; ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(103,232,249,0.45)';
+      ctx.fillText('FRACTURE', p.x, p.y);
+      for (let i = 0; i < 4; i++) {
+        ctx.save();
+        ctx.translate(p.x + i * el.gap + 7, p.y + 17);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = i < 3 ? '#c4b5fd' : 'transparent';
+        if (i < 3) ctx.fillRect(-6, -6, 12, 12);
+        ctx.strokeStyle = i < 3 ? '#c4b5fd' : '#3a3a5e';
+        ctx.strokeRect(-6, -6, 12, 12);
+        ctx.restore();
+      }
+    }
+
+    // selection / hover outline
+    const b = boundsFor(key);
+    if (key === selected) {
+      ctx.strokeStyle = '#a78bfa';
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+// ── Side panel ──────────────────────────────────────────────────────────────
+function renderPanel() {
+  const holder = document.getElementById('elements');
+  holder.innerHTML = '';
+  for (const key in layout) {
+    const el = layout[key];
+    const card = document.createElement('div');
+    card.className = 'elCard' + (key === selected ? ' sel' : '');
+    card.innerHTML = `<b onclick="select('${key}')">${DESCRIPTIONS[key]}</b>
+      <label><input type="checkbox" ${el.visible ? 'checked' : ''} onchange="setProp('${key}','visible',this.checked)"> visible</label>
+      <label>anchor <select onchange="setProp('${key}','anchor',this.value)">
+        ${['top-left','top-center','bottom-left','bottom-right'].map((a) => `<option ${a === el.anchor ? 'selected' : ''}>${a}</option>`).join('')}
+      </select></label>
+      <label>x <input type="number" value="${el.x}" onchange="setProp('${key}','x',+this.value)">
+             y <input type="number" value="${el.y}" onchange="setProp('${key}','y',+this.value)"></label>
+      ${el.w !== undefined ? `<label>w <input type="number" value="${el.w}" onchange="setProp('${key}','w',+this.value)">
+             h <input type="number" value="${el.h}" onchange="setProp('${key}','h',+this.value)"></label>` : ''}
+      ${el.size !== undefined ? `<label>size <input type="number" value="${el.size}" onchange="setProp('${key}','size',+this.value)"></label>` : ''}
+      ${el.gap !== undefined ? `<label>gap <input type="number" value="${el.gap}" onchange="setProp('${key}','gap',+this.value)"></label>` : ''}`;
+    holder.appendChild(card);
+  }
+}
+function select(key) { selected = key; renderPanel(); draw(); }
+function setProp(key, prop, val) { layout[key][prop] = val; renderPanel(); draw(); }
+
+// ── Dragging ────────────────────────────────────────────────────────────────
+let drag = null;
+cv.addEventListener('mousedown', (e) => {
+  const mx = e.offsetX, my = e.offsetY;
+  for (const key of Object.keys(layout).reverse()) {
+    if (!layout[key].visible) continue;
+    const b = boundsFor(key);
+    if (mx >= b.x - 4 && mx <= b.x + b.w + 4 && my >= b.y - 4 && my <= b.y + b.h + 4) {
+      selected = key;
+      drag = { key, startMx: mx, startMy: my, origX: layout[key].x, origY: layout[key].y };
+      renderPanel(); draw();
+      return;
+    }
+  }
+  selected = null; renderPanel(); draw();
+});
+cv.addEventListener('mousemove', (e) => {
+  if (!drag) return;
+  const el = layout[drag.key];
+  const dx = e.offsetX - drag.startMx, dy = e.offsetY - drag.startMy;
+  // convert screen delta into the element's anchored coordinate space
+  el.x = Math.round(drag.origX + (el.anchor === 'bottom-right' ? -dx : dx));
+  el.y = Math.round(drag.origY + (el.anchor.startsWith('bottom') ? -dy : dy));
+  draw();
+});
+window.addEventListener('mouseup', () => { if (drag) { drag = null; renderPanel(); } });
+
+// ── Save / export ───────────────────────────────────────────────────────────
+function save() {
+  try {
+    localStorage.setItem(HUD_LAYOUT_KEY, JSON.stringify(layout));
+    alert('Saved. The game applies this layout on next load.');
+  } catch (e) { alert('Save failed (storage unavailable). Use Export instead.'); }
+}
+function resetAll() {
+  localStorage.removeItem(HUD_LAYOUT_KEY);
+  layout = JSON.parse(JSON.stringify(DEFAULTS));
+  selected = null;
+  renderPanel(); draw();
+}
+function exportJSON() {
+  const box = document.getElementById('exportBox');
+  box.value = `// Paste over the HUD_LAYOUT values in game/game.js (and update the\n// DEFAULTS copy in editor/hud_editor.html to match).\nconst HUD_LAYOUT = ${JSON.stringify(layout, null, 2)};`;
+  box.select();
+}
+
+renderPanel();
+draw();
+</script>
+</body>
+</html>

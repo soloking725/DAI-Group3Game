@@ -17,6 +17,29 @@ const ENEMY_FACING_DEADZONE = 6;      // px — don't flip facing from noise whe
 const PATROL_SPEED = 0.7;             // slow wander speed, independent of chase speed
 const PATROL_IDLE_FRAMES = 30;        // frames to stand still after losing the player, before patrol resumes
 
+// ── AI reaction tuning (2026-07-16 combat overhaul — see
+// Plans/combat_ai_overhaul_plan.md §B) ───────────────────────────────────────
+// Notice delay: an enemy that first spots the player holds an "alert" beat
+// (eye-glow ramp, no movement change) before actually engaging — enemies
+// should *react* to seeing you, not *know* the instant you cross a radius.
+// Per-enemy override: this.noticeFrames.
+const ENEMY_NOTICE_FRAMES = 26;
+// Decision commit: direction flips and chase/patrol re-evaluations only
+// happen when decisionTimer expires — between re-evaluations the enemy
+// commits to its current intent instead of re-deciding every frame (the
+// "changes its mind instantly, constantly" fix). Attack triggering is NOT
+// gated on this — a committed enemy still swings when you step into range.
+// Per-enemy override: this.decisionFrames.
+const ENEMY_DECISION_FRAMES = 18;
+// Facing cone: initial detection only works in front of the enemy (a
+// forward half-plane plus this much slack behind its back-edge), with a
+// small omnidirectional "hearing" radius so you can't stand ON an enemy
+// unseen. Once aware, detection is omnidirectional until sight is lost
+// (nobody forgets an attacker mid-fight). Flying enemies (ignoreVertical)
+// keep omni detection — they have no meaningful facing.
+const ENEMY_REAR_SLACK = 14;          // px behind the enemy's center still counted as "in front"
+const ENEMY_HEARING_RADIUS = 80;      // omnidirectional close-range detection (~40% of detect range)
+
 // Windup (pre-attack telegraph) duration in frames
 // Player has this many frames to react and dodge before the hit lands.
 const ENEMY_WINDUP_FRAMES = 28;
@@ -58,7 +81,13 @@ class Enemy {
     this.height = 28;
     this.type = type;
     this.health = ENEMY_HEALTH;
-    this.vx = ENEMY_SPEED;
+    // Per-instance speed override (2026-07-16, user request — enemy_editor.html
+    // control). Scales both chase and patrol movement below; currently only
+    // wired into this base class's own update() — subclasses that fully
+    // override update() with their own movement (most of them do) don't read
+    // this yet, a known limitation, not a silent no-op bug.
+    this.speed = ENEMY_SPEED;
+    this.vx = this.speed;
     this.vy = 0;
     this.grounded = false;
     this.facing = -1;
@@ -80,6 +109,57 @@ class Enemy {
     this.patrolDir = -1;   // patrol's own direction state — never read/written by chase code
     this.idleTimer = 0;    // frames left to stand still after losing the player, before patrol resumes
     this.aware = false;    // hysteresis flag — see canSeePlayer()
+
+    // ── AI reaction state (2026-07-16 combat overhaul) ──
+    // noticeTimer counts UP toward noticeFrames while the player is
+    // detectable but the enemy hasn't finished its alert beat; alerted
+    // becomes true (and stays true while detection holds) once it fires.
+    // See canSeePlayer() for how these gate `aware`.
+    this.noticeFrames = ENEMY_NOTICE_FRAMES;
+    this.noticeTimer = 0;
+    this.alerted = false;
+    // decisionTimer counts down; movement intent (chase direction, facing
+    // flips, patrol/chase switches) only re-evaluates when it hits 0.
+    this.decisionFrames = ENEMY_DECISION_FRAMES;
+    this.decisionTimer = 0;
+    this.committedVx = null; // movement the enemy is committed to between decisions
+
+    // ── Defense verbs (2026-07-16 combat overhaul, OPT-IN per enemy) ──
+    // null = plain grunt (default). Subclasses / enemy_designer defs set any
+    // subset — see updateDefense() for the behaviors and knobs:
+    //   block:    { chance, range, guardFrames, cooldown }
+    //   dodge:    { chance, range, iframes, cooldown }
+    //   breakout: { hits, window, cooldown }   (anti-juggle burst)
+    //   dashPunish: true                        (punish Phase-Dash spam)
+    this.defense = null;
+    // Runtime defense state — exists on every enemy (cheap) so game.js's
+    // hit loop can read blocking/dodgeIFrames without null-guarding.
+    this.blocking = 0;          // frames of active guard remaining
+    this.guardCooldown = 0;
+    this.guardBroken = 0;       // frames of broken-guard vulnerability (no re-guard)
+    this.dodgeCooldown = 0;
+    this.dodgeIFrames = 0;      // frames the enemy evades all melee
+    this.juggleHits = 0;        // hits taken inside the breakout window
+    this.juggleWindowTimer = 0;
+    this.breakoutCharge = 0;    // >0: readable charge flash counting down to the burst
+    this.breakoutCooldown = 0;
+    this.breakoutBurstPending = false; // consumed by game.js (player shove + VFX)
+    this.parriedRecently = 0;   // frames — parry-respect: raises feint odds (see windup)
+    this._playerWasAttacking = false;  // rising-edge detector for player swings
+    this._dashPassCount = 0;    // dash-punish: recent Phase-Dash pass-throughs
+    this._dashPassTimer = 0;
+    this._wasPhaseDashing = false;
+    // Mix-ups: every enemy rolls its windup duration ±windupVariance so
+    // attack timing can't be metronome-memorized; feintChance is the odds a
+    // windup is a feint (cancel at ~60%, then the real swing, faster).
+    this.windupVariance = 0.25;
+    this.feintChance = 0;
+    this.feinting = false;
+    // Per-attack player knockback (heavy shove attacks): set to
+    // { vx, vy, hitStun } to override the flat default when this enemy's
+    // attack lands — read via getAttackDamageAndKnockback() in game.js.
+    this.attackDamage = null;    // null = ENEMY_DAMAGE
+    this.attackKnockback = null;
 
     // Per-instance overrides for canSeePlayer(), meant for future subclasses:
     //   this.verticalBand = <px>   — override ENEMY_VERTICAL_BAND for this enemy
@@ -109,6 +189,16 @@ class Enemy {
   // vertical band widen by their *_HYSTERESIS constants before dropping back
   // to unaware — this is what stops rapid chase/patrol flicker when the
   // player sits right on the boundary instead of clearly inside or outside it.
+  // Returns { inRange, dx, dy, dist, verticalOk, alertProgress }.
+  // `inRange` is the final "actively engaging the player" answer, which as
+  // of the 2026-07-16 combat overhaul means all three of:
+  //   1. detectable — the old distance + vertical-band (+hysteresis) check,
+  //   2. in the facing cone — INITIAL detection only works in front of the
+  //      enemy (or inside the small omnidirectional hearing radius); once
+  //      aware, detection is omnidirectional until sight is lost,
+  //   3. past the notice delay — first detection starts an alert beat
+  //      (noticeFrames, eye-glow/"?" tell in draw()) before aware flips on.
+  // Subclasses keep using the raw fields (dx/verticalOk) for attack gating.
   canSeePlayer(player) {
     const dx = (player.x + player.width / 2) - (this.x + this.width / 2);
     const dy = (player.y + player.height / 2) - (this.y + this.height / 2);
@@ -119,16 +209,255 @@ class Enemy {
 
     const dist = this.ignoreVertical ? Math.abs(dx) : Math.sqrt(dx * dx + dy * dy);
     const range = this.aware ? ENEMY_DETECT_RANGE + ENEMY_DETECT_HYSTERESIS : ENEMY_DETECT_RANGE;
-    const inRange = verticalOk && dist < range;
+    let detectable = verticalOk && dist < range;
 
+    // Facing cone — only gates INITIAL detection (once aware, an enemy
+    // doesn't forget an attacker who circles behind it). Flying enemies
+    // have no meaningful facing and stay omnidirectional.
+    if (detectable && !this.aware && !this.ignoreVertical) {
+      const inFront = dx * this.facing > -ENEMY_REAR_SLACK;
+      const heard = dist < ENEMY_HEARING_RADIUS;
+      if (!inFront && !heard) detectable = false;
+    }
+
+    // Notice delay — an alert beat between "could detect" and "engaging".
+    // Scales with gameTimeScale so Stillpoint slows enemy reactions too.
+    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    if (detectable && !this.alerted) {
+      this.noticeTimer += _ts;
+      if (this.noticeTimer >= this.noticeFrames) this.alerted = true;
+    } else if (!detectable) {
+      if (this.aware || this.alerted) {
+        // Genuinely lost the player — drop back to unalerted patrol.
+        this.alerted = false;
+        this.noticeTimer = 0;
+      } else if (this.noticeTimer > 0) {
+        // Player slipped out mid-notice: decay instead of hard reset, so
+        // skirting the cone edge doesn't restart the beat from zero.
+        this.noticeTimer = Math.max(0, this.noticeTimer - 2 * _ts);
+      }
+    }
+
+    const inRange = detectable && this.alerted;
     this.aware = inRange;
-    return { inRange, dx, dy, dist, verticalOk };
+    const alertProgress = this.alerted ? 1 : Math.min(1, this.noticeTimer / Math.max(1, this.noticeFrames));
+    return { inRange, dx, dy, dist, verticalOk, alertProgress };
+  }
+
+  // ── Movement intent with decision commit (2026-07-16 combat overhaul) ──
+  // The chase/patrol/idle choice — including facing flips — only
+  // re-evaluates when decisionTimer expires; between decisions the enemy
+  // commits to its current movement instead of re-deciding every frame.
+  // Ledge safety is still checked EVERY frame (commitment never walks an
+  // enemy off a cliff). Centralized here so subclasses with their own
+  // update() (VoidLancer etc.) reuse it instead of pasting the chase/patrol
+  // block; `moveSpeed` is the subclass's chase speed.
+  updateMovementIntent(sight, bounds, _ts, moveSpeed) {
+    this.decisionTimer -= _ts;
+
+    if (this.decisionTimer <= 0) {
+      this.decisionTimer = this.decisionFrames;
+
+      // Facing — only flips at decision points (windup start also snaps it,
+      // see the windup trigger, so attacks never fire backward).
+      if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE) {
+        this.facing = sight.dx > 0 ? 1 : -1;
+      }
+
+      if (sight.inRange) {
+        this.committedVx = this.facing * moveSpeed;
+        this.idleTimer = 0;
+      } else if (this.idleTimer > 0) {
+        this.committedVx = 0;
+      } else {
+        // Patrol — own direction state, never touched by the chase branch,
+        // so switching states can never leave stale momentum behind.
+        const atLedge = this.grounded && !hasFootingAhead(this, bounds, this.patrolDir);
+        if (Math.abs(this.x - this.patrolCenter) > this.patrolRange || atLedge) {
+          this.patrolDir = this.x > this.patrolCenter ? -1 : 1;
+        }
+        this.committedVx = this.patrolDir * PATROL_SPEED * (moveSpeed / ENEMY_SPEED);
+      }
+    }
+
+    if (this.idleTimer > 0) this.idleTimer -= _ts;
+
+    // Apply the committed intent, with per-frame ledge safety.
+    const moveDir = Math.sign(this.committedVx || 0);
+    if (moveDir !== 0 && this.grounded && !hasFootingAhead(this, bounds, moveDir)) {
+      this.vx = 0;
+    } else {
+      this.vx = this.committedVx || 0;
+    }
+  }
+
+  // ── Defense verbs (2026-07-16 combat overhaul) ──────────────────────────
+  // Ticks all defense timers and reacts to the START of a player swing
+  // (block / dodge) and to Phase-Dash spam (dash-punish). Called near the
+  // top of update() — before the hit-stun early return, so the anti-juggle
+  // breakout can still charge and fire WHILE the enemy is being juggled
+  // (that's its whole purpose). Safe no-op when this.defense is null.
+  updateDefense(player, _ts) {
+    // Timers tick unconditionally (they may have been set before a config change)
+    if (this.blocking > 0) this.blocking -= _ts;
+    if (this.guardCooldown > 0) this.guardCooldown -= _ts;
+    if (this.guardBroken > 0) this.guardBroken -= _ts;
+    if (this.dodgeCooldown > 0) this.dodgeCooldown -= _ts;
+    if (this.dodgeIFrames > 0) this.dodgeIFrames -= _ts;
+    if (this.breakoutCooldown > 0) this.breakoutCooldown -= _ts;
+    if (this.parriedRecently > 0) this.parriedRecently -= _ts;
+    if (this.juggleWindowTimer > 0) {
+      this.juggleWindowTimer -= _ts;
+      if (this.juggleWindowTimer <= 0) this.juggleHits = 0;
+    }
+
+    // Breakout charge → burst. The 15f charge flash (see drawDefenseTells)
+    // is the player's cue to dash out before the shove lands.
+    if (this.breakoutCharge > 0) {
+      this.breakoutCharge -= _ts;
+      if (this.breakoutCharge <= 0) {
+        this.breakoutBurstPending = true; // game.js applies the player shove + VFX
+        this.hitStun = 0;                 // escapes the juggle
+        this.juggling = false;
+        this.juggleHits = 0;
+        this.breakoutCooldown = (this.defense && this.defense.breakout && this.defense.breakout.cooldown) || 600;
+      }
+    }
+
+    const d = this.defense;
+    const swingStarted = player.attacking && !this._playerWasAttacking;
+    this._playerWasAttacking = player.attacking;
+    if (!d) return;
+
+    // React to a swing STARTING (its startup frames) — never to a hit that
+    // already landed. Only while able to act (not stunned/mid-action).
+    if (swingStarted && !this.dead && this.hitStun <= 0 && !this.windingUp && !this.attacking) {
+      const px = player.x + player.width / 2, ex = this.x + this.width / 2;
+      const dist = Math.abs(px - ex);
+      const inFront = (px - ex) * this.facing > 0;
+
+      if (d.block && this.guardCooldown <= 0 && this.guardBroken <= 0 && inFront &&
+          dist < (d.block.range ?? 90) && Math.random() < (d.block.chance ?? 0.4)) {
+        // Raise guard for the swing's duration + a beat. Counterplay lives
+        // in game.js's hit loop: heavy attacks and hits from behind break/
+        // bypass it, and a Void Tether pull yanks the guard open.
+        this.blocking = d.block.guardFrames ?? 26;
+        this.guardCooldown = d.block.cooldown ?? 120;
+        this.vx = 0;
+      } else if (d.dodge && this.dodgeCooldown <= 0 && this.grounded &&
+                 dist < (d.dodge.range ?? 90) && Math.random() < (d.dodge.chance ?? 0.35)) {
+        // Telegraphed back-hop with brief i-frames — fixed landing recovery
+        // is the punish window; baiting it out (swing, wait, swing) is the
+        // counterplay. Never hops off a ledge.
+        const away = px > ex ? -1 : 1;
+        if (hasFootingAhead(this, null, away, 34)) {
+          this.vx = away * 5;
+          this.vy = -5;
+          this.grounded = false;
+          this.dodgeIFrames = d.dodge.iframes ?? 18;
+          this.dodgeCooldown = d.dodge.cooldown ?? 150;
+        }
+      }
+    }
+
+    // Dash-punish (reactivity): a player phase-dashing through this enemy
+    // twice in ~4s gets an instant turn (skips the decision commit once)
+    // and a fast swipe aimed at the dash exit. Punishes dash-through spam
+    // specifically (BAL-001's "echo/dash as a crutch" complaint).
+    if (d.dashPunish) {
+      if (this._dashPassTimer > 0) {
+        this._dashPassTimer -= _ts;
+        if (this._dashPassTimer <= 0) this._dashPassCount = 0;
+      }
+      if (player.phaseDashing && !this._wasPhaseDashing) {
+        const dist = Math.abs((player.x + player.width / 2) - (this.x + this.width / 2));
+        if (dist < 120) { this._dashPassCount++; this._dashPassTimer = 240; }
+      }
+      this._wasPhaseDashing = player.phaseDashing;
+
+      if (this._dashPassCount >= 2 && this.hitStun <= 0 && !this.dead &&
+          !this.windingUp && !this.attacking && this.attackCooldown <= 0) {
+        this._dashPassCount = 0;
+        this.facing = (player.x + player.width / 2) > (this.x + this.width / 2) ? 1 : -1;
+        this.windingUp = true;
+        this.windUpTimer = Math.max(10, Math.round(ENEMY_WINDUP_FRAMES * 0.5)); // fast punish swipe
+        this.vx = 0;
+      }
+    }
+  }
+
+  // Breakout hit-registration — called from every takeDamage (base and the
+  // overrides in VoidLancer/ComposedEnemy) so juggle detection can't drift
+  // out of sync with damage application.
+  registerHitForBreakout() {
+    const b = this.defense && this.defense.breakout;
+    if (!b || this.dead) return;
+    this.juggleHits++;
+    this.juggleWindowTimer = b.window ?? 120;
+    if (this.juggleHits >= (b.hits ?? 4) && this.breakoutCooldown <= 0 && this.breakoutCharge <= 0) {
+      this.breakoutCharge = 15; // readable flash, then the burst fires in updateDefense
+    }
+  }
+
+  // Per-attack damage/knockback override — same contract ComposedEnemy
+  // already had; game.js calls this on whatever enemy's attack landed.
+  // Base enemies opt in by setting this.attackDamage / this.attackKnockback.
+  getAttackDamageAndKnockback() {
+    if (this.attackDamage == null && this.attackKnockback == null) return null;
+    return {
+      damage: this.attackDamage != null ? this.attackDamage : ENEMY_DAMAGE,
+      knockback: this.attackKnockback || undefined,
+    };
+  }
+
+  // Visual tells for the defense verbs — shared so subclasses with their own
+  // draw() can call it too (base draw() already does).
+  drawDefenseTells(ctx) {
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
+
+    // Guard: a steel arc held in front of the enemy
+    if (this.blocking > 0) {
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.9)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      const mid = this.facing === 1 ? 0 : Math.PI;
+      ctx.arc(cx, cy, this.width * 0.75, mid - 0.7, mid + 0.7);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+
+    // Broken guard: cracked-arc stagger marker
+    if (this.guardBroken > 0) {
+      ctx.globalAlpha = Math.min(1, this.guardBroken / 20);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('×', cx, this.y - 6);
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 1;
+    }
+
+    // Breakout charge: expanding white flash ring — the "get out" cue
+    if (this.breakoutCharge > 0) {
+      const t = 1 - this.breakoutCharge / 15;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.9 - t * 0.4})`;
+      ctx.lineWidth = 3 + t * 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 10 + t * 40, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
   }
 
   update(player, bounds, echoes) {
     const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
 
     if (this.dead) { this.deathTimer++; return; }
+
+    // Defense verbs first — must run before the hit-stun early return below
+    // so the anti-juggle breakout can charge/fire mid-juggle.
+    this.updateDefense(player, _ts);
 
     // Echo distraction — timer scales with game speed
     if (this.distractionTimer > 0) {
@@ -165,24 +494,35 @@ class Enemy {
     // carrying stale chase velocity into the patrol branch below, then idle
     // briefly before patrol resumes (absorbs flicker right at the vertical-
     // band boundary instead of visibly pacing back and forth every frame).
+    // Forcing decisionTimer to 0 makes the next frame a real decision point,
+    // so losing the player is never masked by a stale movement commitment.
     if (wasAware && !sight.inRange) {
       this.vx = 0;
+      this.committedVx = 0;
       this.idleTimer = PATROL_IDLE_FRAMES;
-    }
-
-    // Stable facing: only flip when the player is far enough off-center to be
-    // unambiguous, so standing roughly overhead doesn't flicker facing left/right.
-    if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE) {
-      this.facing = sight.dx > 0 ? 1 : -1;
+      this.decisionTimer = 0;
     }
 
     // ── Windup telegraph ─────────────────────────────────────────────────────
-    // Begin windup when in range AND within the vertical band — an enemy
-    // standing on a different platform than the player should never windup
-    // or attack just because they're horizontally close.
-    if (sight.verticalOk && Math.abs(sight.dx) < ENEMY_ATTACK_RANGE && this.attackCooldown <= 0 && !this.windingUp && !this.attacking) {
+    // Begin windup when actively engaging (aware + in range + vertical band)
+    // — an enemy on a different platform never attacks just because the
+    // player is horizontally close, and an unaware enemy gets its notice
+    // beat before its first swing instead of attacking the instant the
+    // player walks up behind it. Facing snaps to the player at windup start
+    // (deliberate: the enemy commits to the attack and turns to deliver it),
+    // so the decision-commit facing can never make it swing backward.
+    if (sight.inRange && Math.abs(sight.dx) < ENEMY_ATTACK_RANGE && this.attackCooldown <= 0 && !this.windingUp && !this.attacking) {
+      if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE) this.facing = sight.dx > 0 ? 1 : -1;
       this.windingUp = true;
-      this.windUpTimer = ENEMY_WINDUP_FRAMES;
+      // Mix-ups: roll the windup duration (±windupVariance) so attack
+      // timing can't be metronome-memorized, and maybe make this windup a
+      // feint — cancel at ~60% and immediately re-wind the real swing.
+      // Being parried recently raises the feint odds (parry-respect).
+      const variance = 1 + (Math.random() * 2 - 1) * this.windupVariance;
+      this.windUpTimer = Math.max(8, Math.round(ENEMY_WINDUP_FRAMES * variance));
+      const feintOdds = this.feintChance + (this.parriedRecently > 0 ? 0.2 : 0);
+      this.feinting = feintOdds > 0 && Math.random() < feintOdds;
+      if (this.feinting) this.windUpTimer = Math.round(this.windUpTimer * 0.6);
       this.vx = 0;
     }
 
@@ -190,42 +530,32 @@ class Enemy {
       this.windUpTimer -= _ts;
       this.vx = 0; // freeze during windup
       if (this.windUpTimer <= 0) {
-        this.windingUp = false;
-        this.attacking = true;
-        this.attackTimer = 20;
-        this.attackCooldown = ENEMY_ATTACK_COOLDOWN;
+        if (this.feinting) {
+          // Feint: the telegraph resets and the REAL swing comes in faster —
+          // the restarted windup ring is itself the readable feint tell.
+          this.feinting = false;
+          this.windUpTimer = Math.max(8, Math.round(ENEMY_WINDUP_FRAMES * 0.7));
+        } else {
+          this.windingUp = false;
+          this.attacking = true;
+          this.attackTimer = 20;
+          this.attackCooldown = ENEMY_ATTACK_COOLDOWN;
+        }
       }
     }
 
     // ── Hit stun ─────────────────────────────────────────────────────────────
     if (this.hitStun > 0) {
       this.hitStun--;
-      // Physics during hit stun (allow airborne movement for juggling)
+      // Physics during hit stun (allow airborne movement for juggling).
+      // resolveEnemyPhysics (physics.js) handles floors, walls (hard
+      // knockback bounces — see PHYS_WALL_BOUNCE_*), ceilings, and the
+      // juggle-ends-on-landing rule.
       this.grounded = false;
       this.vy += GRAVITY * _ts;
       this.x += this.vx * _ts;
       this.y += this.vy * _ts;
-
-      if (this.y + this.height > bounds.groundY) {
-        this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
-        this.juggling = false; // land ends juggle state
-      }
-
-      const area = getCurrentArea();
-      if (area) {
-        for (const plat of area.platforms) {
-          if (plat.destructible && plat.hp <= 0) continue;
-          if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-            if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
-              this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
-              this.juggling = false;
-            }
-          }
-        }
-      }
-
-      if (this.x < bounds.left) this.x = bounds.left;
-      if (this.x + this.width > bounds.right) this.x = bounds.right - this.width;
+      resolveEnemyPhysics(this, bounds, _ts);
 
       this.flashTimer--;
       if (this.flashTimer <= 0) this.flashTimer = -1;
@@ -244,66 +574,24 @@ class Enemy {
     if (this.attackCooldown < 0) this.attackCooldown = 0;
 
     // ── Movement AI (only when not winding up or attacking) ──────────────────
-    // Three fully separate states, each owning its own velocity — chase never
-    // leaves residue for patrol to inherit, which was the actual disengage bug
-    // (patrol used to reuse whatever vx chase left behind until a boundary
-    // was hit, producing a visible stutter-step at the vertical-band edge).
+    // Chase/patrol/idle intent — including facing — is chosen at decision
+    // points and committed between them (see updateMovementIntent), with
+    // ledge safety still enforced every frame.
     if (!this.windingUp && !this.attacking) {
-      if (sight.inRange) {
-        // Ledge check: don't chase past the edge of the platform we're
-        // standing on — hold position at the edge instead of walking off.
-        if (this.grounded && !hasFootingAhead(this, bounds, this.facing)) {
-          this.vx = 0;
-        } else {
-          this.vx = this.facing * ENEMY_SPEED;
-        }
-        this.idleTimer = 0;
-      } else if (this.idleTimer > 0) {
-        this.idleTimer -= _ts;
-        this.vx = 0;
-      } else {
-        // Patrol — own direction state, never touched by the chase branch
-        // above, so switching states can never leave stale momentum behind.
-        const atLedge = this.grounded && !hasFootingAhead(this, bounds, this.patrolDir);
-        if (Math.abs(this.x - this.patrolCenter) > this.patrolRange || atLedge) {
-          this.patrolDir = this.x > this.patrolCenter ? -1 : 1;
-        }
-        // Still no footing after flipping (isolated platform) — hold rather
-        // than oscillate into the same ledge every frame.
-        this.vx = (this.grounded && !hasFootingAhead(this, bounds, this.patrolDir))
-          ? 0
-          : this.patrolDir * PATROL_SPEED;
-      }
+      this.updateMovementIntent(sight, bounds, _ts, this.speed);
     }
 
-    // Physics
+    // Physics — shared resolver (physics.js): floors, wall stop/bounce,
+    // ceilings, world floor + bounds. Replaces the old inline top-landing-
+    // only loop, which could snap an enemy walking into a tall wall up onto
+    // its top surface (no prevBottom guard) and ignored ceilings entirely.
     // If airborne and NOT juggling, stop horizontal movement — prevents enemies walking off platform edges into void
     if (!this.grounded && !this.juggling) this.vx = 0;
     this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.x += this.vx * _ts;
     this.y += this.vy * _ts;
-
-    if (this.y + this.height > bounds.groundY) {
-      this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
-      this.juggling = false; // landing ends juggle
-    }
-
-    const area = getCurrentArea();
-    if (area) {
-      for (const plat of area.platforms) {
-        if (plat.destructible && plat.hp <= 0) continue;
-        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
-            this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
-            this.juggling = false;
-          }
-        }
-      }
-    }
-
-    if (this.x < bounds.left) this.x = bounds.left;
-    if (this.x + this.width > bounds.right) this.x = bounds.right - this.width;
+    resolveEnemyPhysics(this, bounds, _ts);
 
     this.flashTimer++; // unscaled — visual flash stays snappy
   }
@@ -323,7 +611,9 @@ class Enemy {
     this.flashTimer = 0;
     this.windingUp = false; // interrupt windup on hit — gives player a punish window
     this.windUpTimer = 0;
+    this.feinting = false;
     this.hitStun = 14; // base hit stun frames
+    this.registerHitForBreakout(); // anti-juggle burst bookkeeping (no-op without defense.breakout)
 
     if (sourceX !== undefined) {
       const dir = (this.x > sourceX ? 1 : -1);
@@ -366,10 +656,34 @@ class Enemy {
 
     ctx.fillRect(this.x, this.y, this.width, this.height);
 
-    // Eye
-    ctx.fillStyle = '#0a0a0f';
+    // Eye — warms from black toward amber while the notice beat ramps up
+    // (the "it's starting to see you" tell; the "?" below completes it).
+    const noticing = !this.aware && this.noticeTimer > 0;
+    if (noticing) {
+      const p = Math.min(1, this.noticeTimer / Math.max(1, this.noticeFrames));
+      ctx.fillStyle = `rgb(${Math.round(10 + 240 * p)}, ${Math.round(10 + 180 * p)}, ${Math.round(15 + 20 * p)})`;
+    } else {
+      ctx.fillStyle = '#0a0a0f';
+    }
     const eyeX = this.facing === 1 ? this.x + 18 : this.x + 4;
     ctx.fillRect(eyeX, this.y + 8, 8, 6);
+
+    // ── Notice tell: "?" fades in above the head during the alert beat ──────
+    // (deliberately distinct from the windup "!" — "?" means "it's noticing
+    // you, back off or commit", "!" means "the swing is coming").
+    if (noticing && !this.windingUp) {
+      const p = Math.min(1, this.noticeTimer / Math.max(1, this.noticeFrames));
+      ctx.globalAlpha = 0.3 + p * 0.7;
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('?', this.x + this.width / 2, this.y - 6);
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = this.dead ? Math.max(0, 1 - this.deathTimer / 20) : 1;
+    }
+
+    // Defense-verb tells (guard arc, broken-guard ×, breakout charge ring)
+    this.drawDefenseTells(ctx);
 
     // ── Windup telegraph: expanding danger ring + "!" above head ─────────────
     if (this.windingUp) {
@@ -479,6 +793,11 @@ class Stutterer extends Enemy {
       const jumpDist = 80 + Math.random() * 60;
       this.x += Math.sign(dx) * jumpDist;
       this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
+      // A teleport roll can land inside a platform (the old "Stutterer
+      // materializes on top of a wall" bug) — push out along the shortest
+      // axis instead. quiet=true: this is a runtime roll, not an authoring error.
+      const tpArea = (typeof getCurrentArea === 'function') ? getCurrentArea() : null;
+      if (tpArea) nudgeOutOfPlatforms(this, tpArea.platforms, 'Stutterer teleport', true);
       this.blinking = true;
       this.blinkTimer = 15;
       spawnParticlesAt(this.x + this.width / 2, this.y + this.height / 2, '#a78bfa', 6);
@@ -534,24 +853,8 @@ class Stutterer extends Enemy {
     this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.y += this.vy * _ts;
+    resolveEnemyPhysics(this, bounds, _ts); // shared resolver — see physics.js
 
-    if (this.y + this.height > bounds.groundY) {
-      this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
-    }
-
-    const area = getCurrentArea();
-    if (area) {
-      for (const plat of area.platforms) {
-        if (plat.destructible && plat.hp <= 0) continue;
-        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
-            this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
-          }
-        }
-      }
-    }
-
-    this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
     this.flashTimer++; // unscaled
   }
 
@@ -673,10 +976,18 @@ class VoidLancer extends Enemy {
   constructor(x, y) {
     super(x, y, 'void_lancer');
     this.health = LANCER_HEALTH;
+    this.speed = LANCER_SPEED; // enemy_editor.html's Speed slider reads/writes this.speed
     this.attackCooldown = LANCER_CHARGE_COOLDOWN;
     this.charging = false;       // mid-thrust, moving fast, hitbox live
     this.chargeTimer = 0;
     this.stunTimer = 0;          // parry stun — see takeDamage() for the double-damage payoff
+    // Defense verbs: a duelist — hops back from swings and punishes
+    // Phase-Dash spam (see Enemy.updateDefense for the knobs' meaning).
+    this.defense = {
+      dodge: { chance: 0.4, range: 90, iframes: 18, cooldown: 150 },
+      dashPunish: true,
+    };
+    this.feintChance = 0.15;
   }
 
   update(player, bounds, echoes) {
@@ -708,13 +1019,13 @@ class VoidLancer extends Enemy {
     if (nearestEcho) { this.distractionTarget = nearestEcho; this.distractionTimer = ECHO_DISTRACT_DURATION; return; }
 
     const sight = this.canSeePlayer(player);
-    if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE && !this.windingUp && !this.charging) {
-      this.facing = sight.dx > 0 ? 1 : -1;
-    }
 
-    // ── Windup: begin the telegraph once the player is roughly in lane ──
-    if (sight.verticalOk && Math.abs(sight.dx) < ENEMY_ATTACK_RANGE * 6 &&
+    // ── Windup: begin the telegraph once actively engaging and roughly in
+    // lane (facing snaps to the player at windup start, same rule as the
+    // base class — the charge commits to a direction and keeps it).
+    if (sight.inRange && Math.abs(sight.dx) < ENEMY_ATTACK_RANGE * 6 &&
         this.attackCooldown <= 0 && !this.windingUp && !this.charging) {
+      if (Math.abs(sight.dx) > ENEMY_FACING_DEADZONE) this.facing = sight.dx > 0 ? 1 : -1;
       this.windingUp = true;
       this.windUpTimer = LANCER_WINDUP_FRAMES;
       this.vx = 0;
@@ -743,27 +1054,10 @@ class VoidLancer extends Enemy {
     if (this.attackCooldown > 0) this.attackCooldown -= _ts;
     if (this.attackCooldown < 0) this.attackCooldown = 0;
 
-    // ── Approach (only when not telegraphing/charging) ──
+    // ── Approach (only when not telegraphing/charging) — shared
+    // decision-committed chase/patrol from the base class.
     if (!this.windingUp && !this.charging) {
-      if (sight.inRange) {
-        if (this.grounded && !hasFootingAhead(this, bounds, this.facing)) {
-          this.vx = 0;
-        } else {
-          this.vx = this.facing * LANCER_SPEED;
-        }
-        this.idleTimer = 0;
-      } else if (this.idleTimer > 0) {
-        this.idleTimer -= _ts;
-        this.vx = 0;
-      } else {
-        const atLedge = this.grounded && !hasFootingAhead(this, bounds, this.patrolDir);
-        if (Math.abs(this.x - this.patrolCenter) > this.patrolRange || atLedge) {
-          this.patrolDir = this.x > this.patrolCenter ? -1 : 1;
-        }
-        this.vx = (this.grounded && !hasFootingAhead(this, bounds, this.patrolDir))
-          ? 0
-          : this.patrolDir * PATROL_SPEED;
-      }
+      this.updateMovementIntent(sight, bounds, _ts, this.speed);
     }
 
     if (!this.grounded && !this.charging) this.vx = 0;
@@ -771,26 +1065,18 @@ class VoidLancer extends Enemy {
     this.vy += GRAVITY * _ts;
     this.x += this.vx * _ts;
     this.y += this.vy * _ts;
+    const phys = resolveEnemyPhysics(this, bounds, _ts); // shared resolver — see physics.js
 
-    if (this.y + this.height > bounds.groundY) {
-      this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
+    // Charging into a wall/bound ends the charge early rather than sliding
+    // along it (wall contact now comes from the shared resolver; a hard
+    // charge that bounced also ends — the thrust spent itself on the wall).
+    if (this.charging &&
+        (phys.wallNormal !== 0 || phys.bounced ||
+         this.x <= bounds.left || this.x + this.width >= bounds.right)) {
+      this.charging = false;
+      this.chargeTimer = 0;
+      this.vx = 0;
     }
-
-    const area = getCurrentArea();
-    if (area) {
-      for (const plat of area.platforms) {
-        if (plat.destructible && plat.hp <= 0) continue;
-        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
-            this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
-          }
-        }
-      }
-    }
-
-    // Charging into a wall/bound ends the charge early rather than sliding along it
-    if (this.x < bounds.left) { this.x = bounds.left; if (this.charging) { this.charging = false; this.chargeTimer = 0; } }
-    if (this.x + this.width > bounds.right) { this.x = bounds.right - this.width; if (this.charging) { this.charging = false; this.chargeTimer = 0; } }
 
     this.flashTimer++;
   }
@@ -818,6 +1104,7 @@ class VoidLancer extends Enemy {
     this.chargeTimer = 0;
     this.stunTimer = 0;
     this.hitStun = 14;
+    this.registerHitForBreakout(); // anti-juggle bookkeeping (no-op without defense.breakout)
 
     if (sourceX !== undefined) {
       const dir = (this.x > sourceX ? 1 : -1);
@@ -890,6 +1177,9 @@ class VoidLancer extends Enemy {
       ctx.textAlign = 'left';
     }
 
+    // Defense-verb tells (dodge/dash-punish enemy — shows nothing unless active)
+    this.drawDefenseTells(ctx);
+
     ctx.globalAlpha = 1;
   }
 }
@@ -915,6 +1205,13 @@ class NullSentinel extends Enemy {
     super(x, y, 'null_sentinel');
     this.phaseTimer = 0;
     this.solid = true;
+    // Defense verbs: the wall — raises a guard against frontal swings.
+    // Counterplay: charged attacks break it, backstabs bypass it, a Void
+    // Tether pull rips it open (see game.js's hit loop / tether arrival).
+    this.defense = {
+      block: { chance: 0.5, range: 90, guardFrames: 26, cooldown: 120 },
+      breakout: { hits: 4, window: 120, cooldown: 600 },
+    };
   }
 
   update(player, bounds, echoes) {
@@ -976,12 +1273,14 @@ class NullSentinel extends Enemy {
 // (always-on field vs. a timed on/off state).
 const WRAITH_FIELD_RADIUS = 120;
 const WRAITH_DRIFT_SPEED = 0.8;
+const ANCHOR_WRAITH_HEALTH = 4; // low relative to other enemies, per expansion.md — meant to be killed before it matters, not fought head-on
 
 class AnchorWraith extends Enemy {
   constructor(x, y) {
     super(x, y, 'anchor_wraith');
     this.ignoreVertical = true; // floats, not ground-bound
-    this.health = 4; // low relative to other enemies, per expansion.md — meant to be killed before it matters, not fought head-on
+    this.health = ANCHOR_WRAITH_HEALTH;
+    this.speed = WRAITH_DRIFT_SPEED; // enemy_editor.html's Speed slider reads/writes this.speed
   }
 
   update(player, bounds, echoes) {
@@ -1003,8 +1302,8 @@ class AnchorWraith extends Enemy {
     // dashing through the now-empty space" only works if it actually moves.
     if (sight.inRange) {
       const dist = Math.max(1, Math.hypot(sight.dx, sight.dy));
-      this.vx = (sight.dx / dist) * WRAITH_DRIFT_SPEED;
-      this.vy = (sight.dy / dist) * WRAITH_DRIFT_SPEED;
+      this.vx = (sight.dx / dist) * this.speed;
+      this.vy = (sight.dy / dist) * this.speed;
     } else {
       this.vx *= 0.9;
       this.vy *= 0.9;
@@ -1053,12 +1352,14 @@ class AnchorWraith extends Enemy {
 // not here, so the counter can't be fully self-contained the way the two
 // Phase-Dash counters above are).
 const DEFLECTOR_HOVER_SPEED = 0.5;
+const DEFLECTOR_HEALTH = 5;
 
 class DeflectorDrone extends Enemy {
   constructor(x, y) {
     super(x, y, 'deflector_drone');
     this.ignoreVertical = true;
-    this.health = 5;
+    this.health = DEFLECTOR_HEALTH;
+    this.speed = DEFLECTOR_HOVER_SPEED; // enemy_editor.html's Speed slider reads/writes this.speed
     this.hoverPhase = Math.random() * Math.PI * 2;
     this.hoverCenterY = y;
   }
@@ -1088,7 +1389,7 @@ class DeflectorDrone extends Enemy {
     // Gentle bob in place — passive, doesn't chase.
     this.hoverPhase += 0.03 * _ts;
     this.y = this.hoverCenterY + Math.sin(this.hoverPhase) * 12;
-    this.x += (sight.inRange ? this.facing * DEFLECTOR_HOVER_SPEED * 0.2 : 0) * _ts;
+    this.x += (sight.inRange ? this.facing * this.speed * 0.2 : 0) * _ts;
     this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
 
     this.flashTimer++;
@@ -1113,10 +1414,12 @@ class DeflectorDrone extends Enemy {
 // Only tangible when the player is facing it; attacks from behind (i.e.
 // while the player is NOT facing it) otherwise. Reuses base Enemy attack AI
 // via super.update(), then overrides tangibility afterward.
+const SPRITE_HEALTH = 4;
+
 class MirrorSprite extends Enemy {
   constructor(x, y) {
     super(x, y, 'mirror_sprite');
-    this.health = 4;
+    this.health = SPRITE_HEALTH;
     this.tangible = false;
   }
 
@@ -1171,11 +1474,12 @@ class MirrorSprite extends Enemy {
 // Teleports to just behind the player the moment a Phase Dash ends. Reuses
 // Stutterer's teleport-blink visual convention (decoy fade, blink flicker).
 const STALKER_BLINK_COOLDOWN = 45;
+const STALKER_HEALTH = 4;
 
 class EchoStalker extends Enemy {
   constructor(x, y) {
     super(x, y, 'echo_stalker');
-    this.health = 4;
+    this.health = STALKER_HEALTH;
     this.blinking = false;
     this.blinkTimer = 0;
     this.blinkCooldown = 0;
@@ -1225,19 +1529,7 @@ class EchoStalker extends Enemy {
     this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.y += this.vy * _ts;
-    if (this.y + this.height > bounds.groundY) { this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true; }
-    const area = getCurrentArea();
-    if (area) {
-      for (const plat of area.platforms) {
-        if (plat.destructible && plat.hp <= 0) continue;
-        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
-            this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
-          }
-        }
-      }
-    }
-    this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
+    resolveEnemyPhysics(this, bounds, _ts); // shared resolver — see physics.js
     this.flashTimer++;
   }
 
@@ -1361,23 +1653,7 @@ class FracturedSlime {
     this.vy += GRAVITY * _ts;
     this.y += this.vy * _ts;
     this.x += this.vx * _ts;
-
-    if (this.y + this.height > bounds.groundY) {
-      this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
-    }
-
-    if (area) {
-      for (const plat of area.platforms) {
-        if (plat.destructible && plat.hp <= 0) continue;
-        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
-            this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
-          }
-        }
-      }
-    }
-
-    this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
+    resolveEnemyPhysics(this, bounds, _ts); // shared resolver — see physics.js
   }
 
   draw(ctx) {
@@ -1439,6 +1715,7 @@ class CrystalSentinel {
     this.flashTimer = 0;
     this.dead = false;
     this.deathTimer = 0;
+    this.speed = SENTINEL_SPEED; // enemy_editor.html's Speed slider reads/writes this.speed
     this.attackCooldown = SENTINEL_ATTACK_COOLDOWN;
     this.windingUp = false;
     this.windUpTimer = 0;
@@ -1564,7 +1841,7 @@ class CrystalSentinel {
     } else {
       this.vx *= 0.9;
     }
-    const maxSpeed = SENTINEL_SPEED * (this.shieldBroken ? 0.4 : 1.0);
+    const maxSpeed = this.speed * (this.shieldBroken ? 0.4 : 1.0);
     this.vx = Math.max(-maxSpeed, Math.min(maxSpeed, this.vx));
 
     const dy = player.y - this.y;
@@ -1882,35 +2159,12 @@ class BlitzGuard extends Enemy {
       }
     }
 
-    // ── Physics (same as base Enemy) ──
+    // ── Physics (same as base Enemy — shared resolver, see physics.js) ──
     this.grounded = false;
     this.vy += GRAVITY * _ts;
     this.x += this.vx * _ts;
     this.y += this.vy * _ts;
-
-    if (this.y + this.height > bounds.groundY) {
-      this.y = bounds.groundY - this.height;
-      this.vy = 0;
-      this.grounded = true;
-    }
-
-    // Platform collision (copy from Enemy)
-    const area = getCurrentArea();
-    if (area) {
-      for (const plat of area.platforms) {
-        if (plat.destructible && plat.hp <= 0) continue;
-        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
-            this.y = plat.y - this.height;
-            this.vy = 0;
-            this.grounded = true;
-          }
-        }
-      }
-    }
-
-    if (this.x < bounds.left) this.x = bounds.left;
-    if (this.x + this.width > bounds.right) this.x = bounds.right - this.width;
+    resolveEnemyPhysics(this, bounds, _ts);
 
     this.flashTimer++;
   }
@@ -2077,29 +2331,14 @@ class ColossusCore {
     this.vy += GRAVITY * _ts;
     this.y += this.vy * _ts;
     this.x += this.vx * _ts;
+    const phys = resolveEnemyPhysics(this, bounds, _ts); // shared resolver — see physics.js
 
-    if (this.y + this.height > bounds.groundY) {
-      this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
-    }
-    if (area) {
-      for (const plat of area.platforms) {
-        if (plat.destructible && plat.hp <= 0) continue;
-        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-          if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
-            this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
-          }
-        }
-      }
-    }
-
-    // Hitting the arena wall ends a charge early instead of clipping out of bounds.
-    if (this.x < bounds.left) {
-      this.x = bounds.left;
-      if (this.state === 'charging') { this.state = 'idle'; this.stateTimer = 70; this.attackCooldown = 60; }
-    }
-    if (this.x + this.width > bounds.right) {
-      this.x = bounds.right - this.width;
-      if (this.state === 'charging') { this.state = 'idle'; this.stateTimer = 70; this.attackCooldown = 60; }
+    // Hitting a wall (or the arena bound) ends a charge early instead of
+    // clipping out of bounds / grinding along the obstacle.
+    if (this.state === 'charging' &&
+        (phys.wallNormal !== 0 || phys.bounced ||
+         this.x <= bounds.left || this.x + this.width >= bounds.right)) {
+      this.state = 'idle'; this.stateTimer = 70; this.attackCooldown = 60; this.vx = 0;
     }
   }
 
@@ -2638,6 +2877,12 @@ class ComposedEnemy extends Enemy {
     this._aRuntime = {};  // shared scratch for the currently-active attack (onFire/onTick/onEnd)
 
     this.counters = def.counters || [];
+    // Defense verbs (2026-07-16 combat overhaul) — pass straight through
+    // from the def, so enemy_designer.html JSON can grant block/dodge/
+    // breakout/dashPunish per composed enemy. Mix-up knobs too.
+    this.defense = def.defense || null;
+    if (def.windupVariance !== undefined) this.windupVariance = def.windupVariance;
+    if (def.feintChance !== undefined) this.feintChance = def.feintChance;
     this.reflectsProjectiles = this.attacks.some((a) => a.type === 'shield_reflect')
       || this.counters.some((c) => c.ability === 'shard_shot' && c.effect === 'reflect');
 
@@ -2682,6 +2927,7 @@ class ComposedEnemy extends Enemy {
     this.windingUp = false; this.windUpTimer = 0;
     this.stunTimer = 0;
     this.hitStun = Math.round(14 * (1 - this.stunResistance));
+    this.registerHitForBreakout(); // anti-juggle bookkeeping (no-op without defense.breakout)
 
     if (sourceX !== undefined) {
       const dir = (this.x > sourceX ? 1 : -1);
@@ -2862,25 +3108,17 @@ class ComposedEnemy extends Enemy {
       this.vy += GRAVITY * _ts;
       this.x += this.vx * _ts;
       this.y += this.vy * _ts;
+      const phys = resolveEnemyPhysics(this, bounds, _ts); // shared resolver — see physics.js
 
-      if (this.y + this.height > bounds.groundY) {
-        this.y = bounds.groundY - this.height; this.vy = 0; this.grounded = true;
-        this.juggling = false;
+      // A wall/bound stopping a mid-attack lunge (dash_charge) kills the
+      // lunge's velocity — the attack timer still runs out normally, the
+      // enemy just doesn't grind against (or bounce backward off) the wall
+      // with its own attack movement.
+      if (this._activeAttack !== null &&
+          (phys.wallNormal !== 0 || phys.bounced ||
+           this.x <= bounds.left || this.x + this.width >= bounds.right)) {
+        this.vx = 0;
       }
-      const area = getCurrentArea();
-      if (area) {
-        for (const plat of area.platforms) {
-          if (plat.destructible && plat.hp <= 0) continue;
-          if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-            if (this.y + this.height > plat.y && this.y + this.height < plat.y + plat.h + 10 && this.vy >= 0) {
-              this.y = plat.y - this.height; this.vy = 0; this.grounded = true;
-              this.juggling = false;
-            }
-          }
-        }
-      }
-      if (this.x < bounds.left) { this.x = bounds.left; if (this._activeAttack !== null) this.vx = 0; }
-      if (this.x + this.width > bounds.right) { this.x = bounds.right - this.width; if (this._activeAttack !== null) this.vx = 0; }
     }
 
     this.flashTimer++;
@@ -3087,4 +3325,26 @@ const ENEMY_REGISTRY = {
   blitz_guard: BlitzGuard,
   composed: ComposedEnemy,
 };
+
+// Real per-enemy defaults, exported so tools like enemy_editor.html can read
+// the numbers straight off enemy.js instead of keeping a hand-copied
+// duplicate that silently drifts out of sync (see roadmap: "the editor
+// lies" bug — health: 3 shown for an enemy whose real ENEMY_HEALTH is 6).
+if (typeof window !== 'undefined') {
+  window.ENEMY_HEALTH = ENEMY_HEALTH;
+  window.ENEMY_ATTACK_COOLDOWN = ENEMY_ATTACK_COOLDOWN;
+  window.ENEMY_SPEED = ENEMY_SPEED;
+  window.LANCER_HEALTH = LANCER_HEALTH;
+  window.LANCER_SPEED = LANCER_SPEED;
+  window.LANCER_CHARGE_COOLDOWN = LANCER_CHARGE_COOLDOWN;
+  window.SENTINEL_HEALTH = SENTINEL_HEALTH;
+  window.SENTINEL_SPEED = SENTINEL_SPEED;
+  window.SENTINEL_ATTACK_COOLDOWN = SENTINEL_ATTACK_COOLDOWN;
+  window.ANCHOR_WRAITH_HEALTH = ANCHOR_WRAITH_HEALTH;
+  window.WRAITH_DRIFT_SPEED = WRAITH_DRIFT_SPEED;
+  window.DEFLECTOR_HEALTH = DEFLECTOR_HEALTH;
+  window.DEFLECTOR_HOVER_SPEED = DEFLECTOR_HOVER_SPEED;
+  window.SPRITE_HEALTH = SPRITE_HEALTH;
+  window.STALKER_HEALTH = STALKER_HEALTH;
+}
 if (typeof window !== 'undefined') window.ENEMY_REGISTRY = ENEMY_REGISTRY;

@@ -25,13 +25,23 @@ const ATTACK_COOLDOWN = 18;
 const ATTACK_DAMAGE = 1;
 
 // Directional attack hitbox sizes
-const ATK_FWD_W = 40; const ATK_FWD_H = 28;
+const ATK_FWD_W = 58; const ATK_FWD_H = 28; // widened 2026-07-16 — user feedback: normal attack range felt too short
 const ATK_UP_W  = 30; const ATK_UP_H  = 36;
 const ATK_DN_W  = 40; const ATK_DN_H  = 24;
 const ATK_POGO_VY = -11; // upward bounce on down-slam hit
+// Charged (heavy) attack's forward hitbox — taller, starts above the
+// player's head instead of chest-height, so it actually covers the
+// overhead swing the animation shows (user feedback 2026-07-16: normal
+// should read as in front of you, Hollow-Knight-style; charged as overhead).
+const ATK_HEAVY_FWD_W = 44; const ATK_HEAVY_FWD_H = 50;
 
 // Charged heavy attack (hold Z/J to charge, release to fire)
-const CHARGE_TAP = 5;       // frames under this counts as a tap (normal attack)
+// CHARGE_TAP widened 5f -> 16f (2026-07-16, user feedback): 5f gave almost no
+// margin for a normal tap — anything slightly slow released as a barely-
+// charged "heavy" attack (wrong animation/hitbox, near-zero heavyCharge).
+// 16f (~267ms) is still well short of a real charge attempt (CHARGE_FULL is
+// 40f) but forgiving enough that a normal tap reliably reads as a tap.
+const CHARGE_TAP = 16;      // frames under this counts as a tap (normal attack)
 const CHARGE_FULL = 40;     // frames to reach full charge (~667ms)
 const HEAVY_DAMAGE = 2;     // damage multiplier for full charge
 const HEAVY_KNOCKBACK = 2.5; // knockback multiplier for full charge
@@ -50,7 +60,7 @@ const PARRY_IFRAMES = 20;   // player invincibility after successful parry
 // Stillpoint (time-slow) — tap/hold timed model (Enemy_Design.pdf, replaces
 // the old indefinite-toggle-drains-a-pip-per-60f mechanic 2026-07-16)
 const FRACTURE_ABS_MAX = 4; // absolute ceiling on fractureMax, reached by finding all Fracture Pips
-const STILLPOINT_HOLD_THRESHOLD = 12; // frames held before release counts as "Hold" not "Tap"
+const STILLPOINT_HOLD_THRESHOLD = 20; // frames held before release counts as "Hold" not "Tap" (widened alongside CHARGE_TAP, same leniency fix)
 const STILLPOINT_TAP_COST = 1;
 const STILLPOINT_HOLD_COST = 3;
 const STILLPOINT_TAP_DURATION_BASE = 25;   // 0.4s
@@ -111,6 +121,12 @@ class Player {
     this.shardAimTimer = 0;     // frames the aim has been held
     this.shardAimVy = 0;        // vertical launch velocity of the aimed shot
 
+    // Shard Shot Lv3 Beam — continuous channel, not a fired projectile
+    // (Enemy_Design.pdf, reworked 2026-07-16 per user clarification)
+    this.beaming = false;
+    this.beamAngle = 0;      // radians, 0 = straight along facing
+    this.beamDrainTimer = 0; // frames since last 1-pip drain tick
+
     // Duck / crouch
     this.ducking = false;
     this.normalHeight = 32;
@@ -145,6 +161,11 @@ class Player {
     this.wallNormal = 0;            // -1 = touching left wall, 1 = touching right wall, 0 = none
     this.wallJumpCoyote = 0;        // frames after losing wall contact where wall-jump still works
     this.wallJumpJustFired = false; // prevent double-wall-jump mid-air
+
+    // Variable jump height / short hop (user feedback 2026-07-16): releasing
+    // jump early cuts the ascent short exactly once per jump.
+    this.jumping = false;
+    this.jumpCut = false;
   }
 
   // Strength Lv1+: attack speed +15% (18f cooldown -> 15f). Lv4 Limit Break:
@@ -218,7 +239,14 @@ class Player {
           const durationMult = lvl >= 1 ? 1.25 : 1; // Lv1+ duration +25%
           const baseDuration = isHold ? STILLPOINT_HOLD_DURATION_BASE : STILLPOINT_TAP_DURATION_BASE;
           this.stillpointTimer = Math.round(baseDuration * durationMult);
-          this.stillpointSlow = lvl >= 3 ? STILLPOINT_SLOW_LV3 : STILLPOINT_SLOW_BASE;
+          // Lv4 Limit Break reads as "time stops" but must never actually
+          // reach 0 (user feedback 2026-07-16: a literal stop froze
+          // everything, player included, instead of the intended "as close
+          // to stopped as possible while everything keeps running"). See
+          // also the Math.max floor on gameTimeScale itself in game.js as
+          // a hard safety net regardless of this value.
+          const isLimitBreak = limitBreak.active && limitBreak.ability === 'stillpoint';
+          this.stillpointSlow = isLimitBreak ? 0.95 : (lvl >= 3 ? STILLPOINT_SLOW_LV3 : STILLPOINT_SLOW_BASE);
           this.stillpointActive = true;
           this.stillpointHealed = 0;
           if (typeof SFX !== 'undefined') SFX.stillpointActivate();
@@ -276,11 +304,13 @@ class Player {
       // Block jumping while ducking
       const jumpPressed = wasActionJustPressed('jump');
       if (jumpPressed && (this.grounded || this.coyoteTimer > 0)) {
-        // ── Normal jump ──
-        this.vy = JUMP_FORCE;
+        // ── Normal jump ── (flipped during Graviton Surge — see below)
+        this.vy = this.gravitonActive ? -JUMP_FORCE : JUMP_FORCE;
         this.grounded = false;
         this.coyoteTimer = 0;
         this.wallJumpJustFired = true;
+        this.jumping = true;
+        this.jumpCut = false;
         if (typeof SFX !== 'undefined') SFX.jump();
       } else if (jumpPressed && !this.grounded && this.coyoteTimer <= 0 &&
                  (this.wallSliding || this.wallJumpCoyote > 0) && !this.wallJumpJustFired) {
@@ -290,34 +320,65 @@ class Player {
         this.facing = -this.wallNormal; // face away from wall
         this.wallJumpCoyote = 0;        // consume coyote
         this.wallJumpJustFired = true;  // prevent double wall-jump
+        this.jumping = true;
+        this.jumpCut = false;
         this.invincibleTimer = Math.max(this.invincibleTimer, 8); // brief i-frames
         if (typeof SFX !== 'undefined') SFX.wallJump();
       }
+
+      // ── Variable jump height (short hop) ─────────────────────────────────
+      // Releasing jump early cuts the ascent short exactly once per jump —
+      // works regardless of gravity direction since it just scales the
+      // current vy toward zero, not a hardcoded sign (user feedback 2026-07-16).
+      if (this.jumping && !this.jumpCut && !isActionPressed('jump')) {
+        this.jumpCut = true;
+        this.vy *= 0.45;
+      }
+      if (this.grounded) this.jumping = false;
     } else if (this.hitStunTimer > 0) {
       // Let knockback decay on its own instead of holding it or fighting stale input.
       this.vx *= 0.92;
     }
 
-    // ── Regular Dash ────────────────────────────────────────────────────────
-    if (wasActionJustPressed('dash') &&
-        this.dashCooldown <= 0 && !this.dashing) {
-      this.dashing = true;
-      this.dashTimer = DASH_DURATION;
-      this.dashChain = Math.min(this.dashChain + 1, DASH_CHAIN_MAX);
-      this.dashChainTimer = 0;
-      // Slight cooldown increase per chain (f0.5s per extra chain)
-      this.dashCooldown = DASH_COOLDOWN + (this.dashChain - 1) * 10;
-      // Momentum blend: preserve some existing velocity for curving/accelerating
-      const momentumBlend = 0.3 + this.dashChain * 0.1; // more momentum on higher chains
-      const dashDir = this.getDashDirection(DASH_SPEED);
-      if (dashDir) {
-        this.vx = dashDir.vx * (1 - momentumBlend) + this.vx * momentumBlend;
-        this.vy = dashDir.vy * (1 - momentumBlend) + this.vy * momentumBlend;
-      } else {
-        this.vx = this.facing * DASH_SPEED * (1 - momentumBlend) + this.vx * momentumBlend;
-        this.vy *= (1 - momentumBlend); // preserve some vertical momentum too
+    // ── Dash / Phase Dash — merged onto one button (2026-07-16, user
+    // feedback: "too many buttons... it just upgrades your first dash to a
+    // phase dash, and during cooldown you only have the normal dash").
+    // Phase Dash fires whenever it's unlocked and off its own (long)
+    // cooldown; otherwise the same button falls back to a normal Dash on
+    // its own (short, chainable) cooldown. Both still track their cooldowns
+    // independently in the background — only the trigger is unified.
+    if (wasActionJustPressed('dash') && !this.dashing && !this.phaseDashing) {
+      if (abilityState.hasPhaseDash && abilityState.phaseDashCooldown <= 0) {
+        // ── Phase Dash ──
+        this.phaseDashing = true;
+        this.phaseDashTimer = PHASE_DASH_DURATION;
+        abilityState.phaseDashCooldown = PHASE_DASH_COOLDOWN;
+        const phaseDashDir = this.getDashDirection(PHASE_DASH_SPEED);
+        this.vx = phaseDashDir ? phaseDashDir.vx : this.facing * PHASE_DASH_SPEED;
+        this.vy = phaseDashDir ? phaseDashDir.vy : 0;
+        this.invincibleTimer = PHASE_DASH_DURATION + 5;
+        if (typeof SFX !== 'undefined') SFX.phaseDash();
+        if (typeof boss !== 'undefined' && boss) boss.notifyPlayerDash();
+      } else if (this.dashCooldown <= 0) {
+        // ── Normal Dash ──
+        this.dashing = true;
+        this.dashTimer = DASH_DURATION;
+        this.dashChain = Math.min(this.dashChain + 1, DASH_CHAIN_MAX);
+        this.dashChainTimer = 0;
+        // Slight cooldown increase per chain (0.5s per extra chain)
+        this.dashCooldown = DASH_COOLDOWN + (this.dashChain - 1) * 10;
+        // Momentum blend: preserve some existing velocity for curving/accelerating
+        const momentumBlend = 0.3 + this.dashChain * 0.1; // more momentum on higher chains
+        const dashDir = this.getDashDirection(DASH_SPEED);
+        if (dashDir) {
+          this.vx = dashDir.vx * (1 - momentumBlend) + this.vx * momentumBlend;
+          this.vy = dashDir.vy * (1 - momentumBlend) + this.vy * momentumBlend;
+        } else {
+          this.vx = this.facing * DASH_SPEED * (1 - momentumBlend) + this.vx * momentumBlend;
+          this.vy *= (1 - momentumBlend); // preserve some vertical momentum too
+        }
+        if (typeof SFX !== 'undefined') SFX.dash();
       }
-      if (typeof SFX !== 'undefined') SFX.dash();
     }
 
     if (this.dashing) {
@@ -334,20 +395,6 @@ class Player {
     if (this.dashChainTimer >= 120 || (this.grounded && this.dashChain > 0)) {
       this.dashChain = 0;
       this.dashChainTimer = 0;
-    }
-
-    // ── Phase Dash ──────────────────────────────────────────────────────────
-    if (wasActionJustPressed('phaseDash') &&
-        abilityState.hasPhaseDash && abilityState.phaseDashCooldown <= 0 && !this.phaseDashing) {
-      this.phaseDashing = true;
-      this.phaseDashTimer = PHASE_DASH_DURATION;
-      abilityState.phaseDashCooldown = PHASE_DASH_COOLDOWN;
-      const phaseDashDir = this.getDashDirection(PHASE_DASH_SPEED);
-      this.vx = phaseDashDir ? phaseDashDir.vx : this.facing * PHASE_DASH_SPEED;
-      this.vy = phaseDashDir ? phaseDashDir.vy : 0;
-      this.invincibleTimer = PHASE_DASH_DURATION + 5;
-      if (typeof SFX !== 'undefined') SFX.phaseDash();
-      if (typeof boss !== 'undefined' && boss) boss.notifyPlayerDash();
     }
 
     if (this.phaseDashing) {
@@ -406,6 +453,16 @@ class Player {
       this.voidTetherFired = true;
     }
 
+    // ── Shard Shot Lv4 Limit Break: "your melee swings are replaced with
+    // Shard Blasts" (Enemy_Design.pdf) — was not implemented at all before
+    // (user report 2026-07-16). Intercepts the attack button entirely
+    // while this Enhanced State is active, bypassing the charge system.
+    this.shardBlastFired = false;
+    if (limitBreak.active && limitBreak.ability === 'shard_shot' &&
+        wasActionJustPressed('attack') && this.attackCooldown <= 0 && !this.ducking) {
+      this.shardBlastFired = true;
+      this.attackCooldown = this.getAttackCooldown();
+    } else if (!(limitBreak.active && limitBreak.ability === 'shard_shot')) {
     // ── Attack input: hold to charge, release to fire — requires the Charged
     // Attack ability (crag_altar). Without it, the attack action only ever
     // fires the quick normal attack on tap; the charge/heavy-attack system
@@ -502,9 +559,10 @@ class Player {
       this.hitTargetsThisSwing.clear();
       this.echoAttackPending = true; // Phase Dash Lv3 — consumed in game.js
     }
+    } // end Shard Shot Lv4 melee-replacement guard
 
     // ── Parry: tap attack during cooldown (instead of attacking) ───────────
-    if (wasActionJustPressed('attack') &&
+    if (wasActionJustPressed('attack') && !this.shardBlastFired &&
         !this.attacking && this.attackCooldown > 0 && this.parryCooldown <= 0 &&
         !this.ducking && !this.parrying) {
       this.parrying = true;
@@ -533,10 +591,9 @@ class Player {
     // Hold aimUp/aimDown while aiming: tilt the arc smoothly.
     // Release: fire along the arc. A quick tap = instant forward shot.
     this.shardShotFired = false;
-    this.shardBeamFired = false; // Lv3 — game.js consumes this + shardAimVy
     if (wasActionJustPressed('shardShot') &&
         abilityState.hasShardShot && abilityState.shardShotCooldown <= 0 &&
-        !this.shardAiming) {
+        !this.shardAiming && !this.beaming) {
       this.shardAiming = true;
       this.shardAimTimer = 0;
       this.shardAimVy = 0;
@@ -549,17 +606,39 @@ class Player {
         } else if (isActionPressed('aimDown')) {
           this.shardAimVy = Math.min(this.shardAimVy + SHARD_AIM_TILT_RATE, SHARD_AIM_VY_MAX);
         }
+        // Lv3 Beam Attack — "a beam as in continuous energy, like a
+        // kamehameha" (user clarification 2026-07-16): held past
+        // BEAM_CHARGE_TIME with a Fracture Pip in reserve starts a
+        // continuous straight-line channel instead of firing a single
+        // shot on release. Aim (angle) stays live-adjustable while
+        // beaming — see the angle calc below and game.js's per-frame
+        // beam-tick update.
+        if (!this.beaming && abilityLevel('shard_shot') >= 3 && this.shardAimTimer >= BEAM_CHARGE_TIME && this.fractureMeter >= BEAM_PIP_COST) {
+          this.beaming = true;
+          this.beamDrainTimer = 0;
+          this.shardAiming = false; // beam replaces the aim-then-release flow entirely
+        }
       } else {
         this.shardAiming = false;
-        // Lv3 Beam Attack: held past BEAM_CHARGE_TIME with a Fracture Pip
-        // to spend fires a piercing beam instead of the normal tap/aim shot
-        // — tap variation is unaffected below that threshold or without a
-        // pip (Enemy_Design.pdf).
-        if (abilityLevel('shard_shot') >= 3 && this.shardAimTimer >= BEAM_CHARGE_TIME && this.fractureMeter >= BEAM_PIP_COST) {
-          this.fractureMeter -= BEAM_PIP_COST;
-          this.shardBeamFired = true;
-        } else {
-          this.shardShotFired = true; // game.js consumes this + shardAimVy
+        this.shardShotFired = true; // game.js consumes this + shardAimVy
+      }
+    }
+    if (this.beaming) {
+      // Live angle: same tilt controls as aiming, expressed as a real
+      // straight-line angle (no gravity/arc) instead of a launch velocity.
+      if (isActionPressed('aimUp')) {
+        this.beamAngle = Math.max(this.beamAngle - 0.04, -Math.PI * 0.4);
+      } else if (isActionPressed('aimDown')) {
+        this.beamAngle = Math.min(this.beamAngle + 0.04, Math.PI * 0.4);
+      }
+      if (!isActionPressed('shardShot')) {
+        this.beaming = false;
+      } else {
+        this.beamDrainTimer++;
+        if (this.beamDrainTimer >= 60) { // 1 Fracture Pip per second while channeling
+          this.beamDrainTimer = 0;
+          this.fractureMeter -= 1;
+          if (this.fractureMeter <= 0) { this.fractureMeter = 0; this.beaming = false; }
         }
       }
     }
@@ -589,6 +668,17 @@ class Player {
     let wallTouchThisFrame = false;
 
     if (platforms) {
+      // Collision margins scale with velocity (2026-07-16, user feedback:
+      // "easy to fall through the floor" at corners, after jumping into a
+      // wall, or after a hard knockback). The old fixed margins (4/8/10px)
+      // assumed slow, gravity-only motion; a fast knockback impulse (or a
+      // dash) can move the player further than that in one frame, tunneling
+      // clean through the check's narrow window before it ever triggers.
+      // Scaling the tolerance by how far the player actually moved this
+      // frame keeps the same collision approach but makes it safe at any
+      // realistic speed instead of only "normal walking/falling."
+      const landingMargin = Math.max(8, Math.abs(this.vy) + 2);
+      const wallMargin = Math.max(10, Math.abs(this.vx) + 2);
       for (const plat of platforms) {
         if (plat.destructible && plat.hp <= 0) continue;
         // Skip top-landing for platforms flagged as walls (e.g. boss arena side walls).
@@ -601,15 +691,15 @@ class Player {
         const prevBottom = (this.y + this.height) - this.vy;
         if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
           if (!plat.wall &&
-              prevBottom <= plat.y + 4 &&
+              prevBottom <= plat.y + landingMargin &&
               this.y + this.height > plat.y &&
-              this.y + this.height < plat.y + plat.h + 8 &&
+              this.y + this.height < plat.y + plat.h + landingMargin &&
               this.vy >= 0) {
             this.y = plat.y - this.height;
             this.vy = 0;
             if (!this.grounded) { this.justLanded = true; this.justLandedTimer = 0; if (typeof SFX !== 'undefined') SFX.land(); }
             this.grounded = true;
-          } else if (!plat.wall && this.y < plat.y + plat.h && this.y > plat.y && this.vy < 0) {
+          } else if (!plat.wall && this.y < plat.y + plat.h && this.y > plat.y - landingMargin && this.vy < 0) {
             this.y = plat.y + plat.h; this.vy = 0;
           }
         }
@@ -618,14 +708,14 @@ class Player {
         // Works even when vx==0 (standing against wall / sliding down).
         if (this.y + this.height > plat.y + 4 && this.y < plat.y + plat.h) {
           // Right side of player touching left side of platform
-          if (this.x + this.width >= plat.x && this.x + this.width < plat.x + 10 && this.vx >= 0) {
+          if (this.x + this.width >= plat.x && this.x + this.width < plat.x + wallMargin && this.vx >= 0) {
             this.x = plat.x - this.width;
             if (this.vx > 0) this.vx = 0;
             this.wallNormal = 1; // right side touching wall → wall is on right
             wallTouchThisFrame = true;
           }
           // Left side of player touching right side of platform
-          if (this.x <= plat.x + plat.w && this.x > plat.x + plat.w - 10 && this.vx <= 0) {
+          if (this.x <= plat.x + plat.w && this.x > plat.x + plat.w - wallMargin && this.vx <= 0) {
             this.x = plat.x + plat.w;
             if (this.vx < 0) this.vx = 0;
             this.wallNormal = -1; // left side touching wall → wall is on left
@@ -693,7 +783,19 @@ class Player {
         dir: 'down'
       };
     }
-    // forward (default)
+    // forward (default) — heavy (charged) attack gets a taller hitbox
+    // starting above the head to match its overhead swing; normal attack
+    // stays a tight chest-height poke in front (Enemy_Design.pdf's "To Fix"
+    // note, addressed 2026-07-16).
+    if (this.heavy) {
+      return {
+        x: this.facing === 1 ? this.x + this.width - 6 : this.x - ATK_HEAVY_FWD_W + 6,
+        y: this.y - ATK_HEAVY_FWD_H + 24,
+        width: ATK_HEAVY_FWD_W,
+        height: ATK_HEAVY_FWD_H,
+        dir: 'forward'
+      };
+    }
     return {
       x: this.facing === 1 ? this.x + this.width : this.x - ATK_FWD_W,
       y: this.y + 6,
@@ -768,6 +870,24 @@ class Player {
       ctx.lineWidth = 1.5;
       ctx.strokeRect(this.x - 3, this.y - 3, this.width + 6, this.height + 6);
       ctx.lineWidth = 1;
+    }
+
+    // ── Graviton Surge Gravity Ball (Lv2+) — was never actually drawn
+    // before (user report 2026-07-16: "the ball never appears"); the pull
+    // logic in game.js was real, just invisible.
+    if (this.gravitonBallCharging) {
+      const pulse = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.35) * 0.2 + 0.8;
+      const r = 10 + Math.min(this.gravitonBallTimer * 0.15, 10);
+      const grad = ctx.createRadialGradient(this.gravitonBallX, this.gravitonBallY, 0, this.gravitonBallX, this.gravitonBallY, GRAVITON_BALL_PULL_RADIUS);
+      grad.addColorStop(0, `rgba(244, 114, 182, ${0.5 * pulse})`);
+      grad.addColorStop(0.15, `rgba(244, 114, 182, ${0.12 * pulse})`);
+      grad.addColorStop(1, 'rgba(244, 114, 182, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(this.gravitonBallX - GRAVITON_BALL_PULL_RADIUS, this.gravitonBallY - GRAVITON_BALL_PULL_RADIUS, GRAVITON_BALL_PULL_RADIUS * 2, GRAVITON_BALL_PULL_RADIUS * 2);
+      ctx.fillStyle = `rgba(244, 114, 182, ${0.9 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(this.gravitonBallX, this.gravitonBallY, r, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // ── Limit Break (Lv4) aura — flat blue glow, per user direction
@@ -943,8 +1063,34 @@ class Player {
             ctx.fill();
           }
 
+        } else if (!this.heavy) {
+          // ── Normal attack: tight forward poke, chest height, minimal arc
+          // (Hollow-Knight-style — in front of you, not overhead). Matches
+          // the "To Fix" note in Enemy_Design.pdf, addressed 2026-07-16.
+          const originX = this.facing === 1 ? this.x + this.width : this.x;
+          const originY = this.y + this.height * 0.42;
+          const reach = 40 * Math.min(1, progress * 2); // matches the widened ATK_FWD_W
+          const tipX = originX + this.facing * reach;
+          ctx.strokeStyle = `rgba(255, 248, 255, ${0.9 - progress * 0.5})`;
+          ctx.lineWidth = 3 - progress * 1.5;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(originX, originY - 3);
+          ctx.lineTo(tipX, originY);
+          ctx.moveTo(originX, originY + 3);
+          ctx.lineTo(tipX, originY);
+          ctx.stroke();
+
+          if (progress > 0.25) {
+            const flashAlpha = Math.max(0, Math.sin(progress * Math.PI) * 1.1);
+            ctx.fillStyle = `rgba(255, 250, 255, ${flashAlpha * 0.85})`;
+            ctx.beginPath();
+            ctx.arc(tipX, originY, 3 + progress * 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
         } else {
-          // ── Forward slash: horizontal arc (existing) ──
+          // ── Charged (heavy) attack: overhead swing arc ──
           const originX = this.facing === 1 ? this.x + this.width : this.x;
           const originY = this.y + this.height * 0.42;
           const arcLen = 48;
@@ -999,15 +1145,16 @@ class Player {
       }
     }
 
-    // Shard Shot aiming arc — visible while holding V/N (expansion §0.1).
-    // Steps the REAL projectile math (same launch position, speed, and
-    // gravity as game.js's useShardShot/Projectile), so the dotted parabola
-    // shows exactly where the shot will fly.
+    // Shard Shot aiming line — visible while holding V/N (expansion §0.1).
+    // Straight, not a parabola (2026-07-16, user feedback: shots no longer
+    // have gravity in game.js's Projectile, so a straight dotted line now
+    // shows exactly where the shot will fly, and doubles as the "prepared"
+    // aim guide while charging toward the Lv3 beam threshold).
     if (this.shardAiming && abilityState.hasShardShot) {
       let sx = (this.facing === 1 ? this.x + this.width : this.x - 8) + 4;
       let sy = this.y + this.height / 2 + 4;
       const svx = 8 * (this.facing || 1);
-      let svy = this.shardAimVy;
+      const svy = this.shardAimVy;
       const pulse = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.25) * 0.2 + 0.7;
       ctx.fillStyle = '#fbbf24';
       ctx.shadowColor = '#fbbf24';
@@ -1015,7 +1162,6 @@ class Player {
       for (let i = 0; i < 36; i++) {
         sx += svx;
         sy += svy;
-        svy += 0.15; // Projectile gravity in game.js
         if (i % 3 !== 0) continue; // dotted, not solid
         ctx.globalAlpha = pulse * (1 - i / 44);
         ctx.beginPath();
@@ -1023,6 +1169,25 @@ class Player {
         ctx.fill();
       }
       ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+    }
+
+    // ── Shard Shot Lv3 Beam — solid straight line, no arc ("show a straight
+    // line for the blue one" — user feedback 2026-07-16, since the parabola
+    // above was confusing to aim with; a beam has no gravity so a straight
+    // line is also just literally where it goes). ──────────────────────────
+    if (this.beaming && typeof getBeamSegment === 'function') {
+      const seg = getBeamSegment(this);
+      const pulse = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.4) * 0.15 + 0.85;
+      ctx.strokeStyle = `rgba(103, 232, 249, ${0.85 * pulse})`;
+      ctx.lineWidth = 4;
+      ctx.shadowColor = '#67e8f9';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(seg.x1, seg.y1);
+      ctx.lineTo(seg.x2, seg.y2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
       ctx.shadowBlur = 0;
     }
 

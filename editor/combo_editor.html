@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Combo Chain Editor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #e2e8f0; font: 13px/1.5 "Courier New", monospace; display: flex; height: 100vh; overflow: hidden; }
+  h2 { font-size: 14px; color: #c4b5fd; margin-bottom: 8px; }
+  h3 { font-size: 12px; color: #94a3b8; margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 1px; }
+  button { background: #1e1e32; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 4px 10px; font: inherit; cursor: pointer; border-radius: 3px; }
+  button:hover { background: #2a2a44; }
+  button.danger { border-color: #7f1d1d; color: #fca5a5; }
+  input, select { background: #14141f; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 3px 6px; font: inherit; border-radius: 3px; }
+  input[type=number] { width: 66px; }
+  label { display: inline-flex; align-items: center; gap: 5px; margin: 2px 8px 2px 0; }
+  .panel { padding: 12px; overflow-y: auto; }
+  #left { width: 230px; border-right: 1px solid #26263c; flex-shrink: 0; }
+  #main { flex: 1; }
+  #comboList div { padding: 4px 8px; cursor: pointer; border-radius: 3px; margin-bottom: 2px; }
+  #comboList div:hover { background: #1e1e32; }
+  #comboList div.sel { background: #4c3a8e; }
+  .chain { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .stepCard { border: 1px solid #a78bfa; border-radius: 6px; padding: 8px 10px; background: #17172a; text-align: center; }
+  .stepCard .gap { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+  .arrow { color: #64748b; font-size: 18px; }
+  .hint { color: #64748b; font-size: 11px; margin-top: 4px; }
+  textarea { width: 100%; height: 130px; background: #14141f; color: #a5f3c4; border: 1px solid #3a3a5e; font: 11px monospace; padding: 6px; margin-top: 6px; }
+  .rewardBox { border: 1px solid #3a3a5e; border-radius: 4px; padding: 8px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div id="left" class="panel">
+  <h2>Combos</h2>
+  <div id="comboList"></div>
+  <div style="margin-top:8px">
+    <input id="newComboId" placeholder="new_combo_id" style="width:130px">
+    <button onclick="createCombo()">+ New</button>
+  </div>
+
+  <h3>Save / export</h3>
+  <button onclick="saveOverrides()" style="width:100%; margin-bottom:4px">💾 Save to game</button>
+  <button onclick="exportJSON()" style="width:100%; margin-bottom:4px">📋 Export JSON</button>
+  <button class="danger" onclick="clearOverrides()" style="width:100%">Clear saved overrides</button>
+  <div class="hint">"Save to game": the real game (and enemy_test.html) loads this whole combo list on next reload — good for quick testing. "Export": paste-ready block for game/combo.js when a set is final.</div>
+  <textarea id="exportBox" placeholder="Export appears here…"></textarea>
+</div>
+
+<div id="main" class="panel">
+  <h2 id="comboTitle">—</h2>
+  <div class="row">
+    <label>Display name <input id="cName" style="width:200px" onchange="applyMeta()"></label>
+  </div>
+
+  <h3>The chain</h3>
+  <div class="hint">Read left to right: do each action within its window (frames since the PREVIOUS action, 60fps — 30f = half a second). The first step has no window; it just starts the chain.</div>
+  <div class="chain" id="chainView"></div>
+
+  <h3>Edit steps</h3>
+  <div id="stepEditor"></div>
+  <div style="margin-top:6px">
+    <select id="addAction"></select>
+    <button onclick="addStep()">+ Add step</button>
+  </div>
+
+  <h3>Reward</h3>
+  <div class="rewardBox">
+    <label>Type
+      <select id="rType" onchange="applyReward()">
+        <option value="damage_buff">damage_buff — melee ×mult for a while</option>
+        <option value="cooldown_refresh">cooldown_refresh — dash + abilities reset</option>
+        <option value="fracture">fracture — refill Fracture meter</option>
+        <option value="heal">heal — restore health</option>
+      </select>
+    </label>
+    <div id="rewardParams" style="margin-top:6px"></div>
+  </div>
+
+  <h3 style="color:#7f1d1d">Danger</h3>
+  <button class="danger" onclick="deleteCombo()">✕ Delete this combo</button>
+</div>
+
+<script src="../game/combo.js"></script>
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────────
+// Combo chain editor — edits COMBO_DEFS (game/combo.js) visually.
+// Actions come from the tracker's documented action names (combo.js header).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The action vocabulary the tracker in combo.js emits — keep in sync with
+// _detectActions() there (documented in its file header).
+const ACTIONS = [
+  'attack', 'attack_up', 'attack_down', 'heavy',
+  'dash', 'jump', 'shard_shot', 'stillpoint', 'graviton_surge', 'void_tether',
+];
+const ACTION_LABELS = {
+  attack: '⚔ Attack', attack_up: '⚔↑ Up-attack', attack_down: '⚔↓ Down-slam',
+  heavy: '⚔⚡ Charged attack', dash: '💨 Dash / Phase Dash', jump: '⤴ Jump',
+  shard_shot: '✦ Shard Shot', stillpoint: '◉ Stillpoint',
+  graviton_surge: '☄ Graviton Surge', void_tether: '⛓ Void Tether',
+};
+
+let sel = 0; // index into COMBO_DEFS
+
+function combo() { return COMBO_DEFS[sel] || null; }
+
+function renderList() {
+  const el = document.getElementById('comboList');
+  el.innerHTML = '';
+  COMBO_DEFS.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.textContent = c.name || c.id;
+    if (i === sel) div.className = 'sel';
+    div.onclick = () => { sel = i; refresh(); };
+    el.appendChild(div);
+  });
+}
+
+function renderChain() {
+  const c = combo();
+  const view = document.getElementById('chainView');
+  view.innerHTML = '';
+  if (!c) return;
+  c.steps.forEach((s, i) => {
+    if (i > 0) {
+      const arrow = document.createElement('span');
+      arrow.className = 'arrow';
+      arrow.textContent = '→';
+      view.appendChild(arrow);
+    }
+    const card = document.createElement('div');
+    card.className = 'stepCard';
+    card.innerHTML = `${ACTION_LABELS[s.action] || s.action}` +
+      (i > 0 ? `<div class="gap">within ${s.maxGap || 60}f</div>` : `<div class="gap">starts chain</div>`);
+    view.appendChild(card);
+  });
+}
+
+function renderSteps() {
+  const c = combo();
+  const el = document.getElementById('stepEditor');
+  el.innerHTML = '';
+  if (!c) return;
+  c.steps.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.style.margin = '4px 0';
+    row.innerHTML = `#${i + 1}
+      <select onchange="setStep(${i},'action',this.value)">
+        ${ACTIONS.map((a) => `<option value="${a}" ${a === s.action ? 'selected' : ''}>${ACTION_LABELS[a]}</option>`).join('')}
+      </select>
+      ${i > 0 ? `window <input type="number" min="5" value="${s.maxGap || 60}" onchange="setStep(${i},'maxGap',+this.value)"> frames` : '(chain starter)'}
+      <button onclick="moveStep(${i},-1)">◀</button>
+      <button onclick="moveStep(${i},1)">▶</button>
+      <button class="danger" onclick="delStep(${i})">✕</button>`;
+    el.appendChild(row);
+  });
+}
+
+function renderReward() {
+  const c = combo();
+  if (!c) return;
+  const r = c.reward || { type: 'damage_buff' };
+  document.getElementById('rType').value = r.type || 'damage_buff';
+  const el = document.getElementById('rewardParams');
+  if (r.type === 'damage_buff') {
+    el.innerHTML = `<label>×mult <input type="number" step="0.1" id="rMult" value="${r.mult || 1.5}" onchange="applyReward()"></label>
+      <label>for <input type="number" id="rFrames" value="${r.frames || 240}" onchange="applyReward()"> frames</label>`;
+  } else if (r.type === 'fracture' || r.type === 'heal') {
+    el.innerHTML = `<label>amount <input type="number" id="rAmount" value="${r.amount || 1}" onchange="applyReward()"></label>`;
+  } else {
+    el.innerHTML = '<span class="hint">No parameters.</span>';
+  }
+}
+
+function refresh() {
+  renderList();
+  const c = combo();
+  document.getElementById('comboTitle').textContent = c ? c.id : '—';
+  document.getElementById('cName').value = c ? (c.name || '') : '';
+  renderChain(); renderSteps(); renderReward();
+  const addSel = document.getElementById('addAction');
+  if (!addSel.options.length) {
+    for (const a of ACTIONS) {
+      const opt = document.createElement('option');
+      opt.value = a; opt.textContent = ACTION_LABELS[a];
+      addSel.appendChild(opt);
+    }
+  }
+}
+
+// ── Mutations ───────────────────────────────────────────────────────────────
+function createCombo() {
+  const id = document.getElementById('newComboId').value.trim();
+  if (!id) return alert('Give the combo an id first (e.g. dash_cancel_overhead).');
+  if (COMBO_DEFS.some((c) => c.id === id)) return alert('That id already exists.');
+  COMBO_DEFS.push({ id, name: id.toUpperCase().replace(/_/g, ' '), steps: [{ action: 'attack', maxGap: 0 }], reward: { type: 'damage_buff', mult: 1.5, frames: 240 } });
+  sel = COMBO_DEFS.length - 1;
+  document.getElementById('newComboId').value = '';
+  refresh();
+}
+function deleteCombo() {
+  if (!combo()) return;
+  if (!confirm(`Delete "${combo().id}"?`)) return;
+  COMBO_DEFS.splice(sel, 1);
+  sel = Math.max(0, sel - 1);
+  refresh();
+}
+function applyMeta() {
+  const c = combo(); if (!c) return;
+  c.name = document.getElementById('cName').value;
+  refresh();
+}
+function addStep() {
+  const c = combo(); if (!c) return;
+  c.steps.push({ action: document.getElementById('addAction').value, maxGap: 45 });
+  refresh();
+}
+function setStep(i, prop, val) {
+  const c = combo(); if (!c || !c.steps[i]) return;
+  c.steps[i][prop] = val;
+  renderChain();
+}
+function delStep(i) {
+  const c = combo(); if (!c || c.steps.length <= 1) return alert('A combo needs at least one step.');
+  c.steps.splice(i, 1);
+  c.steps[0].maxGap = 0; // first step is always the chain starter
+  refresh();
+}
+function moveStep(i, dir) {
+  const c = combo(); if (!c) return;
+  const j = i + dir;
+  if (j < 0 || j >= c.steps.length) return;
+  [c.steps[i], c.steps[j]] = [c.steps[j], c.steps[i]];
+  c.steps[0].maxGap = 0;
+  if (c.steps[1] && !c.steps[1].maxGap) c.steps[1].maxGap = 45;
+  refresh();
+}
+function applyReward() {
+  const c = combo(); if (!c) return;
+  const type = document.getElementById('rType').value;
+  if (type === 'damage_buff') {
+    c.reward = { type, mult: +(document.getElementById('rMult')?.value || 1.5), frames: +(document.getElementById('rFrames')?.value || 240) };
+  } else if (type === 'fracture' || type === 'heal') {
+    c.reward = { type, amount: +(document.getElementById('rAmount')?.value || 1) };
+  } else {
+    c.reward = { type };
+  }
+  renderReward();
+}
+
+// ── Save / export ───────────────────────────────────────────────────────────
+function saveOverrides() {
+  try {
+    localStorage.setItem(COMBO_OVERRIDES_KEY, JSON.stringify(COMBO_DEFS));
+    alert('Saved. The game will use this combo list on next load.');
+  } catch (e) { alert('Save failed (storage unavailable). Use Export instead.'); }
+}
+function clearOverrides() {
+  localStorage.removeItem(COMBO_OVERRIDES_KEY);
+  alert('Cleared — the game is back to the built-in COMBO_DEFS. Reload this page to see the built-ins.');
+}
+function exportJSON() {
+  const box = document.getElementById('exportBox');
+  box.value = `// Paste into game/combo.js, replacing the COMBO_DEFS list.\n`
+    + `COMBO_DEFS = ${JSON.stringify(COMBO_DEFS, null, 2)};`;
+  box.select();
+}
+
+refresh();
+</script>
+</body>
+</html>

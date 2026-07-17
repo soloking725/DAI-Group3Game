@@ -44,27 +44,44 @@ mandatory backbone the floor plan's graph encodes:
 
 ## File map
 
-**Game runtime** (load order matters — see `index.html`):
+**Reorganized 2026-07-16** (user request): the repo root used to be flat.
+Only `index.html` stays at the root now — the 9 runtime scripts moved into
+`game/`, every dev/debug HTML tool (+ `export_graph.js`) moved into
+`editor/`. See `CLAUDE.md`'s "File locations" section for the full detail
+(path rewrites, the `debug_v1.html`/`debug_new.html` srcdoc gotcha, etc.).
+
+**Game runtime** (`game/`, load order matters — see `index.html`; the six
+files marked NEW landed 2026-07-16, roadmap Phase 17):
 - `audio.js` — procedural Web Audio SFX, no audio files
-- `input.js` — keyboard state (`keys{}`/`justPressed{}`)
+- `input.js` — keyboard state (`keys{}`/`justPressed{}`), remappable bindings
+- `physics.js` — NEW: shared entity collision resolver + spawn safety (`nudgeOutOfPlatforms`)
+- `animdata.js` — NEW: `ANIM_DEFS` frame/hitbox timelines + `Animator` (edited by `anim_editor.html`; game not yet migrated onto it)
 - `area.js` — all room data (`AREAS{}`), the compass-graph door topology, `validateAreaGraph()`
 - `map.js` — map overlay, generated from `area.js`'s graph
 - `ability.js` — Phase Dash / Shard Shot / Echo class / `abilityState`
+- `cutscene.js` — NEW: data-driven cutscenes (`CUTSCENES{}`, `playCutscene()`, `storyFlags{}`)
+- `combo.js` — NEW: combo chains as data (`COMBO_DEFS` + action-event tracker + rewards)
+- `healing.js` — NEW: vitality motes, max-health shards (`playerMaxHealth()`), strike-open healing crystals
 - `boss.js` — the final boss (3-phase state machine)
-- `enemy.js` — all enemy classes, including the composable `ComposedEnemy` system
+- `enemy.js` — all enemy classes (now with notice-delay/decision-commit/facing-cone AI + opt-in block/dodge/breakout/feint defense verbs), including the composable `ComposedEnemy` system
+- `companion.js` — NEW: the Child (Neva-style follower; hide-&-heal → tether-assist)
 - `player.js` — player class: movement, combat, physics constants
-- `game.js` — main loop, game state machine, HUD, save/load, everything else
-- `map.js`... `style.css` / `index.html` — page shell and layout
+- `game.js` — main loop, game state machine, HUD (`HUD_LAYOUT`), save/load, everything else
+- `style.css` — currently unused (`index.html`'s CSS is inline)
 
-**Dev/debug tools** (all standalone HTML, open directly in a browser):
+**Dev/debug tools** (`editor/`, all standalone HTML, open directly in a browser):
 - `debug_v1.html` / `debug_new.html` — headless-ish automated test console (room walker, timing, input replay)
 - `levelEditor.html` — visual room editor, edits the real `AREAS` object
 - `enemy_test.html` — spawn any enemy/miniboss in an isolated arena to test it
-- `enemy_editor.html` — tune an existing enemy's numeric stats/loadout, hands off to `enemy_test.html`
-- `enemy_designer.html` — build new enemies from composable attack/counter/on-death modules (new, see `Plans/enemy_system_plan.md`)
+- `enemy_editor.html` — tune an existing enemy's numeric stats/loadout (now including speed), hands off to `enemy_test.html`
+- `enemy_designer.html` — build new enemies from composable attack/counter/on-death modules (new, see `Plans/enemy_system_plan.md`; defs may now include a `defense` block — block/dodge/breakout/dashPunish)
+- `anim_editor.html` — NEW (2026-07-16): animation/hitbox timeline editor over `game/animdata.js`'s `ANIM_DEFS` (frame durations, drag-resize hit/hurtboxes, per-frame image upload, combo-cancel windows, localStorage save + JSON export)
+- `combo_editor.html` — NEW: visual combo-chain editor over `game/combo.js`'s `COMBO_DEFS` (action steps, timing windows, rewards)
+- `hud_editor.html` — NEW: drag/toggle HUD elements (writes `HUD_LAYOUT` overrides; game.js's table is authoritative — keep the editor's DEFAULTS copy in sync)
+- `companion_test.html` — NEW: boots the real game into the test arena with the Child active (mode override, wave spawner, tuning sliders, catch-up fuzzer)
 - `worldmap.html` — compass-graph visualizer (built rooms + planned regions)
 - `graph_analyzer.html` / `export_graph.js` — world graph → yEd GraphML export/analysis
-- `world_map.graphml` — the exported graph, for viewing in yEd
+- `world_map.graphml` (repo root — an export artifact, not a tool) — the exported graph, for viewing in yEd
 - `Plans/analyze_floor_plan.js` — Node CLI over `floor_plan.md`'s graph: reachability, critical/speedrun path, mandatory rooms, soft-lock scan, route count, random-playthrough simulation (`--simulate`, `--html` → `floor_plan_report.html`/`floor_plan_simulation.html`)
 - `Plans/room_difficulty_calculator.js` — same graph/engine, but you pick any room and it batch-simulates reaching it (rolling the Child-choice per run) to report the average loadout (abilities/pips/health) a player has on arrival, plus a rough difficulty-tier suggestion (`--html` → `room_difficulty_calculator.html`)
 
@@ -80,7 +97,16 @@ mandatory backbone the floor plan's graph encodes:
 9. `lore.md` — narrative/character writing (Sovereign, minibosses) — current source of truth for characterization, not yet ported into in-game text
 10. `BUG_ANALYSIS_AND_QA_PLAN.md` — known bug inventory + playtest protocol
 11. `enemy_system_plan.md` — the composable enemy-module system (`ComposedEnemy`)
-12. Other narrower docs as needed: `cave_design_plan.md`, `movement_feel_plan.md`, `level_editor_guide.md`, `room_verification_tool_plan.md`, `session_priorities.md`
+12. 2026-07-16 planning set (all plan-only, nothing built):
+    `child_companion_system_plan.md` (Neva-style following Child — locomotion,
+    hide-&-heal → learns-to-fight progression, `companion_test.html` arena tool),
+    `combat_ai_overhaul_plan.md` (Void Tether fix diagnosis + facing auto-aim,
+    enemy notice-delay/decision-cooldown/facing-cone, block/dodge/breakout/
+    mix-up/reactivity modules, shared collision resolver + spawn safety),
+    `healing_items_plan.md` (no potions — vitality motes, Child heal, placed
+    restores, max-health shards), `animation_editor_plan.md` (timeline/hitbox
+    editor + `ANIM_DEFS` data model with combo cancel windows)
+13. Other narrower docs as needed: `cave_design_plan.md`, `movement_feel_plan.md`, `level_editor_guide.md`, `room_verification_tool_plan.md`, `session_priorities.md`
 
 ## Where we are
 
@@ -229,6 +255,36 @@ mandatory backbone the floor plan's graph encodes:
   detail, including several flagged follow-ups (Lv4 activation inputs for
   5 of 6 abilities, the 3 combo inputs, a pre-existing Shard Shot cooldown
   bug) — not yet browser-verified per `CLAUDE.md`'s hard rule.
+
+- **v0.0.12** — 2026-07-16 — Planning-only session (no code changes): wrote
+  the four-doc planning set listed in the file map above (Child companion,
+  combat/AI overhaul, healing/items, animation editor). Two real findings
+  from the code survey worth recording: (1) **Void Tether's "button does
+  nothing" root cause** — `abilityState.hasVoidTether` is never granted
+  anywhere in the real game (only reset to `false` + save/load round-trip);
+  the ability logic itself is built. (2) A whiffed tether cast burns its
+  full 90f cooldown before target existence is checked, with zero feedback
+  (`player.js:452` vs `game.js:2340`). Both fixes are spec'd in
+  `combat_ai_overhaul_plan.md` §A. Unity/engine-switch consideration
+  explicitly dropped per user decision — staying vanilla canvas.
+
+- **v0.0.13** — 2026-07-16 — Built everything the v0.0.12 planning set
+  described (user: "make the editors, fix enemy ai, … everything we just
+  planned"): 6 new runtime scripts (`physics.js` shared collision +
+  spawn safety, `animdata.js`, `cutscene.js`, `combo.js`, `healing.js`,
+  `companion.js`), 4 new editors (`anim_editor`, `combo_editor`,
+  `hud_editor`, `companion_test`), enemy AI overhaul (notice delay,
+  decision commit, facing cone, block/dodge/breakout/feints), Void Tether
+  fixed for real (the grant chain silently ignored it AND graviton_surge
+  AND all 3 max-health pickups — now a data-driven ABILITY_GRANTS table),
+  cutscenes + a sample scene, combo chains with 3 built-ins, vitality
+  motes/health shards/healing crystals, the Child with full follow/hide/
+  heal/assist behavior, level-editor Solid Wall & Ceiling tools, and a
+  restored `enemy_test_arena` room that the folder reorg had silently
+  dropped (all arena tools were broken). Verified via `node --check` on
+  everything + a Node VM smoke test loading all 15 scripts in order and
+  exercising each system (all passing). NOT browser-verified — see
+  roadmap Phase 17's manual test checklist.
 
 <!-- Add new entries above this line, newest first is fine too — just keep
      the number incrementing and each entry to one or two sentences with a

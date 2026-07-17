@@ -50,14 +50,15 @@ if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
 
 // ── Game state & globals ────────────────────────────────────────────────
 let player;
-let currentAreaId = 'tutorial_area';
+let currentAreaId = 'spawn_area_1';
 let echoes = [];
+let standEcho = null; // Phase Dash Lv4 Limit Break — a persistent Echo that follows the player and mirrors every swing
 let projectiles = [];
 let particles = [];
 let menuParticles = []; // ambient particles for start screen
 let menuClick = false; // canvas click for menu
 let gameRunning = true;
-let gameState = 'menu'; // 'menu', 'playing', 'gameover', 'paused', 'reviving'
+let gameState = 'menu'; // 'menu', 'playing', 'gameover', 'paused', 'paused_controls', 'reviving', 'inventory', 'victory', 'cutscene'
 let frameCount = 0;
 let transitionAlpha = 0;
 let transitioning = false;
@@ -107,6 +108,10 @@ let bossDefeated = false;
 let miniboss = null;
 let defeatedMinibosses = {};
 
+// The Child companion (companion.js) — exists only while
+// companionState.active (the keep-the-Child branch, or the arena tool).
+let child = null;
+
 // Camera
 let camera = { x: 0, y: 0 };
 
@@ -115,6 +120,14 @@ let hitstopTimer = 0;
 
 // Time-scale for Stillpoint slow-world effect (1.0 = normal, ~0.15 = slow)
 let gameTimeScale = 1.0;
+
+// Wall bounce (2026-07-16, user feedback) — a HARD bounce (85% speed
+// retained) so a wall-adjacent knockback hit is a real combo opener, not a
+// soft stop. The bounce itself now lives in physics.js's shared resolver
+// (PHYS_WALL_BOUNCE_*); these aliases are kept so older references/tools
+// that read the game.js names keep working.
+const WALL_BOUNCE_MULT = PHYS_WALL_BOUNCE_MULT;
+const WALL_BOUNCE_MIN_SPEED = PHYS_WALL_BOUNCE_MIN_SPEED;
 
 // Map system
 let discoveredAreas = {};
@@ -132,9 +145,12 @@ let controlsMenuIndex = 0;     // controls/keybind menu row index
 
 // Remappable actions, in the order they're listed on the Controls screen —
 // see input.js's DEFAULT_KEYBINDS/ACTION_LABELS for the actual bindings.
+// 'phaseDash' removed 2026-07-16 — Phase Dash and Dash are now the same
+// button (see player.js's merged dash/phase-dash trigger); the separate
+// binding would just be a dead remap entry now.
 const REMAPPABLE_ACTIONS = [
   'moveLeft', 'moveRight', 'aimUp', 'aimDown', 'jump', 'attack', 'dash',
-  'phaseDash', 'shardShot', 'stillpoint', 'gravitonSurge', 'voidTether',
+  'shardShot', 'stillpoint', 'gravitonSurge', 'voidTether', 'callChild',
   'map', 'pause', 'inventory', 'fullscreen',
 ];
 
@@ -152,6 +168,31 @@ function formatKeyLabel(code) {
   };
   return named[code] || code;
 }
+
+// ── Ability pickup grants ────────────────────────────────────────────────
+// One entry per grantable ability: which abilityState flag it sets and how
+// the pickup announces itself. Add new abilities HERE (one line) — the
+// pickup check in updateGame() is generic over this table. (Replaces an
+// if/else chain that silently ignored unlisted abilities: graviton_surge's
+// placed pickup and void_tether granted nothing at all — the "Void Tether
+// button does nothing" root cause, fixed 2026-07-16.)
+const ABILITY_GRANTS = {
+  phase_dash:     { flag: 'hasPhaseDash',     color: '#a78bfa', popup: 'PHASE DASH',
+                    notification: 'ABILITY: Phase Dash — Tap C to dash' },
+  shard_shot:     { flag: 'hasShardShot',     color: '#67e8f9', popup: 'SHARD SHOT',
+                    notification: 'ABILITY: Shard Shot — hold V to aim, release to fire' },
+  stillpoint:     { flag: 'hasStillpoint',    color: '#67e8f9', popup: 'STILLPOINT',
+                    particles: 28, flash: 16, popupLife: 120,
+                    // No free pip: fractureMax starts at 0 (roadmap 1.9) — Stillpoint
+                    // stays unusable until Fracture Pips raise the cap.
+                    notification: 'STILLPOINT — Q to slow time. Find Fracture Pips to power it.' },
+  charged_attack: { flag: 'hasChargedAttack', color: '#fbbf24', popup: 'CHARGED ATTACK',
+                    notification: 'ABILITY: Charged Attack — Hold Z/J to charge a heavy strike!' },
+  graviton_surge: { flag: 'hasGravitonSurge', color: '#4BCA61', popup: 'GRAVITON SURGE',
+                    notification: 'ABILITY: Graviton Surge — E to flip gravity / conjure a graviton ball' },
+  void_tether:    { flag: 'hasVoidTether',    color: '#34d399', popup: 'VOID TETHER',
+                    notification: 'ABILITY: Void Tether — R pulls the enemy you face to you (or you to a wall)' },
+};
 
 // ── Canvas HUD state (Phase 0.1) ────────────────────────────────────────
 let hudVisible = false;       // whether the HUD should be drawn at all
@@ -404,7 +445,10 @@ function shardShotDamage() {
 }
 
 // Returns an array of 1 or 2 Projectiles — Lv2+ fires a second shard with a
-// slight spread (Enemy_Design.pdf).
+// slight spread (Enemy_Design.pdf). The spread is a spawn-position offset,
+// not a velocity offset — since shots no longer have gravity (see
+// Projectile.update()), two shots with different vy would just be two
+// permanently-diverging straight lines instead of a tight parallel spread.
 function useShardShot(player, aimVy) {
   const speed = 8;
   const vx = speed * (player.facing || 1);
@@ -413,26 +457,90 @@ function useShardShot(player, aimVy) {
   const dmg = shardShotDamage();
   const shots = [new Projectile(startX, startY, vx, aimVy || 0, dmg, '#fbbf24')];
   if ((statUpgrades.shard_shot || 0) >= 2) {
-    shots.push(new Projectile(startX, startY, vx, (aimVy || 0) + 1.2, dmg, '#fbbf24'));
+    shots.push(new Projectile(startX, startY + 10, vx, aimVy || 0, dmg, '#fbbf24'));
   }
   for (const s of shots) s.seekWalls = true; // slight magnetism toward destructible crystal walls
   return shots;
 }
 
-// Lv3 Beam Attack: a piercing projectile that doesn't die on first hit
-// (Enemy_Design.pdf — "passes through enemies"). 2 damage tap variant; the
-// Limit Break Enhanced State bumps this to 3 + infinite pierce, applied by
-// the caller when limitBreak.active && limitBreak.ability === 'shard_shot'.
-function useShardBeam(player, aimVy) {
-  const speed = 11;
-  const vx = speed * (player.facing || 1);
-  const startX = (player.facing || 1) > 0 ? player.x + player.width : player.x - 8;
-  const startY = player.y + player.height / 2;
-  const piercing = limitBreak.active && limitBreak.ability === 'shard_shot' ? 3 : 2;
-  const proj = new Projectile(startX, startY, vx, aimVy || 0, piercing, '#67e8f9');
-  proj.pierce = true;
-  proj.pierceInfinite = limitBreak.active && limitBreak.ability === 'shard_shot';
-  return proj;
+// Lv3 Beam Attack — continuous straight-line channel ("a beam as in
+// continuous energy, like a kamehameha" — user clarification 2026-07-16,
+// replacing the earlier single-fired-projectile version). Ticks damage to
+// every enemy the line currently touches, no projectile object involved.
+const BEAM_RANGE = 500;
+const BEAM_TICK_INTERVAL = 6; // frames between damage ticks
+const BEAM_DPS = 2; // Lv3 base; Limit Break bumps this, see beamDamagePerTick()
+
+function beamDamagePerTick() {
+  const dps = (limitBreak.active && limitBreak.ability === 'shard_shot') ? 3 : BEAM_DPS;
+  return dps * (BEAM_TICK_INTERVAL / 60);
+}
+
+// Returns { x1, y1, x2, y2 } — the beam's current line segment, from the
+// player's shard-shot muzzle point out to BEAM_RANGE along player.beamAngle.
+function getBeamSegment(p) {
+  const x1 = (p.facing === 1 ? p.x + p.width : p.x - 8) + 4;
+  const y1 = p.y + p.height / 2;
+  const dirAngle = p.facing === 1 ? p.beamAngle : Math.PI - p.beamAngle; // mirror the tilt when facing left
+  return { x1, y1, x2: x1 + Math.cos(dirAngle) * BEAM_RANGE, y2: y1 + Math.sin(dirAngle) * BEAM_RANGE };
+}
+
+// Graviton Surge ceiling collision (2026-07-16 fix): the engine has no real
+// ceiling-collision physics anywhere (every enemy subclass, and the player's
+// own platform loop, only ever checks landing on a floor from above) — so
+// a naive fixed clamp line let entities clip straight through any real
+// platform positioned above them instead of stopping at its underside. This
+// finds the correct stop line: the underside of the nearest platform the
+// entity has reached (if any), or a synthetic top-of-room bound otherwise
+// (so a flipped entity in a room with an open top still "lands" instead of
+// flying off-screen forever).
+const GRAVITON_ROOM_TOP = 20;
+function resolveCeilingY(entity, area) {
+  let stopY = GRAVITON_ROOM_TOP;
+  if (area && area.platforms) {
+    for (const plat of area.platforms) {
+      if (plat.destructible && plat.hp <= 0) continue;
+      if (plat.wall) continue;
+      if (entity.x + entity.width > plat.x && entity.x < plat.x + plat.w) {
+        const bottom = plat.y + plat.h;
+        if (entity.y <= bottom && bottom > stopY) stopY = bottom;
+      }
+    }
+  }
+  return stopY;
+}
+
+// ── Void Tether targeting (2026-07-16 — facing auto-aim, user spec) ────────
+// The enemy the tether would pull: nearest living enemy IN FRONT of the
+// player (facing half-plane — never pulls from behind), scored by distance
+// plus a vertical-offset penalty so a level enemy beats a diagonal one at
+// similar range. Shared by the R-press handler and the target-telegraph
+// draw so what's highlighted is always exactly what would be pulled.
+function findVoidTetherTarget(player, range) {
+  const px = player.x + player.width / 2;
+  const py = player.y + player.height / 2;
+  const enemiesHere = areaEnemies[currentAreaId] || [];
+  let target = null, bestScore = range;
+  for (const enemy of enemiesHere) {
+    if (enemy.dead) continue;
+    const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
+    if ((ex - px) * player.facing <= 0) continue; // behind the player — never eligible
+    const d = Math.hypot(ex - px, ey - py);
+    if (d > range) continue;
+    const score = d + Math.abs(ey - py) * 0.5; // prefer enemies near the facing line
+    if (score < bestScore) { bestScore = score; target = enemy; }
+  }
+  return target;
+}
+
+// Shortest distance from `point` to the line segment (x1,y1)-(x2,y2).
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  let t = lenSq > 0 ? ((px - x1) * dx + (py - y1) * dy) / lenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  const cx = x1 + t * dx, cy = y1 + t * dy;
+  return Math.hypot(px - cx, py - cy);
 }
 
 // Simple projectile class
@@ -475,8 +583,13 @@ class Projectile {
     }
     this.x += this.vx;
     this.y += this.vy;
-    if (!this.pierceInfinite) this.vy += 0.15; // gravity — the infinite Lv4 beam flies dead straight
-    if (!this.pierceInfinite) this.life--;
+    // No gravity (removed 2026-07-16, user feedback: shard shots were too
+    // hard to aim since where they landed depended on gravity pulling the
+    // arc down over the shot's flight, not just the initial aim angle —
+    // now they fly perfectly straight along whatever angle was aimed).
+    // Only Shard Shot ever instantiates this class (enemy projectiles use
+    // their own separate systems), so this is safe to remove unconditionally.
+    this.life--;
     if (this.life <= 0) {
       this.alive = false;
     }
@@ -517,6 +630,7 @@ function playerMeleeDamage() {
   let dmg = player.heavy ? Math.ceil(ATTACK_DAMAGE * (1 + player.heavyCharge)) : ATTACK_DAMAGE;
   dmg *= strengthDamageMultiplier();
   if (player.stillpointActive && abilityState.hasStillpoint) dmg *= 1.5;
+  dmg *= comboDamageMultiplier(); // combo.js damage_buff reward (1 when none active)
   return dmg;
 }
 
@@ -535,8 +649,8 @@ function stillpointLifestealCap() {
 function applyStillpointLifeSteal() {
   if (!player.stillpointActive || !abilityState.hasStillpoint) return;
   if (player.stillpointHealed >= stillpointLifestealCap()) return;
-  if (player.health >= MAX_HEALTH) return;
-  player.health = Math.min(MAX_HEALTH, player.health + 1);
+  if (player.health >= playerMaxHealth()) return;
+  player.health = Math.min(playerMaxHealth(), player.health + 1);
   player.stillpointHealed = (player.stillpointHealed || 0) + 1;
   spawnParticles(player.x + player.width / 2, player.y + 4, '#2dd4bf', 6);
 }
@@ -641,6 +755,15 @@ function spawnAreaEnemies(areaId) {
       areaEnemies[areaId].push(new Enemy(eDef.x, eDef.y, eDef.type));
     }
   }
+
+  // Spawn safety (physics.js): an authored spawn point inside a platform
+  // used to just... spawn there (then get snapped somewhere wrong by the
+  // old landing check). Now it's pushed out along the shortest axis with a
+  // console warning naming the offending position, so bad room data
+  // surfaces the same way validateAreaGraph() errors do.
+  for (const enemy of areaEnemies[areaId]) {
+    nudgeOutOfPlatforms(enemy, area.platforms, `${enemy.type || 'enemy'} in "${areaId}"`);
+  }
 }
 
 // Clear enemies when leaving an area
@@ -659,6 +782,9 @@ function switchArea(targetId, targetX, targetY) {
   // position (a different layout entirely), so they must not survive a
   // room transition, unlike echoes surviving a plain respawn-in-place.
   echoes = [];
+  standEcho = null;
+  clearVitalityMotes(); // motes are room-space too (healing.js)
+  child = null; // the Child re-enters at the player's side (companion.js recreates her)
 
   // Switch
   currentAreaId = targetId;
@@ -670,6 +796,12 @@ function switchArea(targetId, targetX, targetY) {
   player.y = targetY;
   player.vx = 0;
   player.vy = 0;
+
+  // Spawn safety (physics.js): a door's authored target position embedded
+  // in a platform pushed the player inside geometry (user report
+  // 2026-07-16: "you can spawn inside a platform").
+  const targetArea = getArea(targetId);
+  if (targetArea) nudgeOutOfPlatforms(player, targetArea.platforms, `player entering "${targetId}"`);
 
   // Reset camera
   resetCamera();
@@ -685,10 +817,38 @@ function switchArea(targetId, targetX, targetY) {
   transitionAlpha = 1;
 
   saveGame();
+
+  // Sample cutscene (cutscene.js) — first entry to Echo Bridge part 1.
+  // Doubles as the wiring reference for future scenes: gate on a story
+  // flag, play after the room is fully set up, let the scene set the flag.
+  if (targetId === 'echo_bridge_part1' && !storyFlags.echo_bridge_intro_seen) {
+    playCutscene('echo_bridge_intro');
+  }
+}
+
+// Is `plat`'s given edge ('top' or 'bottom') flush against another
+// platform's opposite edge, with x-overlap? If so, that edge is an internal
+// seam between two authored platform pieces meant to read as one continuous
+// surface (e.g. a tall wall or ceiling built from several stacked segments)
+// — not a real exposed surface the player would see light hit. Used by
+// drawPlatform() to skip the highlight/shadow strip there, so adjacent
+// flush platforms "snap together" visually instead of showing a repeating
+// light/dark band at every segment boundary (the "wall glitching" look).
+function platformEdgeCovered(plat, edge, allPlatforms) {
+  if (!allPlatforms) return false;
+  const targetY = edge === 'top' ? plat.y : plat.y + plat.h;
+  for (const other of allPlatforms) {
+    if (other === plat || other.destructible) continue;
+    const otherEdgeY = edge === 'top' ? other.y + other.h : other.y;
+    if (Math.abs(otherEdgeY - targetY) > 1) continue; // not flush (within 1px rounding)
+    const xOverlap = plat.x < other.x + other.w && plat.x + plat.w > other.x;
+    if (xOverlap) return true;
+  }
+  return false;
 }
 
 // Draw a platform
-function drawPlatform(ctx, plat) {
+function drawPlatform(ctx, plat, allPlatforms) {
   if (plat.destructible && plat.hp <= 0) return;
 
   if (plat.destructible) {
@@ -713,13 +873,18 @@ function drawPlatform(ctx, plat) {
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
 
-  // Top highlight
-  ctx.fillStyle = '#2a2a4e';
-  ctx.fillRect(plat.x, plat.y, plat.w, 2);
+  // Top highlight — skipped where another platform sits flush above (an
+  // internal seam, not a real top surface facing open air).
+  if (!platformEdgeCovered(plat, 'top', allPlatforms)) {
+    ctx.fillStyle = '#2a2a4e';
+    ctx.fillRect(plat.x, plat.y, plat.w, 2);
+  }
 
-  // Bottom edge
-  ctx.fillStyle = '#12122a';
-  ctx.fillRect(plat.x, plat.y + plat.h - 1, plat.w, 1);
+  // Bottom edge — same idea, skipped where another platform sits flush below.
+  if (!platformEdgeCovered(plat, 'bottom', allPlatforms)) {
+    ctx.fillStyle = '#12122a';
+    ctx.fillRect(plat.x, plat.y + plat.h - 1, plat.w, 1);
+  }
 
   // Decorative dots
   ctx.fillStyle = '#222244';
@@ -1275,7 +1440,8 @@ function handleUnstuckKey() {
 }
 
 // Keyboard shortcut: toggle fullscreen (works in any state, like pause) —
-// moved off KeyF 2026-07-14 since F is now the Phase Dash binding.
+// bound to Backquote (F was Phase Dash's key until 2026-07-16, when it
+// merged onto the Dash button; F is unbound now, Backquote is unchanged).
 function handleFullscreenKey() {
   if (wasActionJustPressed('fullscreen')) {
     toggleFullscreen();
@@ -1287,6 +1453,7 @@ function init() {
   const area = getCurrentArea();
   player = new Player(100, area.groundY - 60);
   echoes = [];
+  standEcho = null;
   projectiles = [];
   particles = [];
   gameState = 'menu';
@@ -1294,9 +1461,9 @@ function init() {
   menuSelection = 0;
   menuSelectionPlay = 0;
   menuSelectionSettings = 0;
-  currentAreaId = 'tutorial_area';
+  currentAreaId = 'spawn_area_1';
   areaEnemiesSpawned = {};
-  discoveredAreas = { tutorial_area: true };
+  discoveredAreas = { spawn_area_1: true };
   mapOpen = false;
   collectedLore = {};
   loreOverlay = null;
@@ -1374,6 +1541,7 @@ function buildPauseMenu() {
     { label: 'Inventory', action: () => { inventoryReturnState = 'paused'; gameState = 'inventory'; } },
     { label: 'Return to Anchor', action: () => returnToAnchor(), disabled: !lastAnchor },
     { label: 'Restart Room', action: () => restartRoom() },
+    { label: 'Controls', action: () => { gameState = 'paused_controls'; controlsMenuIndex = 0; } },
     { label: `Screen Shake: ${screenShakeEnabled ? 'ON' : 'OFF'}`, action: () => {
       screenShakeEnabled = !screenShakeEnabled;
       saveSettings();
@@ -1453,6 +1621,10 @@ function saveGame(slot) {
       bossDefeated,
       defeatedMinibosses,
       tutorialState,
+      storyFlags, // cutscene.js narrative switches (e.g. child_choice_resolved)
+      companion: { active: companionState.active, canFight: companionState.canFight },
+      maxHealthBonus,           // healing.js — max-health shards
+      maxHealthShardsCollected,
     };
     localStorage.setItem(getSaveKey(s), JSON.stringify(data));
   } catch (e) {
@@ -1471,7 +1643,7 @@ function loadGame(slot) {
 
     currentAreaId = data.currentAreaId;
     player = new Player(data.player.x || 100, data.player.y || 0);
-    player.health = typeof data.player.health === 'number' ? data.player.health : MAX_HEALTH;
+    player.health = typeof data.player.health === 'number' ? data.player.health : playerMaxHealth();
     player.fractureMax = typeof data.player.fractureMax === 'number' ? data.player.fractureMax : 0;
     player.fractureMeter = typeof data.player.fractureMeter === 'number' ? Math.min(data.player.fractureMeter, player.fractureMax) : 0;
     fracturePipsFound = data.fracturePipsFound || {};
@@ -1497,8 +1669,19 @@ function loadGame(slot) {
     bossDefeated = !!data.bossDefeated;
     defeatedMinibosses = data.defeatedMinibosses || {};
     tutorialState = data.tutorialState || { moved: true, jumped: true, attacked: true, dashed: true };
+    storyFlags = data.storyFlags || {};
+    companionState.active = !!(data.companion && data.companion.active);
+    companionState.canFight = !!(data.companion && data.companion.canFight);
+    companionState.mode = 'follow';
+    companionState.healCooldown = 0;
+    child = null; // recreated lazily next frame if active
+    maxHealthBonus = typeof data.maxHealthBonus === 'number' ? data.maxHealthBonus : 0;
+    maxHealthShardsCollected = data.maxHealthShardsCollected || {};
+    clearVitalityMotes();
+    resetHealingCrystals();
 
     echoes = [];
+    standEcho = null;
     projectiles = [];
     particles = [];
     bossProjectiles = [];
@@ -1561,11 +1744,12 @@ function getAreaDisplayName(areaId) {
 function startNewGame() {
   gameState = 'playing';
   SFX.init();
-  currentAreaId = 'tutorial_area';
-  SFX.setAreaAmbient('tutorial_area');
+  currentAreaId = 'spawn_area_1';
+  SFX.setAreaAmbient('spawn_area_1');
   const area = getCurrentArea();
   player = new Player(100, area.groundY - 60);
   echoes = [];
+  standEcho = null;
   projectiles = [];
   particles = [];
   bossProjectiles = [];
@@ -1573,7 +1757,7 @@ function startNewGame() {
   miniboss = null;
   defeatedMinibosses = {};
   areaEnemiesSpawned = {};
-  discoveredAreas = { tutorial_area: true };
+  discoveredAreas = { spawn_area_1: true };
   anchorActivated = {};
   lastAnchor = null;
   collectedLore = {};
@@ -1581,6 +1765,16 @@ function startNewGame() {
   statUpgrades = { strength: 0 };
   limitBreakChosen = null;
   bossDefeated = false;
+  storyFlags = {};
+  companionState.active = false;
+  companionState.canFight = false;
+  companionState.mode = 'follow';
+  companionState.healCooldown = 0;
+  child = null;
+  maxHealthBonus = 0;
+  maxHealthShardsCollected = {};
+  clearVitalityMotes();
+  resetHealingCrystals();
   abilityState.hasPhaseDash = false;
   abilityState.hasShardShot = false;
   abilityState.hasStillpoint = false;
@@ -1593,7 +1787,7 @@ function startNewGame() {
   abilityState.voidTetherCooldown = 0;
   abilityState.notifications = [];
   resetTutorial();
-  spawnAreaEnemies('tutorial_area');
+  spawnAreaEnemies('spawn_area_1');
   resetCamera();
   showUI(true);
 }
@@ -1604,6 +1798,8 @@ function respawnPlayer() {
   deathFadeDir = 1;
   deathFadeAlpha = 1;
   player.invincibleTimer = INVINCIBLE_FRAMES;
+  clearVitalityMotes();
+  resetHealingCrystals(); // dying counts as a rest — crystals regrow (healing.js)
 
   if (lastAnchor) {
     currentAreaId = lastAnchor.areaId;
@@ -1611,7 +1807,7 @@ function respawnPlayer() {
     player.y = lastAnchor.y - player.height;
     player.vx = 0;
     player.vy = 0;
-    player.health = MAX_HEALTH;
+    player.health = playerMaxHealth();
     clearAreaEnemies(currentAreaId);
     spawnAreaEnemies(currentAreaId);
     resetCamera();
@@ -1619,7 +1815,7 @@ function respawnPlayer() {
     // No checkpoint yet — respawn at the start of the CURRENT area rather
     // than hard-coding a specific room, so this works correctly whether
     // that's the tutorial or the_fracture (both are pre-Anchor).
-    player.health = MAX_HEALTH;
+    player.health = playerMaxHealth();
     player.x = 100;
     player.y = getCurrentArea().groundY - 60;
     player.vx = 0;
@@ -1631,6 +1827,7 @@ function respawnPlayer() {
   }
 
   echoes = [];
+  standEcho = null;
   projectiles = [];
 }
 
@@ -1652,13 +1849,14 @@ function returnToAnchor() {
   player.y = lastAnchor.y - player.height;
   player.vx = 0;
   player.vy = 0;
-  player.health = MAX_HEALTH;
+  player.health = playerMaxHealth();
   player.invincibleTimer = 30;
   clearAreaEnemies(currentAreaId);
   spawnAreaEnemies(currentAreaId);
   resetCamera();
   SFX.setAreaAmbient(currentAreaId);
   echoes = [];
+  standEcho = null;
   projectiles = [];
   spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 12);
   SFX.stillpoint();
@@ -1684,6 +1882,7 @@ function restartRoom() {
   spawnAreaEnemies(currentAreaId);
   // Clear transient entities
   echoes = [];
+  standEcho = null;
   projectiles = [];
   boss = null;
   miniboss = null;
@@ -1921,6 +2120,36 @@ function update() {
     return;
   }
 
+  // Controls screen reached from the pause menu's "Controls" item — same
+  // rebind logic as the main menu's version (menuScreen === 'controls'
+  // above), just with Escape returning to the pause menu instead of main.
+  if (gameState === 'paused_controls') {
+    const totalRows = REMAPPABLE_ACTIONS.length + 1; // +1 for Reset to Defaults
+    if (rebindingAction) {
+      // waiting on input.js to capture the next keydown
+    } else if (wasJustPressed('Escape')) {
+      gameState = 'paused';
+      buildPauseMenu();
+      SFX.uiSelect();
+    } else if (wasJustPressed('ArrowUp') || wasJustPressed('KeyW')) {
+      controlsMenuIndex = (controlsMenuIndex - 1 + totalRows) % totalRows;
+      SFX.uiSelect();
+    } else if (wasJustPressed('ArrowDown') || wasJustPressed('KeyS')) {
+      controlsMenuIndex = (controlsMenuIndex + 1) % totalRows;
+      SFX.uiSelect();
+    } else if (wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
+      menuClick = false;
+      if (controlsMenuIndex === REMAPPABLE_ACTIONS.length) {
+        resetKeyBindings();
+      } else {
+        startRebind(REMAPPABLE_ACTIONS[controlsMenuIndex]);
+      }
+      SFX.uiSelect();
+    }
+    clearJustPressed();
+    return;
+  }
+
   // Inventory screen (roadmap 1.9) — sub-menu off pause. Navigate the
   // upgrade list (data-driven, see INVENTORY_UPGRADES) and spend banked
   // Lore Pips on the selected row; everything else is display-only.
@@ -1959,6 +2188,15 @@ function update() {
     return;
   }
 
+  // Cutscene state — the script runner (cutscene.js) owns the frame:
+  // input locked (except hold-attack-to-skip), enemies/boss frozen, world
+  // still rendered by draw() with the letterbox overlay on top.
+  if (gameState === 'cutscene') {
+    updateCutscene();
+    clearJustPressed();
+    return;
+  }
+
   // Victory state — boss defeated cinematic
   if (gameState === 'victory') {
     victoryTimer--;
@@ -1981,7 +2219,7 @@ function update() {
       player.y = 334;
       player.vx = 0;
       player.vy = 0;
-      player.health = MAX_HEALTH;
+      player.health = playerMaxHealth();
       boss = null;
       bossProjectiles = [];
       bossDefeated = true;
@@ -1997,9 +2235,21 @@ function update() {
   // Toggle map during gameplay
   if (wasActionJustPressed('map')) {
     mapOpen = !mapOpen;
+    if (mapOpen) resetMapView(); // fresh centered view every time it's opened
     SFX.uiSelect();
   }
   if (mapOpen) {
+    // Pan/zoom the full map view (map.js's mapView — drawMap() just applies
+    // whatever this sets). Held-key panning/zooming, not one-shot, so
+    // holding a direction actually scrolls smoothly.
+    const MAP_PAN_SPEED = 8, MAP_ZOOM_SPEED = 0.03;
+    if (keys['ArrowLeft'] || keys['KeyA']) mapView.panX += MAP_PAN_SPEED;
+    if (keys['ArrowRight'] || keys['KeyD']) mapView.panX -= MAP_PAN_SPEED;
+    if (keys['ArrowUp'] || keys['KeyW']) mapView.panY += MAP_PAN_SPEED;
+    if (keys['ArrowDown'] || keys['KeyS']) mapView.panY -= MAP_PAN_SPEED;
+    if (keys['Equal'] || keys['NumpadAdd']) mapView.zoom = Math.min(3, mapView.zoom + MAP_ZOOM_SPEED);
+    if (keys['Minus'] || keys['NumpadSubtract']) mapView.zoom = Math.max(0.4, mapView.zoom - MAP_ZOOM_SPEED);
+    if (wasJustPressed('Digit0')) resetMapView();
     clearJustPressed();
     return;
   }
@@ -2075,8 +2325,14 @@ function update() {
 
   // Cooldowns
   // ── Stillpoint world-slow ───────────────────────────────────────────────
-  // Update gameTimeScale — everything except the player and Phase-3 boss reads this.
-  gameTimeScale = (player.stillpointActive && abilityState.hasStillpoint) ? (1 - player.stillpointSlow) : 1.0;
+  // Update gameTimeScale — everything except the player and Phase-3 boss
+  // reads this. Hard-floored at 0.05 (user feedback 2026-07-16: it must
+  // never actually reach 0 — that reads as the whole game freezing, not
+  // an intentional near-stop) regardless of what stillpointSlow requests.
+  // The player is deliberately never scaled by this at all (Stillpoint
+  // moves at 100% speed per the design doc) — if the player ever looks
+  // frozen during Stillpoint, that's a different bug, not this line.
+  gameTimeScale = (player.stillpointActive && abilityState.hasStillpoint) ? Math.max(0.05, 1 - player.stillpointSlow) : 1.0;
 
   if (abilityState.phaseDashCooldown > 0) abilityState.phaseDashCooldown--;
   if (abilityState.shardShotCooldown > 0) abilityState.shardShotCooldown--;
@@ -2116,6 +2372,29 @@ function update() {
 
   // Update player
   player.update(bounds, area.platforms);
+
+  // Combo chains (combo.js) — watches player state flags for action events
+  // and matches them against COMBO_DEFS; rewards fire on completion.
+  updateComboTracker(player);
+
+  // Healing systems (healing.js) — vitality mote drift/collection and
+  // strike-open healing crystals.
+  updateVitalityMotes(player, gameTimeScale);
+  updateHealingCrystals(player, area);
+
+  // The Child (companion.js) — follows, hides during combat, heals after,
+  // and (once taught) tether-assists. Created lazily so saves/branches that
+  // never activate her pay no cost.
+  if (companionState.active) {
+    if (!child) {
+      child = new Child(player.x - player.facing * 50, player.y);
+      nudgeOutOfPlatforms(child, area.platforms, 'Child spawn', true);
+    }
+    child.update(player, area, bounds, areaEnemies[currentAreaId] || [], gameTimeScale);
+    if (wasActionJustPressed('callChild')) child.call(player);
+  } else if (child) {
+    child = null;
+  }
 
   // ── Wall slide particles ──────────────────────────────────────────────
   if (player.wallSliding && player.wallNormal !== 0) {
@@ -2170,6 +2449,19 @@ function update() {
     echoes.push(new Echo(echoX, echoY, player.facing));
   }
 
+  // Phase Dash Lv4 Limit Break — "the echo becomes similar to a Stand
+  // (follows you)" (Enemy_Design.pdf). Lives/dies with the Enhanced State,
+  // tracks the player every frame instead of staying planted like the
+  // normal dash-echo.
+  if (limitBreak.active && limitBreak.ability === 'phase_dash') {
+    if (!standEcho) { standEcho = new Echo(player.x, player.y, player.facing); standEcho.life = standEcho.maxLife = 999999; }
+    standEcho.x = player.x - player.facing * 30;
+    standEcho.y = player.y;
+    standEcho.facing = player.facing;
+  } else if (standEcho) {
+    standEcho = null;
+  }
+
   // Shard Shot firing
   if (player.shardShotFired) {
     const shots = useShardShot(player, player.shardAimVy);
@@ -2179,21 +2471,59 @@ function update() {
     }
     SFX.shardShot();
   }
-  // Lv3 Beam Attack firing
-  if (player.shardBeamFired) {
-    const beam = useShardBeam(player, player.shardAimVy);
-    projectiles.push(beam);
-    spawnParticles(beam.x + 5, beam.y + 3, '#67e8f9', 8);
-    SFX.shardShot();
+  // Shard Shot Lv4 Limit Break — "your melee swings are replaced with Shard
+  // Blasts (glowing projectiles, 150% damage)" (Enemy_Design.pdf). Was not
+  // implemented at all before (user report 2026-07-16) — player.js now
+  // intercepts the attack button into `shardBlastFired` while this
+  // Enhanced State is active; this fires the actual projectile.
+  if (player.shardBlastFired) {
+    const speed = 12;
+    const vx = speed * (player.facing || 1);
+    const startX = (player.facing || 1) > 0 ? player.x + player.width : player.x - 8;
+    const startY = player.y + player.height / 2;
+    const proj = new Projectile(startX, startY, vx, 0, shardShotDamage() * 1.5, '#67e8f9');
+    proj.width = 12; proj.height = 12;
+    projectiles.push(proj);
+    spawnParticles(proj.x + 6, proj.y + 6, '#67e8f9', 8);
+    screenShake = 4; screenShakeIntensity = 2; hitstopTimer = 3;
+    SFX.attack();
+  }
+  // Lv3 Beam Attack — continuous channel, ticks damage every BEAM_TICK_INTERVAL
+  // frames to every enemy currently touching the line (Enemy_Design.pdf,
+  // reworked 2026-07-16 into a real continuous beam per user clarification).
+  if (player.beaming) {
+    player.beamTickTimer = (player.beamTickTimer || 0) + 1;
+    if (player.beamTickTimer >= BEAM_TICK_INTERVAL) {
+      player.beamTickTimer = 0;
+      const seg = getBeamSegment(player);
+      const dmg = beamDamagePerTick();
+      const enemiesHere = areaEnemies[currentAreaId] || [];
+      for (const enemy of enemiesHere) {
+        if (enemy.dead) continue;
+        const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
+        if (distToSegment(ex, ey, seg.x1, seg.y1, seg.x2, seg.y2) <= (enemy.width / 2 + 6)) {
+          enemy.takeDamage(dmg, seg.x1);
+        }
+      }
+      spawnParticles(seg.x1 + 5, seg.y1, '#67e8f9', 2);
+    }
   }
 
   // Phase Dash Lv3 — "when you swing your sword, the echo attacks once from
   // its position (deals 50% of your normal damage), then fades" (Enemy_Design.pdf).
+  // Lv4 Limit Break: the Stand echo (standEcho, spawned above) mirrors
+  // every swing at 100% damage instead, and never fades while the
+  // Enhanced State is active.
   if (player.echoAttackPending) {
     player.echoAttackPending = false;
-    if (abilityLevel('phase_dash') >= 3 && echoes.length > 0) {
-      const echo = echoes[0];
-      const echoDmg = playerMeleeDamage() * 0.5;
+    const isStand = limitBreak.active && limitBreak.ability === 'phase_dash' && standEcho;
+    if (isStand || (abilityLevel('phase_dash') >= 3 && echoes.length > 0)) {
+      const echo = isStand ? standEcho : echoes[0];
+      const echoDmg = playerMeleeDamage() * (isStand ? 1.0 : 0.5);
+      // Always show the swing, hit or not (user feedback 2026-07-16 — the
+      // attack was invisible unless it actually connected).
+      echo.swingFlash = 10;
+      spawnParticles(echo.x + echo.width / 2, echo.y + echo.height / 2, '#c4b5fd', 8);
       const enemiesHere = areaEnemies[currentAreaId] || [];
       for (const enemy of enemiesHere) {
         if (enemy.dead) continue;
@@ -2203,7 +2533,7 @@ function update() {
           spawnParticles(echo.x + echo.width / 2, echo.y + echo.height / 2, '#c4b5fd', 6);
         }
       }
-      echo.life = 0; // fades immediately after attacking, per the design doc
+      if (!isStand) echo.life = 0; // fades immediately after attacking, per the design doc — the Stand doesn't
     }
   }
 
@@ -2215,16 +2545,58 @@ function update() {
   if (player.voidTetherFired) {
     const lvl = abilityLevel('void_tether');
     const range = VOID_TETHER_RANGE_BASE * (lvl >= 1 ? 1.3 : 1);
-    const enemiesHere = areaEnemies[currentAreaId] || [];
-    let target = null, bestD = range;
-    for (const enemy of enemiesHere) {
-      if (enemy.dead) continue;
-      const d = Math.hypot((enemy.x + enemy.width / 2) - (player.x + player.width / 2), (enemy.y + enemy.height / 2) - (player.y + player.height / 2));
-      if (d < bestD) { bestD = d; target = enemy; }
-    }
+    // Facing auto-aim (user spec 2026-07-16): target the nearest enemy IN
+    // THE DIRECTION THE PLAYER FACES — never yank something in from behind.
+    // findVoidTetherTarget scores by distance + vertical offset so a level
+    // enemy beats a diagonal one at similar range.
+    const target = findVoidTetherTarget(player, range);
+    const speed = VOID_TETHER_PULL_SPEED_BASE * (lvl >= 3 ? 1.5 : 1);
     if (target) {
-      player.tether = { targetEnemy: target, speed: VOID_TETHER_PULL_SPEED_BASE * (lvl >= 3 ? 1.5 : 1) };
+      player.tether = { targetEnemy: target, speed };
       SFX.dash();
+    } else {
+      // "Pulls enemies to you, OR pulls you to walls" (Enemy_Design.pdf) —
+      // this half was missing entirely (user report 2026-07-16: "void
+      // tether is not built at all", likely hit when no enemy was in
+      // range, which silently did nothing). Finds the nearest solid
+      // platform edge in front of the player and grapples the player to it.
+      const area = getCurrentArea();
+      const facing = player.facing || 1;
+      let wallTargetX = null, bestWallD = range;
+      if (area) {
+        for (const plat of area.platforms) {
+          if (plat.destructible && plat.hp <= 0) continue;
+          if (player.y + player.height <= plat.y || player.y >= plat.y + plat.h) continue; // no vertical overlap
+          const edgeX = facing === 1 ? plat.x : plat.x + plat.w;
+          const d = (edgeX - (player.x + player.width / 2)) * facing;
+          if (d > 0 && d <= bestWallD) { bestWallD = d; wallTargetX = facing === 1 ? edgeX - player.width - 2 : edgeX + 2; }
+        }
+      }
+      if (wallTargetX !== null) {
+        player.tether = { targetPoint: { x: wallTargetX, y: player.y }, speed };
+        SFX.dash();
+      } else {
+        // WHIFF — nothing in front to pull and no wall to grapple. The old
+        // code silently burned the full cooldown here with zero feedback
+        // (a big part of why the ability read as "does nothing"). Refund
+        // the cooldown down to a small tax + a visible/audible fizzle.
+        abilityState.voidTetherCooldown = Math.min(abilityState.voidTetherCooldown, VOID_TETHER_WHIFF_COOLDOWN);
+        const fx = player.x + player.width / 2 + player.facing * 30;
+        spawnParticles(fx, player.y + player.height / 2, '#34d399', 5);
+        SFX.parry(); // short fizzle "tick" — reuse until a dedicated SFX exists
+      }
+    }
+  }
+  if (player.tether && player.tether.targetPoint) {
+    const tp = player.tether.targetPoint;
+    const dx = tp.x - player.x, dy = tp.y - player.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= player.tether.speed + 4) {
+      player.x = tp.x; player.y = tp.y; player.vx = 0; player.vy = 0;
+      player.tether = null;
+    } else {
+      player.vx = (dx / d) * player.tether.speed;
+      player.vy = (dy / d) * player.tether.speed;
     }
   }
   if (player.tether && player.tether.targetEnemy) {
@@ -2237,10 +2609,22 @@ function update() {
       const d = Math.hypot(px - ex, py - ey);
       if (d <= player.tether.speed + 4) {
         // Arrival
+        // A tether yank rips a raised guard open (defense-verb counterplay:
+        // block is beaten by heavies, backstabs, and THIS — deliberate
+        // synergy: tether → guard broken → punish).
+        if (enemy.blocking > 0) {
+          enemy.blocking = 0;
+          enemy.guardBroken = 40;
+          spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#e2e8f0', 10);
+        }
         const lvl = abilityLevel('void_tether');
         if (lvl >= 2 || (limitBreak.active && limitBreak.ability === 'void_tether')) {
           enemy.takeDamage(1, px);
-          enemy.stunTimer = 15;
+          // hitStun, not stunTimer — stunTimer is the parry-freeze mechanic
+          // (zeroes vx and skips physics entirely, see enemy.js's per-type
+          // update()); a "stunned" enemy from a non-parry source should
+          // still take knockback normally (user feedback 2026-07-16).
+          enemy.hitStun = Math.max(enemy.hitStun || 0, 15);
         }
         if (lvl >= 3) {
           // Arc: stun (no damage) the next-nearest enemy too
@@ -2250,7 +2634,7 @@ function update() {
             const od = Math.hypot((other.x + other.width / 2) - ex, (other.y + other.height / 2) - ey);
             if (od < arcD) { arcD = od; arcTarget = other; }
           }
-          if (arcTarget) arcTarget.stunTimer = 15;
+          if (arcTarget) arcTarget.hitStun = Math.max(arcTarget.hitStun || 0, 15);
         }
         if (limitBreak.active && limitBreak.ability === 'void_tether') {
           enemy.burning = { timer: 180, tickTimer: 0 }; // 3s @ 2dmg/s (game.js's enemy-update tick applies this)
@@ -2300,24 +2684,57 @@ function update() {
     }
   }
 
-  // ── Graviton Surge slam damage (Lv1+): enemies whose vertical velocity
-  // just reversed hard while the flip is active take 1 damage instead of a
-  // free stun (Enemy_Design.pdf's "0 damage Lv0 / 1 damage Lv1+" ceiling
-  // /floor slam). Approximated here as "hit a wall/platform while the flip
-  // is active" via the existing grounded-transition each enemy already
-  // computes in its own update() — a lightweight per-frame check next to
-  // the pull loop above, not a physics rewrite.
-  if (player.gravitonActive && (abilityLevel('graviton_surge') >= 1 || (limitBreak.active && limitBreak.ability === 'graviton_surge'))) {
+  // ── Graviton Surge: flips gravity for every enemy in range, not just the
+  // player (fixed 2026-07-16 — was player-only). Uses resolveCeilingY()
+  // (real platform-aware ceiling collision, see its comment above) instead
+  // of a fixed clamp line, so enemies stop at the underside of an actual
+  // ceiling platform instead of clipping through it. Lv0: stun only, 0
+  // damage. Lv1+: stun + 1 damage (Enemy_Design.pdf). Uses hitStun, not
+  // stunTimer, for the stun — stunTimer is the parry-freeze mechanic (skips
+  // physics entirely), which was silently making these "stunned" enemies
+  // immune to their own slam knockback (user feedback 2026-07-16).
+  if (player.gravitonActive) {
+    const lvl = abilityLevel('graviton_surge');
+    const dealsDamage = lvl >= 1 || (limitBreak.active && limitBreak.ability === 'graviton_surge');
+    const px = player.x + player.width / 2, py = player.y + player.height / 2;
+    const area = getCurrentArea();
     const enemiesHere = areaEnemies[currentAreaId] || [];
     for (const enemy of enemiesHere) {
-      if (enemy.dead || !enemy.grounded) continue;
-      if (!enemy.gravitonSlammed) {
-        enemy.gravitonSlammed = true;
-        enemy.takeDamage(1, enemy.x);
+      if (enemy.dead) continue;
+      const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
+      if (Math.hypot(ex - px, ey - py) > GRAVITON_SURGE_RANGE) { enemy.gravitonSlammed = false; continue; }
+      enemy.vy -= 2 * GRAVITY; // cancels this frame's own +GRAVITY and replaces it with -GRAVITY
+      const ceilingY = resolveCeilingY(enemy, area);
+      if (enemy.y <= ceilingY) {
+        enemy.y = ceilingY;
+        enemy.vy = 0;
+        enemy.hitStun = Math.max(enemy.hitStun || 0, 20);
+        if (!enemy.gravitonSlammed) {
+          enemy.gravitonSlammed = true;
+          if (dealsDamage) enemy.takeDamage(1, enemy.x);
+        }
       }
     }
   } else {
     for (const enemy of (areaEnemies[currentAreaId] || [])) enemy.gravitonSlammed = false;
+  }
+
+  // ── Graviton Surge: player ceiling landing ───────────────────────────────
+  // player.js's own platform collision already stops the player when moving
+  // up into a real platform's underside (the existing "hit head" branch),
+  // but nothing previously stopped them in an open-topped room — they just
+  // flew off-screen (user-reported bug 2026-07-16). This is the player-side
+  // equivalent of the enemy clamp above: land them on whichever ceiling
+  // resolveCeilingY() finds, and mark `grounded` so jump (already flipped
+  // to push "away from the ceiling" in player.js) works again.
+  if (player.gravitonActive) {
+    const ceilingY = resolveCeilingY(player, getCurrentArea());
+    if (player.y <= ceilingY) {
+      player.y = ceilingY;
+      player.vy = 0;
+      player.grounded = true;
+      player.coyoteTimer = COYOTE_FRAMES;
+    }
   }
 
   // Update echoes
@@ -2362,6 +2779,42 @@ function update() {
   for (const enemy of enemies) {
     enemy.update(player, bounds, echoes);
 
+    // ── Wall bounce impact VFX (2026-07-16, combo-focused: a knocked-back
+    // enemy bounces hard off walls — a wall-adjacent hit opens a follow-up
+    // combo window). The actual position/velocity bounce now happens inside
+    // resolveEnemyPhysics (physics.js, shared by every enemy subclass —
+    // replacing the detection loop that used to live here); the resolver
+    // flags `wallBouncedThisFrame` and this block just plays the impact.
+    if (!enemy.dead && enemy.wallBouncedThisFrame) {
+      enemy.wallBouncedThisFrame = false;
+      spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#f87171', 10);
+      screenShake = Math.max(screenShake, 8); screenShakeIntensity = Math.max(screenShakeIntensity, 4);
+      hitstopTimer = Math.max(hitstopTimer, 5);
+    }
+
+    // ── Anti-juggle breakout burst (defense verbs, enemy.js) ──────────────
+    // The enemy finished its 15f charge flash mid-juggle: radial shove on
+    // the player (big knockback, minimal damage) that caps infinite juggles
+    // without deleting the combo system — bait it by stopping one hit short.
+    if (!enemy.dead && enemy.breakoutBurstPending) {
+      enemy.breakoutBurstPending = false;
+      const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
+      const px = player.x + player.width / 2, py = player.y + player.height / 2;
+      const d = Math.hypot(px - ex, py - ey);
+      if (d < 110 && player.invincibleTimer <= 0 && !player.phaseDashing) {
+        const nx = d > 0 ? (px - ex) / d : 1, ny = d > 0 ? (py - ey) / d : 0;
+        // Shove only — the burst's job is escape + repositioning, not damage.
+        player.vx = nx * 12;
+        player.vy = Math.min(-6, ny * 10);
+        player.hitStunTimer = 14;
+        player.grounded = false;
+      }
+      spawnParticles(ex, ey, '#ffffff', 16);
+      screenShake = Math.max(screenShake, 12); screenShakeIntensity = Math.max(screenShakeIntensity, 6);
+      hitstopTimer = Math.max(hitstopTimer, 6);
+      SFX.enemyDeath(); // deep burst thump — reuse until a dedicated SFX exists
+    }
+
     // Void Tether Lv4 Limit Break burning DoT (2dmg/s for 3s) — see the
     // Void Tether arrival block above, which sets `enemy.burning`.
     if (enemy.burning && !enemy.dead) {
@@ -2391,6 +2844,43 @@ function update() {
         enemy.onCountered(player);
         SFX.parry();
         continue;
+      }
+
+      // ── Defense verbs (2026-07-16 combat overhaul, enemy.js's
+      // updateDefense/defense config) ──
+      // Dodge i-frames: the enemy already hopped clear — the swing whiffs.
+      if (enemy.dodgeIFrames > 0) {
+        spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#94a3b8', 4);
+        continue;
+      }
+      // Guard: blocks damage from the FRONT. Counterplay (must all work or
+      // blocking is just annoying): heavy/charged attacks BREAK the guard
+      // (stagger, no re-guard for 40f), and hits from behind bypass it
+      // entirely. (Void Tether pulls also break guard — see the tether
+      // arrival block.)
+      if (enemy.blocking > 0) {
+        const fromFront = ((player.x + player.width / 2) - (enemy.x + enemy.width / 2)) * enemy.facing > 0;
+        if (fromFront && !player.heavy) {
+          // Clank — no damage, small player recoil, distinct feedback.
+          enemy.blocking = Math.max(enemy.blocking, 6);
+          player.vx = -player.facing * 3;
+          spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#cbd5e1', 8);
+          screenShake = Math.max(screenShake, 3); screenShakeIntensity = Math.max(screenShakeIntensity, 2);
+          hitstopTimer = Math.max(hitstopTimer, 4);
+          SFX.parry(); // metallic clank — reuse until a dedicated SFX exists
+          continue;
+        }
+        if (fromFront && player.heavy) {
+          // GUARD BREAK — the charged attack smashes through: stagger and
+          // a vulnerability window, then the hit resolves as normal below.
+          enemy.blocking = 0;
+          enemy.guardBroken = 40;
+          enemy.hitStun = Math.max(enemy.hitStun, 20);
+          spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#e2e8f0', 14);
+          screenShake = Math.max(screenShake, 10); screenShakeIntensity = Math.max(screenShakeIntensity, 5);
+          hitstopTimer = Math.max(hitstopTimer, 8);
+        }
+        // From behind: guard does nothing — fall through to normal damage.
       }
 
       const dmg = playerMeleeDamage();
@@ -2433,6 +2923,9 @@ function update() {
       // lagged on almost every hit (most basic enemies die in 1-2 hits).
       if (enemy.dead) {
         SFX.enemyDeath();
+        // Vitality motes (healing.js) — combat-earned healing drops
+        spawnVitalityMotes(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2,
+          moteCountForEnemy(enemy) + (player.heavy ? 1 : 0));
         const anyAlive = enemies.some((e) => e !== enemy && !e.dead);
         if (!anyAlive) {
           slowMoTimer = 8; slowMoSkip = 0; // ~0.3x for 8 frames, last-enemy-in-group only
@@ -2449,7 +2942,6 @@ function update() {
     for (let j = projectiles.length - 1; j >= 0; j--) {
       const proj = projectiles[j];
       const projBounds = proj.getBounds();
-      if (proj.pierce && proj.hitEnemies && proj.hitEnemies.has(enemy)) continue; // Lv3 Beam already hit this one, keep flying
       if (!enemy.dead && rectsOverlap(projBounds, enemy)) {
         // Deflector Drone (expansion.md 2.3 #31) — a shot hitting its
         // currently-shielded side is reflected back instead of damaging it,
@@ -2470,15 +2962,7 @@ function update() {
           enemy.takeDamage(proj.damage, proj.x);
         }
         spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 6);
-        if (proj.pierce) {
-          // Lv3 Beam — passes through instead of being consumed. Track hit
-          // enemies so the same target isn't re-damaged every frame it
-          // overlaps the beam (mirrors the melee per-swing dedup pattern).
-          proj.hitEnemies = proj.hitEnemies || new Set();
-          proj.hitEnemies.add(enemy);
-        } else {
-          projectiles.splice(j, 1);
-        }
+        projectiles.splice(j, 1);
         screenShake = 4;
         screenShakeIntensity = 2;
         hitstopTimer = 3;
@@ -2523,6 +3007,7 @@ function update() {
         // SUCCESSFUL PARRY — deflect and stun enemy
         enemy.stunTimer = PARRY_STUN;
         enemy.flashTimer = 10;
+        enemy.parriedRecently = 90; // parry-respect: raises this enemy's feint odds briefly (enemy.js windup)
         player.parrying = false;
         player.parryTimer = 0;
         player.invincibleTimer = PARRY_IFRAMES;
@@ -2788,7 +3273,7 @@ function update() {
       screenShakeIntensity = 5;
       spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#fbbf24', 24);
       spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#fb923c', 18);
-      player.health = MAX_HEALTH; // full heal on defeat — a permanent Max Health increase would need
+      player.health = playerMaxHealth(); // full heal on defeat — a permanent Max Health increase would need
                                    // MAX_HEALTH to become mutable + HUD/save changes, out of scope here
       addAbilityNotification('COLOSSUS CORE DEFEATED');
       SFX.bossDeath();
@@ -2832,9 +3317,11 @@ function update() {
     if (dist < 40) {
       if (!anchorActivated[spKey]) {
         anchorActivated[spKey] = true;
+        // Anchor rest regrows every struck-open healing crystal (healing.js)
+        resetHealingCrystals();
         // Heal 1 pip on first activation — the Anchor restores you
-        if (player.health < MAX_HEALTH) {
-          player.health = Math.min(MAX_HEALTH, player.health + 1);
+        if (player.health < playerMaxHealth()) {
+          player.health = Math.min(playerMaxHealth(), player.health + 1);
           addAbilityNotification('ANCHOR ACTIVATED — health restored');
         } else {
           addAbilityNotification('ANCHOR ACTIVATED');
@@ -2854,48 +3341,43 @@ function update() {
     }
   }
 
-  // Check ability rewards
+  // Check ability rewards — data-driven over ABILITY_GRANTS (below) instead
+  // of a hand-grown if/else chain. The old chain silently ignored any
+  // ability it didn't list: graviton_surge's pickup (graviton_core_room2)
+  // and void_tether granted NOTHING on touch — the root cause of "the Void
+  // Tether button does nothing" (hasVoidTether was never set anywhere).
   if (area.abilityReward) {
     const ab = area.abilityReward;
-    const dist = Math.abs((player.x + player.width / 2) - ab.x) +
-                 Math.abs((player.y + player.height / 2) - ab.y);
-    if (dist < 30) {
-      if (ab.id === 'phase_dash' && !abilityState.hasPhaseDash) {
-        abilityState.hasPhaseDash = true;
-        addAbilityNotification('ABILITY: Phase Dash — Tap C to dash');
-        spawnParticles(ab.x, ab.y, '#a78bfa', 20);
-        abilityFlash = 12;
-        abilityFlashColor = '#a78bfa';
-        abilityPopups.push({ text: '★ PHASE DASH', x: ab.x, y: ab.y - 20, life: 90, color: '#a78bfa' });
+    // Max-health shards (healing.js) — the max_health_upgrade_* pickups.
+    // Not in ABILITY_GRANTS (they set no abilityState flag); tracked per-id
+    // so a collected shard never re-grants on room re-entry.
+    if (ab.id && ab.id.startsWith('max_health_upgrade') && !maxHealthShardsCollected[ab.id]) {
+      const dist = Math.abs((player.x + player.width / 2) - ab.x) +
+                   Math.abs((player.y + player.height / 2) - ab.y);
+      if (dist < 30) {
+        maxHealthShardsCollected[ab.id] = true;
+        maxHealthBonus++;
+        player.health = Math.min(playerMaxHealth(), player.health + 1); // the new heart arrives filled
+        addAbilityNotification(`MAX HEALTH +1 (${playerMaxHealth()})`);
+        spawnParticles(ab.x, ab.y, '#f9a8d4', 24);
+        abilityFlash = 14;
+        abilityFlashColor = '#f9a8d4';
+        abilityPopups.push({ text: '♥ MAX HEALTH +1', x: ab.x, y: ab.y - 20, life: 110, color: '#f9a8d4' });
         SFX.abilityPickup();
         saveGame();
-      } else if (ab.id === 'shard_shot' && !abilityState.hasShardShot) {
-        abilityState.hasShardShot = true;
-        addAbilityNotification('ABILITY: Shard Shot — hold V to aim, release to fire');
-        spawnParticles(ab.x, ab.y, '#67e8f9', 20);
-        abilityFlash = 12;
-        abilityFlashColor = '#67e8f9';
-        abilityPopups.push({ text: '★ SHARD SHOT', x: ab.x, y: ab.y - 20, life: 90, color: '#67e8f9' });
-        SFX.abilityPickup();
-        saveGame();
-      } else if (ab.id === 'stillpoint' && !abilityState.hasStillpoint) {
-        abilityState.hasStillpoint = true;
-        // No free pip: fractureMax starts at 0 (roadmap 1.9) — Stillpoint stays
-        // unusable until the player finds Fracture Pips to raise the cap.
-        addAbilityNotification('STILLPOINT — Q to slow time. Find Fracture Pips to power it.');
-        spawnParticles(ab.x, ab.y, '#67e8f9', 28);
-        abilityFlash = 16;
-        abilityFlashColor = '#67e8f9';
-        abilityPopups.push({ text: '★ STILLPOINT', x: ab.x, y: ab.y - 20, life: 120, color: '#67e8f9' });
-        SFX.abilityPickup();
-        saveGame();
-      } else if (ab.id === 'charged_attack' && !abilityState.hasChargedAttack) {
-        abilityState.hasChargedAttack = true;
-        addAbilityNotification('ABILITY: Charged Attack — Hold Z/J to charge a heavy strike!');
-        spawnParticles(ab.x, ab.y, '#fbbf24', 20);
-        abilityFlash = 12;
-        abilityFlashColor = '#fbbf24';
-        abilityPopups.push({ text: '★ CHARGED ATTACK', x: ab.x, y: ab.y - 20, life: 90, color: '#fbbf24' });
+      }
+    }
+    const grant = ABILITY_GRANTS[ab.id];
+    if (grant && !abilityState[grant.flag]) {
+      const dist = Math.abs((player.x + player.width / 2) - ab.x) +
+                   Math.abs((player.y + player.height / 2) - ab.y);
+      if (dist < 30) {
+        abilityState[grant.flag] = true;
+        addAbilityNotification(grant.notification);
+        spawnParticles(ab.x, ab.y, grant.color, grant.particles || 20);
+        abilityFlash = grant.flash || 12;
+        abilityFlashColor = grant.color;
+        abilityPopups.push({ text: `★ ${grant.popup}`, x: ab.x, y: ab.y - 20, life: grant.popupLife || 90, color: grant.color });
         SFX.abilityPickup();
         saveGame();
       }
@@ -2997,29 +3479,75 @@ function update() {
 // #boss-health-container, #controls-hint); those elements no longer exist
 // in index.html, so all of it is drawn straight onto the canvas here.
 // ═══════════════════════════════════════════════════════════════════════
+
+// ── HUD layout data (2026-07-16) ────────────────────────────────────────
+// Positions/sizes/visibility of every HUD element, extracted from the
+// hardcoded numbers the draw functions below used to carry inline, so
+// editor/hud_editor.html can move/toggle them visually. `anchor` says which
+// screen edge x/y are measured from — the draw code resolves it via
+// hudResolve(), so layouts survive any canvas size:
+//   'top-left'      x from left,  y from top
+//   'top-center'    x offset from W/2 (usually 0), y from top
+//   'bottom-left'   x from left,  y from BOTTOM (positive = up)
+//   'bottom-right'  x from RIGHT, y from BOTTOM
+// Saved overrides (the editor's 💾) load from localStorage below.
+const HUD_LAYOUT_KEY = 'stillpoint_hud_layout_v1';
+const HUD_LAYOUT = {
+  healthHearts:  { anchor: 'top-left',     x: 16, y: 14, size: 16, gap: 3,  visible: true },
+  areaLabel:     { anchor: 'top-left',     x: 16, y: 42,                    visible: true },
+  bossBar:       { anchor: 'top-center',   x: 0,  y: 18, w: 320, h: 12,    visible: true },
+  limitBreakBar: { anchor: 'top-center',   x: 0,  y: 40, w: 160, h: 8,     visible: true },
+  controlsHint:  { anchor: 'bottom-right', x: 16, y: 12,                    visible: true },
+  fracturePips:  { anchor: 'bottom-left',  x: 14, y: 58, gap: 22,          visible: true },
+};
+
+(function applyHudLayoutOverrides() {
+  try {
+    const raw = localStorage.getItem(HUD_LAYOUT_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    for (const key in saved) {
+      if (HUD_LAYOUT[key]) Object.assign(HUD_LAYOUT[key], saved[key]);
+    }
+  } catch (e) { /* private browsing / bad JSON — use defaults */ }
+})();
+
+// Resolve a layout entry to absolute screen coordinates for the current
+// canvas size. Returns {x, y} of the element's reference point.
+function hudResolve(el) {
+  switch (el.anchor) {
+    case 'top-center':   return { x: W / 2 + el.x, y: el.y };
+    case 'bottom-left':  return { x: el.x, y: H - el.y };
+    case 'bottom-right': return { x: W - el.x, y: H - el.y };
+    default:             return { x: el.x, y: el.y }; // top-left
+  }
+}
+
 // ── HUD rendering ───────────────────────────────────────────────────────
 
 function drawHUD(ctx) {
   if (!hudVisible || !player) return;
 
-  drawHealthHearts(ctx);
-  drawAreaLabel(ctx);
-  if (boss && !boss.dead && gameState === 'playing') {
+  if (HUD_LAYOUT.healthHearts.visible) drawHealthHearts(ctx);
+  if (HUD_LAYOUT.areaLabel.visible) drawAreaLabel(ctx);
+  if (HUD_LAYOUT.bossBar.visible && boss && !boss.dead && gameState === 'playing') {
     drawBossHealthBar(ctx);
   }
   if (currentAreaId === 'tutorial_area') {
     drawTutorialBanner(ctx);
   }
-  drawControlsHint(ctx);
-  drawLimitBreakBar(ctx);
+  if (HUD_LAYOUT.controlsHint.visible) drawControlsHint(ctx);
+  if (HUD_LAYOUT.limitBreakBar.visible) drawLimitBreakBar(ctx);
 }
 
 // Limit Break (Lv4) 6s countdown bar — "To add" list in Enemy_Design.pdf.
 // Flat blue to match the player's aura; no per-ability art yet.
 function drawLimitBreakBar(ctx) {
   if (!limitBreak.active) return;
-  const barW = 160, barH = 8;
-  const x = W / 2 - barW / 2, y = 40;
+  const lay = HUD_LAYOUT.limitBreakBar;
+  const pos = hudResolve(lay);
+  const barW = lay.w, barH = lay.h;
+  const x = pos.x - barW / 2, y = pos.y;
   const frac = limitBreak.timer / LIMIT_BREAK_DURATION;
   ctx.fillStyle = 'rgba(10, 20, 40, 0.6)';
   ctx.fillRect(x, y, barW, barH);
@@ -3031,7 +3559,8 @@ function drawLimitBreakBar(ctx) {
   ctx.textAlign = 'center';
   ctx.font = '9px "Courier New", monospace';
   ctx.fillStyle = '#93c5fd';
-  ctx.fillText('LIMIT BREAK', W / 2, y - 3);
+  ctx.fillText('LIMIT BREAK', pos.x, y - 3);
+  ctx.textAlign = 'left';
 }
 
 // Top-center checklist banner for the tutorial room: current objective
@@ -3079,10 +3608,12 @@ function drawTutorialBanner(ctx) {
 
 // Top-left: one heart glyph per point of MAX_HEALTH.
 function drawHealthHearts(ctx) {
-  const size = 16;
-  const gap = 3;
-  const startX = 16;
-  const startY = 14;
+  const lay = HUD_LAYOUT.healthHearts;
+  const pos = hudResolve(lay);
+  const size = lay.size;
+  const gap = lay.gap;
+  const startX = pos.x;
+  const startY = pos.y;
 
   ctx.font = `${size}px "Courier New", monospace`;
   ctx.textAlign = 'left';
@@ -3091,7 +3622,7 @@ function drawHealthHearts(ctx) {
   // Colour shifts as health drops, mirroring the old CSS health-bar behavior.
   const heartColor = player.health <= 2 ? '#f87171' : player.health <= 4 ? '#fbbf24' : '#c4b5fd';
 
-  for (let i = 0; i < MAX_HEALTH; i++) {
+  for (let i = 0; i < playerMaxHealth(); i++) {
     const x = startX + i * (size + gap);
     const filled = i < player.health;
     // Faint drop-shadow so hearts stay readable over any background.
@@ -3106,22 +3637,25 @@ function drawHealthHearts(ctx) {
 // Area name + checkpoint indicator, just under the health hearts.
 function drawAreaLabel(ctx) {
   const area = getCurrentArea();
+  const pos = hudResolve(HUD_LAYOUT.areaLabel);
   ctx.font = '11px "Courier New", monospace';
   ctx.textAlign = 'left';
   ctx.fillStyle = '#6a6a8e';
-  ctx.fillText(area.name, 16, 42);
+  ctx.fillText(area.name, pos.x, pos.y);
 
   const nameWidth = ctx.measureText(area.name).width;
   ctx.fillStyle = lastAnchor ? '#c4b5fd' : '#4a4a6e';
-  ctx.fillText(lastAnchor ? '\u25cf' : '\u25cb', 16 + nameWidth + 8, 42);
+  ctx.fillText(lastAnchor ? '\u25cf' : '\u25cb', pos.x + nameWidth + 8, pos.y);
 }
 
 // Top-center: boss health bar (drawn only while a boss is alive & active).
 function drawBossHealthBar(ctx) {
-  const barW = 320;
-  const barH = 12;
-  const x = W / 2 - barW / 2;
-  const y = 18;
+  const lay = HUD_LAYOUT.bossBar;
+  const pos = hudResolve(lay);
+  const barW = lay.w;
+  const barH = lay.h;
+  const x = pos.x - barW / 2;
+  const y = pos.y;
   const maxHp = boss.maxHealth || BOSS_MAX_HEALTH;
   const percent = Math.max(0, boss.health / maxHp);
 
@@ -3139,7 +3673,7 @@ function drawBossHealthBar(ctx) {
   ctx.font = '12px "Courier New", monospace';
   ctx.fillStyle = '#f87171';
   ctx.textAlign = 'center';
-  ctx.fillText('THE FRACTURED KING', W / 2, y + barH + 15);
+  ctx.fillText('THE FRACTURED KING', pos.x, y + barH + 15);
   ctx.textAlign = 'left';
 }
 
@@ -3157,13 +3691,14 @@ function drawControlsHint(ctx) {
   if (alpha <= 0) return;
 
   const lines = ['MOVE \u2190\u2192  JUMP SPACE  DASH X  ATTACK Z', 'SHARD: V + R(up)/T(down)  MAP M  PAUSE ESC'];
+  const pos = hudResolve(HUD_LAYOUT.controlsHint);
   ctx.globalAlpha = alpha;
   ctx.font = '10px "Courier New", monospace';
   ctx.fillStyle = '#2a2a3e';
   ctx.textAlign = 'right';
-  let ly = H - 12 - (lines.length - 1) * 13;
+  let ly = pos.y - (lines.length - 1) * 13;
   for (const line of lines) {
-    ctx.fillText(line, W - 16, ly);
+    ctx.fillText(line, pos.x, ly);
     ly += 13;
   }
   ctx.textAlign = 'left';
@@ -3684,7 +4219,7 @@ function draw() {
 
   // Platforms
   for (const plat of area.platforms) {
-    drawPlatform(ctx, plat);
+    drawPlatform(ctx, plat, area.platforms);
     decoratePlatformForRegion(ctx, plat, area.region);
   }
 
@@ -3748,15 +4283,43 @@ function draw() {
     enemy.draw(ctx);
   }
 
+  // Void Tether target telegraph — a faint ring on the enemy that WOULD be
+  // pulled if R were pressed right now (only while the ability is held,
+  // off cooldown, and not already mid-pull). Makes the facing auto-aim
+  // legible without HUD chrome, per the in-world-feedback design rule.
+  if (abilityState.hasVoidTether && abilityState.voidTetherCooldown <= 0 && !player.tether) {
+    const lvl = abilityLevel('void_tether');
+    const range = VOID_TETHER_RANGE_BASE * (lvl >= 1 ? 1.3 : 1);
+    const tgt = findVoidTetherTarget(player, range);
+    if (tgt) {
+      const pulse = Math.sin(frameCount * 0.15) * 0.15;
+      ctx.strokeStyle = `rgba(52, 211, 153, ${0.35 + pulse})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(tgt.x + tgt.width / 2, tgt.y + tgt.height / 2, Math.max(tgt.width, tgt.height) * 0.8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+  }
+
   // Echoes
   for (const echo of echoes) {
     echo.draw(ctx);
   }
+  if (standEcho) standEcho.draw(ctx); // Phase Dash Lv4 Stand
 
   // Projectiles
   for (const proj of projectiles) {
     proj.draw(ctx);
   }
+
+  // Healing pickups (healing.js) — strike-open crystals + drifting motes
+  drawHealingCrystals(ctx, area, frameCount);
+  drawVitalityMotes(ctx);
+
+  // The Child (companion.js) — drawn just before the player so she reads
+  // as slightly behind them.
+  if (child && companionState.active) child.draw(ctx);
 
   // Player
   player.draw(ctx);
@@ -3832,13 +4395,15 @@ function draw() {
   // before Stillpoint itself is unlocked — otherwise a pip found early
   // (roadmap 1.9: The Fracture/The Vault) raises fractureMax with no visible
   // confirmation on the HUD at all (fixed 2026-07-14).
-  if (player.fractureMax > 0) {
+  if (player.fractureMax > 0 && HUD_LAYOUT.fracturePips.visible) {
+    const fpLay = HUD_LAYOUT.fracturePips;
+    const fpPos = hudResolve(fpLay);
     ctx.font = '9px "Courier New", monospace';
     ctx.fillStyle = 'rgba(103, 232, 249, 0.45)';
-    ctx.fillText('FRACTURE', 14, H - 58);
+    ctx.fillText('FRACTURE', fpPos.x, fpPos.y);
     for (let i = 0; i < player.fractureMax; i++) {
-      const px = 14 + i * 22;
-      const py = H - 48;
+      const px = fpPos.x + i * fpLay.gap;
+      const py = fpPos.y + 10;
       const filled = i < player.fractureMeter;
       const isLastDraining = filled && i === player.fractureMeter - 1 && player.stillpointActive;
       ctx.save();
@@ -3857,7 +4422,11 @@ function draw() {
   }
 
   // ── HUD: health, ability icons, area name, boss bar, controls hint ───────
-  drawHUD(ctx);
+  // Suppressed during cutscenes (letterbox + text own the screen edges).
+  if (gameState !== 'cutscene') drawHUD(ctx);
+
+  // Cutscene letterbox/text/skip overlay (cutscene.js)
+  if (gameState === 'cutscene') drawCutsceneOverlay(ctx);
 
   // Transition overlay
   if (transitioning && transitionAlpha > 0) {
@@ -4234,6 +4803,13 @@ function draw() {
   // Full-screen map overlay
   if (mapOpen) {
     drawMap(ctx, currentAreaId, discoveredAreas, anchorActivated);
+  }
+
+  // Controls screen reached from the pause menu (Controls item) — reuses
+  // the exact same menu-styled screen the main menu uses, opaque background
+  // and all, so it looks identical regardless of entry point.
+  if (gameState === 'paused_controls') {
+    drawControlsScreen();
   }
 }
 

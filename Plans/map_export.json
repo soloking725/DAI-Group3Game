@@ -1,0 +1,1393 @@
+{
+  "rooms": [
+    {
+      "id": "spawn_area_1",
+      "name": "Spawn Area",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": -70,
+        "y": 16
+      }
+    },
+    {
+      "id": "tutorial_area",
+      "name": "Tutorial Area",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": 16,
+        "y": 16
+      }
+    },
+    {
+      "id": "the_fracture_part1",
+      "name": "The Fracture, part 1",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": 30,
+        "y": 136
+      }
+    },
+    {
+      "id": "the_fracture_part2",
+      "name": "The Fracture, part 2",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": -3,
+        "y": 266
+      }
+    },
+    {
+      "id": "the_fracture_part3",
+      "name": "The Fracture, part 3",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": -26,
+        "y": 115
+      }
+    },
+    {
+      "id": "the_fracture_part4",
+      "name": "The Fracture, part 4",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": 54,
+        "y": 232
+      }
+    },
+    {
+      "id": "crag_entrance",
+      "name": "Crag Entrance",
+      "region": "crag",
+      "roomType": "room",
+      "mapAccent": "#d97757",
+      "pos": {
+        "x": 132,
+        "y": 146
+      }
+    },
+    {
+      "id": "crag_breach",
+      "name": "Crag Breach",
+      "region": "crag",
+      "roomType": "room",
+      "mapAccent": "#d97757",
+      "pos": {
+        "x": 213,
+        "y": 179
+      }
+    },
+    {
+      "id": "crag_altar",
+      "name": "Crag Altar",
+      "region": "crag",
+      "roomType": "room",
+      "mapAccent": "#d97757",
+      "pos": {
+        "x": 124,
+        "y": 248
+      }
+    },
+    {
+      "id": "crag_warden",
+      "name": "Crag Warden",
+      "region": "crag",
+      "roomType": "miniboss",
+      "mapAccent": "#d97757",
+      "pos": {
+        "x": 124,
+        "y": 344
+      }
+    },
+    {
+      "id": "mirror_veil_gate",
+      "name": "Mirror Veil — Gate",
+      "region": "mirror_veil",
+      "roomType": "room",
+      "mapAccent": "#c084fc",
+      "pos": {
+        "x": 307,
+        "y": 217
+      }
+    },
+    {
+      "id": "mirror_veil_reflection",
+      "name": "Mirror Veil — Reflection",
+      "region": "mirror_veil",
+      "roomType": "room",
+      "mapAccent": "#c084fc",
+      "pos": {
+        "x": 427,
+        "y": 98
+      }
+    },
+    {
+      "id": "mirror_veil_hollow",
+      "name": "Mirror Veil — Hollow",
+      "region": "mirror_veil",
+      "roomType": "miniboss",
+      "mapAccent": "#c084fc",
+      "pos": {
+        "x": 461,
+        "y": 164
+      }
+    },
+    {
+      "id": "mirror_veil_sanctum",
+      "name": "Mirror Veil — Sanctum",
+      "region": "mirror_veil",
+      "roomType": "room",
+      "mapAccent": "#c084fc",
+      "pos": {
+        "x": 382,
+        "y": 164
+      }
+    },
+    {
+      "id": "mirror_corridor",
+      "name": "Mirror Corridor",
+      "region": "mirror_veil",
+      "roomType": "room",
+      "mapAccent": "#c084fc",
+      "pos": {
+        "x": 382,
+        "y": 287
+      }
+    },
+    {
+      "id": "echo_bridge_part1",
+      "name": "Echo Bridge, part 1",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": -26,
+        "y": 401
+      }
+    },
+    {
+      "id": "echo_bridge_prison",
+      "name": "Echo Bridge Prison",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": 441,
+        "y": 402
+      }
+    },
+    {
+      "id": "upper_ruins",
+      "name": "Upper Ruins",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": "#fbbf24",
+      "pos": {
+        "x": 227,
+        "y": 323
+      }
+    },
+    {
+      "id": "pacifist_region",
+      "name": "Pacifist Region",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": 221,
+        "y": 255
+      }
+    },
+    {
+      "id": "crystal_cavern",
+      "name": "Crystal Cavern",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": 142,
+        "y": 478
+      }
+    },
+    {
+      "id": "echoing_abyss_room1",
+      "name": "Echoing Abyss Room 1",
+      "region": "abyss",
+      "roomType": "room",
+      "mapAccent": "#0CFFD3",
+      "pos": {
+        "x": 11,
+        "y": 472
+      }
+    },
+    {
+      "id": "echoing_abyss_room2",
+      "name": "Echoing Abyss Room 2",
+      "region": "abyss",
+      "roomType": "miniboss",
+      "mapAccent": "#0CFFD3",
+      "pos": {
+        "x": 15,
+        "y": 515
+      }
+    },
+    {
+      "id": "timeline_x_roads_room1",
+      "name": "Timeline X Roads, Room 1",
+      "region": "timeline",
+      "roomType": "room",
+      "mapAccent": "#8E00FF",
+      "pos": {
+        "x": 161,
+        "y": 577
+      }
+    },
+    {
+      "id": "timeline_x_roads_room2",
+      "name": "Timeline X Roads, Room 2",
+      "region": "timeline",
+      "roomType": "miniboss",
+      "mapAccent": "#8E00FF",
+      "pos": {
+        "x": 356,
+        "y": 526
+      }
+    },
+    {
+      "id": "timeline_x_roads_room3",
+      "name": "Timeline X Roads, Room 3",
+      "region": "timeline",
+      "roomType": "room",
+      "mapAccent": "#8E00FF",
+      "pos": {
+        "x": 245,
+        "y": 450
+      }
+    },
+    {
+      "id": "puppet_strings_part1",
+      "name": "Puppet Strings / Tether Part 1",
+      "region": "timeline",
+      "roomType": "room",
+      "mapAccent": "#BD34D1",
+      "pos": {
+        "x": 589,
+        "y": 461
+      }
+    },
+    {
+      "id": "puppet_strings_part2",
+      "name": "Puppet Strings / Tether Part 2",
+      "region": "timeline",
+      "roomType": "room",
+      "mapAccent": "#BD34D1",
+      "pos": {
+        "x": 589,
+        "y": 538
+      }
+    },
+    {
+      "id": "observatory_room1",
+      "name": "Observatory, Room 1",
+      "region": "observatory",
+      "roomType": "room",
+      "mapAccent": "#F7C325",
+      "pos": {
+        "x": -26,
+        "y": 679
+      }
+    },
+    {
+      "id": "observatory_room2",
+      "name": "Observatory, Room 2",
+      "region": "observatory",
+      "roomType": "room",
+      "mapAccent": "#F7C325",
+      "pos": {
+        "x": -114,
+        "y": 478
+      }
+    },
+    {
+      "id": "observatory_room3",
+      "name": "Observatory, Room 3",
+      "region": "observatory",
+      "roomType": "room",
+      "mapAccent": "#F7C325",
+      "pos": {
+        "x": -257,
+        "y": 480
+      }
+    },
+    {
+      "id": "sovereign_observatory",
+      "name": "Sovereign’s Observatory",
+      "region": "observatory",
+      "roomType": "room",
+      "mapAccent": "#F7C325",
+      "pos": {
+        "x": -395,
+        "y": 452
+      }
+    },
+    {
+      "id": "the_forge",
+      "name": "The Forge",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": 143,
+        "y": 668
+      }
+    },
+    {
+      "id": "chrono_rift_gate",
+      "name": "Chrono Space Rift, Gate",
+      "region": "chrono_rift",
+      "roomType": "room",
+      "mapAccent": "#a78bfa",
+      "pos": {
+        "x": -107,
+        "y": 66
+      }
+    },
+    {
+      "id": "chrono_rift_loop1",
+      "name": "Chrono Space Rift, Loop, Part 1",
+      "region": "chrono_rift",
+      "roomType": "room",
+      "mapAccent": "#a78bfa",
+      "pos": {
+        "x": -311,
+        "y": 577
+      }
+    },
+    {
+      "id": "chrono_rift_loop2",
+      "name": "Chrono Space Rift, Loop, Part 2",
+      "region": "chrono_rift",
+      "roomType": "room",
+      "mapAccent": "#a78bfa",
+      "pos": {
+        "x": -526,
+        "y": 289
+      }
+    },
+    {
+      "id": "chrono_rift_echo",
+      "name": "Chrono Space Rift, Echo",
+      "region": "chrono_rift",
+      "roomType": "room",
+      "mapAccent": "#a78bfa",
+      "pos": {
+        "x": -313,
+        "y": 91
+      }
+    },
+    {
+      "id": "chrono_rift_sanctum",
+      "name": "Chrono Space Rift, Sanctum",
+      "region": "chrono_rift",
+      "roomType": "miniboss",
+      "mapAccent": "#a78bfa",
+      "pos": {
+        "x": 161,
+        "y": 284
+      }
+    },
+    {
+      "id": "event_horizon_gate",
+      "name": "Event Horizon - Gate",
+      "region": "event_horizon",
+      "roomType": "room",
+      "mapAccent": "#818cf8",
+      "pos": {
+        "x": 461,
+        "y": 287
+      }
+    },
+    {
+      "id": "event_horizon_pull",
+      "name": "Event Horizon - Pull",
+      "region": "event_horizon",
+      "roomType": "room",
+      "mapAccent": "#818cf8",
+      "pos": {
+        "x": 563,
+        "y": 287
+      }
+    },
+    {
+      "id": "event_horizon_drift",
+      "name": "Event Horizon - Drift",
+      "region": "event_horizon",
+      "roomType": "room",
+      "mapAccent": "#818cf8",
+      "pos": {
+        "x": 659,
+        "y": 386
+      }
+    },
+    {
+      "id": "event_horizon_core",
+      "name": "Event Horizon - Core",
+      "region": "event_horizon",
+      "roomType": "miniboss",
+      "mapAccent": "#818cf8",
+      "pos": {
+        "x": 717,
+        "y": 493
+      }
+    },
+    {
+      "id": "void_expanse_room1",
+      "name": "The Void Expanse, Room 1",
+      "region": "void_expanse",
+      "roomType": "room",
+      "mapAccent": "#E100BB",
+      "pos": {
+        "x": -282,
+        "y": 258
+      }
+    },
+    {
+      "id": "void_expanse_room2",
+      "name": "The Void Expanse, Room 2",
+      "region": "void_expanse",
+      "roomType": "room",
+      "mapAccent": "#E100BB",
+      "pos": {
+        "x": -214,
+        "y": 382
+      }
+    },
+    {
+      "id": "one_way_teleport_gate_to_paradox_engine",
+      "name": "One Way Teleport Gate to Paradox Engine",
+      "region": "teleport",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": -42,
+        "y": 170
+      }
+    },
+    {
+      "id": "warp_gate_nexus_room1",
+      "name": "Warp Gate Nexus Room 1",
+      "region": "warp",
+      "roomType": "room",
+      "mapAccent": "#AC6363",
+      "pos": {
+        "x": -55,
+        "y": 274
+      }
+    },
+    {
+      "id": "warp_gate_nexus_room2",
+      "name": "Warp Gate Nexus Room 2",
+      "region": "warp",
+      "roomType": "miniboss",
+      "mapAccent": "#AC6363",
+      "pos": {
+        "x": 202,
+        "y": 417
+      }
+    },
+    {
+      "id": "one_way_warp_gate_to_inverted_spire",
+      "name": "One Way Warp Gate to Inverted Spire",
+      "region": "teleport",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": -55,
+        "y": 371
+      }
+    },
+    {
+      "id": "inverted_spire",
+      "name": "Inverted Spire",
+      "region": "spire",
+      "roomType": "room",
+      "mapAccent": "#0088FF",
+      "pos": {
+        "x": 717,
+        "y": 606
+      }
+    },
+    {
+      "id": "graviton_core_room1",
+      "name": "Graviton Core, Room 1",
+      "region": "graviton",
+      "roomType": "room",
+      "mapAccent": "#4BCA61",
+      "pos": {
+        "x": 397,
+        "y": 668
+      }
+    },
+    {
+      "id": "graviton_core_room2",
+      "name": "Graviton Core, Room 2",
+      "region": "graviton",
+      "roomType": "room",
+      "mapAccent": "#4BCA61",
+      "pos": {
+        "x": 565,
+        "y": 695
+      }
+    },
+    {
+      "id": "graviton_core_room3",
+      "name": "Graviton Core, Room 3",
+      "region": "graviton",
+      "roomType": "miniboss",
+      "mapAccent": "#4BCA61",
+      "pos": {
+        "x": 515,
+        "y": 843
+      }
+    },
+    {
+      "id": "the_vault_room1",
+      "name": "The Vault, Room 1",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": "#897A5F",
+      "pos": {
+        "x": 63,
+        "y": 767
+      }
+    },
+    {
+      "id": "the_vault_room2",
+      "name": "The Vault, Room 2",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": "#897A5F",
+      "pos": {
+        "x": 143,
+        "y": 861
+      }
+    },
+    {
+      "id": "the_rift",
+      "name": "The Rift",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": -96,
+        "y": 861
+      }
+    },
+    {
+      "id": "polar_shift_room1",
+      "name": "Polar Shift, Room 1",
+      "region": "polar",
+      "roomType": "room",
+      "mapAccent": "#F7E600",
+      "pos": {
+        "x": -311,
+        "y": 710
+      }
+    },
+    {
+      "id": "polar_shift_room2",
+      "name": "Polar Shift, Room 2",
+      "region": "polar",
+      "roomType": "miniboss",
+      "mapAccent": "#F7E600",
+      "pos": {
+        "x": -440,
+        "y": 700
+      }
+    },
+    {
+      "id": "paradox_engine_room1",
+      "name": "Paradox Engine, Room 1",
+      "region": "paradox",
+      "roomType": "room",
+      "mapAccent": "#4BCA61",
+      "pos": {
+        "x": -479,
+        "y": 826
+      }
+    },
+    {
+      "id": "paradox_engine_room2",
+      "name": "Paradox Engine, Room 2",
+      "region": "paradox",
+      "roomType": "miniboss",
+      "mapAccent": "#4BCA61",
+      "pos": {
+        "x": -376,
+        "y": 871
+      }
+    },
+    {
+      "id": "teleport_from_paradox_engine_to_upper_ruins_1",
+      "name": "Teleport from Paradox Engine to Upper Ruins",
+      "region": "teleport",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": 173,
+        "y": 260
+      }
+    },
+    {
+      "id": "static_field_room1",
+      "name": "Static Field, Room 1",
+      "region": "static",
+      "roomType": "room",
+      "mapAccent": "#6558F5",
+      "pos": {
+        "x": -376,
+        "y": 981
+      }
+    },
+    {
+      "id": "static_field_room2",
+      "name": "Static Field, Room 2",
+      "region": "static",
+      "roomType": "miniboss",
+      "mapAccent": "#6558F5",
+      "pos": {
+        "x": -272,
+        "y": 981
+      }
+    },
+    {
+      "id": "antechamber",
+      "name": "The Antechamber",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": -33,
+        "y": 984
+      }
+    },
+    {
+      "id": "hollow_core",
+      "name": "Hollow Core",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": "#C08CEA",
+      "pos": {
+        "x": 128,
+        "y": 984
+      }
+    },
+    {
+      "id": "spawn_area_2",
+      "name": "Spawn Area?",
+      "region": "origin",
+      "roomType": "room",
+      "mapAccent": null,
+      "pos": {
+        "x": -33,
+        "y": 900
+      }
+    },
+    {
+      "id": "tutorial_final",
+      "name": "Tutorial Area? Final Boss Fight",
+      "region": "origin",
+      "roomType": "boss",
+      "mapAccent": null,
+      "pos": {
+        "x": 107,
+        "y": 592
+      }
+    },
+    {
+      "id": "sovereign_room1",
+      "name": "Sovereign Room 1",
+      "region": "sovereign",
+      "roomType": "room",
+      "mapAccent": "#D3455B",
+      "pos": {
+        "x": 221,
+        "y": 109
+      }
+    },
+    {
+      "id": "sovereign_room2",
+      "name": "Sovereign Room 2",
+      "region": "sovereign",
+      "roomType": "room",
+      "mapAccent": "#D3455B",
+      "pos": {
+        "x": 252,
+        "y": 668
+      }
+    },
+    {
+      "id": "sovereign_room3",
+      "name": "Sovereign Room 3",
+      "region": "sovereign",
+      "roomType": "room",
+      "mapAccent": "#D3455B",
+      "pos": {
+        "x": 48,
+        "y": 290
+      }
+    },
+    {
+      "id": "sovereign_room4",
+      "name": "Sovereign Room 4",
+      "region": "sovereign",
+      "roomType": "room",
+      "mapAccent": "#D3455B",
+      "pos": {
+        "x": -156,
+        "y": 671
+      }
+    },
+    {
+      "id": "sovereign_army_reserve",
+      "name": "Sovereign Army Reserve",
+      "region": "sovereign",
+      "roomType": "room",
+      "mapAccent": "#D3455B",
+      "pos": {
+        "x": 681,
+        "y": 979
+      }
+    },
+    {
+      "id": "try_out_region",
+      "name": "Try out region",
+      "region": "sovereign",
+      "roomType": "room",
+      "mapAccent": "#D3455B",
+      "pos": {
+        "x": 971,
+        "y": 979
+      }
+    }
+  ],
+  "connections": [
+    [
+      "spawn_area_1",
+      "tutorial_area",
+      false,
+      false
+    ],
+    [
+      "tutorial_area",
+      "the_fracture_part1",
+      false,
+      true
+    ],
+    [
+      "the_fracture_part1",
+      "the_fracture_part3",
+      false,
+      false
+    ],
+    [
+      "the_fracture_part1",
+      "the_fracture_part2",
+      false,
+      false
+    ],
+    [
+      "the_fracture_part1",
+      "crag_entrance",
+      true,
+      false
+    ],
+    [
+      "the_fracture_part2",
+      "mirror_veil_gate",
+      false,
+      false
+    ],
+    [
+      "the_fracture_part2",
+      "sovereign_room1",
+      true,
+      false
+    ],
+    [
+      "the_fracture_part3",
+      "the_fracture_part4",
+      false,
+      false
+    ],
+    [
+      "the_fracture_part3",
+      "chrono_rift_echo",
+      true,
+      false
+    ],
+    [
+      "the_fracture_part4",
+      "echo_bridge_part1",
+      false,
+      false
+    ],
+    [
+      "crag_entrance",
+      "crag_breach",
+      false,
+      false
+    ],
+    [
+      "crag_breach",
+      "crag_altar",
+      false,
+      false
+    ],
+    [
+      "crag_altar",
+      "crag_warden",
+      false,
+      false
+    ],
+    [
+      "crag_warden",
+      "echo_bridge_part1",
+      false,
+      true
+    ],
+    [
+      "crag_warden",
+      "sovereign_room3",
+      true,
+      false
+    ],
+    [
+      "mirror_veil_gate",
+      "mirror_veil_reflection",
+      false,
+      false
+    ],
+    [
+      "mirror_veil_gate",
+      "timeline_x_roads_room1",
+      false,
+      false
+    ],
+    [
+      "mirror_veil_reflection",
+      "mirror_veil_hollow",
+      false,
+      false
+    ],
+    [
+      "mirror_veil_hollow",
+      "mirror_veil_sanctum",
+      false,
+      false
+    ],
+    [
+      "mirror_veil_sanctum",
+      "mirror_corridor",
+      false,
+      false
+    ],
+    [
+      "mirror_corridor",
+      "event_horizon_gate",
+      false,
+      false
+    ],
+    [
+      "echo_bridge_part1",
+      "upper_ruins",
+      false,
+      false
+    ],
+    [
+      "echo_bridge_part1",
+      "void_expanse_room1",
+      true,
+      false
+    ],
+    [
+      "echo_bridge_part1",
+      "observatory_room2",
+      true,
+      false
+    ],
+    [
+      "echo_bridge_part1",
+      "crystal_cavern",
+      false,
+      false
+    ],
+    [
+      "echo_bridge_part1",
+      "timeline_x_roads_room1",
+      false,
+      false
+    ],
+    [
+      "echo_bridge_prison",
+      "timeline_x_roads_room2",
+      false,
+      false
+    ],
+    [
+      "echo_bridge_prison",
+      "event_horizon_pull",
+      false,
+      false
+    ],
+    [
+      "upper_ruins",
+      "pacifist_region",
+      false,
+      false
+    ],
+    [
+      "crystal_cavern",
+      "echoing_abyss_room1",
+      false,
+      false
+    ],
+    [
+      "crystal_cavern",
+      "timeline_x_roads_room3",
+      true,
+      false
+    ],
+    [
+      "crystal_cavern",
+      "timeline_x_roads_room1",
+      false,
+      false
+    ],
+    [
+      "echoing_abyss_room1",
+      "echoing_abyss_room2",
+      false,
+      false
+    ],
+    [
+      "timeline_x_roads_room1",
+      "timeline_x_roads_room2",
+      false,
+      false
+    ],
+    [
+      "timeline_x_roads_room1",
+      "echo_bridge_prison",
+      false,
+      false
+    ],
+    [
+      "timeline_x_roads_room2",
+      "timeline_x_roads_room3",
+      false,
+      false
+    ],
+    [
+      "timeline_x_roads_room2",
+      "puppet_strings_part1",
+      true,
+      false
+    ],
+    [
+      "timeline_x_roads_room2",
+      "observatory_room1",
+      true,
+      false
+    ],
+    [
+      "timeline_x_roads_room2",
+      "sovereign_room2",
+      true,
+      false
+    ],
+    [
+      "timeline_x_roads_room2",
+      "graviton_core_room1",
+      true,
+      false
+    ],
+    [
+      "timeline_x_roads_room2",
+      "the_rift",
+      true,
+      false
+    ],
+    [
+      "timeline_x_roads_room3",
+      "chrono_rift_gate",
+      false,
+      false
+    ],
+    [
+      "timeline_x_roads_room3",
+      "the_forge",
+      true,
+      false
+    ],
+    [
+      "puppet_strings_part1",
+      "puppet_strings_part2",
+      false,
+      false
+    ],
+    [
+      "puppet_strings_part2",
+      "timeline_x_roads_room2",
+      false,
+      false
+    ],
+    [
+      "observatory_room1",
+      "observatory_room2",
+      false,
+      false
+    ],
+    [
+      "observatory_room2",
+      "observatory_room3",
+      false,
+      false
+    ],
+    [
+      "observatory_room3",
+      "sovereign_observatory",
+      true,
+      false
+    ],
+    [
+      "sovereign_observatory",
+      "void_expanse_room1",
+      false,
+      false
+    ],
+    [
+      "the_forge",
+      "chrono_rift_gate",
+      false,
+      false
+    ],
+    [
+      "the_forge",
+      "the_vault_room1",
+      false,
+      false
+    ],
+    [
+      "the_forge",
+      "observatory_room1",
+      false,
+      false
+    ],
+    [
+      "chrono_rift_gate",
+      "chrono_rift_loop1",
+      false,
+      false
+    ],
+    [
+      "chrono_rift_loop1",
+      "chrono_rift_loop2",
+      false,
+      false
+    ],
+    [
+      "chrono_rift_loop1",
+      "void_expanse_room1",
+      true,
+      false
+    ],
+    [
+      "chrono_rift_loop1",
+      "sovereign_room4",
+      true,
+      false
+    ],
+    [
+      "chrono_rift_loop2",
+      "chrono_rift_echo",
+      false,
+      false
+    ],
+    [
+      "chrono_rift_loop2",
+      "event_horizon_pull",
+      true,
+      false
+    ],
+    [
+      "chrono_rift_echo",
+      "chrono_rift_sanctum",
+      false,
+      false
+    ],
+    [
+      "chrono_rift_echo",
+      "void_expanse_room1",
+      false,
+      false
+    ],
+    [
+      "chrono_rift_sanctum",
+      "echoing_abyss_room1",
+      false,
+      true
+    ],
+    [
+      "event_horizon_gate",
+      "event_horizon_pull",
+      false,
+      false
+    ],
+    [
+      "event_horizon_pull",
+      "event_horizon_drift",
+      false,
+      false
+    ],
+    [
+      "event_horizon_drift",
+      "event_horizon_core",
+      false,
+      false
+    ],
+    [
+      "event_horizon_core",
+      "inverted_spire",
+      true,
+      false
+    ],
+    [
+      "void_expanse_room1",
+      "void_expanse_room2",
+      true,
+      false
+    ],
+    [
+      "void_expanse_room2",
+      "one_way_teleport_gate_to_paradox_engine",
+      false,
+      false
+    ],
+    [
+      "void_expanse_room2",
+      "warp_gate_nexus_room1",
+      false,
+      false
+    ],
+    [
+      "one_way_teleport_gate_to_paradox_engine",
+      "paradox_engine_room1",
+      false,
+      true
+    ],
+    [
+      "warp_gate_nexus_room1",
+      "warp_gate_nexus_room2",
+      false,
+      false
+    ],
+    [
+      "warp_gate_nexus_room2",
+      "one_way_warp_gate_to_inverted_spire",
+      false,
+      false
+    ],
+    [
+      "one_way_warp_gate_to_inverted_spire",
+      "inverted_spire",
+      false,
+      true
+    ],
+    [
+      "inverted_spire",
+      "timeline_x_roads_room2",
+      false,
+      false
+    ],
+    [
+      "graviton_core_room1",
+      "graviton_core_room2",
+      true,
+      false
+    ],
+    [
+      "graviton_core_room1",
+      "the_vault_room1",
+      false,
+      false
+    ],
+    [
+      "graviton_core_room2",
+      "graviton_core_room3",
+      true,
+      false
+    ],
+    [
+      "graviton_core_room2",
+      "inverted_spire",
+      false,
+      false
+    ],
+    [
+      "graviton_core_room3",
+      "the_vault_room1",
+      false,
+      false
+    ],
+    [
+      "graviton_core_room3",
+      "the_vault_room2",
+      true,
+      false
+    ],
+    [
+      "graviton_core_room3",
+      "sovereign_army_reserve",
+      true,
+      false
+    ],
+    [
+      "the_vault_room1",
+      "polar_shift_room1",
+      false,
+      false
+    ],
+    [
+      "the_vault_room1",
+      "the_rift",
+      true,
+      false
+    ],
+    [
+      "the_vault_room1",
+      "the_vault_room2",
+      false,
+      false
+    ],
+    [
+      "the_vault_room2",
+      "the_rift",
+      false,
+      false
+    ],
+    [
+      "the_rift",
+      "polar_shift_room1",
+      false,
+      false
+    ],
+    [
+      "the_rift",
+      "antechamber",
+      false,
+      false
+    ],
+    [
+      "polar_shift_room1",
+      "polar_shift_room2",
+      false,
+      false
+    ],
+    [
+      "polar_shift_room2",
+      "paradox_engine_room1",
+      false,
+      true
+    ],
+    [
+      "paradox_engine_room1",
+      "paradox_engine_room2",
+      true,
+      false
+    ],
+    [
+      "paradox_engine_room2",
+      "teleport_from_paradox_engine_to_upper_ruins_1",
+      false,
+      false
+    ],
+    [
+      "paradox_engine_room2",
+      "static_field_room1",
+      false,
+      false
+    ],
+    [
+      "teleport_from_paradox_engine_to_upper_ruins_1",
+      "pacifist_region",
+      true,
+      true
+    ],
+    [
+      "static_field_room1",
+      "static_field_room2",
+      true,
+      false
+    ],
+    [
+      "static_field_room1",
+      "void_expanse_room2",
+      false,
+      true
+    ],
+    [
+      "static_field_room1",
+      "graviton_core_room1",
+      false,
+      true
+    ],
+    [
+      "static_field_room2",
+      "the_rift",
+      false,
+      false
+    ],
+    [
+      "static_field_room2",
+      "graviton_core_room1",
+      false,
+      true
+    ],
+    [
+      "antechamber",
+      "hollow_core",
+      false,
+      false
+    ],
+    [
+      "antechamber",
+      "spawn_area_2",
+      true,
+      false
+    ],
+    [
+      "spawn_area_2",
+      "tutorial_final",
+      false,
+      false
+    ],
+    [
+      "sovereign_army_reserve",
+      "try_out_region",
+      false,
+      false
+    ]
+  ]
+}

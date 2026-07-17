@@ -15,15 +15,20 @@ const DEFAULT_KEYBINDS = {
   aimDown:       'ArrowDown',  // also attack-direction / duck / shard-shot tilt
   jump:          'KeyZ',
   attack:        'KeyX',
+  // Phase Dash and Dash share this one binding as of 2026-07-16 (user
+  // feedback: "too many buttons") — see player.js's merged trigger. Phase
+  // Dash fires automatically whenever it's unlocked and off cooldown;
+  // otherwise this gives a normal Dash. KeyF is free again (no longer bound
+  // to anything) since the separate phaseDash action was retired.
   dash:          'KeyC',
-  phaseDash:     'KeyF',
   shardShot:     'KeyV',
   stillpoint:    'KeyQ',
-  gravitonSurge: 'KeyE',       // reserved — ability not implemented yet (expansion.md Phase 1)
-  voidTether:    'KeyR',       // reserved — ability not implemented yet (story.md §4)
+  gravitonSurge: 'KeyE',
+  voidTether:    'KeyR',
+  callChild:     'KeyF', // companion.js — call the Child to you (KeyF freed 2026-07-16 when phaseDash merged into dash)
   map:           'Tab',
   pause:         'Escape',
-  fullscreen:    'Backquote', // moved off KeyF 2026-07-14 — F is now Phase Dash
+  fullscreen:    'Backquote',
   inventory:     'KeyI',
 };
 
@@ -34,12 +39,12 @@ const ACTION_LABELS = {
   aimDown: 'Aim / Move Down',
   jump: 'Jump',
   attack: 'Attack / Parry',
-  dash: 'Dash',
-  phaseDash: 'Phase Dash',
+  dash: 'Dash / Phase Dash',
   shardShot: 'Shard Shot (hold)',
   stillpoint: 'Stillpoint',
-  gravitonSurge: 'Graviton Surge (not yet built)',
-  voidTether: 'Void Tether (not yet built)',
+  gravitonSurge: 'Graviton Surge',
+  voidTether: 'Void Tether',
+  callChild: 'Call the Child',
   map: 'Map',
   pause: 'Pause',
   fullscreen: 'Toggle Fullscreen',

@@ -1,0 +1,380 @@
+{
+  "the_fracture_part3": {
+    "x": -26,
+    "y": 115,
+    "w": 64,
+    "h": 40
+  },
+  "the_fracture_part2": {
+    "x": -3,
+    "y": 266,
+    "w": 40,
+    "h": 205
+  },
+  "chrono_rift_gate": {
+    "x": -107,
+    "y": 66,
+    "w": 64,
+    "h": 72
+  },
+  "mirror_veil_reflection": {
+    "x": 427,
+    "y": 98,
+    "w": 143,
+    "h": 50
+  },
+  "mirror_veil_sanctum": {
+    "x": 382,
+    "y": 164,
+    "w": 64,
+    "h": 50
+  },
+  "event_horizon_pull": {
+    "x": 563,
+    "y": 287,
+    "w": 94,
+    "h": 187
+  },
+  "event_horizon_drift": {
+    "x": 659,
+    "y": 386,
+    "w": 64,
+    "h": 50
+  },
+  "inverted_spire": {
+    "x": 717,
+    "y": 606,
+    "w": 94,
+    "h": 96
+  },
+  "event_horizon_core": {
+    "x": 717,
+    "y": 493,
+    "w": 94,
+    "h": 96
+  },
+  "event_horizon_gate": {
+    "x": 461,
+    "y": 287,
+    "w": 64,
+    "h": 50
+  },
+  "mirror_corridor": {
+    "x": 382,
+    "y": 287,
+    "w": 64,
+    "h": 147
+  },
+  "mirror_veil_hollow": {
+    "x": 461,
+    "y": 164,
+    "w": 64,
+    "h": 50
+  },
+  "timeline_x_roads_room2": {
+    "x": 356,
+    "y": 526,
+    "w": 269,
+    "h": 161
+  },
+  "timeline_x_roads_room1": {
+    "x": 161,
+    "y": 577,
+    "w": 63,
+    "h": 36
+  },
+  "puppet_strings_part2": {
+    "x": 589,
+    "y": 538,
+    "w": 132,
+    "h": 60
+  },
+  "puppet_strings_part1": {
+    "x": 589,
+    "y": 461,
+    "w": 132,
+    "h": 60
+  },
+  "mirror_veil_gate": {
+    "x": 307,
+    "y": 217,
+    "w": 56,
+    "h": 288
+  },
+  "echo_bridge_prison": {
+    "x": 441,
+    "y": 402,
+    "w": 117,
+    "h": 50
+  },
+  "crystal_cavern": {
+    "x": 142,
+    "y": 478,
+    "w": 122,
+    "h": 83
+  },
+  "observatory_room1": {
+    "x": -26,
+    "y": 679,
+    "w": 139,
+    "h": 83
+  },
+  "observatory_room2": {
+    "x": -114,
+    "y": 478,
+    "w": 149,
+    "h": 83
+  },
+  "observatory_room3": {
+    "x": -257,
+    "y": 480,
+    "w": 122,
+    "h": 83
+  },
+  "void_expanse_room1": {
+    "x": -282,
+    "y": 258,
+    "w": 392,
+    "h": 222
+  },
+  "sovereign_observatory": {
+    "x": -395,
+    "y": 452,
+    "w": 139,
+    "h": 83
+  },
+  "the_vault_room2": {
+    "x": 143,
+    "y": 861,
+    "w": 125,
+    "h": 36
+  },
+  "antechamber": {
+    "x": -33,
+    "y": 984,
+    "w": 168,
+    "h": 119
+  },
+  "hollow_core": {
+    "x": 128,
+    "y": 984,
+    "w": 79,
+    "h": 42
+  },
+  "the_rift": {
+    "x": -96,
+    "y": 861,
+    "w": 294,
+    "h": 68
+  },
+  "graviton_core_room3": {
+    "x": 515,
+    "y": 843,
+    "w": 100,
+    "h": 122
+  },
+  "try_out_region": {
+    "x": 971,
+    "y": 979,
+    "w": 73,
+    "h": 53
+  },
+  "sovereign_army_reserve": {
+    "x": 681,
+    "y": 979,
+    "w": 476,
+    "h": 53
+  },
+  "graviton_core_room2": {
+    "x": 565,
+    "y": 695,
+    "w": 124,
+    "h": 83
+  },
+  "graviton_core_room1": {
+    "x": 397,
+    "y": 668,
+    "w": 186,
+    "h": 83
+  },
+  "the_vault_room1": {
+    "x": 63,
+    "y": 767,
+    "w": 595,
+    "h": 83
+  },
+  "the_forge": {
+    "x": 143,
+    "y": 668,
+    "w": 139,
+    "h": 83
+  },
+  "echo_bridge_part1": {
+    "x": -26,
+    "y": 401,
+    "w": 582,
+    "h": 38
+  },
+  "upper_ruins": {
+    "x": 227,
+    "y": 323,
+    "w": 70,
+    "h": 75
+  },
+  "pacifist_region": {
+    "x": 221,
+    "y": 255,
+    "w": 54,
+    "h": 34
+  },
+  "tutorial_area": {
+    "x": 16,
+    "y": 16,
+    "w": 107,
+    "h": 60
+  },
+  "spawn_area_1": {
+    "x": -70,
+    "y": 16,
+    "w": 30,
+    "h": 16
+  },
+  "crag_entrance": {
+    "x": 132,
+    "y": 146,
+    "w": 88,
+    "h": 58
+  },
+  "crag_breach": {
+    "x": 213,
+    "y": 179,
+    "w": 56,
+    "h": 101
+  },
+  "crag_altar": {
+    "x": 124,
+    "y": 248,
+    "w": 72,
+    "h": 101
+  },
+  "crag_warden": {
+    "x": 124,
+    "y": 344,
+    "w": 72,
+    "h": 32
+  },
+  "sovereign_room1": {
+    "x": 221,
+    "y": 109,
+    "w": 75,
+    "h": 22
+  },
+  "chrono_rift_loop1": {
+    "x": -311,
+    "y": 577,
+    "w": 488,
+    "h": 87
+  },
+  "chrono_rift_echo": {
+    "x": -313,
+    "y": 91,
+    "w": 313,
+    "h": 36
+  },
+  "chrono_rift_loop2": {
+    "x": -526,
+    "y": 289,
+    "w": 77,
+    "h": 433
+  },
+  "warp_gate_nexus_room1": {
+    "x": -55,
+    "y": 274,
+    "w": 30,
+    "h": 40
+  },
+  "one_way_warp_gate_to_inverted_spire": {
+    "x": -55,
+    "y": 371,
+    "w": 30,
+    "h": 9
+  },
+  "one_way_teleport_gate_to_paradox_engine": {
+    "x": -42,
+    "y": 170,
+    "w": 24,
+    "h": 22
+  },
+  "sovereign_room2": {
+    "x": 252,
+    "y": 668,
+    "w": 62,
+    "h": 58
+  },
+  "echoing_abyss_room2": {
+    "x": 15,
+    "y": 515,
+    "w": 83,
+    "h": 30
+  },
+  "echoing_abyss_room1": {
+    "x": 11,
+    "y": 472,
+    "w": 83,
+    "h": 30
+  },
+  "sovereign_room3": {
+    "x": 48,
+    "y": 290,
+    "w": 47,
+    "h": 78
+  },
+  "static_field_room1": {
+    "x": -376,
+    "y": 981,
+    "w": 89,
+    "h": 94
+  },
+  "static_field_room2": {
+    "x": -272,
+    "y": 981,
+    "w": 89,
+    "h": 94
+  },
+  "paradox_engine_room2": {
+    "x": -376,
+    "y": 871,
+    "w": 89,
+    "h": 94
+  },
+  "teleport_from_paradox_engine_to_upper_ruins_1": {
+    "x": 173,
+    "y": 260,
+    "w": 21,
+    "h": 44
+  },
+  "paradox_engine_room1": {
+    "x": -479,
+    "y": 826,
+    "w": 89,
+    "h": 94
+  },
+  "polar_shift_room1": {
+    "x": -311,
+    "y": 710,
+    "w": 132,
+    "h": 139
+  },
+  "polar_shift_room2": {
+    "x": -440,
+    "y": 700,
+    "w": 96,
+    "h": 66
+  },
+  "sovereign_room4": {
+    "x": -156,
+    "y": 671,
+    "w": 79,
+    "h": 78
+  }
+}
