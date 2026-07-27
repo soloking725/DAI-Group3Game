@@ -1,3 +1,12 @@
+> **ARCHIVED 2026-07-21**: moved out of `Plans/` during a doc staleness
+> pass. This doc's claim that the arrest/prison graph fix (variant 3c)
+> "has NOT been applied yet" is now stale/contradicted — `floor_plan.md`'s
+> live mermaid already contains `Echo_Bridge_Prison` and
+> `child_choice_resolved` gates on Mirror Corridor/Crystal Cavern, matching
+> variant 3c almost exactly. Kept for historical context only; treat
+> `floor_plan.md`'s own dated correction log as authoritative, not this
+> file.
+
 # Floor Plan — open issues (session notes, 2026-07-16)
 
 Working notes from an extended session iterating on `floor_plan.md` /

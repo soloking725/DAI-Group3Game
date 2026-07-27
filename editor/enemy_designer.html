@@ -34,9 +34,13 @@
   .card-head b { color: #e0d7ff; font-size: 10.5px; text-transform: uppercase; }
   #exp-out { width: 100%; height: 140px; background: #04040a; border: 1px solid #1e1e3e; color: #67e8f9;
     font-size: 9.5px; resize: none; font-family: monospace; padding: 4px; }
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
 </style>
 </head>
 <body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
 
 <div id="stage">
   <canvas id="game"></canvas>
@@ -56,6 +60,15 @@
   <h2>Identity</h2>
   <div class="row"><label>Name / id</label><input type="text" id="idInput" value="my_enemy"></div>
   <div class="row"><label>Color</label><input type="color" id="colorInput" value="#f87171"></div>
+  <div class="row"><label>Coordination role</label>
+    <select id="roleInput">
+      <option value="">none</option>
+      <option value="tank">tank</option>
+      <option value="ranged">ranged</option>
+      <option value="flanker">flanker</option>
+    </select>
+  </div>
+  <p class="note">Only matters with 2+ enemies in the same room — tank presses forward, ranged holds back once a tank is engaged, flanker commits to a side. No effect solo.</p>
 
   <h2>Stats</h2>
   <div id="statFields"></div>
@@ -89,6 +102,22 @@
   <div class="row"><label>Enable Rage</label><input type="checkbox" id="rageEnabled"></div>
   <div id="rageFields"></div>
 
+  <h2>Defense (optional)</h2>
+  <p class="note">Triggers on the frame the player's swing starts — see enemy.js's updateDefense(). Off by default (Defense-Verb Rollout, 2026-07-21).</p>
+  <div class="row"><label>Block</label><input type="checkbox" id="blockEnabled"></div>
+  <div id="blockFields"></div>
+  <div class="row"><label>Dodge</label><input type="checkbox" id="dodgeEnabled"></div>
+  <div id="dodgeFields"></div>
+  <div class="row"><label>Breakout</label><input type="checkbox" id="breakoutEnabled"></div>
+  <div id="breakoutFields"></div>
+  <div class="row"><label>Dash Punish</label><input type="checkbox" id="dashPunishEnabled"></div>
+  <p class="note">Dash Punish has no sub-fields — a fast counter-swipe fires after 2 phase-dash-throughs within 120px, hardcoded in updateDefense().</p>
+
+  <h2>Regen (optional)</h2>
+  <div class="row"><label>Enable Regen</label><input type="checkbox" id="regenEnabled"></div>
+  <div id="regenFields"></div>
+  <p class="note">Heals over time unless it's taken damage recently (Timeworn Husk, expansion.md #11) — any hit resets the countdown.</p>
+
   <h2>On Death</h2>
   <select id="onDeathType">
     <option value="none">none</option>
@@ -114,7 +143,9 @@
 <script src="../game/audio.js"></script>
 <script src="../game/input.js"></script>
 <script src="../game/physics.js"></script>
+<script src="../game/attackVFX.js"></script>
 <script src="../game/animdata.js"></script>
+<script src="../game/animImageStore.js"></script>
 <script src="../game/area.js"></script>
 <script src="../game/map.js"></script>
 <script src="../game/ability.js"></script>
@@ -126,6 +157,9 @@
 <script src="../game/companion.js"></script>
 <script src="../game/player.js"></script>
 <script src="../game/game.js"></script>
+<script src="../game/devContext.js"></script>
+<script src="../game/unsavedGuard.js"></script>
+<script src="../game/undoHistory.js"></script>
 
 <script>
 // ─── Parameter schemas (UI metadata only — defaults live in enemy.js's
@@ -135,6 +169,14 @@ const MOVEMENT_UI = {
   ground_chase: [
     { key: 'speed', label: 'Chase Speed', min: 0.3, max: 6, step: 0.1 },
     { key: 'patrolSpeed', label: 'Patrol Speed', min: 0.1, max: 3, step: 0.1 },
+    // Jump-to-player (2026-07-24) — see MOVEMENT_BEHAVIORS.ground_chase in
+    // enemy.js. Off by default; enabling it lets this enemy jump a ledge/gap
+    // while chasing and jump up/down toward a player outside its normal
+    // vertical band instead of just standing there unable to engage.
+    { key: 'canJump', label: 'Can Jump', bool: true },
+    { key: 'jumpForce', label: 'Jump Force (neg = up)', min: -16, max: -3, step: 0.5 },
+    { key: 'jumpCooldown', label: 'Jump Cooldown (frames)', min: 10, max: 200, step: 5 },
+    { key: 'jumpDetectRange', label: 'Jump Detect Range (px)', min: 40, max: 300, step: 10 },
   ],
   hover: [
     { key: 'mode', label: 'Mode', options: ['approach', 'maintain_distance', 'stationary_bob'] },
@@ -178,6 +220,20 @@ const ATTACK_UI = {
     { key: 'throwKnockbackY', label: 'Throw Knockback Y (neg = up)', min: -30, max: 10, step: 1 },
     { key: 'throwHitStun', label: 'Throw Hit Stun (frames)', min: 0, max: 60, step: 1 },
   ],
+  // Command Grab (enemy_attack_vocabulary_plan.md) — same shape as `grab`
+  // above, defaults tuned fast (10f windup vs grab's 24f) per 2026-07-20
+  // user direction.
+  command_grab: [
+    { key: 'range', label: 'Grab Range (px)', min: 10, max: 100, step: 2 },
+    { key: 'windupFrames', label: 'Windup (frames)', min: 4, max: 60, step: 1 },
+    { key: 'activeFrames', label: 'Hold Duration (frames)', min: 5, max: 100, step: 1 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 20, max: 400, step: 5 },
+    { key: 'damagePerTick', label: 'Damage / Tick', min: 1, max: 10, step: 1 },
+    { key: 'tickCooldown', label: 'Tick Cooldown (frames)', min: 5, max: 90, step: 1 },
+    { key: 'throwKnockbackX', label: 'Throw Knockback X', min: 0, max: 30, step: 1 },
+    { key: 'throwKnockbackY', label: 'Throw Knockback Y (neg = up)', min: -30, max: 10, step: 1 },
+    { key: 'throwHitStun', label: 'Throw Hit Stun (frames)', min: 0, max: 60, step: 1 },
+  ],
   dash_charge: [
     { key: 'range', label: 'Trigger Range (px)', min: 50, max: 500, step: 10 },
     { key: 'windupFrames', label: 'Windup (frames)', min: 5, max: 90, step: 1 },
@@ -188,6 +244,10 @@ const ATTACK_UI = {
     { key: 'knockbackX', label: 'Knockback X', min: 0, max: 20, step: 0.5 },
     { key: 'knockbackY', label: 'Knockback Y (neg = up)', min: -20, max: 5, step: 0.5 },
     { key: 'knockbackHitStun', label: 'Knockback Hit Stun (frames)', min: 0, max: 40, step: 1 },
+    // Aerial charge ("charging in flight", 2026-07-24) — pairs with a
+    // hover-movement enemy: charges the full 2D vector toward the player
+    // instead of pure horizontal. See ATTACK_BEHAVIORS.dash_charge in enemy.js.
+    { key: 'aerial', label: 'Aerial (2D charge, for flying enemies)', bool: true },
   ],
   beam: [
     { key: 'range', label: 'Trigger Range (px)', min: 50, max: 800, step: 10 },
@@ -216,10 +276,15 @@ const ATTACK_UI = {
     { key: 'cooldown', label: 'Cooldown (frames)', min: 10, max: 300, step: 5 },
     { key: 'damage', label: 'Damage', min: 1, max: 20, step: 1 },
     { key: 'projectileSpeed', label: 'Projectile Speed', min: 1, max: 12, step: 0.5 },
-    { key: 'pattern', label: 'Pattern', options: ['straight', 'homing', 'arc', 'bounce', 'spread', 'piercing'] },
+    { key: 'pattern', label: 'Pattern', options: ['straight', 'homing', 'arc', 'bounce', 'spread', 'piercing', 'gravity_well', 'mine'] },
     { key: 'projectileCount', label: 'Count (spread only)', min: 1, max: 8, step: 1 },
     { key: 'spreadAngle', label: 'Spread Angle° (spread only)', min: 5, max: 180, step: 5 },
     { key: 'maxBounces', label: 'Max Bounces (bounce only)', min: 0, max: 6, step: 1 },
+    { key: 'homingDuration', label: 'Homing Duration (frames, homing only)', min: 5, max: 120, step: 5 },
+    { key: 'wellRadius', label: 'Well Radius (px, gravity_well only)', min: 20, max: 250, step: 10 },
+    { key: 'wellPull', label: 'Well Pull Strength (gravity_well only)', min: 0.02, max: 0.6, step: 0.02 },
+    { key: 'armTimer', label: 'Arm Delay (frames, mine only)', min: 10, max: 180, step: 5 },
+    { key: 'mineRadius', label: 'Mine Blast Radius (px, mine only)', min: 20, max: 200, step: 10 },
   ],
   contact_field: [
     { key: 'radius', label: 'Field Radius (px)', min: 20, max: 300, step: 10 },
@@ -228,7 +293,58 @@ const ATTACK_UI = {
     { key: 'cancelsPhaseDash', label: 'Cancels Phase Dash', bool: true },
   ],
   shield_reflect: [],
+  // Shield Slip (enemy_attack_vocabulary_plan.md) — passive, no windup/
+  // range/cooldown fields since it's not selected through the normal
+  // attack timeline; all the real bookkeeping is hit-triggered in
+  // ComposedEnemy.takeDamage()/update(). 2026-07-20: Shard Shot never
+  // progresses the drop counter at all (see enemy.js's takeDamage()) —
+  // not exposed as a toggle here since it's the whole point of the type.
+  shield_slip: [
+    { key: 'hitThreshold', label: 'Melee Hits to Drop Shield', min: 1, max: 10, step: 1 },
+    { key: 'hitWindow', label: 'Hit Window (frames)', min: 20, max: 200, step: 5 },
+    { key: 'dropDuration', label: 'Shield-Down Duration (frames)', min: 10, max: 200, step: 5 },
+  ],
+  // Tiger Knee (enemy_attack_vocabulary_plan.md) — anti-air, only ever
+  // offered as a candidate while the player is airborne (requiresAirborne
+  // is a fixed gate read by ComposedEnemy._decideActiveAttack(), not
+  // exposed here as a toggle since it's the whole point of the type).
+  tiger_knee: [
+    { key: 'range', label: 'Attack Range (px)', min: 10, max: 150, step: 5 },
+    { key: 'windupFrames', label: 'Windup (frames)', min: 5, max: 90, step: 1 },
+    { key: 'activeFrames', label: 'Active (frames)', min: 5, max: 60, step: 1 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 10, max: 300, step: 5 },
+    { key: 'damage', label: 'Damage', min: 1, max: 10, step: 1 },
+    { key: 'hitboxWidth', label: 'Hitbox Width', min: 10, max: 80, step: 2 },
+    { key: 'hitboxHeight', label: 'Hitbox Height', min: 10, max: 80, step: 2 },
+    { key: 'knockbackX', label: 'Knockback X', min: 0, max: 20, step: 0.5 },
+    { key: 'knockbackY', label: 'Knockback Y (neg = up)', min: -20, max: 10, step: 0.5 },
+    { key: 'knockbackHitStun', label: 'Knockback Hit Stun (frames)', min: 0, max: 40, step: 1 },
+  ],
 };
+
+// Hyper-armor Windup (enemy_attack_vocabulary_plan.md) — a generic flag any
+// ACTIVE attack type can carry (read by ComposedEnemy.takeDamage(), not
+// tied to one behavior), so append it once here instead of duplicating it
+// into every schema above. Passive types (shield_reflect, contact_field,
+// shield_slip) have no windup/active phase for it to apply to, so they're
+// excluded.
+for (const t in ATTACK_UI) {
+  if (t === 'shield_reflect' || t === 'contact_field' || t === 'shield_slip') continue;
+  ATTACK_UI[t].push({ key: 'hyperArmor', label: 'Hyper Armor (no flinch/interrupt on hit)', bool: true });
+}
+
+// Vulnerable Window (2026-07-27) — a generic, guaranteed punish opening
+// after ANY attack finishes, same "hard telegraph, then a real opening"
+// rhythm Hollow Knight's Mantis Lords use. Appended once here rather than
+// duplicated into every schema above, same pattern as Hyper Armor. 0 frames
+// = off (the default, zero behavior change for every existing attack).
+// Passive types excluded for the same reason Hyper Armor excludes them —
+// no windup/active phase, no "after the attack ends" moment to hang this on.
+for (const t in ATTACK_UI) {
+  if (t === 'shield_reflect' || t === 'contact_field' || t === 'shield_slip') continue;
+  ATTACK_UI[t].push({ key: 'vulnFrames', label: 'Vulnerable Window (frames, 0 = off)', min: 0, max: 90, step: 1 });
+  ATTACK_UI[t].push({ key: 'vulnDamageMult', label: 'Vulnerable Window Damage x', min: 1, max: 3, step: 0.1 });
+}
 
 const STAT_UI = [
   { key: 'health', label: 'Health', min: 1, max: 30, step: 1 },
@@ -236,19 +352,65 @@ const STAT_UI = [
   { key: 'ignoreVertical', label: 'Ignore Vertical (flying)', bool: true },
   { key: 'knockbackResistance', label: 'Knockback Resistance', min: 0, max: 1, step: 0.05 },
   { key: 'stunResistance', label: 'Stun Resistance', min: 0, max: 1, step: 0.05 },
+  // "Armored" (enemy_attack_vocabulary_plan.md, The Catch) — Heavy/elite-
+  // tier flag; only affects the void_tether/the_catch counter (see
+  // COUNTER_UI.void_tether above). Off by default, so it stays a rare
+  // setpiece flag, not something every enemy picks up by accident.
+  { key: 'armored', label: 'Armored (The Catch: catch + throw)', bool: true },
 ];
 
 const COUNTER_UI = {
-  phase_dash: { effects: ['cancel_and_damage'], fields: {
+  phase_dash: { effects: ['cancel_and_damage', 'afterimage_strike'], fields: {
     cancel_and_damage: [
       { key: 'radius', label: 'Radius (px)', min: 20, max: 200, step: 10 },
       { key: 'damage', label: 'Damage', min: 1, max: 10, step: 1 },
+    ],
+    // Afterimage Strike (enemy_attack_vocabulary_plan.md) — dashing through
+    // this enemy arms a delayed explosive hazard where the dash ends. See
+    // enemy.js's COUNTER_EFFECTS.phase_dash.afterimage_strike and game.js's
+    // phase-dash overlap check / afterimageHazards update+draw for the real
+    // logic; this is UI-only.
+    afterimage_strike: [
+      { key: 'armDelay', label: 'Arm Delay (frames)', min: 10, max: 150, step: 5 },
+      { key: 'radius', label: 'Blast Radius (px)', min: 10, max: 150, step: 5 },
+      { key: 'damage', label: 'Damage', min: 1, max: 10, step: 1 },
     ] } },
-  shard_shot: { effects: ['reflect'], fields: { reflect: [] } },
+  shard_shot: { effects: ['reflect', 'aggro_pull', 'mote_eater'], fields: {
+    reflect: [],
+    aggro_pull: [
+      { key: 'chargeSpeed', label: 'Charge Speed', min: 0.5, max: 6, step: 0.1 },
+      { key: 'chargeDuration', label: 'Charge Duration (frames)', min: 5, max: 90, step: 1 },
+    ],
+    mote_eater: [
+      { key: 'healAmount', label: 'Heal Amount', min: 1, max: 10, step: 1 },
+    ] } },
   melee_parry: { effects: ['stun_and_double_damage'], fields: { stun_and_double_damage: [] } },
   stillpoint: { effects: ['cancel'], fields: {
     cancel: [ { key: 'radius', label: 'Radius (px)', min: 20, max: 200, step: 10 } ] } },
-  graviton_surge: { effects: ['null_field'], fields: { null_field: [] } },
+  // Ground Stomp (enemy_attack_vocabulary_plan.md, fixed 2026-07-24 — this
+  // used to be a null_field placeholder from when Graviton Surge was still
+  // unbuilt). This enemy is skipped by the ceiling-pin/slam entirely and
+  // instead fires a ground-level shockwave once per flip while in Graviton
+  // Surge range — see enemy.js's COUNTER_EFFECTS.graviton_surge.ground_stomp
+  // and game.js's gravity-flip loop for the real logic.
+  graviton_surge: { effects: ['ground_stomp'], fields: {
+    ground_stomp: [
+      { key: 'shockwaveRadius', label: 'Shockwave Radius (px)', min: 20, max: 250, step: 10 },
+      { key: 'damage', label: 'Damage', min: 0, max: 10, step: 1 },
+      { key: 'knockbackY', label: 'Knockback Y (neg = up)', min: -20, max: 0, step: 1 },
+    ] } },
+  // The Catch (enemy_attack_vocabulary_plan.md) — reverses Void Tether's
+  // pull (player flies to this enemy instead). Combine with the "Armored"
+  // stat below to also catch + grapple-throw the player on arrival; see
+  // enemy.js's COUNTER_EFFECTS.void_tether.the_catch and game.js's Void
+  // Tether cast/arrival blocks for the real logic.
+  void_tether: { effects: ['the_catch'], fields: {
+    the_catch: [
+      { key: 'throwKnockbackX', label: 'Throw Knockback X', min: 0, max: 30, step: 1 },
+      { key: 'throwKnockbackY', label: 'Throw Knockback Y (neg = up)', min: -30, max: 10, step: 1 },
+      { key: 'throwHitStun', label: 'Throw Hit Stun (frames)', min: 0, max: 60, step: 1 },
+      { key: 'damage', label: 'Damage (Armored catch only)', min: 0, max: 10, step: 1 },
+    ] } },
 };
 
 const ONDEATH_UI = {
@@ -279,7 +441,8 @@ function freshDef() {
     counters: [],
     onDeath: { type: 'none' },
     rage: null,
-    stats: { health: 4, patrolRange: 120, ignoreVertical: false, knockbackResistance: 0, stunResistance: 0 },
+    regen: null,
+    stats: { health: 4, patrolRange: 120, ignoreVertical: false, knockbackResistance: 0, stunResistance: 0, armored: false },
   };
 }
 let def = freshDef();
@@ -351,6 +514,7 @@ function makeField(container, obj, field, liveGetter) {
       obj[field.key] = sel.value;
       const live = liveGetter && liveGetter();
       if (live) live[field.key] = sel.value;
+      if (typeof historyMgr !== 'undefined' && historyMgr) historyMgr.push();
     });
     row.appendChild(sel);
   } else if (field.bool) {
@@ -361,6 +525,7 @@ function makeField(container, obj, field, liveGetter) {
       obj[field.key] = cb.checked;
       const live = liveGetter && liveGetter();
       if (live) live[field.key] = cb.checked;
+      if (typeof historyMgr !== 'undefined' && historyMgr) historyMgr.push();
     });
     row.appendChild(cb);
   } else {
@@ -377,6 +542,13 @@ function makeField(container, obj, field, liveGetter) {
       val.textContent = v;
       const live = liveGetter && liveGetter();
       if (live) live[field.key] = v;
+      // Debounced — a slider drag fires many `input` events; one history
+      // entry per drag (not per pixel) matches levelEditor's own nudge
+      // debounce for the same reason.
+      if (typeof historyMgr !== 'undefined' && historyMgr) {
+        clearTimeout(window._fieldPushTimer);
+        window._fieldPushTimer = setTimeout(() => historyMgr.push(), 300);
+      }
     });
     row.appendChild(input);
     row.appendChild(val);
@@ -407,7 +579,7 @@ function renderAttacksList() {
     head.className = 'card-head';
     const b = document.createElement('b'); b.textContent = `Attack ${i + 1}`;
     const rm = document.createElement('button'); rm.className = 'small warn'; rm.textContent = '✕ Remove';
-    rm.addEventListener('click', () => { def.attacks.splice(i, 1); renderAttacksList(); respawn(); });
+    rm.addEventListener('click', () => { def.attacks.splice(i, 1); renderAttacksList(); respawn(); if (historyMgr) historyMgr.push(); });
     head.appendChild(b); head.appendChild(rm);
     card.appendChild(head);
 
@@ -420,8 +592,19 @@ function renderAttacksList() {
       typeSel.appendChild(o);
     }
     typeSel.addEventListener('change', () => {
-      def.attacks[i] = { type: typeSel.value, weight: atk.weight, minRange: atk.minRange, ...ATTACK_BEHAVIORS[typeSel.value].params };
+      // Migrate rather than replace: start from the new type's defaults,
+      // then carry over any field the old attack already had tuned that the
+      // new type also uses (range/windupFrames/cooldown/damage etc. are
+      // shared by most attack types) — switching melee_swing to dash_charge
+      // used to silently wipe every number you'd just spent time tuning.
+      const defaults = ATTACK_BEHAVIORS[typeSel.value].params;
+      const migrated = { ...defaults };
+      for (const key in defaults) {
+        if (key in atk) migrated[key] = atk[key];
+      }
+      def.attacks[i] = { type: typeSel.value, weight: atk.weight, minRange: atk.minRange, ...migrated };
       renderAttacksList(); respawn();
+      if (historyMgr) historyMgr.push();
     });
     typeRow.appendChild(typeLabel); typeRow.appendChild(typeSel);
     card.appendChild(typeRow);
@@ -447,7 +630,7 @@ function renderCountersList() {
     head.className = 'card-head';
     const b = document.createElement('b'); b.textContent = `Counter ${i + 1}`;
     const rm = document.createElement('button'); rm.className = 'small warn'; rm.textContent = '✕ Remove';
-    rm.addEventListener('click', () => { def.counters.splice(i, 1); renderCountersList(); respawn(); });
+    rm.addEventListener('click', () => { def.counters.splice(i, 1); renderCountersList(); respawn(); if (historyMgr) historyMgr.push(); });
     head.appendChild(b); head.appendChild(rm);
     card.appendChild(head);
 
@@ -516,6 +699,73 @@ function renderRageFields() {
   for (const field of fields) makeField(container, def.rage, field, null); // rage trigger is one-way/runtime — always respawn to re-test
 }
 
+const DEFENSE_FIELDS = {
+  block: [
+    { key: 'chance', label: 'Chance (0-1)', min: 0, max: 1, step: 0.05 },
+    { key: 'range', label: 'Range (px)', min: 20, max: 200, step: 10 },
+    { key: 'guardFrames', label: 'Guard Duration (frames)', min: 5, max: 90, step: 5 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 30, max: 400, step: 10 },
+  ],
+  dodge: [
+    { key: 'chance', label: 'Chance (0-1)', min: 0, max: 1, step: 0.05 },
+    { key: 'range', label: 'Range (px)', min: 20, max: 200, step: 10 },
+    { key: 'iframes', label: 'I-Frames', min: 5, max: 60, step: 1 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 30, max: 400, step: 10 },
+  ],
+  breakout: [
+    { key: 'hits', label: 'Hits to Trigger', min: 2, max: 10, step: 1 },
+    { key: 'window', label: 'Hit Window (frames)', min: 20, max: 200, step: 10 },
+    { key: 'cooldown', label: 'Cooldown (frames)', min: 60, max: 800, step: 20 },
+  ],
+};
+
+function renderDefenseVerbFields(verb) {
+  const container = document.getElementById(verb + 'Fields');
+  container.innerHTML = '';
+  const enabled = !!(def.defense && def.defense[verb]);
+  document.getElementById(verb + 'Enabled').checked = enabled;
+  if (!enabled) return;
+  for (const field of DEFENSE_FIELDS[verb]) makeField(container, def.defense[verb], field, null);
+}
+function renderDefenseFields() {
+  document.getElementById('dashPunishEnabled').checked = !!(def.defense && def.defense.dashPunish);
+  for (const verb of ['block', 'dodge', 'breakout']) renderDefenseVerbFields(verb);
+}
+function ensureDefense() { if (!def.defense) def.defense = {}; return def.defense; }
+for (const verb of ['block', 'dodge', 'breakout']) {
+  document.getElementById(verb + 'Enabled').addEventListener('change', (e) => {
+    const d = ensureDefense();
+    if (e.target.checked) {
+      d[verb] = DEFENSE_FIELDS[verb].reduce((acc, f) => { acc[f.key] = f.min; return acc; }, {});
+    } else {
+      delete d[verb];
+      if (Object.keys(d).length === 0 && !d.dashPunish) def.defense = null;
+    }
+    renderDefenseVerbFields(verb); respawn();
+    if (historyMgr) historyMgr.push();
+  });
+}
+document.getElementById('dashPunishEnabled').addEventListener('change', (e) => {
+  const d = ensureDefense();
+  if (e.target.checked) d.dashPunish = true;
+  else { delete d.dashPunish; if (Object.keys(d).length === 0) def.defense = null; }
+  respawn();
+  if (historyMgr) historyMgr.push();
+});
+
+function renderRegenFields() {
+  const container = document.getElementById('regenFields');
+  container.innerHTML = '';
+  document.getElementById('regenEnabled').checked = !!def.regen;
+  if (!def.regen) return;
+  const fields = [
+    { key: 'amount', label: 'Heal Amount', min: 1, max: 10, step: 1 },
+    { key: 'interval', label: 'Heal Interval (frames)', min: 20, max: 300, step: 10 },
+    { key: 'interruptWindow', label: 'Interrupt Window After a Hit (frames)', min: 20, max: 300, step: 10 },
+  ];
+  for (const field of fields) makeField(container, def.regen, field, null);
+}
+
 function renderOnDeathFields() {
   const container = document.getElementById('onDeathFields');
   container.innerHTML = '';
@@ -531,42 +781,91 @@ for (const type in MOVEMENT_BEHAVIORS) {
 }
 movementSelect.value = def.movement.type;
 movementSelect.addEventListener('change', () => {
-  def.movement = { type: movementSelect.value, ...MOVEMENT_BEHAVIORS[movementSelect.value].params };
+  // Same migrate-not-replace fix as the attack type switch above — ground_chase
+  // -> flyer used to silently drop any tuning shared field names between them.
+  const oldMovement = def.movement;
+  const defaults = MOVEMENT_BEHAVIORS[movementSelect.value].params;
+  const migrated = { ...defaults };
+  for (const key in defaults) {
+    if (key in oldMovement) migrated[key] = oldMovement[key];
+  }
+  def.movement = { type: movementSelect.value, ...migrated };
   renderMovementFields();
   respawn();
+  if (historyMgr) historyMgr.push();
 });
 
-document.getElementById('attackSelection').addEventListener('change', (e) => { def.attackSelection = e.target.value; if (currentEnemy) currentEnemy.attackSelection = e.target.value; });
+document.getElementById('attackSelection').addEventListener('change', (e) => { def.attackSelection = e.target.value; if (currentEnemy) currentEnemy.attackSelection = e.target.value; if (historyMgr) historyMgr.push(); });
 document.getElementById('addAttackBtn').addEventListener('click', () => {
   def.attacks.push({ type: 'melee_swing', weight: 1, minRange: 0, ...ATTACK_BEHAVIORS.melee_swing.params });
   renderAttacksList(); respawn();
+  if (historyMgr) historyMgr.push();
 });
 document.getElementById('addCounterBtn').addEventListener('click', () => {
   def.counters.push({ ability: 'phase_dash', effect: 'cancel_and_damage', radius: 70, damage: 1 });
   renderCountersList(); respawn();
+  if (historyMgr) historyMgr.push();
 });
 document.getElementById('rageEnabled').addEventListener('change', (e) => {
   def.rage = e.target.checked ? { thresholdFrac: 0.3, speedMult: 1.4, cooldownMult: 0.6, damageMult: 1.2 } : null;
   renderRageFields(); respawn();
+  if (historyMgr) historyMgr.push();
+});
+document.getElementById('regenEnabled').addEventListener('change', (e) => {
+  def.regen = e.target.checked ? { amount: 1, interval: 120, interruptWindow: 150 } : null;
+  renderRegenFields(); respawn();
+  if (historyMgr) historyMgr.push();
 });
 document.getElementById('onDeathType').addEventListener('change', (e) => {
   def.onDeath = { type: e.target.value, ...ONDEATH_UI[e.target.value].reduce((acc, f) => { acc[f.key] = f.min; return acc; }, {}) };
   renderOnDeathFields(); respawn();
+  if (historyMgr) historyMgr.push();
 });
 
-document.getElementById('idInput').addEventListener('input', (e) => { def.id = e.target.value || 'my_enemy'; });
-document.getElementById('colorInput').addEventListener('input', (e) => { def.color = e.target.value; if (currentEnemy) currentEnemy.color = e.target.value; });
+document.getElementById('idInput').addEventListener('input', (e) => {
+  def.id = e.target.value || 'my_enemy';
+  if (historyMgr) { clearTimeout(window._fieldPushTimer); window._fieldPushTimer = setTimeout(() => historyMgr.push(), 300); }
+});
+document.getElementById('colorInput').addEventListener('input', (e) => {
+  def.color = e.target.value; if (currentEnemy) currentEnemy.color = e.target.value;
+  if (historyMgr) { clearTimeout(window._fieldPushTimer); window._fieldPushTimer = setTimeout(() => historyMgr.push(), 300); }
+});
+document.getElementById('roleInput').addEventListener('change', (e) => { def.role = e.target.value || null; if (currentEnemy) currentEnemy.role = def.role; if (historyMgr) historyMgr.push(); });
 
 document.getElementById('respawnBtn').addEventListener('click', respawn);
 
 document.getElementById('testArenaBtn').addEventListener('click', () => {
   localStorage.setItem('stillpoint_enemy_designer_test', JSON.stringify({ def }));
   window.open('enemy_test.html', '_blank');
+  if (typeof DevContext !== 'undefined') {
+    DevContext.set({ currentEnemyId: def.id });
+    DevContext.log('Enemy Designer', 'Sent to Test Bench', def.id);
+  }
+  if (unsavedGuard) unsavedGuard.checkpoint();
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   document.getElementById('exp-out').value = JSON.stringify(def, null, 2);
+  if (typeof DevContext !== 'undefined') {
+    DevContext.set({ currentEnemyId: def.id });
+    DevContext.log('Enemy Designer', 'Exported def', def.id);
+  }
+  if (unsavedGuard) unsavedGuard.checkpoint();
 });
+
+// Re-syncs every panel/select/canvas to whatever `def` currently holds —
+// shared by "Load" (a wholesale different def) and undo/redo (a snapshot of
+// this same def) so both stay in sync with the same single code path.
+function refreshUIFromDef() {
+  document.getElementById('idInput').value = def.id || 'my_enemy';
+  document.getElementById('colorInput').value = def.color || '#f87171';
+  document.getElementById('roleInput').value = def.role || '';
+  document.getElementById('attackSelection').value = def.attackSelection;
+  document.getElementById('onDeathType').value = def.onDeath.type;
+  movementSelect.value = def.movement.type;
+  renderStatFields(); renderMovementFields(); renderAttacksList(); renderCountersList(); renderRageFields(); renderRegenFields(); renderDefenseFields(); renderOnDeathFields();
+  respawn();
+}
 
 document.getElementById('loadBtn').addEventListener('click', () => {
   try {
@@ -575,16 +874,35 @@ document.getElementById('loadBtn').addEventListener('click', () => {
     def = parsed;
     def.counters = def.counters || [];
     def.onDeath = def.onDeath || { type: 'none' };
+    def.rage = def.rage || null;
+    def.regen = def.regen || null;
+    def.defense = def.defense || null;
     def.attackSelection = def.attackSelection || 'weighted';
-    document.getElementById('idInput').value = def.id || 'my_enemy';
-    document.getElementById('colorInput').value = def.color || '#f87171';
-    document.getElementById('attackSelection').value = def.attackSelection;
-    document.getElementById('onDeathType').value = def.onDeath.type;
-    movementSelect.value = def.movement.type;
-    renderStatFields(); renderMovementFields(); renderAttacksList(); renderCountersList(); renderRageFields(); renderOnDeathFields();
-    respawn();
+    def.role = def.role || null;
+    refreshUIFromDef();
+    if (typeof DevContext !== 'undefined') {
+      DevContext.set({ currentEnemyId: def.id });
+      DevContext.log('Enemy Designer', 'Loaded def', def.id);
+    }
+    if (unsavedGuard) unsavedGuard.checkpoint();
+    if (historyMgr) historyMgr.reset(); // a wholesale different def — old undo history doesn't apply to it
   } catch (err) {
     alert('Could not load def: ' + err.message);
+  }
+});
+
+// ─── UNDO/REDO (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y) ────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  if (!historyMgr) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey ? historyMgr.redo() : historyMgr.undo()) refreshUIFromDef();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    if (historyMgr.redo()) refreshUIFromDef();
   }
 });
 
@@ -593,8 +911,16 @@ renderMovementFields();
 renderAttacksList();
 renderCountersList();
 renderRageFields();
+renderRegenFields();
+renderDefenseFields();
 renderOnDeathFields();
 respawn();
+
+// ─── UNSAVED-CHANGES GUARD — "unsaved" here means "not yet exported/sent to
+// the test bench/loaded fresh," since there's no persistent save target for
+// a def built from scratch.
+const unsavedGuard = (typeof UnsavedGuard !== 'undefined') ? UnsavedGuard.watch(() => def) : null;
+const historyMgr = (typeof UndoHistory !== 'undefined') ? UndoHistory.create(() => def, (v) => { def = v; }) : null;
 
 setInterval(() => {
   if (!currentEnemy) return;

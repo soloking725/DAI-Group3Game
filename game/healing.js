@@ -70,8 +70,15 @@ function updateVitalityMotes(player, timeScale = 1) {
     const dx = px - m.x, dy = py - m.y;
     const d = Math.hypot(dx, dy);
     if (d < MOTE_DRIFT_RADIUS && d > 0) {
-      m.vx += (dx / d) * MOTE_DRIFT_ACCEL * timeScale;
-      m.vy += (dy / d) * MOTE_DRIFT_ACCEL * timeScale;
+      // Pure acceleration toward the player with no drag (user report
+      // 2026-07-19: "they kind of orbit the player and don't hit them") —
+      // confirmed via harness: a mote's own launch velocity plus unbounded
+      // homing accel is a textbook unstable orbit (gravity with no
+      // damping), so it swings past the player instead of ever settling
+      // within MOTE_COLLECT_DIST. The 0.9 decay after each accel step is
+      // what actually lets it converge instead of endlessly circling.
+      m.vx = (m.vx + (dx / d) * MOTE_DRIFT_ACCEL * timeScale) * 0.9;
+      m.vy = (m.vy + (dy / d) * MOTE_DRIFT_ACCEL * timeScale) * 0.9;
     } else {
       m.vx *= 0.96;
       m.vy = m.vy * 0.96 - 0.02; // gentle float

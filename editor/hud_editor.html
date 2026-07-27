@@ -22,9 +22,13 @@
   .elCard b { color: #c4b5fd; cursor: pointer; }
   .hint { color: #64748b; font-size: 11px; margin-top: 4px; }
   textarea { width: 100%; height: 110px; background: #14141f; color: #a5f3c4; border: 1px solid #3a3a5e; font: 11px monospace; padding: 6px; margin-top: 6px; }
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
 </style>
 </head>
 <body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
 
 <div id="side">
   <h2>HUD Layout</h2>
@@ -41,6 +45,9 @@
 
 <div id="stage"><canvas id="cv" width="960" height="540"></canvas></div>
 
+<script src="../game/devContext.js"></script>
+<script src="../game/unsavedGuard.js"></script>
+<script src="../game/undoHistory.js"></script>
 <script>
 'use strict';
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,6 +65,7 @@ const DEFAULTS = {
   limitBreakBar: { anchor: 'top-center',   x: 0,  y: 40, w: 160, h: 8,     visible: true },
   controlsHint:  { anchor: 'bottom-right', x: 16, y: 12,                    visible: true },
   fracturePips:  { anchor: 'bottom-left',  x: 14, y: 58, gap: 22,          visible: true },
+  abilityCooldowns: { anchor: 'bottom-center', x: 0, y: 34, size: 20, gap: 6, visible: true },
 };
 
 const DESCRIPTIONS = {
@@ -67,6 +75,7 @@ const DESCRIPTIONS = {
   limitBreakBar: 'Limit Break countdown bar',
   controlsHint:  'Controls hint (fades after ~10s)',
   fracturePips:  'Fracture meter pips',
+  abilityCooldowns: 'Ability cooldown strip (only shows slots actually cooling)',
 };
 
 let layout = JSON.parse(JSON.stringify(DEFAULTS));
@@ -82,10 +91,11 @@ let selected = null;
 
 function resolve(el) {
   switch (el.anchor) {
-    case 'top-center':   return { x: W / 2 + el.x, y: el.y };
-    case 'bottom-left':  return { x: el.x, y: H - el.y };
-    case 'bottom-right': return { x: W - el.x, y: H - el.y };
-    default:             return { x: el.x, y: el.y };
+    case 'top-center':    return { x: W / 2 + el.x, y: el.y };
+    case 'bottom-left':   return { x: el.x, y: H - el.y };
+    case 'bottom-right':  return { x: W - el.x, y: H - el.y };
+    case 'bottom-center': return { x: W / 2 + el.x, y: H - el.y };
+    default:              return { x: el.x, y: el.y };
   }
 }
 
@@ -102,6 +112,11 @@ function boundsFor(key) {
     case 'limitBreakBar': return { x: p.x - el.w / 2, y: p.y - 12, w: el.w, h: el.h + 14 };
     case 'controlsHint':  return { x: p.x - 300, y: p.y - 26, w: 300, h: 30 };
     case 'fracturePips':  return { x: p.x, y: p.y - 10, w: 4 * el.gap + 10, h: 34 };
+    case 'abilityCooldowns': {
+      const n = 3; // mock: show all 3 slots (Phase Dash / Shard Shot / Parry) for layout purposes
+      const w = n * el.size + (n - 1) * el.gap;
+      return { x: p.x - w / 2, y: p.y - el.size, w, h: el.size };
+    }
   }
 }
 
@@ -165,6 +180,26 @@ function draw() {
         ctx.strokeRect(-6, -6, 12, 12);
         ctx.restore();
       }
+    } else if (key === 'abilityCooldowns') {
+      const colors = ['167, 139, 250', '45, 212, 191', '251, 191, 36'];
+      const labels = ['PD', 'SS', 'PA'];
+      const r = el.size / 2;
+      const n = labels.length;
+      const w = n * el.size + (n - 1) * el.gap;
+      let cx = p.x - w / 2 + r;
+      const cy = p.y - r;
+      ctx.font = `bold ${Math.round(el.size * 0.4)}px "Courier New", monospace`;
+      ctx.textAlign = 'center';
+      for (let i = 0; i < n; i++) {
+        ctx.fillStyle = 'rgba(10,10,20,0.7)';
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = `rgba(${colors[i]}, 0.9)`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, r - 1, -Math.PI / 2, -Math.PI / 2 + 0.6 * Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = `rgba(${colors[i]}, 0.9)`;
+        ctx.fillText(labels[i], cx, cy + el.size * 0.14);
+        cx += el.size + el.gap;
+      }
+      ctx.textAlign = 'left';
     }
 
     // selection / hover outline
@@ -189,7 +224,7 @@ function renderPanel() {
     card.innerHTML = `<b onclick="select('${key}')">${DESCRIPTIONS[key]}</b>
       <label><input type="checkbox" ${el.visible ? 'checked' : ''} onchange="setProp('${key}','visible',this.checked)"> visible</label>
       <label>anchor <select onchange="setProp('${key}','anchor',this.value)">
-        ${['top-left','top-center','bottom-left','bottom-right'].map((a) => `<option ${a === el.anchor ? 'selected' : ''}>${a}</option>`).join('')}
+        ${['top-left','top-center','bottom-left','bottom-right','bottom-center'].map((a) => `<option ${a === el.anchor ? 'selected' : ''}>${a}</option>`).join('')}
       </select></label>
       <label>x <input type="number" value="${el.x}" onchange="setProp('${key}','x',+this.value)">
              y <input type="number" value="${el.y}" onchange="setProp('${key}','y',+this.value)"></label>
@@ -201,7 +236,7 @@ function renderPanel() {
   }
 }
 function select(key) { selected = key; renderPanel(); draw(); }
-function setProp(key, prop, val) { layout[key][prop] = val; renderPanel(); draw(); }
+function setProp(key, prop, val) { layout[key][prop] = val; renderPanel(); draw(); if (historyMgr) historyMgr.push(); }
 
 // ── Dragging ────────────────────────────────────────────────────────────────
 let drag = null;
@@ -228,13 +263,30 @@ cv.addEventListener('mousemove', (e) => {
   el.y = Math.round(drag.origY + (el.anchor.startsWith('bottom') ? -dy : dy));
   draw();
 });
-window.addEventListener('mouseup', () => { if (drag) { drag = null; renderPanel(); } });
+window.addEventListener('mouseup', () => { if (drag) { drag = null; renderPanel(); if (historyMgr) historyMgr.push(); } });
+
+// ─── UNDO/REDO (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y) ────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  if (!historyMgr) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey ? historyMgr.redo() : historyMgr.undo()) { renderPanel(); draw(); }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    if (historyMgr.redo()) { renderPanel(); draw(); }
+  }
+});
 
 // ── Save / export ───────────────────────────────────────────────────────────
 function save() {
   try {
     localStorage.setItem(HUD_LAYOUT_KEY, JSON.stringify(layout));
     alert('Saved. The game applies this layout on next load.');
+    if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Saved layout', '');
+    if (unsavedGuard) unsavedGuard.checkpoint();
   } catch (e) { alert('Save failed (storage unavailable). Use Export instead.'); }
 }
 function resetAll() {
@@ -242,15 +294,23 @@ function resetAll() {
   layout = JSON.parse(JSON.stringify(DEFAULTS));
   selected = null;
   renderPanel(); draw();
+  if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Reset to defaults', '');
+  if (unsavedGuard) unsavedGuard.checkpoint();
+  if (historyMgr) historyMgr.push();
 }
 function exportJSON() {
   const box = document.getElementById('exportBox');
   box.value = `// Paste over the HUD_LAYOUT values in game/game.js (and update the\n// DEFAULTS copy in editor/hud_editor.html to match).\nconst HUD_LAYOUT = ${JSON.stringify(layout, null, 2)};`;
   box.select();
+  if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Exported layout', '');
 }
 
 renderPanel();
 draw();
+
+// ─── UNSAVED-CHANGES GUARD & UNDO/REDO ─────────────────────────────────────
+const unsavedGuard = (typeof UnsavedGuard !== 'undefined') ? UnsavedGuard.watch(() => layout) : null;
+const historyMgr = (typeof UndoHistory !== 'undefined') ? UndoHistory.create(() => layout, (v) => { layout = v; }) : null;
 </script>
 </body>
 </html>

@@ -10,45 +10,52 @@ porting them to match is tracked as follow-up work under roadmap.md 1.10, not do
 this pass. This doc is the connective tissue that makes the eventual in-game fragments
 read as one story, for whenever the environmental-storytelling redesign happens.
 
-## The pitch
+## The pitch (reframed 2026-07-21 — the war-bunker setting, confirmed direction)
 
-Before the Fracture, the Sovereign ruled an empire built on Stillpoints — devices that
-could hold a single moment in place forever. She didn't build them to protect anything.
-She built them as a weapon: freeze your enemy's army mid-charge, freeze a city
-mid-surrender, freeze time itself around anyone who resisted her, and just... keep it
-that way. She believed total, permanent control would finally end every war, every
-famine, every future conflict — that if nothing could ever change again, nothing could
-ever go wrong again. She was wrong on a scale that broke the world. When she tried to
-fuse every Stillpoint into one, final, absolute one — a single moment to freeze
-*everything*, forever, under her — it didn't hold. Time didn't stop. It shattered. You
-are a nameless Warden, carrying the one Stillpoint that wasn't consumed in that attempt,
-moving through the wreckage of her ambition — not to freeze the world again, but to move
-through it, and to stop her from trying a second time.
+Hundreds of years after a war burned the surface, what's left of humanity holds one
+sealed shelter inside a mountain, still fighting a war nobody left alive actually
+remembers starting. Nobody knows for certain the war outside is still real — it doesn't
+matter; the shelter has run on that belief so long it can't stop without admitting
+everything it's already done might have been for nothing. "Magic" in this world is
+undiscovered science: the Stillpoint isn't a spell, it's a device — a way to hold one
+moment of time in place, discovered and weaponized by the shelter's war-research program,
+directed by the Sovereign. She believed total temporal control would end the war
+permanently: freeze the front line, freeze it there forever, and nothing could ever go
+wrong again because nothing could ever change again. When she tried to fuse every
+Stillpoint the program held into one final, absolute device, it didn't hold. Time didn't
+stop. The device didn't break the world — it broke *her*: her own life came loose from
+its own continuity, caught in a private loop that snaps back to childhood every time the
+attempt fails. The world around her is only ordinary war-torn — the wreckage is the long
+war's, not the device's. You are a nameless Warden, carrying the one Stillpoint her own
+people stole back before the fusion, moving through the wreckage of her program — not to
+finish what she started, but to stop her from trying it a second time.
 
-## The Fracture (the founding event — an act, not an accident)
+**What carries over unchanged from the pre-reframe version below**: the fusion attempt as
+a weapon, not an accident; the Sovereign's "certainty, not cruelty"; the "built to last,
+and what happened when it couldn't" thesis; the identity loop (now understood as one
+person's life, not tiered/compounding memory across separate iterations — see Revision
+history). Only the words around them change — empire → war program, ruled → directed, her
+people → her scientists/soldiers. **Removed, this revision**: the world-spanning
+"Fracture" as a founding cosmic event and the pocket-dimension/spacetime-separation
+framing — see the new section below.
 
-> "She said the fusion would be clean. She said it would be the last thing she ever had
-> to do to us." — `lore_f1`, *the_fracture*
+## "The fracture" — not a founding event, just what the fight ends with
 
-The Fracture wasn't a structural failure. It was a weapon that misfired at the scale of a
-world. The Sovereign fused every Stillpoint her empire held into one device, meant to
-freeze all of reality under her hand permanently — no more resistance, no more war, no
-more change of any kind, ever again. It didn't fail gently. Reality didn't refuse to
-freeze; it refused to freeze *evenly*, and tore instead, fragmenting into disconnected
-pockets, each one still locally obeying the instant it broke in, looping it forever:
+**Removed as world lore (this revision).** There is no single cosmic catastrophe behind
+the state of the world — the ruin, the war damage, the "built to last and what happened
+when it couldn't" wreckage everywhere are all just the ordinary result of the long war
+described in "The pitch" above, plus each region's own local device outliving its purpose
+(see the miniboss section below — none of them need a bigger event behind them, they
+already explain themselves). Nothing in the world needs to be "explained" by a
+spacetime-tearing accident, because there wasn't one, and the world was never literally
+split into disconnected pockets — it's one mountain, worn down by one long war, over one
+person's one lifetime.
 
-> "The bridge didn't fall. It refused to hold. There is a difference, and I understand it
-> now." — `lore_eb1`, *echo_bridge*
-
-> "The crystals are made of frozen time. Her time. She didn't ask if we wanted to be
-> frozen with it." — `lore_cc1`, *crystal_cavern*
-
-> "Every gap is a small surrender." — `lore_tr1`, *the_rift*
-
-Read together, these aren't separate hazards — they're the same weapon's blast radius,
-recurring at every scale, from a bridge to a crystal to a floor. The world you're
-platforming through isn't collapsing on its own; it's still failing to finish being
-conquered.
+The word "fracture," if it's used at all, names one specific, small, personal moment: the
+instant the fusion attempt fails at the end of the final fight and the person — child,
+player, Sovereign, all one continuous life — snaps back to being the child again. It's the
+loop's reset beat, not a myth. It doesn't need region-by-region lore, found-object echoes,
+or a "founding" framing, and shouldn't be treated as one going forward.
 
 ## The Sovereign
 
@@ -75,7 +82,7 @@ conquered.
 > worse, to her, than knowing what it is. She will not stop until there is nothing left
 > she cannot account for." — `lore_ac2`, *antechamber*
 
-She is a conqueror, not a cautionary tale — the Fracture was the weapon, not the
+She is a conqueror, not a cautionary tale — the failed fusion was a weapon, not an
 accident. She still believes she was right: a world frozen under one hand, forever, is a
 world that can never again be hurt by change. That belief is the one honest thing about
 her, and it does not make her sympathetic; it's the reasoning of someone who has never
@@ -89,8 +96,8 @@ mopping up.
 
 **The tragic irony (added 2026-07-14) — she is wrong, provably, by the game's own ending
 logic, not just monstrous:** she hunts the child believing that resolving the anomaly —
-by force, by absorption, by control — is what keeps her fractured world from tearing
-itself apart entirely. The Collapse ending proves this belief backward: taking the child
+by force, by absorption, by control — is what finally ends the loop for good. The
+Collapse ending proves this belief backward: taking the child
 by force (absorbing her) is exactly what ends the world (`story.md` §7 — "the loop is
 annihilated... save file deleted"). Her own method, the one thing she's certain would
 stabilize things, is demonstrably the thing that destroys them. This isn't "she's right
@@ -122,6 +129,18 @@ That arrogance is the throughline for however boss dialogue/telegraphs eventuall
 written (per 3.5's "Telegraph Clarity" — her windups should read as *performances*, not
 just wind-ups).
 
+**Final fight structure (added 2026-07-22, matches `boss.js`'s existing 3-phase build):**
+she's "the player in the future" (see "Who the Sovereign actually is" below) — weighed
+down but stronger, using much of the player's own moveset, notably **missing Graviton
+Surge** (she never collected it in her own time as the player — her kit is fixed/
+canonical, not a mirror of whatever the current save has collected). Carries a corrupted
+Void Tether that pulls her straight to the player rather than the other way around. Phase
+1: heavy precognition — she reads and counters the player's next move before it lands.
+Phase 2 (roughly ≤60% HP): opens up with every ability except Stillpoint. Phase 3
+(roughly ≤30% HP): finally uses Stillpoint itself, on top of full immunity to the
+player's own — the one moment she plays the exact tool the player has relied on the whole
+game, against them.
+
 **The Sovereign's vision, and why the game opens the way it does (added 2026-07-13):**
 she has some form of perception that senses hidden/anomalous things — "nowhere normal"
 isn't hidden from her. This is the clean answer to why the player's opening cinematic has
@@ -140,18 +159,29 @@ that already exists.
 
 **Who the Sovereign actually is — confirmed directly by the user (see `story.md` §0.5 for
 the full writeup and the exact quote confirming it):** she is not a separate lineage or
-species of tyrant — she is the same person as the player and the companion child,
-encountered at a different point in the loop. The identity claim is confirmed, not a
-guess. The *mechanism* for how one person recurs as child, Warden, and Sovereign is
-intentionally still open — no device or explanation (rewind-watch or otherwise) is
-settled canon, and none should be assumed until the user confirms one. This doesn't
+species of tyrant — she is the same person as the player and the companion child, at a
+different point in that one person's one life. **Corrected this revision**: this isn't
+three separate iterations with different memory access — it's one continuous life
+(child, then the player-era Warden, then Sovereign), with ordinary memory of one's own
+past, the same as anyone aging. What still needs no invented mechanism: *why* that life
+snaps back to childhood instead of just continuing to old age and ending — see the
+"fracture" note above (it's tied to the fusion attempt failing at the fight's end), and
+treat anything more specific than that as still open, not settled canon. This doesn't
 soften her — she's still the deliberate conqueror described above, responsible for her
-own choices. It does mean the player, the Sovereign, and the companion child (see
-`story.md` §9 for the Sovereign Ending postgame arc this enables — rescoped 2026-07-14
-from far-future/unscoped to real planned content) are the same person at different
-points, not three separate characters — extending this
-doc's "something built to last, and what happened when it couldn't" thesis to the player
-character herself, not just to NPCs and artifacts.
+own choices. It does extend this doc's "something built to last, and what happened when
+it couldn't" thesis to the player character herself, not just to NPCs and artifacts.
+
+**"Stabilize the world" means ending the loop, not rejoining a lost "real world"
+(revised this pass — no pocket-dimension framing).** There's no separate true-continuity
+reality the shelter tore loose from; this is one person's one life, replaying, snapping
+back to childhood every time the fusion attempt fails at the end of the fight. The
+Sovereign believes the child — the one Stillpoint she can't sense, the one piece of her
+own program that got away — is the missing variable that would finally let the fusion
+hold and end the loop for good. She isn't wrong that something like that could end it.
+She's wrong about the cost: the Collapse ending (`story.md` §7) is what happens when she
+gets her way — taking the child by force doesn't complete anything, it ends the loop by
+ending everything in it. "Ending the loop" and "the world ending" turn out to be the same
+event when it's done her way; she's never let herself see that.
 
 ## Stillpoint (the ability, the artifact, the word)
 
@@ -169,6 +199,24 @@ framing had it; it's a single act of theft against a tyrant, the one thing that 
 past a ruler who prided herself on nothing slipping past her. The player's Stillpoint
 existing at all is proof her control was never as total as she believed — which is
 exactly why finding it, and the anomaly she can't see, both threaten her the same way.
+
+**Abilities are this loop's inventions, not eternal constants (confirmed 2026-07-21).**
+The loop doesn't accumulate — nothing carries forward between iterations — but it isn't
+identical either: each cycle, the program's scientists (the minibosses) end up building
+something a little different under the same pressure, same shortage, same war. Stillpoint,
+Phase Dash, Shard Shot, Void Tether, and Graviton Surge are what *this* loop produced; a
+different iteration could plausibly produce different, thematically-adjacent tools instead
+(a different time-trick instead of Stillpoint, say). This stays background flavor for the
+base game — only one set of abilities ever needs to actually exist in the shipped game —
+but it directly answers a previously-open design question (`roadmap.md`'s 2026-07-15
+note that the Sovereign's boss kit "should echo the player's own abilities... loosely
+Stillpoint-adjacent," without ever specifying what that means): **proposed, not yet
+locked** — give her **Time Reversal** rather than literal Stillpoint. Not slowing time
+around her (that would just be the player's own tool in her hands) — rewinding a few
+seconds of her *own* recent state instead: undoing damage just taken, snapping back to a
+position before a punish landed. Mechanically distinct from the player's Stillpoint,
+thematically twinned, and now explained in-fiction rather than arbitrary: an earlier
+loop's version of the same idea, in a Sovereign old enough to remember inventing it.
 
 ## The Crag of the Colossus
 
@@ -189,125 +237,242 @@ oversight:
 > "We gave the crag a heart of crystal so it would remember how to stand. It remembers too
 > well." — `lore_ca1`, *crag_altar*
 
-The Colossus Core (the region's miniboss) is the "heart of crystal" — a construct built to
-hold the crag's structure together after whatever split it, built by people who had
-nothing to do with the Sovereign's empire. It worked too well: the construct has no
-off-switch, no memory of anything except "hold the shape," and it will fight forever
-whether or not the crag still needs holding. It's a smaller, non-sapient echo of the
-*shape* of the Sovereign's arc (something built for permanence that outlived its purpose
-and can't stop) without being connected to her at all — proof the game's theme doesn't
-need her personally behind it to land.
+**Revised 2026-07-22 — the miniboss is a person, not a construct; renamed Crag Warden
+(display/lore name only — the built code class stays `ColossusCore`, no code rename
+needed).** He was the ruthless, merciless head of the crag's mining operation — evil-by-
+choice, not a tragedy, placed on the moral axis alongside The Mirror King and Quantum
+Pursuer. Obsessed with total control over his operation, he fused himself with the crag's
+own "heart of crystal" tech (the same crystal referenced in the fragments below) to make
+himself physically unstoppable — which is where his fight's existing "super armor,
+Charged-Attack-only vulnerability" comes from: not a construct's design spec, a person's
+deliberate self-augmentation. It worked too well, the same "built to last" thesis as
+everywhere else in this section, just chosen for himself instead of built for someone
+else. He'll drive the player into the ground hard enough to require a mash-to-escape
+prompt if it lands.
 
-## Minibosses & their regions (new — roadmap 1.10)
+## The guards (confirmed 2026-07-21)
 
-Per direct instruction: **most of these are independent tragedies, not things the
-Sovereign personally did.** She caused the Fracture; she did not personally cause every
-region's ruin. One exception is called out explicitly below (Graviton Core), because its
-miniboss is literally named after her and that connection is the point of that one fight.
-The rest should read as the world's *own* wreckage — proof the Fracture broke more than
-just her plan, and that plenty of smaller, unrelated permanence-attempts were already
-failing on their own before she ever touched them.
+The rank-and-file enemies outside miniboss chambers are the shelter's remaining security
+staff and constructs, running standing orders to repel intrusions into a resource-starved
+system with nothing to spare on strangers. Deliberately **not signaled as sympathetic or
+evil, either direction, by default** — the player shouldn't read every fight as a small
+tragedy, that doesn't survive 26+ enemy types at scale and would flatten into wallpaper.
+They're ambiguous by design. Real information about who they were comes only through
+occasional, specific environmental moments (a found recording, a half-written note near a
+body) — not through how the fights themselves are staged. Weapon variety is the enemy
+roster's actual difficulty axis going forward: base guards carry whatever the shelter can
+mass-produce (sidearms, tasers, thrown charges); the closer to a given scientist's own
+lab, the more that scientist's specific weapons research shows up in what's defending it.
 
-Shared rule (same one `lore.md`'s original version used, kept because it still works):
-each of these is a variation on **"something built to last, and what happened when it
-couldn't"** — never a Sovereign-sized answer, never the same shape twice.
+## Minibosses & their regions (rewritten 2026-07-22 — see revision history for what changed)
 
-### Mirror Veil — The Mirror King
-A minor provincial lord, one of many who ruled under the Sovereign's empire, obsessed with
-outliving his own mortality the same way his ruler was obsessed with outliving change
-itself — copying the boss's logic on a petty, local scale. He commissioned mirror-sorcery
-that would let a perfect copy of him take the throne the instant he died, so his rule
-would never actually end. The mirrors didn't stop copying when the Fracture hit; they kept
-going, and now the region is full of reflections that each believe *they* are the one
-true lord, fighting anyone who enters as though defending a throne none of them actually
-sit on. A tragedy of vanity mistaking repetition for permanence. (His own title, "King,"
-is unrelated to the Sovereign's — a minor local lord's own honorific, kept as-is; he is
-not part of the Sovereign/Warden/child identity loop.)
+**Reframed 2026-07-21, moral axis resolved 2026-07-22**: each of these is a senior figure
+from the shelter's war program. Per direct instruction, **not all of them are victims of
+circumstance** — desperation under an endless war explains some of them, but several
+*chose* cruelty when they didn't have to, and that's worse, not more sympathetic. Full
+placement:
 
-### Event Horizon — Gravity Collapse Core
-Not a palace, a mine — this region extracted raw gravitic material that fed the
-Sovereign's war machine (siege engines, anti-gravity transports, the infrastructure of
-conquest, though the Sovereign never set foot here herself). When the Fracture hit, the
+- **Willing / evil-by-choice** (played as antagonists, not tragedies — cruelty was a
+  choice, not just a consequence of the war): **The Mirror King** (hierarchy-obsessed,
+  treats even his own copies as disposable labor to stay on top), **Quantum Pursuer**
+  (uses the shelter's own lower-class citizens as disposable soul-fodder for her own
+  power, not survival), **Electromagnetic Golem's controlling scientist** (actively
+  sabotages outside communication — that's obstruction, not desperation), the new
+  Timeline Crossroads figure (see below — wanted the child to fail, weaponizes a whole
+  prison system against the player), **Crag Warden** (see the Crag section further down
+  — ruthless and merciless by the region's own words, not tragic).
+- **Genuinely sympathetic**: **Temporal Warden** (guilt-driven; becomes the ally),
+  **Fractured Sovereign's Guard** (loyalty with no one left to be loyal to).
+- **Open — not yet placed, deliberately**: The Assembler, The Conduit, the new Void
+  Expanse figure. Don't default any of these to sympathetic or evil without a direct call.
+
+**Scope, revised 2026-07-22**: previously capped at two moveset instances per miniboss
+(base game + Sovereign postgame). **Raised to three, confirmed acceptable** — a third,
+Loop-ending (child NG+) variant is now in scope, since once a miniboss's base kit exists,
+producing a reskinned/reflavored variant is cheap. Still never a randomized/per-run
+system — exactly three fixed, canonical instances, no more.
+
+Per direct instruction: **most of these are independent tragedies (or independent
+villainies), not things the Sovereign personally did.** She fought her own war; she did
+not personally cause every region's ruin. One exception is called out explicitly below
+(Graviton Core), because its miniboss is literally named after her and that connection is
+the point of that one fight. The rest are the world's *own* wreckage, or the world's own
+cruelty — proof the long war produced both kinds on its own, without her personally
+touching either.
+
+Shared rule where it still applies (evil-by-choice entries below are a deliberate
+exception to it, not a failure to apply it): each sympathetic entry is a variation on
+**"something built to last, and what happened when it couldn't"** — never a
+Sovereign-sized answer, never the same shape twice.
+
+### Mirror Veil — The Mirror King *(evil-by-choice)*
+A section chief in the shelter's command hierarchy — one of many mid-tier officers who
+ran their own wing with total authority and answered to nobody but the Sovereign. He uses
+duplicated copies of himself for weapons research and combat both, and enforces a strict
+hierarchy that keeps the "original" him at the apex over every copy — vanity and control,
+not survival necessity; other officers ran labs without doing this. To enter it at all,
+you have to fight and beat a mirror copy of *yourself* first, which is very much the
+point: this is a boss who makes you prove you can out-compete a version of you before
+he'll bother taking you seriously. Once the real him goes down, his surviving copies don't
+mourn him — they immediately turn on each other for what's left of his authority, which
+is where Phase Dash comes from (see `regions.md`'s ability-grant table — Mirror Veil
+Sanctum has granted Phase Dash for a long time; this was never a new change, just
+clarified). (His own title, "King," is a self-styled affectation, unrelated to the
+Sovereign's — he is not part of the Sovereign/Warden/child identity loop.)
+
+### Event Horizon — Gravity Collapse Core *(accident, no moral agent — stays as-is)*
+Not a command wing, a mine — this sub-level extracted raw gravitic material that fed the
+Sovereign's war effort (siege engines, anti-gravity transports, the infrastructure of the
+war program, though the Sovereign never set foot here herself). Late in the war, the
 extraction core's containment failed and it became a self-collapsing singularity,
 endlessly pulling in debris — and everyone who worked it. What's left isn't malicious;
-it's a resource operation that outlived the empire that ordered it and never received a
-shutdown order, still "extracting" by pulling in whatever's nearby.
+it's a resource operation that outlived the chain of command that ordered it and never
+received a shutdown order, still "extracting" by pulling in whatever's nearby. Now a
+massive flying construct that changes the room's gravity in any of the four directions
+and generates its own moving-platform constructs to fight from.
 
-### Chrono-Space Rift — Temporal Warden
+### Chrono-Space Rift — Temporal Warden *(sympathetic)*
 The monastic order that hid the player's Stillpoint from the Sovereign (see the
 Stillpoint section above — this is that room) had one member assigned to guard the secret
-forever: its eldest keeper, who used forbidden time-magic to keep resetting his own death
-rather than ever let his watch lapse. He's still doing it, on a repeating countdown,
-unaware the thing he swore to guard was already carried off successfully — his watch
-ended in success long ago and he has no way to know that. A guardian who outlived his own
-victory.
+forever: its eldest keeper. **Expanded 2026-07-22**: he's also the one who gave the
+player their own respawn mechanism — the "rewind clock" behind the game's whole
+checkpoint/anchor system (you never really die, you rewind to the last checkpoint) is his
+doing, not an abstract game-system convenience. He uses the same forbidden time-magic on
+himself, on a repeating countdown, to keep resetting this small closed world and buy more
+time for it and for himself — driven by guilt, not ambition, and he deliberately spares
+the player his true strength rather than fight at full power. His own love was taken by
+the new Void Expanse figure (below); once the player frees her, he owes the player a real
+favor — the closest thing to an ally in this world. A guardian who outlived his own
+victory, still paying a debt he doesn't need to.
 
-### Graviton Core — Fractured Sovereign's Guard *(the one direct exception)*
+### Graviton Core — Fractured Sovereign's Guard *(sympathetic — the one direct exception)*
 Explicitly one of the Sovereign's own — an elite soldier posted here specifically because
 Graviton Surge's source was valuable enough to guard personally. He's still doing his
-job: holding this outpost, waiting for reinforcements and orders that stopped coming the
-instant the Fracture hit. Not a tragedy of vanity or overreach like the others — a
-tragedy of loyalty with no one left to be loyal to. Fighting him is the closest the player
-gets to fighting a piece of the Sovereign herself before the actual throne room.
+job: holding this outpost, waiting for reinforcements and orders that stopped coming when
+the command chain above him finally went dark. He seems aware, on some level, that
+something looped — his own dialogue can gesture at it without ever being direct about
+what he means. Not a tragedy of vanity or overreach like the evil-by-choice entries above
+— a tragedy of loyalty with no one left to be loyal to. Fighting him is the closest the
+player gets to fighting a piece of the Sovereign herself before the actual throne room.
 
-### The Polar Shift — Electromagnetic Golem
-A frontier mining settlement, far enough from the Sovereign's reach that its people
-solved their own problems — raiders, mostly — by building a magnetic automaton to defend
-the tunnels. It worked. The settlement is long gone (Fracture or otherwise, this one was
-never her doing), but the golem's directive was never "defend the settlement"; it was
-"defend the tunnels," and the tunnels are still here. It has nothing left to protect and
-protects it anyway.
+### The Polar Shift — Electromagnetic Golem, directed by an unnamed scientist *(scientist: evil-by-choice)*
+A remote mining wing, far enough down the shelter's tunnel network that it fell outside
+the Sovereign's routine oversight — its own small crew solved their own problems
+(collapses, scavenger intrusions from other under-supplied wings) by building a magnetic
+automaton to defend the tunnels. **Revised 2026-07-22**: that automaton isn't
+unattended — a scientist still directs it personally, from above, during the fight
+itself. She supplies a significant share of the shelter's weapon tech, which the war
+alone would explain — what doesn't is that she also actively jams outside communication
+for anyone trying to reach this closed world from beyond it. That's sabotage, a choice,
+not a desperate wartime measure, which is why she's placed as evil-by-choice rather than
+tragic. The golem itself still reads as a tool of hers rather than a tragedy in its own
+right.
 
-### Echoing Abyss — Quantum Pursuer
+### Echoing Abyss — Quantum Pursuer *(evil-by-choice)*
 This region's whole mechanic is that your own dashes and attacks leave lingering echoes
-you can stand on — so its miniboss is what happens when someone tried to make that
-permanent. Someone here didn't want to lose themself (or someone they'd lost) and built a
-recursive echo of a person, meant to persist after the original was gone. It worked too
-well in the other direction: the echo split fully autonomous, and now endlessly chases
-and copies whoever it meets, always half a beat behind, forever trying to become whoever
-is in front of it because it was never taught how to become only itself.
+you can stand on — so its miniboss is what happens when someone weaponized that idea
+against other people. **Revised 2026-07-22**: not a lone griever trying to preserve
+someone lost — a scientist who used the shelter's own lower-class citizens as
+experimental bait, collecting their souls to fuel her own power, trying to ascend past
+limits no one else's soul was ever meant to survive. She releases a delayed, half-second
+shadow of the player's own soul to force constant movement, while charging
+soul-powered weaponry from range. This is exploitation of people who couldn't refuse her,
+for her own ends — not desperation, not grief. Placed as evil-by-choice, not tragic.
 
-### Paradox Engine — The Assembler
-An automated constructor built to keep the Sovereign's war machine supplied — armor,
-siege parts, replacement matériel, endlessly, on a directive with no stop condition
-because no one expected the war to end this way. Its overseers are gone; its directive
-isn't. It is still assembling, using whatever scrap is nearest, including anything that
-stops moving in its reach. Not evil, not loyal even — just a process that was never given
-a reason to halt.
+### Paradox Engine — The Assembler *(open — not yet placed)*
+**Revised 2026-07-22**: not an abandoned automaton running on a directive nobody
+remembers — the creator herself is still here, still actively maintaining every warp
+field and portal gate in the shelter, and she's who you actually fight. Whether that's
+someone trapped by her own usefulness to the war machine, or someone who's simply kept
+doing this because it's what she's good at and never questioned it, is left open on
+purpose. She fights with real warp speed and portal openings, punishing anything but
+patient, cooldown-timed openings — and drops a Warp Key on defeat, real postgame utility,
+not just a trophy.
 
-### Warp Gate Nexus — Warden & Hollow
+### Warp Gate Nexus — Warden & Hollow *(sympathetic — dutiful, not cruel)*
 Two gatekeepers, stationed as a pair specifically because a single gatekeeper could be
 overwhelmed and a pair could always cover each other's blind spot — one built to counter
 close-range intrusion, one built to counter ranged. Their entire purpose was mid-shift
-when the Fracture hit: testing travelers before letting them through to wherever this
-Nexus led. The travelers stopped coming. The all-clear to finally stand down never
-arrived. They are still testing whoever walks in, because from where they stand, their
-shift never technically ended.
+when the war finally reached this far: testing travelers before letting them through to
+wherever this Nexus led. The travelers stopped coming. The all-clear to finally stand
+down never arrived. They are still testing whoever walks in, because from where they
+stand, their shift never technically ended. Read as faithful rather than cruel — this is
+diligence outliving its purpose, not malice.
 
-### Static Field — The Conduit *(new 2026-07-13, added by `floor_plan.md`; guards this
-region's Fracture Pip, Room 2 — no ability attached, Magnet Climb was removed
-2026-07-14)*
-An independent settlement (not the Sovereign's, same rule as the rest of this section)
-tapped the region's raw electrical discharge for power the honest way: a grounding
-construct built to safely bleed dangerous current out of the air and into the earth, so
-the settlement above could run on what would otherwise have arced through their homes.
-It worked, for exactly as long as "safely" meant "predictably." The Fracture didn't
-destroy it — it overloaded it, permanently, and grounding is still all it knows how to
-do. It cannot tell a person from stray current anymore, so it treats both the same way
-it always has: touch the floor near it and it discharges you back into the air, the
-identical motion whether you're a person or a spark. It was also the settlement's
-record-keeper, wired into whatever passed for their local archive — the same failure
-that turned it into an involuntary lightning rod also means anything electronically
-"connected" to it nearby (the map overlay, in-game terms) picks up its static. Not
-malicious, not guarding anything anymore — just still doing the one job it has left,
-indiscriminately.
+### Static Field — The Conduit *(new 2026-07-13, added by `floor_plan.md`; open — not yet
+placed; guards this region's Fracture Pip, Room 2 — no ability attached, Magnet Climb was
+removed 2026-07-14)*
+A self-sufficient utility wing (not under the Sovereign's direct command, same rule as
+the rest of this section) tapped the level's raw electrical discharge for power the
+honest way: a grounding construct built to safely bleed dangerous current out of the air
+and into the earth, so the wing above could run on what would otherwise have arced
+through its own quarters. **Revised 2026-07-22**: like The Assembler, this isn't an
+abandoned directive — the creator (a scientist responsible for much of the shelter's
+weaponry and electronics) is still here and still working, fighting with raw electricity;
+a second phase weaponizes the electroweak interaction itself, slowly decaying the player
+over time. Whether she's a victim of her own usefulness or someone who chose to keep
+building weapons regardless is left open, same as The Assembler.
+
+### Timeline Crossroads — proposed name **"The Stationmaster"** *(new 2026-07-22,
+replaces the earlier Crystalline Warden assignment — evil-by-choice; name is a proposal,
+not locked)*
+One of the scientists who ordered the child's creation in the first place — and wanted
+her to be a failure even then. He controls most of the shelter's internal transit routes
+and runs a large prison at Echo Bridge. The moment the player is found with the child, he
+has the player arrested specifically so he can take her — this is a real, staged plot
+beat (a prison-break sequence), not a metaphor. He also stole the Void Tether from the
+Void Expanse's own guardian (below), wrongly convinced it's unusable — which is exactly
+why he still went through with the theft rather than leaving it alone; he wanted it
+regardless of whether he understood it. Fights using trains, locomotives, and
+brainwashed prisoners (who can be killed by his own other attacks, not just the player's)
+— flying, knockback-resistant vehicles tearing through the arena. Defeating him grants a
+real, working (if limited) Void Tether on the spot — see `story.md` §4 for the corrected,
+no-longer-two-stage-gated mechanism.
+
+### The Void Expanse — proposed name **"The Undertow"** *(new 2026-07-21/22 — open, not
+yet placed on the moral axis)*
+The child of a scientist obsessed with darkness, now merged with it. Took over the Void
+Expanse and steals what people hold dearest — it's the one who took the Temporal Warden's
+love, and will take the player's own companion (or ally) too, if brought here. Fights
+with void attacks and projectiles, and can teleport/fast-travel through the void itself
+at will. If the player already holds the limited Void Tether from The Stationmaster,
+defeating this figure completes it (full range, no charge limit) and opens a one-time
+opportunity to reassign lore pips. Deliberately left off the moral axis for now — "merged
+with darkness" reads as closer to tragic/corrupted than willingly cruel, but it's
+someone's stolen loved ones on the line, so don't default to sympathy either.
+
+### Sovereign's Army Reserve — The Sovereign's Army *(not an individual — a horde
+gauntlet, new 2026-07-22)*
+Not a named miniboss — a large room of dangerous guards, the same guard cloned over and
+over, frozen in time many loops ago by a much earlier Sovereign. They have no will left
+but to fight; there's no one here to place on a moral axis, they're closer to a hazard
+than a character. The player has to clear a long horde of them, mixed ranged and melee, to
+reach the Limit Break beyond.
+
+### The Antechamber — The Child *(new 2026-07-22 — status: proposed, conflicts with the
+existing Abandoned Shell fight, not yet reconciled — see note)*
+If the child is left behind specifically during the Stationmaster's prison-break sequence
+(above), she isn't lost the way she is everywhere else in the game — escaped prisoners
+protect her, and by the time the player reaches the Antechamber she's grown up among them,
+their de facto leader, fighting with tasers, flamethrowers, bombs, and guns scavenged and
+stolen from guards over the years. Three phases: alone; then calling other former
+prisoners to her aid and occasionally healing them; then a rage-boosted final phase.
+**Open conflict, flagged not resolved:** this is a fundamentally different answer to
+"what happens if you lose the child" than the existing Abandoned Shell fight (§5 of
+`story.md` — a corrupted ghost-copy of the player's own moveset). They can't both be the
+one canonical penultimate-boss consequence without a rule for which one triggers when.
+Two live options, neither picked yet: (a) this fight *replaces* Abandoned Shell entirely,
+or (b) they're two different consequences for two different ways of losing her — Void
+Tether/final-door abandonment still leads to Abandoned Shell, while being specifically
+separated from her during the Stationmaster's prison break leads to this fight instead.
+Needs a direct decision before it's built.
 
 ## Region lore — the place itself (added 2026-07-14)
 
 The section above covers *who* haunts each region (mostly independent tragedies, one
 Sovereign exception). This section covers *what the place was* — the site itself, before
 whatever happened to it. Kept short: most regions' "what it was" is already implied by
-their miniboss write-up (a mine, a monastery, a mining settlement, a war-machine
+their miniboss write-up (a mine, a monastery, a mining wing, a war-machine
 assembly line) and doesn't need restating. Only regions where the place itself carries
 information the miniboss section doesn't cover get a full entry below; the rest get a
 one-line cross-reference so this section stays a complete index of all 13 without
@@ -316,29 +481,27 @@ repeating itself.
 **The Observatory** *(no miniboss)* — Literally what it sounds like: a Sovereign
 watch-post, not a military one — she has some form of perception that senses
 hidden/anomalous things (see "The Sovereign's vision" above), and this is where she
-stood to use it, watching her empire for exactly the kind of anomaly she couldn't
+stood to use it, watching the shelter for exactly the kind of anomaly she couldn't
 otherwise see coming. The region's low gravity isn't set-dressing; it's what's left of
 whatever let her perception reach as far as it needed to from a single fixed point —
 verticality as a literal metaphor for oversight. Sovereign's Observatory, its deepest
-room, is that same vantage point in the game's present: she isn't watching an empire
-from it anymore, she's watching for the one anomaly (the child) that was always outside
+room, is that same vantage point in the game's present: she isn't watching the whole
+shelter from it anymore, she's watching for the one anomaly (the child) that was always outside
 her frame — which is exactly why finding this room and its payoff lands as more than a
 fast-travel unlock; it's arriving at the seat of the hunt itself.
 
-**The Void Expanse** *(no miniboss)* — Not a mine, not a palace, not a settlement — a
-site with no comparable "what it was" at all, because this is where the Fracture's blast
-radius hit hardest and never stopped being felt. Read alongside `lore.md`'s Fracture
-section ("the same weapon's blast radius, recurring at every scale, from a bridge to a
-crystal to a floor"): here the recurrence is total. Nothing solid survived the freeze
-intact — every platform is a chunk of debris still locally obeying the exact instant it
-broke, which is why timing (not positioning) is the whole traversal puzzle. If Echo
-Bridge and Crystal Cavern are the blast radius at small scale, this region is what it
-looks like at the scale where nothing coherent was left to name.
+**The Void Expanse** *(no miniboss)* — Not a mine, not a command wing, not a barracks — a
+site that took the worst of the war's late-stage weapons testing and never stopped
+showing it. Nothing solid survived the shelling intact — every platform is a chunk of
+debris still frozen mid-collapse, which is why timing (not positioning) is the whole
+traversal puzzle. The single most damaged place in the shelter, full stop — no bigger
+event needed behind it than "this is where the fighting was worst."
 
 **The Inverted Spire** *(no miniboss)* — A relay tower, built by the Sovereign's own
 logistics chain specifically to keep Graviton Core (the adjacent region, same Gravity
-cluster) in contact with the rest of the empire — orders in, gravitic material out. Its
-foundation anchor was rated for a lot; it wasn't rated for the Fracture. It failed
+cluster) in contact with the rest of the shelter's command chain — orders in, gravitic
+material out. Its
+foundation anchor was rated for a lot; it wasn't rated for a direct hit. It failed
 catastrophically and the whole structure inverted, permanently — "up" and "down" swapped
 the instant it broke, and stayed that way. The relay beacon at its heart, unlike the
 tower around it, never lost power: it is still broadcasting orders into a command
@@ -347,28 +510,26 @@ from. Sovereign infrastructure, like Graviton Core, but automated rather than st
 no guard here, no exception to the "independent tragedy" rule; the tragedy is that it
 outlived every recipient of what it still sends.
 
-## Two threads through all 13 regions (added 2026-07-14 — direct request)
+## A thread through all 13 regions (added 2026-07-14 — direct request; trimmed this pass)
 
 **The problem, stated plainly**: only 4 things in the whole game touch the main plot —
 meeting the child (Echo Bridge), the choice about her (Timeline Crossroads), meeting the
 ally (Chrono-Space Rift), and the final boss. The other regions' "independent tragedy"
 framing (deliberate, 2026-07-12) reads as *disconnected* rather than *thematically
-consistent* once there are 13 of them. Fix: two threads run through every region,
-layered on top of each one's own local tragedy (below), not replacing it.
+consistent* once there are 13 of them. Fix: one thread runs through every region, layered
+on top of each one's own local tragedy (below), not replacing it. **Removed this pass**:
+the old second thread ("One Fracture, not many," a found-object callback to a founding
+event) — there's no founding event for it to call back to anymore, see the "fracture"
+section near the top of this doc.
 
-- **Thread 1 — The Hunt.** The Sovereign is searching her fractured domain for an
+- **The Hunt.** The Sovereign is searching the shelter for an
   anomaly she can't perceive (established at Upper Ruins/Antechamber). Every region now
   carries one small piece of evidence that she already searched *here* — usually evidence
   she came up empty, sometimes (2 regions, below) evidence of *why* she came up empty.
   This doesn't require new content in the regions that already ARE the hunt (Sovereign's
   Observatory, The Inverted Spire) — those two stay as written.
-- **Thread 2 — One Fracture, not many.** A recurring found-object callback to the exact
-  founding moment (`lore_f1`: a single point of light, then the skyline cracking outward
-  from it) in each region — so every region's local disaster reads as the same weapon's
-  blast radius at a different distance, not an independent coincidence. The Void Expanse
-  already IS this thread at full scale and needs nothing added.
 
-Two regions carry a **third**, heavier thread on top of the above, because their own
+Two regions carry a **second**, heavier thread on top of the above, because their own
 mechanic is already the closest sibling to the endgame's identity-loop reveal —
 Chrono-Space Rift (the ally's own repeating death) and Echoing Abyss (recursive echoes),
 called out below.
@@ -378,26 +539,20 @@ called out below.
 stopped copying. **Hunt**: her search-light, refracted through thousands of mirrors,
 produced thousands of false positives instead of one clean answer — the one region that
 didn't just go unchecked, it actively defeated her method. She marked it unreliable and
-hasn't returned. **Fracture**: one wall's mirror shows the founding skyline-crack image
-correctly, un-duplicated, un-reflected — the single true origin point among endless
-copies, easy to miss among everything else that's multiplying.
+hasn't returned.
 
 ### Event Horizon
 *Local*: a war-supply gravitic mine, containment failed, still extracting. **Hunt**:
 search-probes she sent in were pulled into the collapse with everything else; their
 beacon lights are still visible, falling, forever transmitting "searching" and never
-"clear." **Fracture**: among the orbiting debris, one shard burns brighter than the rest,
-circling the black point at the singularity's core — the same single point of light as
-the founding image, still being consumed rather than having already gone out.
+"clear."
 
 ### Chrono-Space Rift
 *Local*: the Temporal Warden, resetting his own death forever, watch already won without
 knowing it. **Hunt**: this is the one region she'd search personally if she could — it's
 where the stolen Stillpoint was actually hidden — but the Warden's own time-loop makes
 the whole region read as noise to her perception, the same instability that's kept her
-out is what's kept the theft secret. **Fracture**: the exact vault door from the Vault's
-theft fragments (`lore_tv1`/`lore_tv2`) exists here too, permanently mid-swing-shut, one
-frame frozen since that night. **Third thread**: the Warden's own repeating death — undo,
+out is what's kept the theft secret. **Second thread**: the Warden's own repeating death — undo,
 reset, never let it stick — is a small, mortal rehearsal of the identity loop the whole
 game turns out to be about. He doesn't know he's foreshadowing it; the player, on a
 second look back at this region after the ending, should be able to see that he was.
@@ -406,8 +561,7 @@ second look back at this region after the ending, should be able to see that he 
 *Local*: the Fractured Sovereign's Guard, one of her own, still holding the post *(the
 one direct Sovereign-thread exception — unchanged)*. **Hunt**: doesn't need invented
 evidence — this is the one place her command structure never fully died, the closest
-thing to her actual current reach outside the throne room itself. **Fracture**: minimal
-by design; this region is already maximally connected to her without it.
+thing to her actual current reach outside the throne room itself.
 
 ### The Inverted Spire
 *(unchanged from the existing entry above — its relay beacon still broadcasting search
@@ -418,8 +572,8 @@ orders IS the Hunt thread at full strength; no addition needed.)*
 Hunt thread's own home; no addition needed.)*
 
 ### The Void Expanse
-*(unchanged from the existing entry above — this region IS the Fracture thread at full
-scale; no addition needed.)*
+*(unchanged from the existing entry above — the war's worst-hit site, self-explanatory;
+no addition needed.)*
 
 ### Warp Gate Nexus — Warden & Hollow
 *Local*: two gatekeepers testing travelers, shift never technically ended. **Hunt**: what
@@ -427,47 +581,37 @@ they were built to do — test and clear travelers, one by one, methodically —
 mundane ancestor of exactly what the Sovereign now does full-time across her whole
 domain. The connection isn't coincidental in-fiction so much as thematic: her present
 hunt is the same protocol, just with nobody left to relieve her of it either.
-**Fracture**: the vault they were testing access to was one of the empire's other
-fusion-storage sites — now irrelevant, everything it held went into the one, final fusion
-that broke the world.
 
 ### The Polar Shift
-*Local*: the Electromagnetic Golem, defending mining-settlement tunnels that outlived
-their settlement. **Hunt**: the one region where the evidence is *absence of a search at
-all* — this settlement solved its own problems and never drew her attention, a different
-and colder kind of unseen than everywhere else she looked and found nothing. **Fracture**:
-a single fused chunk of raw ore at the tunnel's deepest point holds the same light/crack
-pattern as the founding image, proof the blast reached even the places she never did.
+*Local*: the Electromagnetic Golem, defending mining-tunnels that outlived
+their crew. **Hunt**: the one region where the evidence is *absence of a search at
+all* — this crew solved their own problems and never drew her attention, a different
+and colder kind of unseen than everywhere else she looked and found nothing.
 
 ### Paradox Engine — The Assembler
 *Local*: an automated war-matériel constructor with no stop condition. **Hunt**: buried in
 its still-running order queue, unfinished, is a batch labeled for detection-array
 components — if it ever completes its backlog, it would hand her, unknowingly, exactly
 the tool she's missing to finally perceive the child. Not yet triggered; a live thread,
-not a resolved one. **Fracture**: its very first assembled part, never shipped, sits
-half-buried under everything built since — stamped with the same single-point-of-light
-mark every Sovereign-issue Stillpoint casing carried.
+not a resolved one.
 
 ### Static Field — The Conduit
 *Local*: a power-grounding construct that can't tell people from stray current anymore.
 **Hunt**: its map-overlay corruption doesn't just glitch the player's own map — it
 scrambled her tracking data too, the same accidental sabotage as Mirror Veil's mirrors, a
-second region that blinds her without meaning to. **Fracture**: the arc's discharge
-point, when it fires, briefly resembles the founding skyline-crack shape at the moment
-just before impact — visible only in the instant of the zap, easy to miss entirely.
+second region that blinds her without meaning to.
 
 ### Timeline Crossroads
-*(unchanged from the existing entry above — this is already the single most connected
-region: home of the child-choice beat and the Crystalline Warden/Void Tether fight.
-Already fulfills both threads by virtue of being load-bearing plot, not scenery.)*
+*(otherwise unchanged from the existing entry above — this is already the single most
+connected region: home of the child-choice beat and (updated 2026-07-22) The
+Stationmaster/Void Tether fight, replacing the earlier Crystalline Warden. Already
+fulfills the thread by virtue of being load-bearing plot, not scenery.)*
 
 ### Echoing Abyss — Quantum Pursuer
 *Local*: a grief-driven recursive echo, split fully autonomous, endlessly copying whoever
 it meets. **Hunt**: her search parties that entered here got copied too — several of the
 region's echo-copies are, per their silhouette and gait, unmistakably her own search
-personnel, still moving, still searching, permanently. **Fracture**: the copies
-themselves are the thread — an echo of an echo, forever, is this whole game's structure
-in miniature. **Third thread**: call this out directly to the player if there's ever a
+personnel, still moving, still searching, permanently. **Second thread**: call this out directly to the player if there's ever a
 late-game or postgame text/vision moment available — this region's whole premise (a
 person who didn't want to stop being themselves, copied instead of ended, now recurring
 forever) is the closest single-region metaphor for the Sovereign/Warden/child identity
@@ -479,8 +623,8 @@ NG+ visual difference here specifically), not required for a first playthrough t
 The fragments are written to be found roughly in this sequence (mirrors the intended
 play order, `col`/`row` in `area.js`):
 
-1. `lore_f1` — the_fracture — the founding act (a weapon, not an accident)
-2. `lore_eb1` — echo_bridge — the weapon's blast radius, repeating at small scale
+1. `lore_f1` — the_fracture — a war memorial mural, meaning unclear until the ending
+2. `lore_eb1` — echo_bridge — an ordinary war-collapse, frozen mid-fall
 3. `lore_ur1`, `lore_ur2`, `lore_ur3` — upper_ruins *(optional branch)* — who the
    Sovereign is, and why her own certainty is the thing to fear
 4. `lore_cc1` — crystal_cavern — the blast radius, repeating again, differently
@@ -513,8 +657,8 @@ is the actual spec. `Mode` is which of roadmap 1.10's two available treatments i
 
 | id | Region | Visual (what actually plays) | Mode |
 |---|---|---|---|
-| `lore_f1` | the_fracture | Wide shot: a single point of light (every Stillpoint fused into one) at the center of a silhouetted city skyline, holding — then the skyline cracks outward from it like glass, freezing mid-shatter. | Cutscene (opening beat — sets the whole game's premise) |
-| `lore_eb1` | echo_bridge | A bridge silhouette caught mid-collapse, frozen at the exact frame it broke, dust suspended in the air around it — camera slowly pulls back to show the same freeze-frame repeating down the whole canyon. | Overlay |
+| `lore_f1` | the_fracture | Wide shot: a mural or memorial carved into the room, a single point of light at the center of a silhouetted skyline, holding — then the skyline cracks outward from it like glass. No caption, no explanation offered — it reads as war-memorial art until the ending recontextualizes it as the exact shape of the loop's reset. | Cutscene (unexplained on first sight; its real meaning only lands in hindsight, after the ending) |
+| `lore_eb1` | echo_bridge | A bridge silhouette caught mid-collapse, frozen at the exact frame it broke, dust suspended in the air around it — an ordinary casualty of the war, not a cosmic one. | Overlay |
 | `lore_ur1` | upper_ruins | A throne room, seen from behind rows of kneeling silhouettes, the Sovereign's silhouette raising a single glowing Stillpoint shard overhead. | Overlay |
 | `lore_ur2` | upper_ruins | Close on the Sovereign's silhouette addressing a crowd — the crowd's silhouettes nodding, agreeing, some visibly relieved — before the frame freezes and cracks like `lore_f1`'s skyline. | Overlay |
 | `lore_ur3` | upper_ruins | The Sovereign's silhouette alone in a fragment of the throne room, turning slowly as if scanning — the "camera" (player's implied POV) is the thing being scanned for. | Cutscene (first direct sense that she's looking for *you*) |
@@ -553,7 +697,7 @@ default, Cutscene reserved for plot-critical Sovereign-thread beats.
 | `lore_mv1` | Mirror Veil, Reflection | A hall of mirrors, each reflection performing an ordinary motion (bowing, working, laughing) as though still serving a court — except one mirror, which shows only an empty room, one frame before it too fills with a reflection certain it's the true one. | Overlay |
 | `lore_eh1` | Event Horizon, Drift | Rows of siege-engine and transport-husk silhouettes drifting slowly toward a single point of absolute black at the frame's center, each losing its outline the closer it gets. | Overlay |
 | `lore_csr1` | Chrono-Space Rift, Loop, Part 2 | A hooded silhouette kneeling before a sealed vault door, rising, then the frame cuts an instant before whatever happens next — and restarts from the kneel. Doesn't resolve here; pairs with the Temporal Warden fight in the Sanctum, this region's miniboss. | Cutscene (foreshadows the ally reveal — see "The Sovereign's vision" above) |
-| `lore_ob1` | The Observatory, Room 2 | A ring of dead watch-apertures set into a low-gravity shaft, flickering alive one at a time as the player rises past — each briefly showing an unrelated, ordinary scene from elsewhere in the old empire before dying again. | Overlay |
+| `lore_ob1` | The Observatory, Room 2 | A ring of dead watch-apertures set into a low-gravity shaft, flickering alive one at a time as the player rises past — each briefly showing an unrelated, ordinary scene from elsewhere in the shelter before dying again. | Overlay |
 | `lore_so1` | Sovereign's Observatory *(the region's capstone payoff)* | The Sovereign's silhouette alone in a vast chamber ringed floor-to-ceiling with identical watching apertures, all turned outward except one — small, at the room's exact center, turned inward on herself — and she has not noticed it's there. | Cutscene (plot-critical Sovereign-thread beat — where and how she watches) |
 | `lore_ve1` | The Void Expanse, Room 1 | A field of debris tumbling in total silence, each chunk holding one frozen mundane instant (a falling cup, a hand mid-reach for a door) — camera drifts through; nothing ever completes its motion. | Overlay |
 | `lore_wgn1` | Warp Gate Nexus, Room 2 | Two silhouettes flanking an empty gate frame, checking a device between them that should have run out counting down a shift, and hasn't — still waiting for a stand-down signal. | Overlay |
@@ -597,6 +741,85 @@ default, Cutscene reserved for plot-critical Sovereign-thread beats.
 
 ## Revision history
 
+- **2026-07-22 — full miniboss redesign pass from the user's own redone spec (a table
+  covering every miniboss's core tragedy, style of attack, and abilities).** Style-of-
+  attack/abilities detail lives in `expansion.md`'s Phase 4 table, not duplicated here in
+  full — this doc keeps the tragedy/moral-axis framing, `expansion.md` keeps the fight
+  spec. Summary of what changed: (1) **Moral axis resolved** — Mirror King, Quantum
+  Pursuer, Electromagnetic Golem's scientist, the new Timeline Crossroads figure, and Crag
+  Warden are now explicitly evil-by-choice, not tragic; Temporal Warden and Fractured
+  Sovereign's Guard stay sympathetic; The Assembler, The Conduit, and the new Void Expanse
+  figure stay deliberately open. (2) **Assembler and Conduit are now live people**, not
+  automatons whose creators are gone — both still actively work the systems they built.
+  (3) **Crag of the Colossus's miniboss is a person** (renamed, display-only, "Crag
+  Warden"), not a non-sapient construct — he fused himself with the crag's own crystal-
+  heart tech for control, not survival. (4) **Timeline Crossroads gets a new miniboss**
+  (proposed name "The Stationmaster"), replacing the earlier Crystalline Warden
+  assignment — ties the child's origin, a prison at Echo Bridge, and the Void Tether theft
+  together. (5) **Void Expanse finally has a miniboss** (proposed name "The Undertow"),
+  resolving what was previously a "no miniboss" region — holds the Temporal Warden's
+  stolen love and the real, completable Void Tether. (6) **Void Tether is no longer a
+  single-fight grant** — see `story.md` §4's matching update: the Stationmaster's defeat
+  grants a real, working, limited version immediately (so the permanent-sacrifice choice
+  is rewarded on the spot, per direct user concern about disappointing that choice); The
+  Undertow's defeat completes it. (7) **Scope raised from two to three moveset instances
+  per miniboss** (base game, Sovereign postgame, and now a Loop-ending/child-NG+ variant)
+  — confirmed acceptable since a base kit makes variants cheap. (8) Added Sovereign's Army
+  Reserve as a horde gauntlet (not an individual) and a new, **unresolved-conflict**
+  Antechamber "grown Child" fight that doesn't yet have a rule for how it coexists with
+  the existing Abandoned Shell fight — flagged, not decided. (9) Documented the final
+  boss's actual phase structure (precog phase 1, full-kit-minus-Stillpoint phase 2,
+  Stillpoint-plus-immunity phase 3, missing Graviton Surge, corrupted Void-Tether pull)
+  matching what's already built in `boss.js`.
+- **2026-07-21 (later still) — removed "the Fracture" as a founding cosmic event, per
+  direct user pushback.** Three problems, raised directly: (1) a "founding event" doesn't
+  cohere with a loop that has no first iteration; (2) the postgame was on track to require
+  the player to literally re-cause it, which is awkward to build; (3) it no longer matched
+  the rest of the lore once the world was corrected to "one mountain shelter," not a
+  spacetime-fragmented multiverse. Also corrected an error made mid-discussion: the
+  player/child/Sovereign identity loop is **one continuous life** with ordinary memory of
+  its own past (like anyone aging) — not three iterations with tiered/compounding memory,
+  which was wrongly proposed and rejected. Net changes: the Fracture no longer explains
+  the world's ruined/war-torn state (the ordinary long war from "The pitch" already does
+  that, unassisted); there's no pocket-dimension/spacetime-separation and nothing was ever
+  literally split apart; "stabilizing the world" now means ending the loop, not re-fusing
+  scattered reality; every region's "Fracture:" found-object callback and the "One
+  Fracture, not many" thread were deleted (they existed only to support the old founding-
+  event framing); "when the Fracture hit" phrasing across the miniboss section became
+  ordinary war causes (a command chain going dark, a war-era power surge, etc). What's
+  kept: the word "fracture," lowercase, now names one small, personal thing only — the
+  moment the fusion attempt fails at the end of the final fight and resets the person back
+  to childhood. The `the_fracture` room in `area.js` and its `lore_f1` fragment are
+  unchanged structurally (out of scope to rename/move) but reframed as unexplained war-
+  memorial art whose real meaning only lands after the ending, not an opening-beat premise-
+  setter. Mechanism for *why* the reset happens at all is intentionally still open, same as
+  before — not treated as solved by this pass.
+- **2026-07-21 (later same day) — finished the empire→shelter wording pass.** The
+  2026-07-21 reframe above rewrote the pitch and Sovereign sections but left the
+  minibosses/regions sections using pre-reframe empire-scale language ("provincial lord,"
+  "the Sovereign's empire," "conquest," "frontier mining settlement") — inconsistent with
+  "one sealed shelter inside a mountain" being the entire world the game and postgame take
+  place in. Fixed by request: Mirror King is now a section chief over a command wing (not
+  a lord over a province), Event Horizon and Static Field's "settlement" language became
+  "mining wing"/"utility wing," Polar Shift's "frontier mining settlement" became a remote
+  tunnel wing of the same shelter, and every remaining "empire" reference (Observatory,
+  Inverted Spire, Warp Gate Nexus's Fracture thread, the Observatory lore fragment)
+  became "the shelter"/"the shelter's command chain." No character motivations, tragedies,
+  or the Sovereign-exception rule changed — this was wording only, scale correction, not a
+  plot rewrite.
+- **2026-07-21**: reframed the setting as a far-future war-bunker (sci-fi: "magic is
+  undiscovered science") without changing the underlying structure — see the new "The
+  pitch" opening, the "Stabilize the world" note under the Sovereign section, the guards'
+  new section, the minibosses' war-scientist reframe, and the per-loop-abilities note
+  under Stillpoint (which also proposes, not yet locked, Time Reversal as the Sovereign's
+  boss-kit answer to the still-open "Stillpoint-adjacent" design note). Confirmed the
+  identity loop's in-fiction mechanism for the first time (see `story.md` §0.5/§9 for the
+  full writeup) — the child ends up sealed in the spawn room during the final fight
+  regardless of the Antechamber choice, and the Sovereign postgame closes the loop
+  spatially (a guard posted in the tutorial room, a Temporal Warden rematch, waiting for
+  the next iteration). Also confirmed: Collapse is the loop's first-ever taken "out," not
+  the first *available* one — every prior iteration had the same option and always
+  declined it, because the option is genuinely bad, not because it was hidden.
 - **2026-07-14**: added "Two threads through all 13 regions" — per direct feedback that
   only 4 things in the whole game touched the main plot (meeting the child, the
   Timeline Crossroads choice, meeting the ally, the final boss), every region now

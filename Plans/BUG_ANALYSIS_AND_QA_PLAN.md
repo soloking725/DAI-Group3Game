@@ -2,6 +2,18 @@
 
 > Generated: 2026-07-11 | Codebase: DAI-Group3Game (vanilla HTML/Canvas/JS)
 
+> **Staleness note (2026-07-21):** this inventory has not been fully
+> re-verified against current code since 2026-07-11/12. Spot-checked this
+> pass: **BUG-001 is fixed** (`player.hitTargetsThisSwing` per-swing hit
+> dedup exists in both `game.js` and `healing.js` — see `CLAUDE.md`'s "Per-
+> swing hit dedup pattern" section). **BUG-002/BUG-012 are NOT fixed** —
+> `boss.js` still uses `setTimeout` at lines 217, 640, 726. BUG-013 is
+> already marked fixed/verified within its own entry below (2026-07-12/17).
+> The rest of the inventory (BUG-003 through BUG-011) has not been
+> re-checked against the Phase 19-23 changes (shared collision resolver,
+> new platform flags, enemy AI overhaul) — treat those entries as
+> "as of 2026-07-11" until someone re-verifies them.
+
 ## Table of Contents
 1. [Bug Inventory](#1-bug-inventory)
 2. [Automated Test Suite](#2-automated-test-suite)

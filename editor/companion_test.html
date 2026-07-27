@@ -22,9 +22,13 @@
   #liveStats div { display: flex; justify-content: space-between; border-bottom: 1px dotted #1e1e32; padding: 2px 0; font-size: 11px; }
   canvas { display: block; }
   .val { color: #f9a8d4; min-width: 44px; text-align: right; font-size: 11px; }
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
 </style>
 </head>
 <body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
 
 <div id="side">
   <h1>👧 Companion Test Arena</h1>
@@ -78,7 +82,9 @@
 <script src="../game/audio.js"></script>
 <script src="../game/input.js"></script>
 <script src="../game/physics.js"></script>
+<script src="../game/attackVFX.js"></script>
 <script src="../game/animdata.js"></script>
+<script src="../game/animImageStore.js"></script>
 <script src="../game/area.js"></script>
 <script src="../game/map.js"></script>
 <script src="../game/ability.js"></script>
@@ -152,10 +158,21 @@ document.getElementById('modeOverride').addEventListener('change', (e) => {
   modeOverride = e.target.value;
   if (modeOverride === 'scripted') companionState.mode = 'scripted';
 });
-// Enforce a manual mode override every frame (auto lets companion.js decide).
-setInterval(() => {
-  if (modeOverride !== 'auto' && companionState.active) companionState.mode = modeOverride;
-}, 50);
+// Enforce a manual mode override once per real frame — companion.js's own
+// update() re-decides `companionState.mode` from combat state every frame
+// for anything other than 'scripted', so a one-time assignment on the
+// dropdown's change event wouldn't stick. Previously this used
+// setInterval(...,50), a wall-clock timer independent of the game's own
+// ~16.7ms tick — the two would drift out of phase and visibly stomp 2-3
+// frames of the real auto-logic before correcting. requestAnimationFrame
+// keeps this in lockstep with the game loop instead.
+function enforceModeOverride() {
+  if (modeOverride !== 'auto' && modeOverride !== 'scripted' && companionState.active) {
+    companionState.mode = modeOverride;
+  }
+  requestAnimationFrame(enforceModeOverride);
+}
+requestAnimationFrame(enforceModeOverride);
 document.getElementById('healReadyBtn').addEventListener('click', () => { companionState.healCooldown = 0; });
 
 // Scripted-mode waypoint: click the canvas to park her there.
@@ -169,13 +186,16 @@ canvas.addEventListener('mousedown', (e) => {
   };
 });
 
-// ── Tuning sliders — write the live instance's fields ───────────────────────
-// The game reads the CHILD_* consts; this bench pokes equivalent per-frame
-// values by wrapping child.update. Simplest live-tuning without rebuilding
-// companion.js's constants as lets: we monkey-patch the values the instance
-// derives from them where they're instance-reachable, and log final numbers
-// for hand-transfer.
-const tuned = { follow: 70, speed: 3.4, healS: 70, tetherS: 9 };
+// ── Tuning sliders — set the real constants directly ────────────────────────
+// CHILD_FOLLOW_DIST/CHILD_RUN_SPEED/CHILD_HEAL_COOLDOWN/CHILD_TETHER_INTERVAL
+// are `var` in companion.js specifically so this bench can reassign them —
+// the real update()/_moveToward() logic reads the live value on its very
+// next call, no monkey-patching of Child.prototype.update needed (the old
+// per-instance `_tunedFollow`/`_tunedSpeed` patch never actually fed into
+// the follow-target math at all, and the speed override only kicked in
+// once she was already moving — both are just gone now, replaced by the
+// real code path using the real live number).
+const tuned = { follow: CHILD_FOLLOW_DIST, speed: CHILD_RUN_SPEED, healS: CHILD_HEAL_COOLDOWN / 60, tetherS: CHILD_TETHER_INTERVAL / 60 };
 function bindSlider(id, valId, fmt, apply) {
   const el = document.getElementById(id);
   el.addEventListener('input', () => {
@@ -184,32 +204,35 @@ function bindSlider(id, valId, fmt, apply) {
     apply(v);
   });
 }
-bindSlider('tFollow', 'vFollow', (v) => v, (v) => { tuned.follow = v; });
-bindSlider('tSpeed', 'vSpeed', (v) => (v / 10).toFixed(1), (v) => { tuned.speed = v / 10; });
-bindSlider('tHeal', 'vHeal', (v) => v, (v) => { tuned.healS = v; });
-bindSlider('tTether', 'vTether', (v) => v, (v) => { tuned.tetherS = v; });
-
-// Apply tuned values by patching the Child prototype's update inputs: the
-// constants are consts, so instead we adjust the instance each tick.
-setInterval(() => {
-  if (!child) return;
-  // These three are readable knobs on the instance path:
-  // follow distance + speed are used via constants — emulate by scaling.
-  child._tunedFollow = tuned.follow;    // read below in the wrapped update
-  child._tunedSpeed = tuned.speed;
-  if (companionState.healCooldown > tuned.healS * 60) companionState.healCooldown = tuned.healS * 60;
-  if (child.tetherTimer > tuned.tetherS * 60) child.tetherTimer = tuned.tetherS * 60;
-}, 100);
-
-// Wrap update so tuned follow/speed apply without editing companion.js:
-// override the target x and clamp vx after the real update ran.
-const _origUpdate = Child.prototype.update;
-Child.prototype.update = function (player, area, bounds, enemies, ts) {
-  _origUpdate.call(this, player, area, bounds, enemies, ts);
-  if (this._tunedSpeed && Math.abs(this.vx) > 0.01) {
-    this.vx = Math.sign(this.vx) * this._tunedSpeed;
+bindSlider('tFollow', 'vFollow', (v) => v, (v) => {
+  tuned.follow = v;
+  CHILD_FOLLOW_DIST = v;
+});
+bindSlider('tSpeed', 'vSpeed', (v) => (v / 10).toFixed(1), (v) => {
+  tuned.speed = v / 10;
+  CHILD_RUN_SPEED = tuned.speed;
+});
+bindSlider('tHeal', 'vHeal', (v) => v, (v) => {
+  tuned.healS = v;
+  const oldFrames = CHILD_HEAL_COOLDOWN;
+  CHILD_HEAL_COOLDOWN = v * 60;
+  // Rescale the currently-counting-down cooldown proportionally instead of
+  // just capping it — dragging 70s down to 10s used to leave the cooldown
+  // sitting at whatever it already was until it happened to decay below the
+  // new ceiling, so a quick A/B between two heal intervals meant waiting
+  // out the old one first.
+  if (companionState.healCooldown > 0 && oldFrames > 0) {
+    companionState.healCooldown *= CHILD_HEAL_COOLDOWN / oldFrames;
   }
-};
+});
+bindSlider('tTether', 'vTether', (v) => v, (v) => {
+  tuned.tetherS = v;
+  const oldFrames = CHILD_TETHER_INTERVAL;
+  CHILD_TETHER_INTERVAL = v * 60;
+  if (child && child.tetherTimer > 0 && oldFrames > 0) {
+    child.tetherTimer *= CHILD_TETHER_INTERVAL / oldFrames;
+  }
+});
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   console.log('[companion tuning] transfer into game/companion.js:',

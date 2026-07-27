@@ -17,16 +17,21 @@
 //     assist that sets up the PLAYER's combos — she never out-damages you.
 
 // ── Tuning constants ────────────────────────────────────────────────────────
-const CHILD_FOLLOW_DIST = 70;        // px behind the player she aims for
-const CHILD_RUN_SPEED = 3.4;         // slightly below MOVE_SPEED (4) — she visibly hustles
+// The four `var`s below (not `const`) are reassigned live by
+// companion_test.html's sliders — same convention as enemy.js's
+// KNOCKBACK_* constants, so the tuning bench can set the real value the
+// real update()/_moveToward() logic reads, instead of monkey-patching
+// Child.prototype.update to fake it per-instance afterward.
+var CHILD_FOLLOW_DIST = 70;          // px behind the player she aims for
+var CHILD_RUN_SPEED = 3.4;           // slightly below MOVE_SPEED (4) — she visibly hustles
 const CHILD_JUMP_FORCE = -11;
 const CHILD_GAP_LOOKAHEAD = 20;      // px ahead to probe for missing floor
 const CHILD_STUCK_FRAMES = 90;       // no progress for this long → failsafe eligible
 const CHILD_TELEPORT_MARGIN = 60;    // must ALSO be at least this far off-screen to blink
-const CHILD_HEAL_COOLDOWN = 4200;    // 70s @ 60fps between touch-heals
+var CHILD_HEAL_COOLDOWN = 4200;      // 70s @ 60fps between touch-heals
 const CHILD_HEAL_RANGE = 34;         // touch distance
 const CHILD_HIDE_SEARCH_STEP = 40;   // spacing of candidate hide spots
-const CHILD_TETHER_INTERVAL = 540;   // 9s between fight-mode tether assists
+var CHILD_TETHER_INTERVAL = 540;     // 9s between fight-mode tether assists
 const CHILD_TETHER_RANGE = 200;      // she assists on enemies near the player
 const CHILD_TETHER_PULL = 70;        // px the enemy gets dragged toward the player
 
@@ -159,16 +164,29 @@ class Child {
     }
 
     // Physics — same shared resolver as everything else (physics.js).
-    this.vy += GRAVITY * _ts;
+    // Dispatches on room gravity direction (Gravity Collapse Core,
+    // 2026-07-26) the same way player.js/resolveEnemyPhysics do — 'down'
+    // is this exact call, unchanged.
+    if (typeof applyRoomGravity === 'function') applyRoomGravity(this, _ts);
+    else this.vy += GRAVITY * _ts;
     this.x += this.vx * _ts;
     this.y += this.vy * _ts;
     this.grounded = false;
-    resolveEntityCollision(this, area ? area.platforms : null, {
-      movedX: this.vx * _ts,
-      movedY: this.vy * _ts,
-      groundY: bounds ? bounds.groundY : undefined, // she never falls out of the world
-      bounds,
-    });
+    const _companionGravDir = typeof getRoomGravityDir === 'function' ? getRoomGravityDir() : 'down';
+    if (_companionGravDir === 'down' || typeof resolveRotatedGravityCollision !== 'function') {
+      resolveEntityCollision(this, area ? area.platforms : null, {
+        movedX: this.vx * _ts,
+        movedY: this.vy * _ts,
+        groundY: bounds ? bounds.groundY : undefined, // she never falls out of the world
+        bounds,
+      });
+    } else {
+      resolveRotatedGravityCollision(this, area ? area.platforms : null, _companionGravDir, {
+        movedX: this.vx * _ts,
+        movedY: this.vy * _ts,
+        bounds,
+      });
+    }
 
     // ── Catch-up failsafe (the Neva trick) ──
     // Fires only when she's made no X-progress for a while AND is well

@@ -38,7 +38,7 @@ mandatory backbone the floor plan's graph encodes:
    either, the practical effect is the player can't reach any of the
    three until the choice is made. This is intentional pacing, not a
    softlock: Shard Shot is not a mandatory ability (only **Phase Dash**
-   and **Stillpoint** are — see `floor_plan_open_issues.md`/
+   and **Stillpoint** are — see `archive/floor_plan_open_issues.md`/
    `analyze_floor_plan.js`'s mandatory-room analysis), so gating it here
    costs nothing and forces the choice to happen early.
 
@@ -65,6 +65,7 @@ files marked NEW landed 2026-07-16, roadmap Phase 17):
 - `boss.js` — the final boss (3-phase state machine)
 - `enemy.js` — all enemy classes (now with notice-delay/decision-commit/facing-cone AI + opt-in block/dodge/breakout/feint defense verbs), including the composable `ComposedEnemy` system
 - `companion.js` — NEW: the Child (Neva-style follower; hide-&-heal → tether-assist)
+- `attackVFX.js` — NEW (2026-07-19): shared player VFX/hitbox math, reused by the animation editor's "Dissect from current game" tool and `animdata.js`'s procedural poses
 - `player.js` — player class: movement, combat, physics constants
 - `game.js` — main loop, game state machine, HUD (`HUD_LAYOUT`), save/load, everything else
 - `style.css` — currently unused (`index.html`'s CSS is inline)
@@ -79,7 +80,6 @@ files marked NEW landed 2026-07-16, roadmap Phase 17):
 - `combo_editor.html` — NEW: visual combo-chain editor over `game/combo.js`'s `COMBO_DEFS` (action steps, timing windows, rewards)
 - `hud_editor.html` — NEW: drag/toggle HUD elements (writes `HUD_LAYOUT` overrides; game.js's table is authoritative — keep the editor's DEFAULTS copy in sync)
 - `companion_test.html` — NEW: boots the real game into the test arena with the Child active (mode override, wave spawner, tuning sliders, catch-up fuzzer)
-- `worldmap.html` — compass-graph visualizer (built rooms + planned regions)
 - `graph_analyzer.html` / `export_graph.js` — world graph → yEd GraphML export/analysis
 - `world_map.graphml` (repo root — an export artifact, not a tool) — the exported graph, for viewing in yEd
 - `Plans/analyze_floor_plan.js` — Node CLI over `floor_plan.md`'s graph: reachability, critical/speedrun path, mandatory rooms, soft-lock scan, route count, random-playthrough simulation (`--simulate`, `--html` → `floor_plan_report.html`/`floor_plan_simulation.html`)
@@ -92,21 +92,21 @@ files marked NEW landed 2026-07-16, roadmap Phase 17):
 4. `expansion.md` — forward-looking design (new abilities, 26+2 enemies, 13 regions, minibosses) — aspirational, cross-check against `roadmap.md`/`area.js`
 5. `regions.md` — world layout reference: which regions exist, cluster position, room counts, miniboss, special effect
 6. `floor_plan.md` (+ `floor_plan_mermaid.txt`, `floor_plan.svg`, `floor_plan_report.html`, `floor_plan_simulation.html`) — the full room-to-room connection graph and an automated reachability/simulation tool (`analyze_floor_plan.js`) over it
-7. `floor_plan_open_issues.md` — working session notes on the floor plan graph
-8. `story.md` — narrative/companion-character system (mostly unbuilt)
+7. `archive/floor_plan_open_issues.md` — archived 2026-07-21, superseded by `floor_plan.md`'s own correction log
+8. `story.md` — narrative/companion-character system (companion is now built — see `child_companion_system_plan.md`; endings/Fracture Pip economy still unbuilt)
 9. `lore.md` — narrative/character writing (Sovereign, minibosses) — current source of truth for characterization, not yet ported into in-game text
-10. `BUG_ANALYSIS_AND_QA_PLAN.md` — known bug inventory + playtest protocol
-11. `enemy_system_plan.md` — the composable enemy-module system (`ComposedEnemy`)
-12. 2026-07-16 planning set (all plan-only, nothing built):
+10. `BUG_ANALYSIS_AND_QA_PLAN.md` — known bug inventory + playtest protocol (not fully re-verified since 2026-07-11/12, see its own staleness note)
+11. `enemy_system_plan.md` — the composable enemy-module system (`ComposedEnemy`); see also `enemy_attack_vocabulary_plan.md` for the newer attack-verb layer
+12. 2026-07-16 planning set — **all built as of Phase 19, 2026-07-16** (see `roadmap.md`):
     `child_companion_system_plan.md` (Neva-style following Child — locomotion,
-    hide-&-heal → learns-to-fight progression, `companion_test.html` arena tool),
-    `combat_ai_overhaul_plan.md` (Void Tether fix diagnosis + facing auto-aim,
+    hide-&-heal shipped, learns-to-fight progression still open, `companion_test.html` arena tool),
+    `combat_ai_overhaul_plan.md` (Void Tether fix + facing auto-aim,
     enemy notice-delay/decision-cooldown/facing-cone, block/dodge/breakout/
-    mix-up/reactivity modules, shared collision resolver + spawn safety),
+    mix-up/reactivity modules, shared collision resolver + spawn safety — all shipped),
     `healing_items_plan.md` (no potions — vitality motes, Child heal, placed
-    restores, max-health shards), `animation_editor_plan.md` (timeline/hitbox
-    editor + `ANIM_DEFS` data model with combo cancel windows)
-13. Other narrower docs as needed: `cave_design_plan.md`, `movement_feel_plan.md`, `level_editor_guide.md`, `room_verification_tool_plan.md`, `session_priorities.md`
+    restores, max-health shards — all shipped), `animation_editor_plan.md` (timeline/hitbox
+    editor + `ANIM_DEFS` data model shipped; player/enemy/boss bridges + raster frames added 2026-07-20)
+13. Other narrower docs as needed: `cave_design_plan.md`, `movement_feel_plan.md`, `archive/level_editor_guide.md` (archived 2026-07-21, superseded by roadmap.md's "WHAT'S ACTUALLY NEXT"), `room_verification_tool_plan.md`, `session_priorities.md`, `enemy_attack_vocabulary_plan.md`
 
 ## Where we are
 
@@ -285,6 +285,22 @@ files marked NEW landed 2026-07-16, roadmap Phase 17):
   everything + a Node VM smoke test loading all 15 scripts in order and
   exercising each system (all passing). NOT browser-verified — see
   roadmap Phase 17's manual test checklist.
+
+- **v0.0.14** — 2026-07-17 through 2026-07-21 — SVG-based level rebuild
+  scaffolded all 13 regions (71 rooms) as flat SHELL rooms in `area.js`
+  (roadmap Phase 20) plus new runtime platform flags (hazard/oneWay/
+  moving/crumble, Phase 21), levelEditor placeable + platform-type UI
+  (Phase 22), and `Plans/room_progress.js` as a per-room design-progress
+  tracker (Phase 23). Separately: `game/attackVFX.js` (shared player VFX/
+  hitbox math, 2026-07-19), the enemy attack vocabulary (Reversal, Aggro-
+  Pull, The Catch, Tiger Knee, Afterimage Strike, Mote Eater — 2026-07-20,
+  see `enemy_attack_vocabulary_plan.md`), the animation editor's enemy/
+  boss bridge + raster frames (2026-07-20), 8 more `ComposedEnemy` types
+  (2026-07-21, see `expansion.md`), and a lore/story war-bunker setting
+  reframe (2026-07-21, see `lore.md`/`story.md`). See `roadmap.md`'s
+  "Status catch-up (2026-07-21)" tail entry for the full reconciliation —
+  this doc and `roadmap.md` had both drifted out of sync with these by the
+  time this entry was written.
 
 <!-- Add new entries above this line, newest first is fine too — just keep
      the number incrementing and each entry to one or two sentences with a

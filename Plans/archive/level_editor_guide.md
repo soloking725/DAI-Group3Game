@@ -1,3 +1,13 @@
+> **ARCHIVED 2026-07-21**: moved out of `Plans/` during a doc staleness
+> pass. Written before the 2026-07-17 Phase 20-23 SVG rebuild and editor
+> overhaul — several items here are now done (e.g. the placeable/platform-
+> type editor UI from item 6/9 shipped in Phase 22), and its "3 of 13
+> regions exist as skeletons" framing is outdated (all ~71 rooms are now
+> scaffolded — see `regions.md`'s 2026-07-21 correction note). This doc's
+> punch-list role is superseded by `roadmap.md`'s own "WHAT'S ACTUALLY
+> NEXT" tail section, which is kept current. Kept here for historical
+> context only.
+
 # Punch list — things to do before the next session
 
 You said you know how to use the level editor already, so this isn't a

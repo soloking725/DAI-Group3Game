@@ -34,9 +34,13 @@
   .region-table td { border-bottom: 1px solid #1a1a2e; padding: 3px 2px; vertical-align: top; }
   .region-table td:first-child { color: #8888aa; white-space: nowrap; }
   optgroup { color: #6a6a9e; }
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
 </style>
 </head>
 <body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
 
 <div id="stage">
   <canvas id="game"></canvas>
@@ -56,7 +60,7 @@
   <div id="blurb">Pick an enemy above.</div>
 
   <h2>2. Ability Loadout (Enemy_Design.pdf leveling doc)</h2>
-  <p class="note">Check an ability on, pick its level (0-3 = the real lore-pip-funded tiers; "4 — Limit Break" forces
+  <p class="note">Check an ability on, pick its level (0-4 = the real lore-pip-funded tiers; "5 — Limit Break" forces
     that ability's Enhanced State permanently active for testing, no pip cost, ignoring the real one-per-playthrough
     rule). Applies live — no respawn needed, use <b>Apply Loadout</b> or just change a control.</p>
   <div id="abilityLoadout"></div>
@@ -72,6 +76,10 @@
     <input type="number" id="lorePipsInput" min="0" max="18" value="18" style="width:100%; background:#141428; border:1px solid #2e2e5e; color:#c4b5fd; font-family:inherit; padding:4px;">
   </label>
 
+  <label style="display:block; margin-bottom:10px;">
+    <input type="checkbox" id="squadSpawnInput"> Spawn as 3-enemy squad (test coordination roles)
+  </label>
+
   <button class="primary" id="applyLoadoutBtn">⟳ Apply Loadout (no respawn)</button>
   <button class="primary" id="spawnBtn">▶ Spawn in Test Arena</button>
   <button id="respawnPlayerBtn">↺ Reset Player Position/Health</button>
@@ -85,13 +93,13 @@
     exists yet, unlike every planned region below, which is a real gap worth a future pass.</p>
   <table class="region-table" id="regionTable"></table>
 
-  <h2>Bot Difficulty Scorer — planned, not built</h2>
+  <h2>Bot Difficulty Scorer — built, see difficulty_bot.html</h2>
   <p class="note">
-    Not implemented this pass (real scope, not a quick add) — plan: a scripted agent with a simple reactive policy
-    (approach until in range, attack on cooldown-ready, retreat/jump when the target's <code>windingUp</code> flips
-    true) run for N seconds per enemy across each ability preset, scoring hits-taken vs. time-to-kill. Worth building
-    once more than ~5 enemies exist to test — with only 5 real classes right now, eyeballing it here is faster than
-    building a scorer for a roster that's still 90% unbuilt.
+    Superseded this note (2026-07-24) — built as a separate tool,
+    <a href="difficulty_bot.html" style="color:#2dd4bf">Difficulty Bot</a>, not a mode of this page. Evolves a small
+    neural net (not the simple reactive policy originally sketched here) against a customizable roster/boss in the
+    bounded <code>bot_arena</code> room, fast-forwarded via direct <code>update()</code> calls with the best genome
+    replayed live after each generation. See <code>Plans/difficulty_bot_and_combat_polish_plan.md</code> for the design.
   </p>
 </div>
 
@@ -99,7 +107,9 @@
 <script src="../game/audio.js"></script>
 <script src="../game/input.js"></script>
 <script src="../game/physics.js"></script>
+<script src="../game/attackVFX.js"></script>
 <script src="../game/animdata.js"></script>
+<script src="../game/animImageStore.js"></script>
 <script src="../game/area.js"></script>
 <script src="../game/map.js"></script>
 <script src="../game/ability.js"></script>
@@ -128,6 +138,24 @@ const ROSTER = [
     blurb: 'Summoned by the King — charges or hops at the player. Not normally placed standalone in a room.' },
   { id: 'colossus_core', name: 'Colossus Core (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
     blurb: 'Crag of the Colossus miniboss. Only Charged (heavy) attacks connect — normal attacks bounce off with no damage. Single telegraphed charge attack. Has a real designed arena already (crag_warden) — this test uses an equivalent flat open floor.' },
+  { id: 'static_guardian', name: 'The Conduit (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'Static Field miniboss (TheConduit, enemy.js). Has a real designed arena (static_field_room2) — this test uses an equivalent flat open floor.' },
+  { id: 'hollow_guardian', name: 'The Mirror King (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'Mirror Veil miniboss (MirrorKing, enemy.js). Has a real designed arena — this test uses an equivalent flat open floor.' },
+  { id: 'graviton_sentinel', name: "Fractured Sovereign's Guard (miniboss)", group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'Graviton Core miniboss (GravitonGuard, enemy.js). Has a real designed arena — this test uses an equivalent flat open floor.' },
+  { id: 'paradox_engine', name: 'The Assembler (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'Paradox Engine miniboss (TheAssembler, enemy.js). Summons Debris Constructs at 60% HP. Has a real designed arena (paradox_engine_room2) — this test uses an equivalent flat open floor.' },
+  { id: 'timeline_keeper', name: 'The Stationmaster (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'Timeline Crossroads miniboss (TheStationmaster, enemy.js). Has a real designed arena — this test uses an equivalent flat open floor.' },
+  { id: 'abyss_guardian', name: 'Quantum Pursuer (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'Echoing Abyss miniboss (QuantumPursuer, enemy.js). Mirrors your moves with a delay. Has a real designed arena (echoing_abyss_room2) — this test uses an equivalent flat open floor.' },
+  { id: 'warp_guardian', name: 'Warden & Hollow (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'Warp Gate Nexus duo miniboss (WardenAndHollow, enemy.js). Has a real designed arena — this test uses an equivalent flat open floor.' },
+  { id: 'polar_guardian', name: 'Electromagnetic Golem (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'The Polar Shift miniboss (ElectromagneticGolem, enemy.js, 2026-07-26). Charges walls/floor/the player with a magnetic charge; phase 2 (<=50% HP) forces a charge-reversal slam. Has a real designed arena (polar_shift_room2) — this test uses an equivalent flat open floor with no `magnetizable`/`polarity` platforms, so the charge-visual/counterplay half of the fight isn\'t testable here, only the moveset.' },
+  { id: 'horizon_core', name: 'Gravity Collapse Core (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
+    blurb: 'Event Horizon miniboss (HorizonCore, enemy.js, 2026-07-26). Flying construct, immune to knockback/juggling, its gravity_flip attack rotates the whole room\'s gravity direction. Has a real designed arena (event_horizon_core, with wall/ceiling platforms for the rotated directions) — this test\'s flat open floor has no such platforms, so gravity_flip will be visible but the room won\'t actually be standable once it fires; test the real fight in event_horizon_core for that half.' },
   { id: 'void_lancer', name: 'Void Lancer', group: 'Built', built: true,
     blurb: 'Telegraphed charging thrust (glowing spear tip). Perfect parry stuns it — the next hit lands for double damage. No home region built yet (The Void Expanse), so it has no placement in AREAS besides this test arena.' },
   { id: 'null_sentinel', name: 'Null Sentinel', group: 'Built — Ability Counter', built: true, region: 'Mirror Veil / Warp Gate Nexus',
@@ -142,6 +170,8 @@ const ROSTER = [
     blurb: 'Teleports to just behind you the instant a Phase Dash ends (real teleport, ~0.75s cooldown between blinks). Not yet placed in Mirror Veil\'s AREAS entry.' },
   { id: 'composed', name: '⚙ Composed (from Enemy Designer)', group: 'Built', built: true,
     blurb: 'Spawns whatever definition enemy_designer.html last sent via "Test in Arena". Selecting this manually (without a fresh handoff) respawns the last one tested.' },
+  { id: 'war_scavenger', name: 'War Scavenger', group: 'Built', built: true, region: 'region-agnostic',
+    blurb: 'New (2026-07-26) — a scavenged-weapon demo enemy. Ships with the new `gun` attack type (GUN_NORMAL preset); swap `attacks` in enemy.js or via Enemy Designer for the new `flamethrower`/`taser` types (each with a NORMAL/STRONG preset const) to build a variant. Grounded in lore.md\'s "scavenged war weapons" framing — not tied to one region.' },
 
   // ── Planned normal enemies (expansion.md §2.1, not built) ──
   { id: 'temporal_shard', name: 'Temporal Shard', group: 'Planned — Normal', built: false, region: 'Timeline Crossroads',
@@ -203,40 +233,31 @@ const ROSTER = [
   { id: 'debris_construct', name: 'Debris Construct', group: 'Planned — Ability Counter', built: false, region: 'Paradox Engine',
     blurb: 'Self-assembles with a 1s telegraph (free punish window), then a slow wide shove. Exposed core takes 2x Shard Shot damage.' },
 
-  // ── Planned minibosses (expansion.md §4, not built — Colossus Core above is the only built one) ──
+  // ── Planned minibosses (expansion.md §4) — only these 2 remain unbuilt;
+  // Mirror King/Gravity Collapse Core/Electromagnetic Golem/Quantum
+  // Pursuer/The Assembler/Warden & Hollow all moved up to "Built —
+  // Miniboss" above once their real enemy.js classes landed. ──
   { id: 'kings_guard_miniboss', name: "The Fractured King's Guard (4.1)", group: 'Planned — Miniboss', built: false, region: 'origin spine (early)',
     blurb: 'Shield bash + combos, enrage with shard adds. Parry the bash, punish shield recovery. Reward: +1 Max Health. Same design template as Colossus Core (this is the fight it was reskinned from).', needsRoom: true },
-  { id: 'mirror_king', name: 'The Mirror King (4.2)', group: 'Planned — Miniboss', built: false, region: 'Mirror Veil',
-    blurb: 'Reflects 50% damage, spawns a clone that copies your movement. Needs Stillpoint + Phase Dash to fight well.', needsRoom: true },
-  { id: 'gravity_collapse_core', name: 'Gravity Collapse Core (4.3)', group: 'Planned — Miniboss', built: false, region: 'Graviton Core',
-    blurb: 'Debris volleys + a massive pull toward ceiling spikes. Needs Graviton Surge to escape the pull.', needsRoom: true },
-  { id: 'electromagnetic_golem', name: 'Electromagnetic Golem (4.4)', group: 'Planned — Miniboss', built: false, region: 'The Polar Shift',
-    blurb: 'Repulsion fields + polarity-reversing slam. Needs the region\'s magnetic-wall pinball geometry to read.', needsRoom: true },
-  { id: 'quantum_pursuer', name: 'Quantum Pursuer (4.5)', group: 'Planned — Miniboss', built: false, region: 'unassigned',
-    blurb: 'Mirrors your moves with a 0.5s delay, then attacks independently. Stop-and-go rhythm fight.', needsRoom: true },
   { id: 'temporal_warden', name: 'Temporal Warden (4.6)', group: 'Planned — Miniboss', built: false, region: 'unassigned',
-    blurb: 'Rewinds its own health every 10s unless interrupted. The one enemy with partial, narratively-justified Stillpoint resistance.', needsRoom: true },
-  { id: 'the_assembler', name: 'The Assembler (4.7)', group: 'Planned — Miniboss', built: false, region: 'Paradox Engine',
-    blurb: 'Summons Debris Constructs at 60% HP; clearing them fast exposes it for 2x melee damage. Needs the chase-zone arena.', needsRoom: true },
-  { id: 'warden_and_hollow', name: 'Warden & Hollow (4.8)', group: 'Planned — Miniboss', built: false, region: 'unassigned',
-    blurb: 'Duo fight — Warden parries melee, Hollow dodges ranged. Forces toolkit-switching. Needs a 2-target arena.', needsRoom: true },
+    blurb: 'Rewinds its own health every 10s unless interrupted. The one enemy with partial, narratively-justified Stillpoint resistance. Deliberately last per the user — design not settled yet.', needsRoom: true },
 ];
 
 // ─── Region assignment table (right sidebar) ───
 const REGION_ROWS = [
-  ['Event Horizon', 'Gravity Scavenger, Gravity Well'],
-  ['Mirror Veil', 'Mirror Sprite, Echo Stalker, Null Sentinel'],
-  ['Graviton Core', 'Null-Gravity Brute, Polarity Drone, Gravity Anchor'],
-  ['The Polar Shift', 'Polarity Drone, Inertial Shieldbearer, Anchor Wraith, Deflector Drone'],
-  ['Timeline Crossroads', 'Temporal Shard, Echoing Spectre, Temporal Paradox'],
+  ['Event Horizon', 'Gravity Scavenger, Gravity Well + Gravity Collapse Core (miniboss, built)'],
+  ['Mirror Veil', 'Mirror Sprite, Echo Stalker, Null Sentinel + The Mirror King (miniboss, built)'],
+  ['Graviton Core', "Null-Gravity Brute, Polarity Drone, Gravity Anchor + Fractured Sovereign's Guard (miniboss, built)"],
+  ['The Polar Shift', 'Polarity Drone, Inertial Shieldbearer, Anchor Wraith, Deflector Drone + Electromagnetic Golem (miniboss, built)'],
+  ['Timeline Crossroads', 'Temporal Shard, Echoing Spectre, Temporal Paradox + The Stationmaster (miniboss, built)'],
   ['Chrono-Space Rift', 'Phase Mage, Shard Spitter, Phase Sentinel'],
   ['The Observatory', 'Crystal Arbiter, Pulse Warden'],
-  ['Paradox Engine', 'Void Juggernaut, Timeworn Husk, Deflector Drone, Absorber Husk, Debris Construct, The Assembler (miniboss)'],
-  ['Static Field', 'Kinetic Striker, Warp Mite, Anchor Wraith'],
+  ['Paradox Engine', 'Void Juggernaut, Timeworn Husk, Deflector Drone, Absorber Husk, Debris Construct + The Assembler (miniboss, built)'],
+  ['Static Field', 'Kinetic Striker, Warp Mite, Anchor Wraith + The Conduit (miniboss, built)'],
   ['The Inverted Spire', 'Ruin Stalker, Gravity Well, Gravity Anchor'],
-  ['Warp Gate Nexus', 'Rift Crawler, Shard Geyser, Null Sentinel'],
+  ['Warp Gate Nexus', 'Rift Crawler, Shard Geyser, Null Sentinel + Warden & Hollow (duo miniboss, built)'],
   ['The Void Expanse', 'Fractured Knight, Void Lancer, Absorber Husk'],
-  ['Echoing Abyss', 'Echoing Spectre, Temporal Parasite'],
+  ['Echoing Abyss', 'Echoing Spectre, Temporal Parasite + Quantum Pursuer (miniboss, built)'],
   ['Crag of the Colossus (built)', 'Fractured, Stutterer, Crystal Sentinel (reused, no bespoke enemy yet) + Colossus Core (miniboss)'],
 ];
 
@@ -284,10 +305,11 @@ for (const [region, list] of REGION_ROWS) {
   regionTable.appendChild(tr);
 }
 
-// ─── Ability Loadout panel (Enemy_Design.pdf leveling doc, 2026-07-16) ───
-// One row per ability: a checkbox (has it at all) + a level select (0-3
-// real lore-pip tiers, "4 — Limit Break" forces that ability's Enhanced
-// State on for testing). Strength/Charged Attack is always melee-capable —
+// ─── Ability Loadout panel (Enemy_Design.pdf leveling doc, 2026-07-16;
+// 2026-07-27 rebalance added a cheap new Lv1, shifting the old Lv1-3 up to
+// Lv2-4). One row per ability: a checkbox (has it at all) + a level select
+// (0-4 real lore-pip tiers, "5 — Limit Break" forces that ability's
+// Enhanced State on for testing). Strength/Charged Attack is always melee-capable —
 // its checkbox instead gates the hold-to-charge input, same as the real
 // game's `abilityState.hasChargedAttack`.
 const ABILITY_ROWS = [
@@ -312,8 +334,9 @@ for (const row of ABILITY_ROWS) {
       <option value="0">Lv0</option>
       <option value="1">Lv1</option>
       <option value="2">Lv2</option>
-      <option value="3" selected>Lv3</option>
-      <option value="4">Lv4 — Limit Break</option>
+      <option value="3">Lv3</option>
+      <option value="4" selected>Lv4</option>
+      <option value="5">Lv5 — Limit Break</option>
     </select>
   `;
   abilityLoadoutEl.appendChild(wrap);
@@ -328,10 +351,10 @@ function applyLoadout() {
     const has = document.getElementById(`has_${row.key}`).checked;
     const lvl = parseInt(document.getElementById(`lvl_${row.key}`).value, 10);
     abilityState[row.hasFlag] = has;
-    statUpgrades[row.key] = has ? Math.min(lvl, 4) : 0;
-    if (has && lvl >= 4) limitBreakKey = row.key;
+    statUpgrades[row.key] = has ? Math.min(lvl, 5) : 0;
+    if (has && lvl >= 5) limitBreakKey = row.key;
   }
-  // Force Limit Break active for whichever ability (if any) is set to Lv4 —
+  // Force Limit Break active for whichever ability (if any) is set to Lv5 —
   // bypasses the real Fracture Pip cost / one-per-playthrough rule, since
   // this is a test bench, not a real run.
   if (limitBreakKey) {
@@ -395,6 +418,7 @@ const CLASS_MAP = {
   mirror_sprite: () => new MirrorSprite(900, 472),
   echo_stalker: () => new EchoStalker(900, 472),
   composed: () => new ComposedEnemy(900, 472, window.__composedDef || { movement: { type: 'ground_chase' }, attack: { type: 'melee_swing' }, stats: { health: 4 } }),
+  war_scavenger: () => new WarScavenger(900, 472),
 };
 
 // ─── Enemy Editor handoff (enemy_editor.html "Test in Arena" button) ───
@@ -405,10 +429,16 @@ const CLASS_MAP = {
 const EDITOR_HANDOFF_KEY = 'stillpoint_enemy_editor_test';
 function applyEditorOverrides(instance, overrides) {
   if (!overrides) return;
-  // 'speed' added 2026-07-16 (user request) — only the base Enemy class's
-  // own movement reads it so far, see enemy.js's constructor comment.
+  // 'speed' added 2026-07-16 (user request) — the base Enemy class's own
+  // movement reads `instance.speed` directly. ComposedEnemy-based enemies
+  // (the 8 migrated 2026-07-20, plus any enemy_designer.html def) instead
+  // read `instance.movement.speed` — mirror the override there too so the
+  // slider isn't a silent no-op for them.
   for (const key of ['health', 'attackCooldown', 'patrolRange', 'speed']) {
-    if (typeof overrides[key] === 'number' && !isNaN(overrides[key])) instance[key] = overrides[key];
+    if (typeof overrides[key] === 'number' && !isNaN(overrides[key])) {
+      instance[key] = overrides[key];
+      if (key === 'speed' && instance.movement) instance.movement.speed = overrides[key];
+    }
   }
 }
 
@@ -422,7 +452,11 @@ function spawnSelected(overrides) {
   player.x = 400; player.y = getCurrentArea().groundY - 60; player.health = MAX_HEALTH; player.vx = 0; player.vy = 0;
 
   const testArea = getCurrentArea();
-  if (e.id === 'colossus_core') {
+  // Any id registered in game.js's MINIBOSS_CLASSES (colossus_core plus the
+  // 9 ComposedEnemy-based minibosses, e.g. polar_guardian/horizon_core
+  // added 2026-07-26) spawns generically here — no per-boss special-casing
+  // needed, this table is the single source of truth game.js itself uses.
+  if (typeof MINIBOSS_CLASSES !== 'undefined' && MINIBOSS_CLASSES[e.id]) {
     // game.js's own per-frame loop clears `miniboss` on any area that isn't
     // flagged `isMinibossArena` (see the "Clear miniboss when leaving its
     // arena" block) — enemy_test_arena isn't one in area.js, so without this
@@ -430,14 +464,29 @@ function spawnSelected(overrides) {
     // frame. Flip it on this in-memory area object only (never touches
     // area.js on disk) so the test bench's spawn actually sticks.
     testArea.isMinibossArena = true;
-    testArea.miniboss = 'colossus_core';
-    miniboss = new ColossusCore(900, 436);
+    testArea.miniboss = e.id;
+    miniboss = new MINIBOSS_CLASSES[e.id](900, 436);
     applyEditorOverrides(miniboss, overrides);
   } else if (CLASS_MAP[e.id]) {
     testArea.isMinibossArena = false;
-    const instance = CLASS_MAP[e.id]();
-    applyEditorOverrides(instance, overrides);
-    areaEnemies['enemy_test_arena'].push(instance);
+    // Squad spawn (2026-07-21) — spawns 3 copies at spread-out x offsets,
+    // force-assigned round-robin roles (tank/ranged/flanker) even if the def
+    // itself carries none, so coordination (enemy.js's applyRoleCoordination)
+    // is testable here without hand-authoring three separate defs first.
+    // enemy_test.html only ever spawns one instance normally (see below) —
+    // this is the one path that pushes more than one.
+    const squad = document.getElementById('squadSpawnInput').checked;
+    const roles = ['tank', 'ranged', 'flanker'];
+    const count = squad ? 3 : 1;
+    for (let i = 0; i < count; i++) {
+      const instance = CLASS_MAP[e.id]();
+      applyEditorOverrides(instance, overrides);
+      if (squad) {
+        instance.x += (i - 1) * 100;
+        if ('role' in instance) instance.role = roles[i];
+      }
+      areaEnemies['enemy_test_arena'].push(instance);
+    }
   }
 }
 
@@ -445,7 +494,8 @@ document.getElementById('spawnBtn').addEventListener('click', () => spawnSelecte
 
 // Auto-run a handoff from enemy_editor.html, if one is waiting.
 (function runEditorHandoffIfPresent() {
-  const raw = localStorage.getItem(EDITOR_HANDOFF_KEY);
+  let raw = null;
+  try { raw = localStorage.getItem(EDITOR_HANDOFF_KEY); } catch (e) { return; } // opaque origin (file://) — no handoff possible
   if (!raw) return;
   localStorage.removeItem(EDITOR_HANDOFF_KEY); // consume once — a manual reload shouldn't re-spawn it
   try {
@@ -466,7 +516,8 @@ document.getElementById('spawnBtn').addEventListener('click', () => spawnSelecte
 // composed def isn't one of the fixed ROSTER ids.
 const DESIGNER_HANDOFF_KEY = 'stillpoint_enemy_designer_test';
 (function runDesignerHandoffIfPresent() {
-  const raw = localStorage.getItem(DESIGNER_HANDOFF_KEY);
+  let raw = null;
+  try { raw = localStorage.getItem(DESIGNER_HANDOFF_KEY); } catch (e) { return; } // opaque origin (file://) — no handoff possible
   if (!raw) return;
   localStorage.removeItem(DESIGNER_HANDOFF_KEY);
   try {

@@ -1,6 +1,55 @@
-# Universal Animation/Hitbox Editor — Plan (not built)
+# Universal Animation/Hitbox Editor — Plan (mostly built, see 2026-07-20 status update)
 
-Status: **planning only**, per user request 2026-07-16.
+Status: editor + `Animator` runtime shipped 2026-07-16 through 2026-07-20
+(player/enemy/boss bridges, raster frames). Originally planning-only per
+user request 2026-07-16.
+
+## Status update, 2026-07-20 — player bridge done, enemy/boss bridge done, raster frames live
+
+Since this doc was written: `game/animdata.js` (`ANIM_DEFS`/`Animator`/
+`POSE_RENDERERS`) shipped and is bridged into the **player** (melee swings,
+Dash, Phase Dash, Wall Slide, Echo, Stillpoint, Shard Shot aim/beam,
+Gravity Ball) — additive/fallback: an authored key overrides the
+procedural draw, nothing authored means zero behavior change. Raster
+per-frame drawings (`frame.image`, a data URL, wins over `pose`) are fully
+built and working in `editor/anim_editor.html` (upload button, scale
+field) and `game/animdata.js`'s `Animator.draw()` — this was the "optional
+raster-image frames" phase this doc originally deferred; it's done, not
+deferred anymore.
+
+**2026-07-20: `ComposedEnemy` (`game/enemy.js`) and `Boss` (`game/boss.js`)
+are now bridged too**, same additive pattern, no editor changes needed —
+the editor's existing free-form key names + "Entity mock" W/H fields
+already supported arbitrary entities (see its own hint text: "convention
+is entity_action"), so drawing enemy/boss art was always just a matter of
+authoring the right keys once the game actually consumed them:
+- `ComposedEnemy.animStateKey()` → `enemy_<def.id>_<state>`, where state is
+  `idle` / `walk` / `windup_<attackType>` / `attack_<attackType>` /
+  `death`. Wired via a guarded `if (ANIM_DEFS[key])` check (mirrors
+  player.js's own `bodyAnimator` guard) so an unauthored composed enemy
+  costs nothing and never spams `Animator`'s "no animation named" warning.
+- `Boss.bossAnimStateKey()` → `boss_<telegraph.type>` while an attack is
+  telegraphed (`charge`/`slam`/`barrage`/`triple`/`nova`/
+  `ultimate_charge` — the real per-attack identifiers, read off
+  `this.telegraph.type`; `this.currentAttack` is dead scaffolding, always
+  null, deliberately not used) or `boss_<state>` otherwise
+  (`idle`/`entering`/`recovering`/`teleporting`/`lunging`). Only the
+  Body/Core/Eyes block is overridable — the death sequence's
+  fragment-scatter VFX and the aura/vortex/charge-glow overlays stay
+  bespoke procedural code, same "overlays are separate from body art"
+  rule the player bridge already uses.
+- The older 9 hand-coded `Enemy` subclasses (Stutterer, VoidLancer, etc.)
+  are **not** bridged — deliberately deprioritized per the earlier
+  discussion (each already has a working procedural `draw()`; bridging all
+  of them is real per-class art-authoring time for something that already
+  reads fine). Revisit per-type if/when there's a reason to draw one.
+
+Draw art for enemies/bosses now: open `anim_editor.html`, set "Entity
+mock" W/H to match the enemy/boss you're drawing for (composed enemies:
+whatever `def.width`/`height` you gave them; Boss: 48×56, `BOSS_WIDTH`/
+`BOSS_HEIGHT`), create a key using the conventions above, author frames,
+Save to game (localStorage) or Export JSON. No code changes needed per
+animation — the fallback rule means it just starts rendering.
 
 ## Reality check first
 

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Ability Tester</title>
+<style>
+  /* Same layout family as companion_test.html / enemy_test.html */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #e2e8f0; font: 13px/1.5 "Courier New", monospace; display: flex; height: 100vh; overflow: hidden; }
+  #side { width: 360px; border-right: 1px solid #26263c; padding: 14px; overflow-y: auto; flex-shrink: 0; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; background: #05050a; }
+  h1 { font-size: 15px; color: #67e8f9; margin-bottom: 4px; }
+  h2 { font-size: 12px; color: #94a3b8; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #1e1e32; padding-bottom: 3px; }
+  p.note { color: #64748b; font-size: 11px; margin-bottom: 8px; }
+  button { background: #1e1e32; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 6px 10px; font: inherit; cursor: pointer; border-radius: 3px; width: 100%; margin-bottom: 6px; }
+  button:hover { background: #2a2a44; }
+  button.primary { border-color: #67e8f9; color: #67e8f9; }
+  button.reset { border-color: #f87171; color: #f87171; }
+  label.row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 11.5px; }
+  label.row span.name { flex: 1; color: #b4b4d4; }
+  input[type=range] { width: 110px; }
+  input[type=number] { width: 62px; background: #14141f; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 3px 5px; font: inherit; }
+  .val { color: #67e8f9; min-width: 40px; text-align: right; font-size: 11px; }
+  #liveStats div { display: flex; justify-content: space-between; border-bottom: 1px dotted #1e1e32; padding: 2px 0; font-size: 11px; }
+  canvas { display: block; }
+  #exp-out { width: 100%; height: 220px; background: #04040a; border: 1px solid #1e1e3e; color: #67e8f9; font-size: 10px; resize: vertical; font-family: inherit; padding: 6px; white-space: pre; }
+  .ability-block { border: 1px solid #1e1e32; border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+  .ability-title { color: #67e8f9; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
+</style>
+</head>
+<body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
+
+<div id="side">
+  <h1>⚙ Ability Tester</h1>
+  <p class="note">
+    Boots the real game into the Test Arena with every ability unlocked. Every slider below writes
+    straight to the live constant (they're <code>var</code>, not <code>const</code>, in
+    <code>ability.js</code>/<code>player.js</code> specifically so this works — same trick
+    <code>enemy.js</code>'s constants already use for <code>enemy_editor.html</code>) — so changes apply
+    instantly and you can play-test them in the arena on the right. When you're happy, hit
+    <b>Generate JS</b> for a paste-ready block to drop back into the real source files.
+  </p>
+
+  <button class="primary" id="startBtn">▶ Start / Reset Arena</button>
+  <button class="reset" id="resetDefaultsBtn">↺ Reset all sliders to shipped defaults</button>
+
+  <div id="sliders"></div>
+
+  <h2>Test enemies</h2>
+  <button id="spawnBtn">👾 Spawn 2 enemies to tether/shoot</button>
+  <button id="spawnReachBtn">↗ Spawn enemy diagonally above (Reach test)</button>
+  <button id="clearEnemiesBtn">✕ Clear enemies</button>
+  <button id="healPlayerBtn">💗 Full heal player</button>
+
+  <h2>Live state</h2>
+  <div id="liveStats">Not started.</div>
+
+  <h2>Controls</h2>
+  <p class="note">Real bindings: arrows move, Z jump, X attack, C dash, V shard shot, Q stillpoint,
+    E graviton surge, R void tether. Reach has no dedicated bind — jump near an enemy that's
+    diagonally in front of you and press attack (X) with no up/down held; it auto-redirects into
+    the up/down swing if one's in the cone.</p>
+
+  <h2>Export</h2>
+  <button id="exportBtn">⬇ Generate JS</button>
+  <textarea id="exp-out" readonly placeholder="Press Generate JS to produce a paste-ready block..."></textarea>
+</div>
+
+<div id="stage"><canvas id="game" width="960" height="540"></canvas></div>
+
+<!-- Real game scripts — same load order as index.html -->
+<script src="../game/audio.js"></script>
+<script src="../game/input.js"></script>
+<script src="../game/physics.js"></script>
+<script src="../game/attackVFX.js"></script>
+<script src="../game/animdata.js"></script>
+<script src="../game/animImageStore.js"></script>
+<script src="../game/area.js"></script>
+<script src="../game/map.js"></script>
+<script src="../game/ability.js"></script>
+<script src="../game/cutscene.js"></script>
+<script src="../game/combo.js"></script>
+<script src="../game/healing.js"></script>
+<script src="../game/boss.js"></script>
+<script src="../game/enemy.js"></script>
+<script src="../game/companion.js"></script>
+<script src="../game/player.js"></script>
+<script src="../game/game.js"></script>
+
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────────
+// Ability tuning bench — boots the real game into enemy_test_arena with every
+// ability unlocked, and exposes every tunable ability constant as a live
+// slider. Unlike companion_test.html (whose CHILD_* constants stayed const
+// and had to be worked around per-instance), the constants here
+// (game/ability.js, game/player.js) were switched from const to var
+// specifically so this tool can write window.CONST_NAME = value and have it
+// take effect immediately — same convention enemy.js's constants already use
+// for enemy_editor.html (window[name] read/write).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Every tunable: { key, file, label, min, max, step }. `key` must match the
+// exact global identifier declared with `var` in that file.
+const TUNABLES = [
+  { group: 'Movement Feel', file: 'player.js', fields: [
+    { key: 'GRAVITY', label: 'Gravity (lower = floatier)', min: 0.1, max: 1.5, step: 0.05 },
+    { key: 'JUMP_FORCE', label: 'Jump force (more negative = higher)', min: -20, max: -4, step: 0.5 },
+    { key: 'MOVE_SPEED', label: 'Run speed', min: 1, max: 10, step: 0.25 },
+    { key: 'DUCK_SPEED', label: 'Duck-walk speed', min: 0.5, max: 6, step: 0.25 },
+  ]},
+  { group: 'Dash', file: 'player.js', fields: [
+    { key: 'DASH_SPEED', label: 'Speed', min: 2, max: 30, step: 0.5 },
+    { key: 'DASH_DURATION', label: 'Duration (f)', min: 2, max: 30, step: 1 },
+    { key: 'DASH_COOLDOWN', label: 'Cooldown (f)', min: 5, max: 120, step: 1 },
+  ]},
+  { group: 'Knockback', file: 'enemy.js / player.js', fields: [
+    { key: 'KNOCKBACK_FORWARD_X', label: 'Forward hit — X', min: 0, max: 15, step: 0.5 },
+    { key: 'KNOCKBACK_FORWARD_Y', label: 'Forward hit — Y (pop-up)', min: -15, max: 0, step: 0.5 },
+    { key: 'KNOCKBACK_UP_X', label: 'Up-swing — X', min: 0, max: 15, step: 0.5 },
+    { key: 'KNOCKBACK_UP_Y', label: 'Up-swing — Y (launch)', min: -25, max: 0, step: 0.5 },
+    { key: 'KNOCKBACK_DOWN_X', label: 'Down-swing — X', min: 0, max: 15, step: 0.5 },
+    { key: 'KNOCKBACK_DOWN_Y', label: 'Down-swing — Y (slam)', min: 0, max: 20, step: 0.5 },
+    { key: 'HEAVY_KNOCKBACK', label: 'Heavy-hit multiplier', min: 0.5, max: 6, step: 0.1 },
+  ]},
+  { group: 'Phase Dash', file: 'ability.js', fields: [
+    { key: 'PHASE_DASH_SPEED', label: 'Speed', min: 2, max: 30, step: 0.5 },
+    { key: 'PHASE_DASH_DURATION', label: 'Duration (f)', min: 2, max: 30, step: 1 },
+    { key: 'PHASE_DASH_COOLDOWN', label: 'Cooldown (f)', min: 10, max: 240, step: 5 },
+  ]},
+  { group: 'Shard Shot', file: 'ability.js', fields: [
+    { key: 'SHARD_SHOT_SPEED', label: 'Projectile speed', min: 2, max: 20, step: 0.5 },
+    { key: 'SHARD_SHOT_DAMAGE', label: 'Damage', min: 1, max: 10, step: 1 },
+    { key: 'SHARD_SHOT_COOLDOWN', label: 'Cooldown (f)', min: 5, max: 120, step: 1 },
+  ]},
+  { group: 'Stillpoint', file: 'player.js', fields: [
+    { key: 'STILLPOINT_TAP_DURATION_BASE', label: 'Tap duration (f)', min: 5, max: 90, step: 1 },
+    { key: 'STILLPOINT_HOLD_DURATION_BASE', label: 'Hold duration (f)', min: 20, max: 240, step: 5 },
+    { key: 'STILLPOINT_SLOW_BASE', label: 'Slow (0-1, Lv0-2)', min: 0, max: 0.95, step: 0.05 },
+    { key: 'STILLPOINT_SLOW_LV3', label: 'Slow (0-1, Lv3+)', min: 0, max: 0.99, step: 0.01 },
+    { key: 'STILLPOINT_HOLD_THRESHOLD', label: 'Tap/Hold threshold (f)', min: 5, max: 60, step: 1 },
+  ]},
+  { group: 'Graviton Surge', file: 'ability.js', fields: [
+    { key: 'GRAVITON_SURGE_BASE_DURATION', label: 'Duration (f)', min: 30, max: 600, step: 10 },
+    { key: 'GRAVITON_SURGE_COOLDOWN', label: 'Cooldown (f)', min: 30, max: 600, step: 10 },
+    { key: 'GRAVITON_SURGE_TAP_THRESHOLD', label: 'Tap/Hold threshold (f, Lv2+)', min: 2, max: 40, step: 1 },
+    { key: 'GRAVITON_SURGE_RANGE', label: 'Enemy-affect range', min: 50, max: 800, step: 10 },
+    { key: 'GRAVITON_BALL_PULL_RADIUS', label: 'Gravity Ball radius', min: 40, max: 400, step: 10 },
+    { key: 'GRAVITON_BALL_PULL_FORCE', label: 'Gravity Ball pull force', min: 0.05, max: 3, step: 0.05 },
+    { key: 'GRAVITON_BALL_SPAWN_DIST', label: 'Gravity Ball spawn distance (in front)', min: 20, max: 400, step: 10 },
+    { key: 'GRAVITON_BALL_LAUNCH_SPEED_X', label: 'Gravity Ball launch speed (forward)', min: 0, max: 20, step: 0.5 },
+    { key: 'GRAVITON_BALL_LAUNCH_SPEED_Y', label: 'Gravity Ball launch speed (upward)', min: 0, max: 20, step: 0.5 },
+    { key: 'GRAVITON_BALL_FLIGHT_DURATION', label: 'Gravity Ball flight duration (f, before explode)', min: 1, max: 120, step: 1 },
+    { key: 'GRAVITON_BALL_EXPLODE_DAMAGE', label: 'Gravity Ball explosion dmg (Lv3+ release)', min: 1, max: 15, step: 1 },
+    { key: 'GRAVITON_BALL_EXPLODE_KB', label: 'Gravity Ball explosion knockback', min: 1, max: 15, step: 1 },
+  ]},
+  { group: 'Void Tether', file: 'ability.js', fields: [
+    { key: 'VOID_TETHER_RANGE_BASE', label: 'Range', min: 50, max: 800, step: 10 },
+    { key: 'VOID_TETHER_COOLDOWN', label: 'Cooldown (f)', min: 10, max: 240, step: 5 },
+    { key: 'VOID_TETHER_PULL_SPEED_BASE', label: 'Pull speed', min: 2, max: 30, step: 0.5 },
+  ]},
+  { group: 'Reach', file: 'ability.js', fields: [
+    { key: 'REACH_RANGE', label: 'Range', min: 30, max: 400, step: 10 },
+    { key: 'REACH_MIN_FORWARD', label: 'Min forward offset (excludes directly overhead/underfoot)', min: 0, max: 60, step: 2 },
+    { key: 'REACH_CONE_MIN_DEG', label: 'Cone min angle off vertical (deg)', min: 0, max: 89, step: 1 },
+    { key: 'REACH_CONE_MAX_DEG', label: 'Cone max angle off vertical (deg)', min: 1, max: 90, step: 1 },
+  ]},
+];
+
+// Snapshot the shipped defaults before anything can touch them.
+const SHIPPED_DEFAULTS = {};
+for (const g of TUNABLES) for (const f of g.fields) SHIPPED_DEFAULTS[f.key] = window[f.key];
+
+const sliderEl = document.getElementById('sliders');
+for (const g of TUNABLES) {
+  const block = document.createElement('div');
+  block.className = 'ability-block';
+  const title = document.createElement('div');
+  title.className = 'ability-title';
+  title.textContent = `${g.group} — ${g.file}`;
+  block.appendChild(title);
+  for (const f of g.fields) {
+    const row = document.createElement('label');
+    row.className = 'row';
+    const decimals = f.step < 1 ? 2 : 0;
+    row.innerHTML = `<span class="name">${f.label}</span>
+      <input type="range" min="${f.min}" max="${f.max}" step="${f.step}" value="${window[f.key]}" data-key="${f.key}">
+      <span class="val" id="val-${f.key}">${Number(window[f.key]).toFixed(decimals)}</span>`;
+    block.appendChild(row);
+    const input = row.querySelector('input');
+    input.addEventListener('input', () => {
+      const v = Number(input.value);
+      window[f.key] = v; // live — takes effect next frame, no restart needed
+      document.getElementById('val-' + f.key).textContent = v.toFixed(decimals);
+    });
+  }
+  sliderEl.appendChild(block);
+}
+
+document.getElementById('resetDefaultsBtn').addEventListener('click', () => {
+  for (const g of TUNABLES) for (const f of g.fields) {
+    window[f.key] = SHIPPED_DEFAULTS[f.key];
+    const input = sliderEl.querySelector(`input[data-key="${f.key}"]`);
+    input.value = SHIPPED_DEFAULTS[f.key];
+    const decimals = f.step < 1 ? 2 : 0;
+    document.getElementById('val-' + f.key).textContent = Number(SHIPPED_DEFAULTS[f.key]).toFixed(decimals);
+  }
+});
+
+// Canvas fit — game.js sizes against the full window and doesn't know about the sidebar.
+function fitCanvasToStage() {
+  const sideWidth = document.getElementById('side').offsetWidth;
+  const availW = window.innerWidth - sideWidth;
+  const availH = window.innerHeight;
+  const scale = Math.min(availW / W, availH / H);
+  canvas.style.width = Math.floor(W * scale) + 'px';
+  canvas.style.height = Math.floor(H * scale) + 'px';
+}
+window.addEventListener('resize', fitCanvasToStage);
+fitCanvasToStage();
+
+function startArena() {
+  gameState = 'playing';
+  try { SFX.init(); } catch (e) {}
+  currentAreaId = 'enemy_test_arena';
+  try { SFX.setAreaAmbient('enemy_test_arena'); } catch (e) {}
+  const area = getCurrentArea();
+  player = new Player(300, area.groundY - 60);
+  echoes = []; projectiles = []; particles = []; bossProjectiles = [];
+  boss = null; miniboss = null; defeatedMinibosses = {};
+  areaEnemiesSpawned = {}; areaEnemies['enemy_test_arena'] = [];
+  discoveredAreas = { enemy_test_arena: true };
+  anchorActivated = {}; lastAnchor = null; collectedLore = {}; bossDefeated = false;
+  resetCamera();
+  showUI(true);
+  // Full kit, max level, so every ability's strongest form is testable.
+  abilityState.hasPhaseDash = true;
+  abilityState.hasShardShot = true;
+  abilityState.hasStillpoint = true;
+  abilityState.hasChargedAttack = true;
+  abilityState.hasVoidTether = true;
+  abilityState.hasGravitonSurge = true;
+  abilityState.hasReach = true;
+  player.fractureMax = 4; player.fractureMeter = 4;
+  statUpgrades.phase_dash = 3; statUpgrades.shard_shot = 3; statUpgrades.stillpoint = 3;
+  statUpgrades.graviton_surge = 3; statUpgrades.void_tether = 3; statUpgrades.strength = 3;
+  spawnTestEnemies();
+}
+document.getElementById('startBtn').addEventListener('click', startArena);
+
+function spawnTestEnemies() {
+  if (gameState !== 'playing') return;
+  const list = areaEnemies['enemy_test_arena'];
+  list.push(new Enemy(700, 460, 'fractured'));
+  list.push(new Enemy(1000, 460, 'fractured'));
+}
+document.getElementById('spawnBtn').addEventListener('click', spawnTestEnemies);
+document.getElementById('spawnReachBtn').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  // Placed diagonally in front of + above the player's spawn point, inside
+  // the default REACH cone (roughly 45deg off vertical) so a jump + attack
+  // near it exercises findReachDirection() without manual positioning.
+  areaEnemies['enemy_test_arena'].push(new Enemy(player.x + 70, player.y - 70, 'fractured'));
+});
+document.getElementById('clearEnemiesBtn').addEventListener('click', () => {
+  areaEnemies['enemy_test_arena'] = [];
+});
+document.getElementById('healPlayerBtn').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  player.health = playerMaxHealth ? playerMaxHealth() : MAX_HEALTH;
+});
+
+// ── Live stats ──────────────────────────────────────────────────────────────
+setInterval(() => {
+  const el = document.getElementById('liveStats');
+  if (gameState !== 'playing' || currentAreaId !== 'enemy_test_arena') { el.textContent = 'Not started.'; return; }
+  const enemies = (areaEnemies['enemy_test_arena'] || []).filter((e) => !e.dead);
+  let html = `<div><span>Player HP</span><span>${player.health}/${(playerMaxHealth ? playerMaxHealth() : MAX_HEALTH)}</span></div>`;
+  html += `<div><span>Dash cooldown</span><span>${Math.ceil(Math.max(0, player.dashCooldown || 0))}f</span></div>`;
+  html += `<div><span>Phase Dash cooldown</span><span>${Math.ceil(Math.max(0, abilityState.phaseDashCooldown || 0))}f</span></div>`;
+  html += `<div><span>Shard Shot cooldown</span><span>${Math.ceil(Math.max(0, abilityState.shardShotCooldown || 0))}f</span></div>`;
+  html += `<div><span>Graviton cooldown</span><span>${Math.ceil(Math.max(0, abilityState.gravitonSurgeCooldown || 0))}f</span></div>`;
+  html += `<div><span>Void Tether cooldown</span><span>${Math.ceil(Math.max(0, abilityState.voidTetherCooldown || 0))}f</span></div>`;
+  html += `<div><span>Void Tether active</span><span>${!!player.tether}</span></div>`;
+  html += `<div><span>Enemies alive</span><span>${enemies.length}</span></div>`;
+  el.innerHTML = html;
+}, 200);
+
+// ── Export ──────────────────────────────────────────────────────────────────
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const byFile = {};
+  for (const g of TUNABLES) {
+    byFile[g.file] = byFile[g.file] || [];
+    for (const f of g.fields) byFile[g.file].push({ key: f.key, value: window[f.key], group: g.group });
+  }
+  let out = '';
+  for (const file in byFile) {
+    out += `// ── ${file} — paste these over the existing declarations ──\n`;
+    let lastGroup = null;
+    for (const entry of byFile[file]) {
+      if (entry.group !== lastGroup) { out += `// ${entry.group}\n`; lastGroup = entry.group; }
+      const v = Number.isInteger(entry.value) ? entry.value : Number(entry.value.toFixed(3));
+      out += `var ${entry.key} = ${v};\n`;
+    }
+    out += '\n';
+  }
+  document.getElementById('exp-out').value = out;
+});
+
+startArena();
+</script>
+</body>
+</html>

@@ -8,9 +8,17 @@
 
 ## 1. THE WORLD
 
-The Fractured Sovereign broke the center of time (the **Stillpoint**). You are a nameless **Warden** — resurrected in a time loop to fix what was shattered.  
+The Sovereign's attempt to fuse every Stillpoint into one absolute device didn't hold. It
+didn't tear the world apart — the world's damage is just the ordinary long war (see
+`lore.md`'s "the fracture" section). What it did instead ties into who she is: the
+Sovereign, the nameless **Warden** the player controls, and the companion child are **the
+same person**, met at different points in one real, continuous, un-reset timeline (see
+§0.5) — no one gets reset, no one relives anything; each stage is a full life lived once.
+You are that Warden.
 
-You are not alone. A **child** — an anomaly outside the fracture — hides in the ruins after the first region. She is the only being the Sovereign cannot see... unless you teach her to fight.
+You are not alone. A **child** — an anomaly the Sovereign cannot perceive — hides in the ruins after the first region. She is the only being the Sovereign cannot see... unless you teach her to fight.
+
+**Her origin (revised 2026-07-21 — the Sovereign ordered it):** the Sovereign herself commissioned the research collaboration that made her — several of the shelter's scientists, working under her authority, cut her loose when the project didn't produce whatever they needed. None of them knew, and neither did the Sovereign, that she'd bond with, or become, the one Stillpoint stolen back before the fusion (`lore.md`'s Vault entry — "keep it hidden, give it to whoever comes looking"). Per §0.5 below, she is also, later in the same life, the Sovereign herself — meaning, read forward, the Sovereign orders the creation of her own earlier self without knowing it.
 
 ---
 
@@ -65,30 +73,57 @@ At any point, you can **leave her behind** by pressing `F`. She sits and waits.
 
 ## 4. THE 4TH ABILITY — VOID TETHER (The Sacrifice)
 
-**Miniboss**: *The Crystalline Warden* (Timeline Crossroads — moved here 2026-07-13
-from The Polar Shift to resolve a conflict with expansion.md's Electromagnetic Golem,
-which is the better mechanical fit for The Polar Shift's push/pull magnetism; the
-Warden's "freezes in terror, encases itself in crystal" imagery fits Timeline
-Crossroads' Past/Present frozen-vs-safe mechanic instead — see `Plans/regions.md`).
+**Miniboss — replaced 2026-07-22**: *The Stationmaster* (proposed name, not locked;
+Timeline Crossroads — replaces the earlier Crystalline Warden assignment, a full
+identity/moveset swap, not a rename, per `lore.md`'s redone miniboss spec). One of the
+scientists who ordered the child's creation in the first place, and wanted her to be a
+failure even then. He controls most of the shelter's internal transit routes and runs a
+prison at Echo Bridge. He stole this ability from **The Undertow** (Void Expanse's own
+miniboss, proposed name), wrongly convinced it's unusable — which is why he took it at
+all rather than leaving it alone.
 
-- **If you bring the child**: The Warden freezes in terror, encases itself in crystal. You cannot fight it. The ability is lost forever.
-- **If you leave the child at the entrance**: You fight the Warden alone. Defeating it grants:
+- **If you bring the child**: **Retired framing** ("the Warden freezes in terror,
+  encases itself in crystal") — doesn't fit a human antagonist. **New, per the redone
+  spec**: he has the player arrested on sight specifically to take her, opening into a
+  forced prison-break sequence at Echo Bridge. **Open, not decided**: whether this
+  replaces "the ability is simply lost" outright, or whether the player can still reach
+  and fight him for the Tether after resolving the prison break — needs a direct call
+  before it's built. What IS decided: if the child is left behind specifically during
+  this break (as opposed to lost some other way), escaped prisoners protect and raise
+  her — this is the trigger for the Antechamber's grown **Child** fight (see
+  `lore.md`/`expansion.md` — **status: conflicts with The Abandoned Shell below, not yet
+  reconciled**, don't build both as the same trigger's outcome without picking one).
+- **If you leave the child at the entrance**: unchanged — you fight The Stationmaster
+  alone, without triggering the arrest.
 
-| Ability | Key | Fracture Cost | Effect |
+**Grant corrected 2026-07-22 — no longer a single flat unlock:** defeating him this way
+grants a real, immediately usable Void Tether, just a **limited** one (exact limitation —
+shorter range, a single charge before recharge, something along those lines — still
+TBD). This was changed on direct request: the old version risked leaving a player who
+just made an irreversible, painful sacrifice with nothing to show for it if the ability
+were gated behind a second fight elsewhere. Later reaching the Void Expanse and
+defeating The Undertow **completes** it (full range, no charge limit) — an optional
+upgrade quest, not a prerequisite. Doing so also frees the Temporal Warden's own love,
+who The Undertow had taken — this is what turns the Warden into a real ally (a "favor"
+owed), on top of whatever the Tether itself grants.
+
+| Ability | Key | Fracture Cost | Effect (base, limited version from The Stationmaster) |
 | :--- | :--- | :--- | :--- |
-| **Void Tether** | `T` | 1 Pip | Hit enemy → pull them toward you. Hit wall/ceiling → pull *you* toward it (grappling hook). |
+| **Void Tether** | `T` | 1 Pip | Hit enemy → pull them toward you. Hit wall/ceiling → pull *you* toward it (grappling hook). **Limited** until completed at the Void Expanse — exact restriction not yet decided. |
 
 **The Dilemma (corrected 2026-07-14 — leaving her here is PERMANENT, not temporary)**:
-Keep the child → lose a major traversal tool, forever (the Warden won't fight while she's
-present, and this is the only chance at Void Tether). Leave her at the entrance → gain
-the Tether, but she's gone for good — not "until you backtrack," she does not return.
-This is now the same weight of choice as permanently abandoning her at the final door
+Keep the child → risk the arrest/prison-break branch above instead of simply losing the
+ability outright (open question, see above). Leave her at the entrance → gain
+the Tether on the spot, but she's gone for good — not "until you backtrack," she does not return.
+This is the same weight of choice as permanently abandoning her at the final door
 (§5), just earlier and easier to stumble into without realizing the cost — raises the
 stakes of this choice considerably, intentional. **Downstream consequence**: losing her
 here counts as the same "permanently lost the child" state that triggers The Abandoned
 Shell (§5) and the Collapse/Loop-via-Shell branch in §7 — you don't need to reach the
 final door specifically to trigger that branch anymore, losing her at Void Tether does
-it just as surely, just sooner.
+it just as surely, just sooner. **Unless** she's specifically lost during the
+prison-break branch above, in which case the still-unreconciled Antechamber Child fight
+may apply instead — see the open flag above.
 
 ---
 
@@ -97,7 +132,12 @@ it just as surely, just sooner.
 **Trigger (broadened 2026-07-14)**: Permanently lose the child — either by abandoning
 her at the final door (Region 13 entrance), or by leaving her behind for the Void Tether
 (§4) and never returning, which is now itself permanent. Either route counts as the same
-"lost her for good" state.
+"lost her for good" state. **Open conflict, flagged 2026-07-22, not resolved**: §4's new
+Stationmaster/prison-break branch introduces a third way to lose her (left behind
+specifically during that break) that's supposed to lead to a completely different fight —
+the Antechamber's grown Child (see `lore.md`/`expansion.md`) — not this one. There's no
+rule yet for keeping these two "you lost her" outcomes from colliding; needs a direct
+decision before either gets built further.
 
 **What happens**: The Sovereign's fracture energy corrupts her empty body — regardless of
 where she was actually lost, what's left of her surfaces here, at the final door, claimed
@@ -127,6 +167,51 @@ by the fracture rather than by distance. She rises as a ghostly, red-eyed boss t
 - Stillpoint (3) + Graviton Surge (1) = slow time + flipped gravity.  
 - Stillpoint (3) + Tether (1) = pull enemies into slowed time.  
 - 4 Tethers = extreme mobility (costly but rewarding).
+
+**Lore pips, reframed (confirmed 2026-07-21):** when lore fragments get their
+environmental-storytelling pass (roadmap 1.9/1.10 — still `LORE_ENABLED = false` today),
+frame them diegetically as visions the Sovereign herself pushes toward the player as they
+grow stronger — not neutral worldbuilding, an active persuasion campaign meant to make
+giving up the child feel reasonable, even responsible, by the time it matters. Answers the
+previously-open "how should lore-bit visual effects work" question: they should read as
+*her* voice intruding, not the world's.
+
+---
+
+## 10. THE PACIFIST WING & THE COMPANION NPC (confirmed 2026-07-21)
+
+The pacifist region (existing design — fighting even once forfeits its reward
+permanently, per `Plans/CLAUDE.md`'s consent-gated-choices note) is reframed as a ward for
+shelter staff discarded as no longer useful — injured, aged, retired from weapons work.
+One resident, a genuinely warm presence in an otherwise grim shelter, offers the player a
+place to sleep (the game's first real home-base beat) and can teach a skill over repeat
+visits. Mid-late game, a miniboss takes him as leverage — a deliberate "your princess is
+in another castle" beat, with a romance track possible. **Not yet decided**: whether the
+kidnap is a forced detour or optional-but-permanent-cost (recommended, to match the
+project's existing irreversible-consent-gated-choice pattern, but not locked). Scope note:
+skip a full relationship-meter system — a handful of one-time, gated affection scenes
+(triggered after major story beats, occasional binary "warmth" choices) delivers this
+without a new UI subsystem, consistent with the project's no-boxed-HUD-panel philosophy.
+
+## 11. THE OUTSIDE (confirmed 2026-07-21)
+
+A known movement-tech sequence break leads outside, onto the snowy mountainside —
+reachable, not intended, framed as a discovery rather than a puzzle. This is the same
+location and outcome as the Collapse ending's epilogue (§7) — a player who finds this
+early and later reaches Collapse should recognize exactly where they are. **Corrected
+2026-07-21, per direct request: survivable.** No radiation timer, no forced death — she
+gets to actually see the outside world, the first time anyone from the shelter has. Found
+early (before Collapse), it should read as a strange, quiet, unexplained discovery — its
+full weight only lands in hindsight once the player has also seen it as the Collapse
+ending's epilogue. **Corrected same day: still fatal without protection, not freely
+survivable** — the radiation timer stays, and it still kills her, but per direct request
+there's now a real window before it does: long enough to actually take in the outside
+world first, not an instant death the moment she steps out. **Expanded 2026-07-22**:
+staying inside (not stepping out at all) is the actual baseline-survivable option — the
+spawn room itself is safe. Stepping out is only survivable long-term with both the Warp
+Key (The Assembler) and a radiation shield (source not yet decided) — see §7's Collapse
+row for the full breakdown of all three outcomes (stay and survive; leave unprotected and
+see it before dying; leave protected and actually explore it).
 
 ---
 
@@ -198,6 +283,22 @@ anymore. No replacement mechanism is settled canon yet — don't assume one. If/
 mechanism is chosen, only this "how" needs writing; the "that" (the identity claim
 itself) is already confirmed above and shouldn't need to change to accommodate it.
 
+**The mechanism — confirmed 2026-07-21, spatial rather than expository:**
+
+- Regardless of the Antechamber/Void Tether choice (fought her there, or brought her
+  along), the child ends up in the spawn room during the final fight, and the fight
+  itself happens in the tutorial room. Walking into the spawn room mid-fight is a
+  recognition beat, not new information — this is where the player grew up. See §0 above:
+  the fight happens in the same two rooms the opening cinematic already showed the player,
+  which is what lets this land as recognition instead of exposition.
+- At the fight's end, the child is sealed there — in space and time — the same mechanism
+  the ally used on the player at the very start of the game.
+- The Sovereign Ending's postgame (§9) is this mechanism completing itself, not a separate
+  event: the "corrupting knowledge" the ally gives the player IS the memory of the loop —
+  winning and receiving it means the player now remembers being her, because she already
+  was, some number of iterations back. "Becoming" the Sovereign is a recognition arriving
+  late, not a turn. See §9 for the postgame sequence this produces.
+
 **Why this doesn't read as arbitrary**: this game's stated thesis (`lore.md`'s "something
 built to last, and what happened when it couldn't") already applies to the Stillpoint
 device, the Crag's crystal heart, and several minibosses. Making the player's own identity
@@ -221,8 +322,8 @@ postgame flavor (Protect/Spare vs. Train) now picks which of two real endings yo
 
 | Ending | What happens to the loop | Trigger | Cinematic (No Text) | Post-Game Unlock |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. Collapse** | **Destroyed.** The loop is annihilated along with everything that depended on it — this is punishment, not resolution: power taken (absorbing her) instead of the loop being allowed to resolve on its own terms. | Permanently lost the child (final-door abandonment, or lost her forever at the Void Tether choice — §4) → Absorbed the Shell. | You kill the Sovereign. The fracture implodes. Screen fades white. Save file deleted. | **Nothing** (punishment). |
-| **2. Loop** | **Continues, unchanged.** The same person begins again as the child, will grow into the Warden — this is the "nothing broke, nothing was learned" outcome. **Mechanism, corrected 2026-07-14 — see the note below the table**: you don't defeat the Sovereign here. You lose to her, and your last act is getting the child to safety. | Protected her (never trained), brought her to the end. Or permanently lost her, then Spared the Shell. | You fall. She's already safe, pushed clear before the end. The fracture takes you instead of her. She wakes up in the Tutorial area. | **New Game+** (Play as the child). Per §0.5: she IS the Warden of the run that just ended. |
+| **1. Collapse** | **Destroyed.** The loop is annihilated along with everything that depended on it — this is punishment, not resolution: power taken (absorbing her) instead of the loop being allowed to resolve on its own terms. This is also, per `lore.md`'s Sovereign section, "ending the loop" achieved the wrong way — force instead of resolution — at the cost of everything the loop was protecting. | Permanently lost the child (final-door abandonment, or lost her forever at the Void Tether choice — §4) → Absorbed the Shell. | You kill the Sovereign. Screen fades white. **Corrected 2026-07-21 (fixes a contradiction — the epilogue can't feature the child, since this ending's own trigger requires her to already be permanently lost):** before deletion, a short real epilogue about the player *alone* — the mountain has collapsed to a single small remaining room. **Baseline (no special items): she survives, in the spawn room** (confirmed 2026-07-22) — safe, but that's the whole ending, alone in the one room left. **If she leaves through the ruin without protection**: stepping out onto the snowy mountainside still starts the radiation timer, and it still kills her — but not instantly; there's a real window, long enough for an actual look at the outside world, before the timer runs out. **If she has both the Warp Key (dropped by The Assembler) and a radiation shield (source TBD — proposed candidate: a drop from one of the still-open-moral-axis minibosses, not yet picked)**: she can survive the trip out and actually explore the irradiated wasteland — open content, exact scope/discoveries not yet decided (see the open design discussion on what's actually out there: leaning toward "the war's been over for a long time and nobody knew," recontextualizing every miniboss's sacrifice, but not locked). Bittersweet either way: she won, alone, at the cost of everyone the loop was protecting — but for the first time, survival and actually seeing what she fought for are both on the table, not just one or the other. This is also the first time in this life's entire history this "out" has ever actually been taken — every prior attempt at the fusion-weapon ended differently; this is the first time anyone chose to end it by force instead. The same hidden area (a movement-tech sequence break) exists earlier in the base game as an optional secret — a player who finds it early and then reaches this ending should recognize the room. | **Nothing** (punishment), unless the Warp Key + shield path is taken, in which case the wasteland content itself (still being designed). |
+| **2. Loop** | **Continues, unchanged.** The same person begins again as the child, will grow into the Warden — this is the "nothing broke, nothing was learned" outcome. **Mechanism, corrected 2026-07-14 — see the note below the table**: you don't defeat the Sovereign here. You lose to her, and your last act is getting the child to safety. | Protected her (never trained), brought her to the end. Or permanently lost her, then Spared the Shell. | You fall. She's already safe, pushed clear before the end. **Corrected 2026-07-21: no reset event** — she simply lives her life onward from there, ordinary and un-magical, same as anyone. NG+ picks up her story where it continues. | **New Game+** (Play as the child). Per §0.5: she IS the Warden of the run that just ended. **Confirmed 2026-07-21**: the loop does NOT accumulate, so this is not "replay with map knowledge" — she doesn't know the world any better than a fresh Warden would. **Expanded 2026-07-22, per direct request**: this is a gameplay perspective switch only — the player isn't narratively "becoming" the child, just controlling her for this run, same as any other NG+ avatar swap. "The loop doesn't progress, but it does change" — each iteration's version of her differs a little: a visibly smaller build than the base game's player (reference given: proportioned more like Mekk Knight Crusadia than the base Warden), fighting with a rapier instead of the base kit's default weapon. Confirmed: **Stillpoint itself becomes a full time-rewind** in this iteration rather than a slow — consistent with `lore.md`'s existing "abilities are this loop's inventions, not eternal constants" note, now actually used rather than just flagged as possible. Each miniboss's own granted ability is also reflavored to a same-vibe, different-execution version this loop (see `lore.md`'s scope note — three fixed instances per miniboss: base game, Sovereign postgame, and this Loop-ending variant — draft ideas not yet finalized, only Stillpoint→rewind is locked). |
 | **3. Sovereign Ending** | **Continues, as you.** **Mechanism, corrected 2026-07-14 — the child does NOT die here.** You Trained her, brought her to the end, and this time you actually beat the Sovereign — a real win. Afterward, the ally appears and gives you something (knowledge of the loop, of what she knew) framed as necessary for a choice about the child's fate. Whether that's a real choice you make or a corruption that happens regardless is left deliberately unresolved to the player (see note below) — either way, the ally acts to keep the child safe from what you're becoming, and what you're becoming is her. | Trained her (she fought). You won the fight. | You stand over the Sovereign's body. The ally arrives — not in time to stop what's about to start, only in time to make sure the child survives it. | **Playable-Sovereign postgame** — see §9, now a real (if unbuilt) scoped feature, not aspirational. |
 
 > **Radiant Mode** (1-hit death) unlocks after either Ending 2 or 3.
@@ -334,6 +435,49 @@ match.
    toward since Act 2's "the pull." Confirm this reframing lands before it's locked; it's
    a direct consequence of fixing the fatal-blow error, not something separately decided.
 
+**The closing sequence — confirmed 2026-07-21, refines/replaces steps 3 and 5's staging
+above (the "intervention" and "closing fight" beats specifically; steps 1-2 and the two
+resolved risks above are unchanged):**
+
+- Partway through the postgame run, the player-as-Sovereign sends a guard ahead to the
+  tutorial room to wait for the child. That guard **is** the base game's tutorial
+  enemy — the first thing every new player ever fights is a soldier the Sovereign
+  personally posted there, some number of loops later, wearing standard-issue Sovereign
+  colors, guarding the room where the loop always begins. (This also
+  retroactively answers why the tutorial's first enemy is the plainest one in the whole
+  roster — it's a standing order from a future iteration of the player, not a placeholder.)
+- Continuing down toward the tutorial room, the player-as-Sovereign is intercepted by the
+  Temporal Warden (the ally) — a rematch of the same character. This time, the player
+  beats him.
+- Arriving at the tutorial room, the player-as-Sovereign has just missed the child
+  leaving — the same beat that opened the base game, now seen from the other side — and
+  waits there, with a future iteration of the child either hiding behind her or fighting
+  alongside her (still explicitly undecided which; changes whether this postgame ends
+  isolated or newly companioned — pick before building it). This is what "loops back into
+  the base game (NG)" in step 5 above actually looks like in-world: the Sovereign waiting
+  in the tutorial room *is* the ominous presence a new playthrough begins under.
+
+**Open tension flagged, not resolved:** steps 2 and 4 above describe dedicated new
+"Sovereign Rooms" content. The confirmed framing above ("you go through the game again...
+harder boss fights") reads more like a harder difficulty pass across the *same* 13
+regions than bespoke new rooms. Given the project's own current tracking (essentially none of the 13 regions have real
+content built yet), reusing existing region geometry for a harder antagonist run is dramatically cheaper than
+also designing a parallel set of Sovereign-only rooms — and it's the same "only ever build
+two instances" scoping principle already confirmed for miniboss weapon variance (§ below /
+`lore.md`'s per-loop-abilities note). Recommend resolving this in favor of reuse, but not
+overwritten here without confirmation — the dedicated-rooms text above is left as-is
+pending that decision.
+
+**Why the player becomes her — mechanism confirmed above, motive still proposed, not
+locked:** one candidate, consistent with lore.md's existing "certainty, not cruelty"
+characterization — the pull isn't ambition, it's the same impulse as an overprotective
+parent taken to its worst extreme: having just watched the child nearly die, the player
+concludes the only way to guarantee it never happens again is removing every variable
+that could let it happen. Escalating postgame difficulty would then be *in-fiction*
+motivated too — not "the game gets harder," but "she's decided losing again is
+unacceptable, and that decision is the tyranny." Flagging as the strongest available
+reading, not yet confirmed by the user.
+
 **Brainstormed ideas for the closing fight — not locked, worth prototyping before
 committing:**
 - Instead of a single closing fight, an **endless boss rush**: winning doesn't end the
@@ -376,6 +520,64 @@ this is just a suggestion
 
 ## Revision history (most recent first)
 
+- **2026-07-22 — miniboss redesign fallout: Void Tether reworked, Loop-ending NG+ detail,
+  Collapse ending's outside-world options expanded.** Matches `lore.md`/`expansion.md`'s
+  same-day miniboss overhaul. (1) **§4 Void Tether**: miniboss replaced (Crystalline
+  Warden → "The Stationmaster," proposed name, full identity swap) with a new
+  arrest/prison-break story beat when the child is brought along (open, not fully
+  decided); the grant itself is corrected from a single flat unlock to an immediate,
+  real, limited version, completed later at the Void Expanse ("The Undertow," proposed
+  name) as an optional upgrade rather than a mandatory second gate — direct request,
+  motivated by not wanting to leave a player who just made a permanent sacrifice with
+  nothing to show for it. Also ties in the Temporal Warden's stolen love, freed by the
+  same Undertow fight. (2) **§5 flagged, not resolved**: the new prison-break branch's
+  "leave her behind" outcome is supposed to lead to a different fight (the Antechamber's
+  grown Child, see `lore.md`) than the existing Abandoned Shell — no rule yet for how
+  these coexist. (3) **§7 Loop ending**: clarified the NG+ child-perspective switch is
+  gameplay-only, not a narrative "becoming"; per direct description, her build/weapon
+  differ slightly this loop (smaller build, rapier) and Stillpoint itself becomes a full
+  rewind rather than a slow, consistent with the already-existing "abilities aren't
+  eternal constants" note. (4) **§7 Collapse ending / §11 The Outside**: three-way outcome
+  now, per direct request — stay in the spawn room and survive (the actual baseline); leave
+  unprotected and die to radiation, but only after a real window to see the outside world
+  first; or leave with both the Warp Key (The Assembler's drop) and a not-yet-sourced
+  radiation shield and actually survive the wasteland — content scope still open.
+- **2026-07-21 (later still) — removed the Fracture as a founding cosmic event; fixed the
+  Collapse ending's internal contradiction; made the outside world survivable.** Three
+  direct requests, all applied: (1) matches `lore.md`'s removal of "the Fracture" as a
+  world-spanning event — §1's pitch and the child's origin no longer reference a
+  spacetime-tearing accident, and "no one gets reset" is now explicit (child/Warden/
+  Sovereign are one continuous, un-looped life, not tiered/repeating iterations). (2) The
+  child's origin (§1) changed from "not the Sovereign's own project" to **the Sovereign
+  ordered the collaboration that made her** — she unknowingly commissioned her own earlier
+  self into existence. (3) Audited all three ending triggers (§3→§4→§5→§7) for coherence —
+  the trigger *logic* was already consistent (Protect→Loop, Train→Sovereign,
+  abandon/lost-at-Void-Tether→Abandoned Shell→Absorb/Collapse or Spare/Loop) — but found
+  Collapse's epilogue text contradicted its own trigger (described the child as "saved,
+  now alone" despite the trigger requiring her to already be permanently lost). Fixed: the
+  Collapse epilogue is now about the player alone. Per direct request, the Collapse
+  epilogue and §11's matching secret-area exit still end in death by radiation, but no
+  longer instantly — there's now a real window for the player to actually see the outside
+  world before the timer runs out.
+  Loop ending's "the fracture takes you... wakes up in the Tutorial area" reset-language
+  also removed — she simply lives on from where she was left safe, no magic event needed.
+- **2026-07-21**: war-bunker setting reframe (see `lore.md`'s matching entry — no
+  structural change here, only framing). Confirmed the child's origin (§2, a discarded
+  program experiment). Confirmed §0.5's previously-open identity-loop mechanism: the child
+  is sealed in the spawn room during the final fight regardless of the Antechamber choice,
+  and §9's postgame closes the loop spatially (a guard planted in the tutorial room who
+  becomes the base game's first enemy, a Temporal Warden rematch, waiting in the tutorial
+  room for the next iteration) — flagged an open tension between this and §9's existing
+  "dedicated Sovereign Rooms" framing, not resolved. Proposed (not locked) a motive for why
+  the player becomes the Sovereign: love turned to control, escalating difficulty as an
+  in-fiction refusal to risk losing the child again. Reworked §7's Collapse ending from
+  "nothing, punishment" into a short real epilogue (alone, collapsed shelter, optional walk
+  outside to die of radiation) and confirmed Collapse is the loop's first-ever *taken* out,
+  not the first *available* one. Proposed (not locked) a distinct NG+ identity for the Loop
+  ending (trained-kit carryover, explicitly NOT map knowledge, since the loop doesn't
+  accumulate). Added §10 (pacifist-wing companion NPC) and §11 (the outside/radiation
+  secret) as new sections. Reframed lore pips (§6) as the Sovereign's own persuasion
+  campaign rather than neutral worldbuilding.
 - **2026-07-14 (later same day) — plot-hole fixes to the same-day Sovereign Ending
   rewrite**: (1) the child does NOT die/take a fatal blow in the Sovereign Ending — you
   actually beat the Sovereign, then the ally gives you corrupting knowledge and you

@@ -1,39 +1,57 @@
 // Player character
-const GRAVITY = 0.6;
-const JUMP_FORCE = -12;
-const MOVE_SPEED = 4;
-const DUCK_SPEED = 2;
-const DASH_SPEED = 12;
-const DASH_DURATION = 8;
-const DASH_COOLDOWN = 30;
-const DASH_CHAIN_MAX = 3; // max consecutive dashes in a chain
+// `var` on the core movement feel constants too — same live-tuning
+// convention as the dash/ability constants below (see ability_tester.html's
+// "Movement Feel" section).
+var GRAVITY = 0.6;
+var JUMP_FORCE = -12;
+var MOVE_SPEED = 4;
+var DUCK_SPEED = 2;
+// `var` on the dash tunables — no-op for normal play, lets
+// editor/ability_tester.html poke live values via window.X for testing
+// (same convention as ability.js's var'd constants).
+var DASH_SPEED = 12;
+// Sourced from game/attackVFX.js (2026-07-19) — single source of truth with
+// editor/anim_editor.html's Dash dissection, which has no access to this
+// file. Still `var`, so ability_tester.html's slider still live-tunes it.
+var DASH_DURATION = DASH_VFX_DURATION;
+var DASH_COOLDOWN = 30;
+// Sourced from game/attackVFX.js (loaded before this file) — single source
+// of truth with drawDashTrail()'s chain-tier math (2026-07-19).
+const DASH_CHAIN_MAX = DASH_VFX_CHAIN_MAX;
 const MAX_HEALTH = 6;
 const INVINCIBLE_FRAMES = 90; // ~1.5s at 60fps
 const COYOTE_FRAMES = 6; // 6 frames (~100ms at 60fps) – the sweet spot
+const JUMP_BUFFER_FRAMES = 9; // ~150ms at 60fps — a jump pressed just before landing still fires on touchdown
 
 // Wall Jump / Wall Slide
 const WALL_SLIDE_SPEED = 1.5;     // reduced fall speed while sliding
 const WALL_JUMP_FORCE = -10;      // vertical component of wall jump
 const WALL_JUMP_H_SPEED = 7;      // horizontal away-from-wall component
 const WALL_JUMP_COYOTE = 8;       // frames you can still wall-jump after losing contact
+const WALL_JUMP_SAME_WALL_LOCK = 22; // frames a just-jumped-off wall stays un-grabbable
+
+// Electromagnetic Golem's magnetism (The Polar Shift) — see the `polarity`
+// platform-force loop in the physics block below. No effect anywhere a
+// platform never sets `polarity`, so tuning these only matters for that
+// one boss room.
+const MAGNET_PULL_RANGE = 260;
+const MAGNET_PULL_STRENGTH = 0.35;
 
 // Attack
 const ATTACK_WIDTH = 40;
 const ATTACK_HEIGHT = 30;
-const ATTACK_DURATION = 12;
+// Sourced from game/attackVFX.js (loaded before this file) so the editor's
+// "Dissect from current game" tool — which has no access to player.js — and
+// the real game always agree on the swing's frame count (2026-07-19).
+const ATTACK_DURATION = ATTACK_VFX_FRAME_COUNT;
 const ATTACK_COOLDOWN = 18;
 const ATTACK_DAMAGE = 1;
 
-// Directional attack hitbox sizes
-const ATK_FWD_W = 58; const ATK_FWD_H = 28; // widened 2026-07-16 — user feedback: normal attack range felt too short
-const ATK_UP_W  = 30; const ATK_UP_H  = 36;
-const ATK_DN_W  = 40; const ATK_DN_H  = 24;
 const ATK_POGO_VY = -11; // upward bounce on down-slam hit
-// Charged (heavy) attack's forward hitbox — taller, starts above the
-// player's head instead of chest-height, so it actually covers the
-// overhead swing the animation shows (user feedback 2026-07-16: normal
-// should read as in front of you, Hollow-Knight-style; charged as overhead).
-const ATK_HEAVY_FWD_W = 44; const ATK_HEAVY_FWD_H = 50;
+// Directional attack hitbox sizes (ATK_FWD_W etc.) and the swing VFX
+// drawing code used to live here — moved to game/attackVFX.js (2026-07-19)
+// so editor/anim_editor.html can reuse the exact same math without loading
+// this whole file. See getAttackHitbox()/draw()'s attack-VFX block below.
 
 // Charged heavy attack (hold Z/J to charge, release to fire)
 // CHARGE_TAP widened 5f -> 16f (2026-07-16, user feedback): 5f gave almost no
@@ -43,30 +61,35 @@ const ATK_HEAVY_FWD_W = 44; const ATK_HEAVY_FWD_H = 50;
 // 40f) but forgiving enough that a normal tap reliably reads as a tap.
 const CHARGE_TAP = 16;      // frames under this counts as a tap (normal attack)
 const CHARGE_FULL = 40;     // frames to reach full charge (~667ms)
-const HEAVY_DAMAGE = 2;     // damage multiplier for full charge
-const HEAVY_KNOCKBACK = 2.5; // knockback multiplier for full charge
+var HEAVY_DAMAGE = 2;     // damage multiplier for full charge
+var HEAVY_KNOCKBACK = 2.5; // knockback multiplier for full charge
 
 // Shard Shot aiming (hold V/N to aim, release to fire — expansion §0.1)
 const SHARD_AIM_TILT_RATE = 0.25;  // launch-vy change per frame while holding Up/Down
 const SHARD_AIM_VY_MIN = -7;       // steepest upward launch
 const SHARD_AIM_VY_MAX = 4;        // steepest downward launch (off-ledge shots)
 
-// Parry (deflect enemy attacks with timed Z-tap during cooldown)
-const PARRY_WINDOW = 10;    // frames the parry is active (~167ms)
-const PARRY_COOLDOWN = 60;  // frames between parry attempts (1s)
-const PARRY_STUN = 30;      // frames the enemy is stunned (0.5s)
-const PARRY_IFRAMES = 20;   // player invincibility after successful parry
+// Parry — re-added 2026-07-27 as its own ability (abilityState.hasParry,
+// mini-plot unlock like Reach) instead of overloading the attack button the
+// way the original 2026-07-18-removed version did. Down is now tap/hold:
+// hold past PARRY_TAP_MAX_HOLD frames = Duck/Crawl (unchanged), release
+// before that = a timed Parry attempt (PARRY_WINDOW frames of deflect). See
+// the Duck/Parry input block in update() and the collision gate in game.js.
+const PARRY_STUN = 30;          // frames an enemy is stunned by a successful deflect
+const PARRY_IFRAMES = 20;       // i-frames granted by a successful deflect
+const PARRY_TAP_MAX_HOLD = 8;   // frames under this on release = a Parry tap, not a Duck hold
+const PARRY_WINDOW = 10;        // frames the deflect window stays open after a tap
 
 // Stillpoint (time-slow) — tap/hold timed model (Enemy_Design.pdf, replaces
 // the old indefinite-toggle-drains-a-pip-per-60f mechanic 2026-07-16)
 const FRACTURE_ABS_MAX = 4; // absolute ceiling on fractureMax, reached by finding all Fracture Pips
-const STILLPOINT_HOLD_THRESHOLD = 20; // frames held before release counts as "Hold" not "Tap" (widened alongside CHARGE_TAP, same leniency fix)
+var STILLPOINT_HOLD_THRESHOLD = 20; // frames held before release counts as "Hold" not "Tap" (widened alongside CHARGE_TAP, same leniency fix)
 const STILLPOINT_TAP_COST = 1;
 const STILLPOINT_HOLD_COST = 3;
-const STILLPOINT_TAP_DURATION_BASE = 25;   // 0.4s
-const STILLPOINT_HOLD_DURATION_BASE = 90;  // 1.5s
-const STILLPOINT_SLOW_BASE = 0.6;   // Lv0-2: 60% slow (gameTimeScale = 1 - this)
-const STILLPOINT_SLOW_LV3 = 0.9;    // Lv3+: 90% slow (near-complete stop)
+var STILLPOINT_TAP_DURATION_BASE = 25;   // 0.4s
+var STILLPOINT_HOLD_DURATION_BASE = 90;  // 1.5s
+var STILLPOINT_SLOW_BASE = 0.6;   // Lv0-2: 60% slow (gameTimeScale = 1 - this)
+var STILLPOINT_SLOW_LV3 = 0.9;    // Lv3+: 90% slow (near-complete stop)
 
 class Player {
   constructor(x, y) {
@@ -83,6 +106,31 @@ class Player {
     this.attackTimer = 0;
     this.attackCooldown = 0;
     this.attackDirection = 'forward'; // 'forward', 'up', 'down'
+    // Bridges to game/animdata.js's data-driven attack system (2026-07-19).
+    // Only takes effect for attacks that have a matching ANIM_DEFS entry —
+    // see animKeyForAttack()/getAttackHitbox() below. Directions with no
+    // entry keep using the hardcoded hitbox/VFX path exactly as before.
+    this.animator = new Animator(this);
+    // Second animator for movement/ability states (2026-07-19) — separate
+    // from the attack animator above since an attack can play at the same
+    // time as any of these (e.g. attacking mid-air). Covers idle/run/jump/
+    // fall/duck/dash/phasedash/wallslide via playerBodyStateKey() below.
+    this.bodyAnimator = new Animator(this);
+    // Overlay animators — these draw ALONGSIDE the body/attack layers, not
+    // instead of them (you can be idle AND have Stillpoint up, or running
+    // AND aiming Shard Shot), so each gets tracked independently.
+    this.stillpointAnimator = new Animator(this);
+    this.shardAimAnimator = new Animator(this);
+    this.shardBeamAnimator = new Animator(this);
+    // The Gravity Ball is a detached, self-moving entity (its own
+    // gravitonBallX/Y, not the player's x/y) — gets a synthetic mock entity
+    // instead of `this`, matching how Echo (ability.js) already has its own
+    // position separate from the player.
+    // width/height re-synced each frame from GRAVITON_BALL_PULL_RADIUS
+    // (ability.js — a live-tunable `var`, see editor/ability_tester.html)
+    // right before drawing, so it stays correct even if that's poked live.
+    this.gravBallEntity = { x: 0, y: 0, width: GRAVITON_BALL_PULL_RADIUS * 2, height: GRAVITON_BALL_PULL_RADIUS * 2, facing: 1 };
+    this.gravBallAnimator = new Animator(this.gravBallEntity);
     // Per-swing hit tracking — cleared every time a new attack starts (see
     // the three spots that set `this.attacking = true`). Without this, an
     // enemy/wall that stays inside the (multi-frame) attack hitbox at
@@ -98,19 +146,40 @@ class Player {
     this.invincibleTimer = 0;
     this.flashTimer = 0;
     this.coyoteTimer = 0;
+    this.jumpBufferTimer = 0;
     this.hitStunTimer = 0;   // frames of knockback after taking damage — suppresses directional input override, mirrors Enemy's hitStun
 
     this.phaseDashing = false;
     this.phaseDashTimer = 0;
+    // Afterimage Strike (enemy_attack_vocabulary_plan.md) — set true the
+    // moment this dash grazes an enemy carrying the phase_dash/
+    // afterimage_strike counter, so game.js's overlap check only arms one
+    // hazard per dash even if the dash clips several such enemies or stays
+    // overlapped for multiple frames. Reset on every new dash start below.
+    this._afterimageArmed = false;
+    // Enemies touched during the current dash — see the dash-start reset
+    // above for why this exists. Empty set outside of a dash; game.js only
+    // ever reads it while non-empty entries could matter (post-dash overlap).
+    this.phasedThroughEnemies = new Set();
 
     // Graviton Surge (Enemy_Design.pdf, built 2026-07-16)
     this.gravitonActive = false;
     this.gravitonTimer = 0;
+    // Lv2+ tap/hold decision pending (2026-07-19 fix — see below) — true
+    // from the moment the button is pressed until either the tap threshold
+    // is crossed (commits to the Gravity Ball) or the button is released
+    // first (commits to the tap flip).
+    this.gravitonSurgeCharging = false;
+    this.gravitonHoldTimer = 0;
     this.gravitonBallCharging = false;
     this.gravitonBallTimer = 0;
     this.gravitonBallPop = false;
     this.gravitonBallX = 0;
     this.gravitonBallY = 0;
+    this.gravitonBallFlying = false; // travelling forward+upward after release, before it explodes
+    this.gravitonBallFlightTimer = 0;
+    this.gravitonBallVx = 0;
+    this.gravitonBallVy = 0;
 
     // Void Tether (Enemy_Design.pdf, built 2026-07-16)
     this.voidTetherFired = false;
@@ -127,29 +196,33 @@ class Player {
     this.beamAngle = 0;      // radians, 0 = straight along facing
     this.beamDrainTimer = 0; // frames since last 1-pip drain tick
 
-    // Duck / crouch
+    // Duck / crouch — Down is tap/hold: see the Duck/Parry block in update()
     this.ducking = false;
     this.normalHeight = 32;
     this.duckHeight = 16;
+    this.downHoldTimer = 0;   // frames Down has been held this press
+    this.downHeld = false;    // was Down held last frame (tap/hold decision)
+    this.parryTimer = 0;      // frames left in an active Parry deflect window
 
     // Stillpoint / Fracture meter
     this.fractureMeter = 0;        // current pips, 0-fractureMax
     this.fractureMax = 0;          // cap on fractureMeter; starts at 0 (unusable) until Fracture Pips are found, up to FRACTURE_ABS_MAX
+    // Which platform we're standing on this frame — set by the collision
+    // loop. Used to carry the player on `moving` platforms and to know
+    // whether a drop-through is legal.
+    this.standingPlat = null;
+    this.dropThroughTimer = 0;     // frames the oneWay drop-through stays armed
     this.stillpointActive = false;
     this.stillpointCharging = false; // holding the button, deciding tap vs hold
     this.stillpointHoldTimer = 0;
     this.stillpointTimer = 0;      // frames left in the current activation (fixed duration, not meter-drain-based)
+    this.stillpointDuration = 1;   // full length of the current activation (HUD pip fade divisor)
     this.stillpointSlow = 0;       // 0-1, how much enemies/projectiles are slowed this activation
     this.stillpointHealed = 0;     // HP healed via lifesteal this activation, capped by stillpointLifestealCap()
 
     // Squash/stretch
     this.justLanded = false;
     this.justLandedTimer = 0;
-
-    // Parry
-    this.parrying = false;
-    this.parryTimer = 0;     // frames left in parry window
-    this.parryCooldown = 0;  // frames before next parry
 
     // Charged heavy attack
     this.charging = false;
@@ -161,18 +234,46 @@ class Player {
     this.wallNormal = 0;            // -1 = touching left wall, 1 = touching right wall, 0 = none
     this.wallJumpCoyote = 0;        // frames after losing wall contact where wall-jump still works
     this.wallJumpJustFired = false; // prevent double-wall-jump mid-air
+    // Same-wall re-grab lock (2026-07-27) — without this, wall-jumping off a
+    // wall and just drifting straight back into it lets you climb ANY single
+    // wall indefinitely by spamming wall-jump in place, which would trivialize
+    // any vertical shaft a level is trying to gate behind a real traversal
+    // ability. Jumping off a wall with a given normal locks THAT normal out
+    // for a short window (or until grounded) — legitimate ping-pong climbing
+    // between two FACING walls (a real, skill-based Super Metroid-style tech)
+    // is untouched, since the opposite wall has the opposite normal.
+    this._wallJumpLockNormal = 0;
+    this._wallJumpLockTimer = 0;
 
     // Variable jump height / short hop (user feedback 2026-07-16): releasing
     // jump early cuts the ascent short exactly once per jump.
     this.jumping = false;
     this.jumpCut = false;
+
+    // Electromagnetic Golem's magnetism (2026-07-26) — null everywhere
+    // except The Polar Shift's boss room, where `polarity`-carrying
+    // platforms (see the physics block below) can set it via contact.
+    this.magnetCharge = null;
+
+    // Sovereign's Phase 3 Stillpoint (2026-07-26) — set from game.js right
+    // before update() runs, to the same slow value whenever
+    // boss.bossStillpointActive. Multiplies position integration and
+    // per-frame countdown timers below (cooldowns, hitStun, invincibility)
+    // — mirrors exactly how gameTimeScale already scales enemies (enemy.js's
+    // `_ts` pattern), just for the player instead. Deliberately does NOT
+    // scale input-latching decision state (chargeTimer, stillpointHoldTimer)
+    // so the player's own choices stay legible even while their resolution
+    // in the world is slowed, the same way a slowed enemy in the player's
+    // own Stillpoint still "decides" instantly but moves slowly.
+    this.timeScale = 1;
   }
 
-  // Strength Lv1+: attack speed +15% (18f cooldown -> 15f). Lv4 Limit Break:
-  // an additional +25% on top (Enemy_Design.pdf).
+  // Strength Lv2+ (old Lv1+): attack speed +15% (18f cooldown -> 15f). Lv1
+  // (2026-07-27, the new cheap entry tier) is a smaller partial step, 18f ->
+  // 17f. Lv5 Limit Break: an additional +25% on top (Enemy_Design.pdf).
   getAttackCooldown() {
-    const lvl = (typeof statUpgrades !== 'undefined' && statUpgrades.strength) || 0;
-    let cd = lvl >= 1 ? 15 : ATTACK_COOLDOWN;
+    const raw = (typeof statUpgrades !== 'undefined' && statUpgrades.strength) || 0;
+    let cd = oldTier('strength') >= 1 ? 15 : (raw >= 1 ? 17 : ATTACK_COOLDOWN);
     if (typeof limitBreak !== 'undefined' && limitBreak.active && limitBreak.ability === 'strength') cd = Math.round(cd * 0.75);
     return cd;
   }
@@ -182,7 +283,7 @@ class Player {
   // or with no directional input held, falls back to the old
   // facing-only horizontal dash. Returns null (no override) below Lv1.
   getDashDirection(speed) {
-    if (abilityLevel('phase_dash') < 1) return null;
+    if (oldTier('phase_dash') < 1) return null;
     let dx = (isActionPressed('moveLeft') ? -1 : 0) + (isActionPressed('moveRight') ? 1 : 0);
     let dy = (isActionPressed('aimUp') ? -1 : 0) + (isActionPressed('aimDown') ? 1 : 0);
     if (dx === 0 && dy === 0) return null;
@@ -206,6 +307,20 @@ class Player {
     this.fractureMax = Math.min(FRACTURE_ABS_MAX, this.fractureMax + 1);
   }
 
+  // Whether a dash/dodge input right now may cancel out of an in-progress
+  // attack. Data-driven attacks (player_attack_forward/up, animdata.js) use
+  // their authored cancelableFrom frame flag — recovery frames only, so you
+  // can't cancel a swing before its hit resolves but can bail into a dodge
+  // once it has. Attacks without ANIM_DEFS data yet (down, heavy) fall back
+  // to the same recovery-window shape by time instead: cancelable once under
+  // 30% of the swing's total duration remains.
+  attackCancelable() {
+    if (!this.attacking) return true;
+    if (this.animator.def) return this.animator.canCancel();
+    const total = this.heavy ? ATTACK_DURATION + 4 : ATTACK_DURATION;
+    return this.attackTimer <= total * 0.3;
+  }
+
   update(bounds, platforms) {
     if (typeof updateEchoDistractDuration === 'function') updateEchoDistractDuration();
     if (typeof updateLimitBreak === 'function') updateLimitBreak();
@@ -216,6 +331,17 @@ class Player {
       this.wallJumpJustFired = false; // can wall-jump again after landing
     } else if (this.coyoteTimer > 0) {
       this.coyoteTimer--;
+    }
+
+    // ── Jump Buffer ──────────────────────────────────────────────────────────
+    // Runs every frame regardless of dashing/hitstun/etc, same as the coyote
+    // timer above — a jump pressed slightly early (mid-dash, right before
+    // landing) still counts down and fires the instant the grounded/coyote
+    // branches below become eligible again.
+    if (wasActionJustPressed('jump')) {
+      this.jumpBufferTimer = JUMP_BUFFER_FRAMES;
+    } else if (this.jumpBufferTimer > 0) {
+      this.jumpBufferTimer--;
     }
 
     // ── Stillpoint — tap (1 Pip, short) / hold (3 Pips, long) ──────────────
@@ -235,10 +361,13 @@ class Player {
         const cost = isHold ? STILLPOINT_HOLD_COST : STILLPOINT_TAP_COST;
         if (this.fractureMeter >= cost) {
           this.fractureMeter -= cost;
-          const lvl = (typeof statUpgrades !== 'undefined' && statUpgrades.stillpoint) || 0;
-          const durationMult = lvl >= 1 ? 1.25 : 1; // Lv1+ duration +25%
+          const rawStillpoint = (typeof statUpgrades !== 'undefined' && statUpgrades.stillpoint) || 0;
+          // Lv2+ (old Lv1+): duration +25%. Lv1 (2026-07-27, the new cheap
+          // entry tier): a smaller +10% partial step toward that.
+          const durationMult = oldTier('stillpoint') >= 1 ? 1.25 : (rawStillpoint >= 1 ? 1.1 : 1);
           const baseDuration = isHold ? STILLPOINT_HOLD_DURATION_BASE : STILLPOINT_TAP_DURATION_BASE;
           this.stillpointTimer = Math.round(baseDuration * durationMult);
+          this.stillpointDuration = this.stillpointTimer; // full length, for the HUD pip fade
           // Lv4 Limit Break reads as "time stops" but must never actually
           // reach 0 (user feedback 2026-07-16: a literal stop froze
           // everything, player included, instead of the intended "as close
@@ -246,7 +375,8 @@ class Player {
           // also the Math.max floor on gameTimeScale itself in game.js as
           // a hard safety net regardless of this value.
           const isLimitBreak = limitBreak.active && limitBreak.ability === 'stillpoint';
-          this.stillpointSlow = isLimitBreak ? 0.95 : (lvl >= 3 ? STILLPOINT_SLOW_LV3 : STILLPOINT_SLOW_BASE);
+          // Lv4 (old Lv3): slow increases to 90%.
+          this.stillpointSlow = isLimitBreak ? 0.95 : (oldTier('stillpoint') >= 3 ? STILLPOINT_SLOW_LV3 : STILLPOINT_SLOW_BASE);
           this.stillpointActive = true;
           this.stillpointHealed = 0;
           if (typeof SFX !== 'undefined') SFX.stillpointActivate();
@@ -255,29 +385,91 @@ class Player {
     }
 
     if (this.stillpointActive) {
-      this.stillpointTimer--;
+      this.stillpointTimer -= this.timeScale;
       if (this.stillpointTimer <= 0) {
         this.stillpointActive = false;
         if (typeof SFX !== 'undefined') SFX.stillpointEnd();
       }
     }
 
-    // ── Duck / Crouch ─────────────────────────────────────────────────────
-    const wantsDuck = isActionPressed('aimDown') && this.grounded;
-    if (wantsDuck && !this.ducking) {
-      // Start ducking: shift y down so feet stay planted
-      this.y += this.normalHeight - this.duckHeight;
-      this.height = this.duckHeight;
-      this.ducking = true;
-    } else if (!wantsDuck && this.ducking) {
-      // Stand up: shift y up
+    // ── Duck / Crouch + Parry — Down is tap/hold, same press/decide-on-
+    // release shape as Stillpoint above. Holding past PARRY_TAP_MAX_HOLD
+    // frames commits to Duck/Crawl; releasing before that instead opens a
+    // timed Parry window (deflect check lives in game.js's collision pass —
+    // see tryParryDeflect()). Gated on hasParry, grounded, and
+    // parryCooldown (long — see PARRY_COOLDOWN in ability.js): without the
+    // ability, mid-air, or still cooling down, a quick tap just does
+    // nothing (no accidental duck-flicker, no free parry spam).
+    // Timer tracks the raw key (not grounded) so jumping mid-hold can't be
+    // misread as a "release" and fire a spurious parry.
+    const downKey = isActionPressed('aimDown');
+    if (downKey) {
+      this.downHoldTimer++;
+      if (!this.ducking && this.grounded && this.downHoldTimer >= PARRY_TAP_MAX_HOLD) {
+        this.y += this.normalHeight - this.duckHeight;
+        this.height = this.duckHeight;
+        this.ducking = true;
+      }
+    } else {
+      if (this.downHeld && !this.ducking && this.grounded && abilityState.hasParry &&
+          abilityState.parryCooldown <= 0 &&
+          this.downHoldTimer > 0 && this.downHoldTimer < PARRY_TAP_MAX_HOLD) {
+        this.parryTimer = PARRY_WINDOW;
+        abilityState.parryCooldown = PARRY_COOLDOWN;
+      }
+      this.downHoldTimer = 0;
+    }
+    if (this.ducking && (!this.grounded || !downKey)) {
       this.y -= this.normalHeight - this.duckHeight;
       this.height = this.normalHeight;
       this.ducking = false;
     }
+    this.downHeld = downKey;
+    if (this.parryTimer > 0) this.parryTimer -= this.timeScale;
 
     // ── Movement ───────────────────────────────────────────────────────────
-    if (!this.dashing && !this.phaseDashing && this.hitStunTimer <= 0) {
+    const _roomGravDirForMove = typeof getRoomGravityDir === 'function' ? getRoomGravityDir() : 'down';
+    if (!this.dashing && !this.phaseDashing && this.hitStunTimer <= 0 &&
+        (_roomGravDirForMove === 'left' || _roomGravDirForMove === 'right')) {
+      // Gravity Collapse Core (2026-07-26): once gravity points sideways,
+      // the current floor is a vertical surface — moveLeft/moveRight would
+      // read as "toward/away from it," not "along it," so walking instead
+      // reads off the existing aimUp/aimDown input actions (already real,
+      // otherwise-unclaimed input during normal ground movement — see the
+      // Shard Shot aim/beam-angle code above), and `jump` pushes directly
+      // away from the current gravity direction instead of always "up."
+      // FIRST-DRAFT control mapping, not confirmed by playtest — flagged
+      // as a judgment call in the boss-buildout plan, easy to swap for a
+      // different axis if it doesn't feel right in play. Wall-slide/
+      // wall-jump are skipped entirely here (and for 'up' gravity below)
+      // — their whole premise, sliding down a vertical wall while gravity
+      // pulls straight down, has no clear meaning once a wall IS the
+      // floor; deliberately out of scope for v1.
+      const speed = this.ducking ? DUCK_SPEED : MOVE_SPEED;
+      if (isActionPressed('aimUp')) {
+        this.vy = -speed;
+      } else if (isActionPressed('aimDown')) {
+        this.vy = speed;
+      } else {
+        this.vy *= 0.7;
+      }
+      const jumpPressed = wasActionJustPressed('jump');
+      if ((jumpPressed || this.jumpBufferTimer > 0) && (this.grounded || this.coyoteTimer > 0)) {
+        this.vx = _roomGravDirForMove === 'right' ? -JUMP_FORCE : JUMP_FORCE; // away from gravity
+        this.facing = _roomGravDirForMove === 'right' ? -1 : 1;
+        this.grounded = false;
+        this.coyoteTimer = 0;
+        this.jumpBufferTimer = 0;
+        this.jumping = true;
+        this.jumpCut = false;
+        if (typeof SFX !== 'undefined') SFX.jump();
+      }
+      if (this.jumping && !this.jumpCut && !isActionPressed('jump')) {
+        this.jumpCut = true;
+        this.vx *= 0.45;
+      }
+      if (this.grounded) this.jumping = false;
+    } else if (!this.dashing && !this.phaseDashing && this.hitStunTimer <= 0) {
       const speed = this.ducking ? DUCK_SPEED : MOVE_SPEED;
       if (isActionPressed('moveLeft')) {
         this.vx = -speed;
@@ -289,10 +481,14 @@ class Player {
         this.vx *= 0.7;
       }
 
-      // ── Wall slide: slow descent when holding toward a wall ──
-      const holdingTowardWall = (this.wallNormal === 1 && isActionPressed('moveRight')) ||
-                                (this.wallNormal === -1 && isActionPressed('moveLeft'));
-      if (!this.grounded && this.wallNormal !== 0 && holdingTowardWall && this.vy >= 0) {
+      // ── Wall slide: slow descent when holding toward a wall ── (skipped
+      // during Gravity Collapse Core's 'up' room-gravity too — see the
+      // scope note in the sideways-gravity branch above)
+      const holdingTowardWall = _roomGravDirForMove === 'down' &&
+                                ((this.wallNormal === 1 && isActionPressed('moveRight')) ||
+                                 (this.wallNormal === -1 && isActionPressed('moveLeft')));
+      const sameWallLocked = this._wallJumpLockTimer > 0 && this.wallNormal === this._wallJumpLockNormal;
+      if (!this.grounded && this.wallNormal !== 0 && holdingTowardWall && this.vy >= 0 && !sameWallLocked) {
         this.wallSliding = true;
         if (this.vy > WALL_SLIDE_SPEED) {
           this.vy = WALL_SLIDE_SPEED;
@@ -303,21 +499,35 @@ class Player {
 
       // Block jumping while ducking
       const jumpPressed = wasActionJustPressed('jump');
-      if (jumpPressed && (this.grounded || this.coyoteTimer > 0)) {
-        // ── Normal jump ── (flipped during Graviton Surge — see below)
-        this.vy = this.gravitonActive ? -JUMP_FORCE : JUMP_FORCE;
+      // ── Drop through a oneWay platform: hold down + jump while standing
+      // on one. Arms a short timer the collision loop uses to ignore that
+      // platform, so you fall clear instead of instantly re-landing.
+      if (this.dropThroughTimer > 0) this.dropThroughTimer--;
+      if (jumpPressed && this.grounded && isActionPressed('aimDown') &&
+          this.standingPlat && this.standingPlat.oneWay) {
+        this.dropThroughTimer = 12;
+        this.grounded = false;
+        this.standingPlat = null;
+      } else if ((jumpPressed || this.jumpBufferTimer > 0) && (this.grounded || this.coyoteTimer > 0)) {
+        // ── Normal jump ── (flipped during Graviton Surge, or while
+        // Gravity Collapse Core's room gravity points 'up' — both mean
+        // "away from the floor" is the +y direction, not -y)
+        this.vy = (this.gravitonActive || _roomGravDirForMove === 'up') ? -JUMP_FORCE : JUMP_FORCE;
         this.grounded = false;
         this.coyoteTimer = 0;
+        this.jumpBufferTimer = 0;
         this.wallJumpJustFired = true;
         this.jumping = true;
         this.jumpCut = false;
         if (typeof SFX !== 'undefined') SFX.jump();
-      } else if (jumpPressed && !this.grounded && this.coyoteTimer <= 0 &&
+      } else if (_roomGravDirForMove === 'down' && jumpPressed && !this.grounded && this.coyoteTimer <= 0 &&
                  (this.wallSliding || this.wallJumpCoyote > 0) && !this.wallJumpJustFired) {
         // ── Wall jump: launch away from the wall ──
         this.vy = WALL_JUMP_FORCE;
         this.vx = -this.wallNormal * WALL_JUMP_H_SPEED;
         this.facing = -this.wallNormal; // face away from wall
+        this._wallJumpLockNormal = this.wallNormal; // this exact wall un-grabbable for a bit
+        this._wallJumpLockTimer = WALL_JUMP_SAME_WALL_LOCK;
         this.wallJumpCoyote = 0;        // consume coyote
         this.wallJumpJustFired = true;  // prevent double wall-jump
         this.jumping = true;
@@ -347,11 +557,30 @@ class Player {
     // cooldown; otherwise the same button falls back to a normal Dash on
     // its own (short, chainable) cooldown. Both still track their cooldowns
     // independently in the background — only the trigger is unified.
-    if (wasActionJustPressed('dash') && !this.dashing && !this.phaseDashing) {
+    if (wasActionJustPressed('dash') && !this.dashing && !this.phaseDashing && this.attackCancelable()) {
       if (abilityState.hasPhaseDash && abilityState.phaseDashCooldown <= 0) {
         // ── Phase Dash ──
         this.phaseDashing = true;
         this.phaseDashTimer = PHASE_DASH_DURATION;
+        this._afterimageArmed = false;
+        // Enemies actually touched during this dash (game.js's enemy-overlap
+        // loop populates this) stay damage/push-immune even after
+        // phaseDashTimer runs out, as long as the player is still
+        // overlapping them — see the fix note by isTetherTarget in game.js.
+        // Without this, a dash that reaches an enemy but doesn't fully
+        // clear its far edge before PHASE_DASH_DURATION expires ends with
+        // the player still inside the enemy: separateFromEnemy() then
+        // shoves them back out (not through), and once phaseDashing flips
+        // false the very next contact-damage check lands a normal hit —
+        // "Phase Dash passes through enemies" silently failing for any
+        // enemy near the edge of the dash's total travel distance
+        // (PHASE_DASH_SPEED * PHASE_DASH_DURATION). A per-enemy immunity
+        // that only clears once the overlap itself clears (not on a timer)
+        // guarantees the promised pass-through regardless of dash range,
+        // while enemy-specific counters (cancel_and_damage, afterimage_
+        // strike) still fire exactly as before — they're keyed off
+        // `player.phaseDashing`/overlap directly, not this set.
+        this.phasedThroughEnemies = new Set();
         abilityState.phaseDashCooldown = PHASE_DASH_COOLDOWN;
         const phaseDashDir = this.getDashDirection(PHASE_DASH_SPEED);
         this.vx = phaseDashDir ? phaseDashDir.vx : this.facing * PHASE_DASH_SPEED;
@@ -382,15 +611,15 @@ class Player {
     }
 
     if (this.dashing) {
-      this.dashTimer--;
+      this.dashTimer -= this.timeScale;
       if (this.dashTimer <= 0) {
         this.dashing = false;
         // Preserve more momentum when chaining (parkour flow)
         this.vx *= 0.6 + this.dashChain * 0.08;
       }
     }
-    if (this.dashCooldown > 0) this.dashCooldown--;
-    if (this.dashChainTimer > 0) this.dashChainTimer++;
+    if (this.dashCooldown > 0) this.dashCooldown -= this.timeScale;
+    if (this.dashChain > 0) this.dashChainTimer += this.timeScale;
     // Reset chain after gap (120 frames = 2s) or on ground
     if (this.dashChainTimer >= 120 || (this.grounded && this.dashChain > 0)) {
       this.dashChain = 0;
@@ -398,47 +627,134 @@ class Player {
     }
 
     if (this.phaseDashing) {
-      this.phaseDashTimer--;
-      if (this.phaseDashTimer <= 0) { this.phaseDashing = false; this.vx *= 0.4; }
+      this.phaseDashTimer -= this.timeScale;
+      if (this.phaseDashTimer <= 0) {
+        this.phaseDashing = false;
+        this.vx *= 0.4;
+        // Afterimage Strike payoff — arms a delayed explosive hazard right
+        // where the dash actually ended, not where it grazed the enemy
+        // (see the "dashing isn't automatically safe" note in the
+        // vocabulary plan: keep moving after, don't stand in the landing
+        // spot). game.js owns the hazard array/update/draw; this file just
+        // pushes one when the armed flag (set on dash-through contact,
+        // enemy.js's game.js-side overlap check) is still set.
+        if (this._afterimageArmed && typeof afterimageHazards !== 'undefined') {
+          const p = this._afterimageParams || { armDelay: 45, radius: 46, damage: 2 };
+          afterimageHazards.push({
+            x: this.x + this.width / 2, y: this.y + this.height / 2,
+            timer: p.armDelay, armDelay: p.armDelay, radius: p.radius, damage: p.damage,
+          });
+          this._afterimageArmed = false;
+        }
+      }
     }
 
     // ── Graviton Surge (base ability built 2026-07-16, Enemy_Design.pdf) ────
-    // Lv0: flip gravity 3s. Lv1: 4s. Lv2+: hold to also raise a Gravity Ball
-    // (game.js pulls/damages nearby enemies while it's up); tap duration
-    // becomes 5s at Lv2, 6s at Lv3. Release with a ball up detonates it at
-    // Lv3+. Actual gravity flip / ball pull-and-damage happens in game.js
-    // (needs the enemy list); this block only tracks input + timers.
+    // Lv0: tap to flip gravity 3s. Lv1: 4s. Lv2+: tap STILL flips gravity —
+    // holding instead spawns a Gravity Ball a fixed distance in front of the
+    // player (game.js pulls nearby enemies while it's up); releasing it
+    // launches it forward+upward to fly for a short duration, then it
+    // explodes wherever it ends up (Lv3+ — see game.js's gravitonBallPop
+    // handling). The ball variant is a standalone attractor, entirely
+    // separate from the tap gravity flip — releasing it does NOT also flip
+    // gravity. Actual gravity flip / ball pull-and-damage happens in
+    // game.js (needs the enemy list); this block only tracks input+timers.
+    //
+    // 2026-07-19 fix: Lv2+ used to commit to the Gravity Ball on the very
+    // first frame of any press (`gravitonBallCharging = lvl >= 2`), so even
+    // a quick tap always went through the ball's release-to-launch flow —
+    // the plain flip was completely unreachable at Lv2+. Now the decision
+    // is deferred, same tap/hold shape as Stillpoint (see
+    // STILLPOINT_HOLD_THRESHOLD above): press starts `gravitonSurgeCharging`
+    // (undecided), and only commits to the Gravity Ball once held past
+    // GRAVITON_SURGE_TAP_THRESHOLD; released before that, it's a tap → flip.
     if (wasActionJustPressed('gravitonSurge') && abilityState.hasGravitonSurge &&
-        abilityState.gravitonSurgeCooldown <= 0 && !this.gravitonActive) {
-      const lvl = abilityLevel('graviton_surge');
-      this.gravitonBallCharging = lvl >= 2; // Lv2+: holding builds a Gravity Ball instead of firing immediately
-      this.gravitonBallTimer = 0;
-      if (!this.gravitonBallCharging) {
+        abilityState.gravitonSurgeCooldown <= 0 && !this.gravitonActive &&
+        !this.gravitonBallFlying && !this.gravitonSurgeCharging && !this.gravitonBallCharging) {
+      const rawGraviton = abilityLevel('graviton_surge');
+      if (oldTier('graviton_surge') >= 2) {
+        this.gravitonSurgeCharging = true;
+        this.gravitonHoldTimer = 0;
+      } else if (this.fractureMeter >= GRAVITON_SURGE_TAP_COST) {
+        // Lv0/Lv1(new)/Lv1(old) never had a hold variant — fire the flip
+        // immediately, same as always. Pip cost checked here (not at the
+        // outer `if`) so an unaffordable press is a silent no-op — same
+        // shape as Stillpoint below: no cooldown burned, nothing charges,
+        // just doesn't fire.
+        this.fractureMeter -= GRAVITON_SURGE_TAP_COST;
         this.gravitonActive = true;
-        this.gravitonTimer = GRAVITON_SURGE_BASE_DURATION + (lvl >= 1 ? 60 : 0);
+        // Lv2 (old Lv1): duration +1s (60f). Lv1 (2026-07-27, the new cheap
+        // entry tier): a smaller +0.3s (18f) partial step toward that.
+        this.gravitonTimer = GRAVITON_SURGE_BASE_DURATION + (oldTier('graviton_surge') >= 1 ? 60 : (rawGraviton >= 1 ? 18 : 0));
         abilityState.gravitonSurgeCooldown = GRAVITON_SURGE_COOLDOWN;
         if (typeof SFX !== 'undefined') SFX.phaseDash();
       }
     }
+    if (this.gravitonSurgeCharging) {
+      if (isActionPressed('gravitonSurge')) {
+        this.gravitonHoldTimer++;
+        if (this.gravitonHoldTimer >= GRAVITON_SURGE_TAP_THRESHOLD) {
+          // Held long enough — commit to the Gravity Ball. No pip check
+          // here either — same as Stillpoint's hold path, the cost is
+          // charged at activation (ball release / tap release), not at
+          // the moment of committing to which variant this will be.
+          this.gravitonSurgeCharging = false;
+          this.gravitonBallCharging = true;
+          this.gravitonBallTimer = 0;
+        }
+      } else {
+        // Released before the threshold — this was a tap. Flip gravity,
+        // if affordable; if not, this is a silent no-op like the Lv0/1
+        // branch above (still consumes the press/charge cycle, but nothing
+        // happens and the cooldown is never set).
+        this.gravitonSurgeCharging = false;
+        if (this.fractureMeter >= GRAVITON_SURGE_TAP_COST) {
+          this.fractureMeter -= GRAVITON_SURGE_TAP_COST;
+          const rawGraviton2 = abilityLevel('graviton_surge');
+          this.gravitonActive = true;
+          this.gravitonTimer = GRAVITON_SURGE_BASE_DURATION + (oldTier('graviton_surge') >= 1 ? 60 : (rawGraviton2 >= 1 ? 18 : 0));
+          abilityState.gravitonSurgeCooldown = GRAVITON_SURGE_COOLDOWN;
+          if (typeof SFX !== 'undefined') SFX.phaseDash();
+        }
+      }
+    }
     if (this.gravitonBallCharging) {
+      // Held out in front, moving with the player (like holding it in
+      // hand) — re-anchored every frame while charging, not just on press.
+      this.gravitonBallX = this.x + this.width / 2 + this.facing * GRAVITON_BALL_SPAWN_DIST;
+      this.gravitonBallY = this.y + this.height / 2;
       if (isActionPressed('gravitonSurge')) {
         this.gravitonBallTimer++;
       } else {
-        // Release: pop the Gravity Ball (game.js handles the pull/explosion
-        // AoE using this.gravitonBallX/Y, set each frame below), then start
-        // the timed gravity flip same as Lv0/1.
+        // Release: launch the ball, if affordable — same silent-no-op
+        // shape as the tap variant if the player went broke mid-charge
+        // (the charge itself is free; only the actual launch costs pips).
         this.gravitonBallCharging = false;
-        this.gravitonBallPop = true; // one-shot flag, consumed by game.js
-        const lvl = abilityLevel('graviton_surge');
-        this.gravitonActive = true;
-        this.gravitonTimer = 300 + (lvl >= 3 ? 60 : 0); // Lv2: 5s, Lv3+: 6s
-        abilityState.gravitonSurgeCooldown = GRAVITON_SURGE_COOLDOWN;
+        if (this.fractureMeter >= GRAVITON_SURGE_BALL_COST) {
+          this.fractureMeter -= GRAVITON_SURGE_BALL_COST;
+          // Launch forward+upward. It keeps pulling nearby enemies in
+          // flight (game.js) and explodes when it lands (Lv3+; see
+          // gravitonBallPop). No gravity flip — the hold variant is a pure
+          // ball attractor.
+          this.gravitonBallFlying = true;
+          this.gravitonBallFlightTimer = GRAVITON_BALL_FLIGHT_DURATION;
+          this.gravitonBallVx = this.facing * GRAVITON_BALL_LAUNCH_SPEED_X;
+          this.gravitonBallVy = -GRAVITON_BALL_LAUNCH_SPEED_Y;
+          abilityState.gravitonSurgeCooldown = GRAVITON_SURGE_COOLDOWN;
+        }
       }
-      this.gravitonBallX = this.x + this.width / 2;
-      this.gravitonBallY = this.y + this.height / 2;
+    }
+    if (this.gravitonBallFlying) {
+      this.gravitonBallX += this.gravitonBallVx * this.timeScale;
+      this.gravitonBallY += this.gravitonBallVy * this.timeScale;
+      this.gravitonBallFlightTimer -= this.timeScale;
+      if (this.gravitonBallFlightTimer <= 0) {
+        this.gravitonBallFlying = false;
+        this.gravitonBallPop = true; // one-shot flag, consumed by game.js
+      }
     }
     if (this.gravitonActive) {
-      this.gravitonTimer--;
+      this.gravitonTimer -= this.timeScale;
       if (this.gravitonTimer <= 0) this.gravitonActive = false;
     }
 
@@ -471,7 +787,7 @@ class Player {
       // Press attack with no cooldown → start charging (don't fire yet)
       if (wasActionJustPressed('attack') &&
           this.attackCooldown <= 0 && !this.ducking &&
-          !this.charging && !this.parrying) {
+          !this.charging) {
         this.charging = true;
         this.chargeTimer = 0;
         this.fullyCharged = false;
@@ -506,16 +822,16 @@ class Player {
         } else if (isActionPressed('aimDown')) {
           this.attackDirection = 'down';
         } else {
-          this.attackDirection = 'forward';
+          this.attackDirection = this.findReachDirection() || 'forward';
         }
 
         if (this.chargeTimer >= CHARGE_TAP) {
           // ── Heavy attack ──
-          // Strength Lv4 Limit Break: a full-charge (26f+) release activates
-          // the Enhanced State instead of just a bigger swing, per Rule 1's
+          // Strength Lv4 Limit Break: a full-charge release activates the
+          // Enhanced State instead of just a bigger swing, per Rule 1's
           // "Full Hold: if you have the Lv4 Strength unlock, this activates
           // your Limit Break on release" (Enemy_Design.pdf).
-          if (this.chargeTimer >= 26 && canActivateLimitBreak('strength', this.fractureMeter)) {
+          if (this.fullyCharged && canActivateLimitBreak('strength', this.fractureMeter)) {
             this.fractureMeter -= LIMIT_BREAK_COST;
             startLimitBreak('strength');
           }
@@ -533,6 +849,7 @@ class Player {
           this.heavy = false;
           if (typeof SFX !== 'undefined') SFX.attack();
         }
+        this.animator.play(this.animKeyForAttack(this.attackDirection, this.heavy), true);
         this.dashRefundedThisAttack = false; // Phase 1.8: one dash refund per attack
         this.hitTargetsThisSwing.clear();
         this.echoAttackPending = true; // Phase Dash Lv3 — consumed in game.js
@@ -540,7 +857,7 @@ class Player {
         this.fullyCharged = false;
       }
     } else if (wasActionJustPressed('attack') &&
-               this.attackCooldown <= 0 && !this.ducking && !this.parrying) {
+               this.attackCooldown <= 0 && !this.ducking) {
       // No Charged Attack yet — attack always fires the quick hit immediately,
       // no charge timer, no heavy branch, no charge VFX.
       if (isActionPressed('aimUp')) {
@@ -548,43 +865,39 @@ class Player {
       } else if (isActionPressed('aimDown')) {
         this.attackDirection = 'down';
       } else {
-        this.attackDirection = 'forward';
+        this.attackDirection = this.findReachDirection() || 'forward';
       }
       this.attacking = true;
       this.attackTimer = ATTACK_DURATION;
       this.attackCooldown = this.getAttackCooldown();
       this.heavy = false;
       if (typeof SFX !== 'undefined') SFX.attack();
+      this.animator.play(this.animKeyForAttack(this.attackDirection, this.heavy), true);
       this.dashRefundedThisAttack = false;
       this.hitTargetsThisSwing.clear();
       this.echoAttackPending = true; // Phase Dash Lv3 — consumed in game.js
     }
     } // end Shard Shot Lv4 melee-replacement guard
 
-    // ── Parry: tap attack during cooldown (instead of attacking) ───────────
-    if (wasActionJustPressed('attack') && !this.shardBlastFired &&
-        !this.attacking && this.attackCooldown > 0 && this.parryCooldown <= 0 &&
-        !this.ducking && !this.parrying) {
-      this.parrying = true;
-      this.parryTimer = PARRY_WINDOW; // 10 frames to deflect
-      this.parryCooldown = PARRY_COOLDOWN; // 60 frames between parries
-      if (typeof SFX !== 'undefined') SFX.parry();
-    }
-
-    if (this.parrying) {
-      this.parryTimer--;
-      if (this.parryTimer <= 0) { this.parrying = false; }
-    }
-    if (this.parryCooldown > 0) this.parryCooldown--;
-
     if (this.attacking) {
-      this.attackTimer--;
+      this.attackTimer -= this.timeScale;
+      this.animator.update();
       if (this.attackTimer <= 0) {
         this.attacking = false;
         this.heavy = false; // clear heavy flag after animation
       }
     }
-    if (this.attackCooldown > 0) this.attackCooldown--;
+    if (this.attackCooldown > 0) this.attackCooldown -= this.timeScale;
+
+    // ── Movement/ability animators (2026-07-19) ─────────────────────────────
+    // play() is cheap to call every frame — it no-ops unless the key
+    // actually changed (see Animator.play() in animdata.js).
+    const bodyKey = this.playerBodyStateKey();
+    if (ANIM_DEFS[bodyKey]) { this.bodyAnimator.play(bodyKey); this.bodyAnimator.update(); }
+    if (this.stillpointActive && ANIM_DEFS['player_stillpoint']) { this.stillpointAnimator.play('player_stillpoint'); this.stillpointAnimator.update(); }
+    if (this.shardAiming && ANIM_DEFS['player_shardshot_aim']) { this.shardAimAnimator.play('player_shardshot_aim'); this.shardAimAnimator.update(); }
+    if (this.beaming && ANIM_DEFS['player_shardshot_beam']) { this.shardBeamAnimator.play('player_shardshot_beam'); this.shardBeamAnimator.update(); }
+    if ((this.gravitonBallCharging || this.gravitonBallFlying) && ANIM_DEFS['player_gravball']) { this.gravBallAnimator.play('player_gravball'); this.gravBallAnimator.update(); }
 
     // ── Shard Shot — hold to aim, release to fire (expansion §0.1) ─────────
     // Press shardShot: start aiming; a glowing dotted arc appears (see draw()).
@@ -606,14 +919,14 @@ class Player {
         } else if (isActionPressed('aimDown')) {
           this.shardAimVy = Math.min(this.shardAimVy + SHARD_AIM_TILT_RATE, SHARD_AIM_VY_MAX);
         }
-        // Lv3 Beam Attack — "a beam as in continuous energy, like a
-        // kamehameha" (user clarification 2026-07-16): held past
+        // Lv4 Beam Attack (old Lv3) — "a beam as in continuous energy, like
+        // a kamehameha" (user clarification 2026-07-16): held past
         // BEAM_CHARGE_TIME with a Fracture Pip in reserve starts a
         // continuous straight-line channel instead of firing a single
         // shot on release. Aim (angle) stays live-adjustable while
         // beaming — see the angle calc below and game.js's per-frame
         // beam-tick update.
-        if (!this.beaming && abilityLevel('shard_shot') >= 3 && this.shardAimTimer >= BEAM_CHARGE_TIME && this.fractureMeter >= BEAM_PIP_COST) {
+        if (!this.beaming && oldTier('shard_shot') >= 3 && this.shardAimTimer >= BEAM_CHARGE_TIME && this.fractureMeter >= BEAM_PIP_COST) {
           this.beaming = true;
           this.beamDrainTimer = 0;
           this.shardAiming = false; // beam replaces the aim-then-release flow entirely
@@ -644,84 +957,101 @@ class Player {
     }
 
     // ── Physics ─────────────────────────────────────────────────────────────
+    // Electromagnetic Golem's magnetism (2026-07-26) — any platform carrying
+    // a `polarity` field ('positive'|'negative'; either hand-authored as a
+    // permanent counterplay platform, or set/cleared at runtime by the
+    // Golem's own charging attack) does two things: touching it sets
+    // `this.magnetCharge` to match (this is the whole "counterplay
+    // platforms flip your own charge" mechanic — no separate system), and
+    // if the player currently holds a charge, it exerts a force — opposite
+    // charges pull in, same charges push away. Additive, before gravity/
+    // collision, same shape as the gravity-well projectile pull
+    // (`enemy.js`) and the Graviton Ball's enemy-pull (`game.js`) — no
+    // changes to the shared collision resolver needed. A no-op everywhere
+    // else in the game since no platform outside Polar Shift's boss room
+    // ever sets `polarity`.
+    if (typeof rectsOverlap === 'function') {
+      for (const plat of platforms) {
+        if (!plat.polarity) continue;
+        const pcx = this.x + this.width / 2, pcy = this.y + this.height / 2;
+        const cx = plat.x + plat.w / 2, cy = plat.y + plat.h / 2;
+        if (this.standingPlat === plat ||
+            rectsOverlap(this, { x: plat.x, y: plat.y, width: plat.w, height: plat.h })) {
+          this.magnetCharge = plat.polarity;
+        }
+        const dist = Math.hypot(pcx - cx, pcy - cy);
+        if (this.magnetCharge && dist > 1 && dist < MAGNET_PULL_RANGE) {
+          const sign = this.magnetCharge === plat.polarity ? -1 : 1; // same repels, opposite attracts
+          this.vx += ((cx - pcx) / dist) * MAGNET_PULL_STRENGTH * sign;
+          this.vy += ((cy - pcy) / dist) * MAGNET_PULL_STRENGTH * sign;
+        }
+      }
+    }
+
     // Graviton Surge: flips the player's own gravity for its duration. Lv4
     // Limit Break replaces this with true flight (no gravity at all) — see
-    // Rule 0's Lv4 Enhanced State.
+    // Rule 0's Lv4 Enhanced State. Room gravity (Gravity Collapse Core,
+    // below) only applies in the final `else` — using Graviton Surge mid-
+    // fight against that boss layers oddly (ordinary up/down flip on top
+    // of whatever room direction is active) rather than composing
+    // correctly; accepted v1 behavior, not a blocker, per the boss-buildout
+    // plan.
     if (this.gravitonActive && limitBreak.active && limitBreak.ability === 'graviton_surge') {
       // Flight — ignore gravity entirely, vy only changes from player input/knockback.
     } else if (this.gravitonActive) {
-      this.vy -= GRAVITY;
+      this.vy -= GRAVITY * this.timeScale;
+    } else if (typeof applyRoomGravity === 'function') {
+      applyRoomGravity(this, this.timeScale); // 'down' everywhere except Gravity Collapse Core's own room; scaled by the Sovereign's Phase 3 Stillpoint like everything else here
     } else {
-      this.vy += GRAVITY;
+      this.vy += GRAVITY * this.timeScale;
     }
-    this.x += this.vx;
-    this.y += this.vy;
+    this.x += this.vx * this.timeScale;
+    this.y += this.vy * this.timeScale;
 
-    // Platform collision
+    // Platform collision — routed through physics.js's shared resolver as
+    // of 2026-07-19 (was a hand-duplicated copy of the same logic with the
+    // same bug: jumping into a plain, un-flagged tall platform could fall
+    // straight through the floor — see the resolver's own comment for the
+    // full mechanism and the axis-separated fix). Player-only concerns
+    // (wall-jump coyote, justLanded SFX, one-way drop-through) are layered
+    // on the returned result exactly like resolveEnemyPhysics already does
+    // for enemies. Dispatches on room gravity direction (Gravity Collapse
+    // Core, 2026-07-26) the same way resolveEnemyPhysics does — 'down' is
+    // this exact call, unchanged.
     this.grounded = false;
-
-    // ── Wall contact detection ──
-    // Detect wall contact each frame. wallNormal is NOT zeroed here —
-    // the movement block reads wallNormal from the previous frame (since
-    // collision runs after movement). We only overwrite it when we detect
-    // a new contact, otherwise it naturally decays (wall jump coyote).
+    this.standingPlat = null;
     let wallTouchThisFrame = false;
 
-    if (platforms) {
-      // Collision margins scale with velocity (2026-07-16, user feedback:
-      // "easy to fall through the floor" at corners, after jumping into a
-      // wall, or after a hard knockback). The old fixed margins (4/8/10px)
-      // assumed slow, gravity-only motion; a fast knockback impulse (or a
-      // dash) can move the player further than that in one frame, tunneling
-      // clean through the check's narrow window before it ever triggers.
-      // Scaling the tolerance by how far the player actually moved this
-      // frame keeps the same collision approach but makes it safe at any
-      // realistic speed instead of only "normal walking/falling."
-      const landingMargin = Math.max(8, Math.abs(this.vy) + 2);
-      const wallMargin = Math.max(10, Math.abs(this.vx) + 2);
-      for (const plat of platforms) {
-        if (plat.destructible && plat.hp <= 0) continue;
-        // Skip top-landing for platforms flagged as walls (e.g. boss arena side walls).
-        // `ceiling` platforms (cave-top boundary pieces) get FULL normal collision
-        // here — identical to any other platform — the flag only exempts them from
-        // the room linter's reachability check (see area.js's _linterStandable()),
-        // since a room's top boundary isn't a real route the linter needs to verify.
-        // Also use prevBottom (position before velocity applied) so a player running
-        // into a tall wall never gets snapped to its top surface.
-        const prevBottom = (this.y + this.height) - this.vy;
-        if (this.x + this.width > plat.x && this.x < plat.x + plat.w) {
-          if (!plat.wall &&
-              prevBottom <= plat.y + landingMargin &&
-              this.y + this.height > plat.y &&
-              this.y + this.height < plat.y + plat.h + landingMargin &&
-              this.vy >= 0) {
-            this.y = plat.y - this.height;
-            this.vy = 0;
-            if (!this.grounded) { this.justLanded = true; this.justLandedTimer = 0; if (typeof SFX !== 'undefined') SFX.land(); }
-            this.grounded = true;
-          } else if (!plat.wall && this.y < plat.y + plat.h && this.y > plat.y - landingMargin && this.vy < 0) {
-            this.y = plat.y + plat.h; this.vy = 0;
-          }
-        }
-        // ── Horizontal collision + wall contact detection ──
-        // Detect wall when vertically overlapping the platform edge.
-        // Works even when vx==0 (standing against wall / sliding down).
-        if (this.y + this.height > plat.y + 4 && this.y < plat.y + plat.h) {
-          // Right side of player touching left side of platform
-          if (this.x + this.width >= plat.x && this.x + this.width < plat.x + wallMargin && this.vx >= 0) {
-            this.x = plat.x - this.width;
-            if (this.vx > 0) this.vx = 0;
-            this.wallNormal = 1; // right side touching wall → wall is on right
-            wallTouchThisFrame = true;
-          }
-          // Left side of player touching right side of platform
-          if (this.x <= plat.x + plat.w && this.x > plat.x + plat.w - wallMargin && this.vx <= 0) {
-            this.x = plat.x + plat.w;
-            if (this.vx < 0) this.vx = 0;
-            this.wallNormal = -1; // left side touching wall → wall is on left
-            wallTouchThisFrame = true;
-          }
-        }
+    const _roomGravityDir = typeof getRoomGravityDir === 'function' ? getRoomGravityDir() : 'down';
+    if (_roomGravityDir === 'down' && typeof resolveEntityCollision === 'function') {
+      const result = resolveEntityCollision(this, platforms, {
+        movedX: this.vx * this.timeScale,
+        movedY: this.vy * this.timeScale,
+        skipOneWay: this.dropThroughTimer > 0,
+      });
+      if (result.landed) {
+        this.justLanded = true;
+        this.justLandedTimer = 0;
+        if (typeof SFX !== 'undefined') SFX.land();
+      }
+      if (result.wallNormal !== 0) {
+        this.wallNormal = result.wallNormal;
+        wallTouchThisFrame = true;
+      }
+    } else if (_roomGravityDir !== 'down' && typeof resolveRotatedGravityCollision === 'function') {
+      const result = resolveRotatedGravityCollision(this, platforms, _roomGravityDir, {
+        movedX: this.vx * this.timeScale,
+        movedY: this.vy * this.timeScale,
+        skipOneWay: this.dropThroughTimer > 0,
+      });
+      if (result.landed) {
+        this.justLanded = true;
+        this.justLandedTimer = 0;
+        if (typeof SFX !== 'undefined') SFX.land();
+      }
+      if (result.wallNormal !== 0) {
+        this.wallNormal = result.wallNormal;
+        wallTouchThisFrame = true;
       }
     }
 
@@ -738,6 +1068,12 @@ class Player {
     } else if (wallTouchThisFrame) {
       this.wallJumpCoyote = WALL_JUMP_COYOTE;
     }
+
+    // Same-wall lock: ticks down regardless of contact, and clears outright
+    // on landing — touching real ground is a genuine "you got somewhere"
+    // checkpoint, no reason to keep denying that wall after that.
+    if (this._wallJumpLockTimer > 0) this._wallJumpLockTimer--;
+    if (this.grounded) this._wallJumpLockTimer = 0;
 
     // `bounds.groundY` used to be an invisible, always-on floor here — caught
     // the player at that y no matter what x they were at, even over a real
@@ -758,51 +1094,98 @@ class Player {
     if (this.x < bounds.left) this.x = bounds.left;
     if (this.x + this.width > bounds.right) this.x = bounds.right - this.width;
 
-    if (this.invincibleTimer > 0) { this.invincibleTimer--; this.flashTimer++; }
-    if (this.hitStunTimer > 0) this.hitStunTimer--;
+    if (this.invincibleTimer > 0) { this.invincibleTimer -= this.timeScale; this.flashTimer++; }
+    if (this.hitStunTimer > 0) this.hitStunTimer -= this.timeScale;
+  }
+
+  // Reach (mini-plot unlock, pacifist region, 2026-07-19). Up-Reach works
+  // grounded or airborne (user direction 2026-07-19: it's the "continue a
+  // combo I already started" tool and juggles often begin from the
+  // ground); down-Reach is airborne-only (there's nothing below you to hit
+  // while standing on the ground, and it's the pogo-adjacent case). Scans
+  // the current area's enemies for the nearest one diagonally in front
+  // within a cone measured off vertical (REACH_CONE_MIN/MAX_DEG), excluding
+  // both near-overhead (dedicated up-attack/pogo's job) and near-horizontal
+  // (the plain forward swing already covers that). Returns 'up'/'down' or
+  // null — callers only use this when no explicit aimUp/aimDown was held,
+  // so it never overrides a deliberate directional input, and it's only
+  // ever checked once at the moment an attack is thrown (not every frame of
+  // an active swing), so it can't retarget mid-animation.
+  findReachDirection() {
+    if (!abilityState.hasReach) return null;
+    if (typeof areaEnemies === 'undefined' || typeof currentAreaId === 'undefined') return null;
+    const enemies = areaEnemies[currentAreaId] || [];
+    const px = this.x + this.width / 2, py = this.y + this.height / 2;
+    let bestDir = null, bestDist = REACH_RANGE;
+    for (const enemy of enemies) {
+      if (enemy.dead) continue;
+      const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
+      const dx = (ex - px) * this.facing; // positive = in front, given facing
+      if (dx < REACH_MIN_FORWARD) continue;
+      const dy = ey - py;
+      if (dy === 0) continue; // level with the player — not up or down
+      if (dy > 0 && this.grounded) continue; // down-Reach is airborne-only
+      const dist = Math.hypot(dx, dy);
+      if (dist > bestDist) continue;
+      const angleOffVertical = Math.atan2(Math.abs(dx), Math.abs(dy)) * 180 / Math.PI;
+      if (angleOffVertical < REACH_CONE_MIN_DEG || angleOffVertical > REACH_CONE_MAX_DEG) continue;
+      bestDist = dist;
+      bestDir = dy < 0 ? 'up' : 'down';
+    }
+    return bestDir;
+  }
+
+  // Maps the current swing to an ANIM_DEFS key (game/animdata.js), e.g.
+  // 'player_attack_forward' / 'player_attack_forward_heavy'. Centralized
+  // here so getAttackHitbox()/the attack-start blocks/draw() all agree on
+  // the same key without re-deriving it.
+  animKeyForAttack(direction, heavy) {
+    return `player_attack_${direction}${heavy ? '_heavy' : ''}`;
+  }
+
+  // Maps the player's current movement/dash/wallslide state to an
+  // ANIM_DEFS key (2026-07-19) — checked once per frame by update()/draw()
+  // to drive `bodyAnimator`. States are mutually exclusive (only one is
+  // ever "current"), unlike the overlay abilities (Stillpoint, Shard Shot
+  // aim/beam) which are tracked separately since they can coexist with any
+  // of these. Falls back to the legacy static body (+ dash/phasedash/
+  // wallslide overlay) draw when no matching key has been authored.
+  playerBodyStateKey() {
+    if (this.phaseDashing) return 'player_phasedash';
+    if (this.dashing) return `player_dash_chain${this.dashChain}`;
+    if (this.wallSliding && this.wallNormal !== 0) return 'player_wallslide';
+    if (this.ducking) return 'player_duck';
+    if (!this.grounded && this.vy < 0) return 'player_jump';
+    if (!this.grounded) return 'player_fall';
+    if (Math.abs(this.vx) > 0.5) return 'player_run';
+    return 'player_idle';
   }
 
   getAttackHitbox() {
     if (!this.attacking) return null;
     const dir = this.attackDirection;
-    if (dir === 'up') {
-      return {
-        x: this.x - 5,
-        y: this.y - ATK_UP_H + 8,
-        width: ATK_UP_W + 10,
-        height: ATK_UP_H,
-        dir: 'up'
-      };
+
+    // ── Anim-driven path (2026-07-19) — only for directions that actually
+    // have an authored ANIM_DEFS entry (game/animdata.js, edited live via
+    // editor/anim_editor.html). Everything else falls through to the
+    // hardcoded hitboxes below unchanged, so this is purely additive.
+    const animDef = (typeof ANIM_DEFS !== 'undefined') ? ANIM_DEFS[this.animKeyForAttack(dir, this.heavy)] : null;
+    if (animDef) {
+      const hitboxes = this.animator.currentHitboxes();
+      if (hitboxes.length === 0) return null; // windup/recover frame — no active hitbox yet
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const hb of hitboxes) {
+        minX = Math.min(minX, hb.x);
+        minY = Math.min(minY, hb.y);
+        maxX = Math.max(maxX, hb.x + hb.width);
+        maxY = Math.max(maxY, hb.y + hb.height);
+      }
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY, dir };
     }
-    if (dir === 'down') {
-      return {
-        x: this.x - 5,
-        y: this.y + this.height - 4,
-        width: ATK_DN_W + 10,
-        height: ATK_DN_H,
-        dir: 'down'
-      };
-    }
-    // forward (default) — heavy (charged) attack gets a taller hitbox
-    // starting above the head to match its overhead swing; normal attack
-    // stays a tight chest-height poke in front (Enemy_Design.pdf's "To Fix"
-    // note, addressed 2026-07-16).
-    if (this.heavy) {
-      return {
-        x: this.facing === 1 ? this.x + this.width - 6 : this.x - ATK_HEAVY_FWD_W + 6,
-        y: this.y - ATK_HEAVY_FWD_H + 24,
-        width: ATK_HEAVY_FWD_W,
-        height: ATK_HEAVY_FWD_H,
-        dir: 'forward'
-      };
-    }
-    return {
-      x: this.facing === 1 ? this.x + this.width : this.x - ATK_FWD_W,
-      y: this.y + 6,
-      width: ATK_FWD_W,
-      height: ATK_FWD_H,
-      dir: 'forward'
-    };
+
+    // Legacy fallback — shared with editor/anim_editor.html's dissection
+    // tool via game/attackVFX.js, so both stay numerically identical.
+    return ATTACK_VFX_WORLD_HITBOX(dir, this.heavy, this.x, this.y, this.width, this.height, this.facing);
   }
 
   // `sourceX` (the hitting enemy's x) is optional — when given, applies a
@@ -816,7 +1199,7 @@ class Player {
   // applied automatically, same as the default case.
   takeDamage(dmg, sourceX, knockback) {
     if (this.invincibleTimer > 0) return;
-    this.health -= dmg;
+    this.health = Math.max(0, this.health - dmg);
     this.invincibleTimer = INVINCIBLE_FRAMES;
     // Stillpoint breaks on taking damage
     if (this.stillpointActive) {
@@ -827,9 +1210,8 @@ class Player {
       // Limit Break (any ability, Enemy_Design.pdf): "complete immunity to
       // knockback" for the Enhanced State's 6s window.
       if (typeof limitBreak !== 'undefined' && limitBreak.active) return;
-      // Strength Lv3: incoming knockback -30%.
-      const strengthLvl = (typeof statUpgrades !== 'undefined' && statUpgrades.strength) || 0;
-      const kbMult = strengthLvl >= 3 ? 0.7 : 1;
+      // Strength Lv4 (old Lv3): incoming knockback -30%.
+      const kbMult = (typeof oldTier === 'function' && oldTier('strength') >= 3) ? 0.7 : 1;
       const dir = (this.x + this.width / 2 > sourceX) ? 1 : -1;
       this.vx = dir * (knockback?.vx ?? 4) * kbMult;
       this.vy = (knockback?.vy ?? -3) * kbMult;
@@ -858,36 +1240,35 @@ class Player {
     }
     ctx.translate(-cx, -cy);
 
-    // ── Stillpoint glow on player body ────────────────────────────────────
+    // ── Stillpoint glow on player body (2026-07-19: anim-driven when a
+    // 'player_stillpoint' ANIM_DEFS entry exists, else the legacy halo) ────
     if (this.stillpointActive) {
-      const pipFrac = this.fractureMax > 0 ? this.fractureMeter / this.fractureMax : 0;
-      const pulse = Math.sin(typeof frameCount !== 'undefined' ? frameCount * 0.15 : 0) * 0.2 + 0.8;
-      // Outer halo
-      ctx.fillStyle = `rgba(103, 232, 249, ${0.12 * pulse})`;
-      ctx.fillRect(this.x - 8, this.y - 8, this.width + 16, this.height + 16);
-      // Inner ring
-      ctx.strokeStyle = `rgba(103, 232, 249, ${0.55 * pulse})`;
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(this.x - 3, this.y - 3, this.width + 6, this.height + 6);
-      ctx.lineWidth = 1;
+      if (ANIM_DEFS['player_stillpoint']) {
+        this.stillpointAnimator.draw(ctx);
+      } else {
+        const pulse = Math.sin(typeof frameCount !== 'undefined' ? frameCount * 0.15 : 0) * 0.2 + 0.8;
+        drawStillpointHalo(ctx, this.x, this.y, this.width, this.height, pulse);
+      }
     }
 
     // ── Graviton Surge Gravity Ball (Lv2+) — was never actually drawn
     // before (user report 2026-07-16: "the ball never appears"); the pull
-    // logic in game.js was real, just invisible.
-    if (this.gravitonBallCharging) {
+    // logic in game.js was real, just invisible. Also drawn while flying
+    // (2026-07-19) so it doesn't vanish the instant you release. Anim-driven
+    // (2026-07-19) when 'player_gravball' exists — the ball is its own
+    // detached entity (gravBallEntity), not the player, see constructor.
+    if (this.gravitonBallCharging || this.gravitonBallFlying) {
       const pulse = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.35) * 0.2 + 0.8;
-      const r = 10 + Math.min(this.gravitonBallTimer * 0.15, 10);
-      const grad = ctx.createRadialGradient(this.gravitonBallX, this.gravitonBallY, 0, this.gravitonBallX, this.gravitonBallY, GRAVITON_BALL_PULL_RADIUS);
-      grad.addColorStop(0, `rgba(244, 114, 182, ${0.5 * pulse})`);
-      grad.addColorStop(0.15, `rgba(244, 114, 182, ${0.12 * pulse})`);
-      grad.addColorStop(1, 'rgba(244, 114, 182, 0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(this.gravitonBallX - GRAVITON_BALL_PULL_RADIUS, this.gravitonBallY - GRAVITON_BALL_PULL_RADIUS, GRAVITON_BALL_PULL_RADIUS * 2, GRAVITON_BALL_PULL_RADIUS * 2);
-      ctx.fillStyle = `rgba(244, 114, 182, ${0.9 * pulse})`;
-      ctx.beginPath();
-      ctx.arc(this.gravitonBallX, this.gravitonBallY, r, 0, Math.PI * 2);
-      ctx.fill();
+      if (ANIM_DEFS['player_gravball']) {
+        this.gravBallEntity.width = this.gravBallEntity.height = GRAVITON_BALL_PULL_RADIUS * 2;
+        ctx.save();
+        ctx.translate(this.gravitonBallX - GRAVITON_BALL_PULL_RADIUS, this.gravitonBallY - GRAVITON_BALL_PULL_RADIUS);
+        this.gravBallAnimator.draw(ctx);
+        ctx.restore();
+      } else {
+        const r = 10 + Math.min(this.gravitonBallTimer * 0.15, 10);
+        drawGravityBall(ctx, this.gravitonBallX, this.gravitonBallY, GRAVITON_BALL_PULL_RADIUS, r, pulse);
+      }
     }
 
     // ── Limit Break (Lv4) aura — flat blue glow, per user direction
@@ -901,19 +1282,6 @@ class Player {
       ctx.strokeStyle = `rgba(96, 165, 250, ${0.8 * pulse})`;
       ctx.lineWidth = 2;
       ctx.strokeRect(this.x - 6, this.y - 6, this.width + 12, this.height + 12);
-      ctx.lineWidth = 1;
-    }
-
-    // ── Parry flash ──────────────────────────────────────────────────────
-    if (this.parrying) {
-      const pPulse = this.parryTimer / PARRY_WINDOW; // 1->0 over parry window
-      // Bright golden halo that fades as window closes
-      ctx.fillStyle = `rgba(251, 191, 36, ${0.3 * pPulse})`;
-      ctx.fillRect(this.x - 6, this.y - 6, this.width + 12, this.height + 12);
-      // Sharp ring
-      ctx.strokeStyle = `rgba(251, 191, 36, ${0.8 * pPulse})`;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(this.x - 2, this.y - 2, this.width + 4, this.height + 4);
       ctx.lineWidth = 1;
     }
 
@@ -935,213 +1303,39 @@ class Player {
       ctx.lineWidth = 1;
     }
 
-    // ── Body ─────────────────────────────────────────────────────────────
-    const bodyColor = this.stillpointActive ? '#a5f3fc' : '#c4b5fd';
-    ctx.fillStyle = bodyColor;
-    ctx.fillRect(this.x, this.y, this.width, this.height);
-
-    // Glowing chest core (always present, brighter during Stillpoint)
-    const coreAlpha = this.stillpointActive ? 0.95 : 0.55;
-    const coreColor = this.stillpointActive ? '#67e8f9' : '#e0d7ff';
-    const coreY = this.ducking ? this.y + 4 : this.y + 12;
-    ctx.fillStyle = `rgba(${this.stillpointActive ? '103,232,249' : '224,215,255'},${coreAlpha})`;
-    ctx.fillRect(this.x + 8, coreY, 8, 8);
-
-    // Eyes
-    ctx.fillStyle = '#0a0a0f';
-    const eyeX = this.facing === 1 ? this.x + 14 : this.x + 4;
-    const eyeY = this.ducking ? this.y + 4 : this.y + 8;
-    ctx.fillRect(eyeX, eyeY, 6, 6);
-
-    // ── Dash trail (chain-aware) ───────────────────────────────────────────
-    if (this.dashing) {
-      const chainIntensity = this.dashChain / DASH_CHAIN_MAX; // 0-1
-      const trailCount = 2 + this.dashChain; // more ghosts on higher chains
-      const baseAlpha = 0.25 + chainIntensity * 0.25;
-      // Color shifts from purple → cyan as chain increases
-      const r = Math.round(196 - chainIntensity * 93);
-      const g = Math.round(181 + chainIntensity * 51);
-      const b = Math.round(253 - chainIntensity * 4);
-      const color = `rgba(${r}, ${g}, ${b}`;
-      for (let i = 1; i <= trailCount; i++) {
-        ctx.globalAlpha = baseAlpha - i * 0.05;
-        ctx.fillStyle = `${color}, ${baseAlpha - i * 0.05})`;
-        ctx.fillRect(this.x - this.vx * i * 1.2, this.y, this.width, this.height);
+    // ── Body / Dash / Phase Dash / Wall Slide (2026-07-19) ──────────────────
+    // Anim-driven via bodyAnimator when playerBodyStateKey() has a matching
+    // ANIM_DEFS entry; otherwise the legacy static body + dash/phase-dash/
+    // wall-slide overlays, unchanged. See playerBodyStateKey() for the state
+    // → key mapping.
+    const bodyDef = ANIM_DEFS[this.playerBodyStateKey()];
+    if (bodyDef) {
+      this.bodyAnimator.draw(ctx);
+    } else {
+      drawPlayerBody(ctx, this.x, this.y, this.width, this.height, this.facing, this.ducking, this.stillpointActive);
+      if (this.dashing) drawDashTrail(ctx, this.dashChain, this.vx, this.x, this.y, this.width, this.height);
+      if (this.phaseDashing) drawPhaseDashTrail(ctx, this.vx, this.x, this.y, this.width, this.height);
+      if (this.wallSliding && this.wallNormal !== 0) {
+        drawWallSlideGlow(ctx, this.wallNormal, this.x, this.y, this.width, this.height, (typeof frameCount !== 'undefined' ? frameCount : 0) * 0.15);
       }
-      ctx.globalAlpha = 1;
-      // Chain sparkles at max chain
-      if (this.dashChain >= DASH_CHAIN_MAX) {
-        ctx.fillStyle = 'rgba(103, 232, 249, 0.6)';
-        for (let i = 0; i < 3; i++) {
-          const sx = this.x + Math.random() * this.width;
-          const sy = this.y + Math.random() * this.height;
-          ctx.fillRect(sx, sy, 2, 2);
-        }
-      }
-    }
-
-    // ── Phase Dash trail ──────────────────────────────────────────────────
-    if (this.phaseDashing) {
-      for (let i = 1; i <= 4; i++) {
-        ctx.globalAlpha = 0.45 - i * 0.09;
-        ctx.fillStyle = '#a78bfa';
-        ctx.fillRect(this.x - this.vx * i * 1.8, this.y, this.width, this.height);
-      }
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = 'rgba(196, 181, 253, 0.18)';
-      ctx.fillRect(this.x - 5, this.y - 5, this.width + 10, this.height + 10);
     }
 
     // ── Attack slash arc (directional) ────────────────────────────────────
+    // Anim-driven (2026-07-19): if an ANIM_DEFS entry exists for the current
+    // swing, always render through the animator — its 'attack_swing' pose
+    // (game/animdata.js) calls the exact same drawAttackVFX() as the legacy
+    // fallback below (game/attackVFX.js), so this is pixel-identical unless
+    // a frame has been given custom art in editor/anim_editor.html, in which
+    // case that art takes over automatically (Animator.draw()'s own
+    // frame.image-wins-over-pose rule). No def → the raw legacy call.
     if (this.attacking) {
-      const atk = this.getAttackHitbox();
-      if (atk) {
-        const progress = 1 - this.attackTimer / ATTACK_DURATION;
-
-        if (atk.dir === 'up') {
-          // ── Up-slash: vertical arc in facing direction ──
-          const originX = this.x + this.width / 2;
-          const originY = this.y + this.height * 0.3;
-          const arcLen = 50;
-          const arcSpan = Math.PI * 0.65 * Math.min(1, progress * 1.5);
-          const facing = this.facing || 1;
-
-          const leadAngle = -Math.PI / 2 + facing * arcSpan;
-          ctx.strokeStyle = `rgba(255, 248, 255, ${0.9 - progress * 0.5})`;
-          ctx.lineWidth = 3.5 - progress * 2;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(originX, originY);
-          ctx.lineTo(originX + Math.cos(leadAngle) * arcLen, originY + Math.sin(leadAngle) * arcLen);
-          ctx.stroke();
-
-          for (let i = 0; i < 6; i++) {
-            const t = i / 6;
-            const a = -Math.PI / 2 + t * facing * arcSpan;
-            const lineAlpha = (0.12 + t * 0.35) * (1 - progress * 0.6);
-            ctx.strokeStyle = `rgba(224, 215, 255, ${lineAlpha})`;
-            ctx.lineWidth = 1 + t * 1.5;
-            ctx.beginPath();
-            ctx.moveTo(originX, originY);
-            ctx.lineTo(originX + Math.cos(a) * arcLen, originY + Math.sin(a) * arcLen);
-            ctx.stroke();
-          }
-
-          if (progress > 0.35) {
-            const flashAlpha = Math.max(0, Math.sin(progress * Math.PI) * 1.2);
-            ctx.fillStyle = `rgba(255, 250, 255, ${flashAlpha * 0.9})`;
-            ctx.beginPath();
-            ctx.arc(originX + Math.cos(leadAngle) * arcLen, originY + Math.sin(leadAngle) * arcLen, 4 + progress * 5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-        } else if (atk.dir === 'down') {
-          // ── Down-slam: impact burst below player ──
-          const originX = this.x + this.width / 2;
-          const originY = this.y + this.height;
-          const burstRadius = 35 * Math.min(1, progress * 2);
-
-          // Radial impact lines
-          for (let i = 0; i < 10; i++) {
-            const a = (i / 10) * Math.PI * 2;
-            const lineAlpha = (0.3 - progress * 0.2) * (1 - progress * 0.4);
-            ctx.strokeStyle = `rgba(255, 248, 255, ${Math.max(0, lineAlpha)})`;
-            ctx.lineWidth = 2 - progress;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(originX, originY);
-            ctx.lineTo(originX + Math.cos(a) * burstRadius, originY + Math.sin(a) * burstRadius * 0.5);
-            ctx.stroke();
-          }
-
-          // Impact flash
-          if (progress < 0.6) {
-            const flashAlpha = Math.max(0, 1 - progress / 0.6) * 0.7;
-            ctx.fillStyle = `rgba(255, 250, 255, ${flashAlpha})`;
-            ctx.beginPath();
-            ctx.ellipse(originX, originY, burstRadius * 1.2, burstRadius * 0.4, 0, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-        } else if (!this.heavy) {
-          // ── Normal attack: tight forward poke, chest height, minimal arc
-          // (Hollow-Knight-style — in front of you, not overhead). Matches
-          // the "To Fix" note in Enemy_Design.pdf, addressed 2026-07-16.
-          const originX = this.facing === 1 ? this.x + this.width : this.x;
-          const originY = this.y + this.height * 0.42;
-          const reach = 40 * Math.min(1, progress * 2); // matches the widened ATK_FWD_W
-          const tipX = originX + this.facing * reach;
-          ctx.strokeStyle = `rgba(255, 248, 255, ${0.9 - progress * 0.5})`;
-          ctx.lineWidth = 3 - progress * 1.5;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(originX, originY - 3);
-          ctx.lineTo(tipX, originY);
-          ctx.moveTo(originX, originY + 3);
-          ctx.lineTo(tipX, originY);
-          ctx.stroke();
-
-          if (progress > 0.25) {
-            const flashAlpha = Math.max(0, Math.sin(progress * Math.PI) * 1.1);
-            ctx.fillStyle = `rgba(255, 250, 255, ${flashAlpha * 0.85})`;
-            ctx.beginPath();
-            ctx.arc(tipX, originY, 3 + progress * 3, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-        } else {
-          // ── Charged (heavy) attack: overhead swing arc ──
-          const originX = this.facing === 1 ? this.x + this.width : this.x;
-          const originY = this.y + this.height * 0.42;
-          const arcLen = 48;
-          const arcSpan = Math.PI * 0.72 * Math.min(1, progress * 1.5);
-          const startAngle = this.facing === 1 ? -Math.PI * 0.62 : -Math.PI * 0.38;
-
-          const leadAngle = startAngle + this.facing * arcSpan;
-          ctx.strokeStyle = `rgba(255, 248, 255, ${0.9 - progress * 0.5})`;
-          ctx.lineWidth = 3.5 - progress * 2;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(originX, originY);
-          ctx.lineTo(originX + Math.cos(leadAngle) * arcLen, originY + Math.sin(leadAngle) * arcLen);
-          ctx.stroke();
-
-          for (let i = 0; i < 6; i++) {
-            const t = i / 6;
-            const a = startAngle + t * this.facing * arcSpan;
-            const lineAlpha = (0.12 + t * 0.35) * (1 - progress * 0.6);
-            ctx.strokeStyle = `rgba(224, 215, 255, ${lineAlpha})`;
-            ctx.lineWidth = 1 + t * 1.5;
-            ctx.beginPath();
-            ctx.moveTo(originX, originY);
-            ctx.lineTo(originX + Math.cos(a) * arcLen, originY + Math.sin(a) * arcLen);
-            ctx.stroke();
-          }
-
-          ctx.strokeStyle = `rgba(196, 181, 253, ${0.3 * (1 - progress)})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          for (let i = 0; i <= 14; i++) {
-            const t = i / 14;
-            const a = startAngle + t * this.facing * arcSpan;
-            const len = arcLen * (0.7 + t * 0.3);
-            const px = originX + Math.cos(a) * len;
-            const py = originY + Math.sin(a) * len;
-            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-          }
-          ctx.stroke();
-
-          if (progress > 0.35) {
-            const flashAlpha = Math.max(0, Math.sin(progress * Math.PI) * 1.2);
-            ctx.fillStyle = `rgba(255, 250, 255, ${flashAlpha * 0.9})`;
-            ctx.beginPath();
-            ctx.arc(originX + Math.cos(leadAngle) * arcLen, originY + Math.sin(leadAngle) * arcLen, 4 + progress * 5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-
-        ctx.lineCap = 'butt';
-        ctx.lineWidth = 1;
+      const animDef = (typeof ANIM_DEFS !== 'undefined')
+        ? ANIM_DEFS[this.animKeyForAttack(this.attackDirection, this.heavy)] : null;
+      if (animDef) {
+        this.animator.draw(ctx);
+      } else {
+        const progress = attackVFXProgress(this.attackTimer);
+        drawAttackVFX(ctx, this.attackDirection, this.heavy, progress, this.x, this.y, this.width, this.height, this.facing);
       }
     }
 
@@ -1149,70 +1343,29 @@ class Player {
     // Straight, not a parabola (2026-07-16, user feedback: shots no longer
     // have gravity in game.js's Projectile, so a straight dotted line now
     // shows exactly where the shot will fly, and doubles as the "prepared"
-    // aim guide while charging toward the Lv3 beam threshold).
+    // aim guide while charging toward the Lv3 beam threshold). Anim-driven
+    // (2026-07-19) when 'player_shardshot_aim' exists.
     if (this.shardAiming && abilityState.hasShardShot) {
-      let sx = (this.facing === 1 ? this.x + this.width : this.x - 8) + 4;
-      let sy = this.y + this.height / 2 + 4;
-      const svx = 8 * (this.facing || 1);
-      const svy = this.shardAimVy;
-      const pulse = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.25) * 0.2 + 0.7;
-      ctx.fillStyle = '#fbbf24';
-      ctx.shadowColor = '#fbbf24';
-      ctx.shadowBlur = 6;
-      for (let i = 0; i < 36; i++) {
-        sx += svx;
-        sy += svy;
-        if (i % 3 !== 0) continue; // dotted, not solid
-        ctx.globalAlpha = pulse * (1 - i / 44);
-        ctx.beginPath();
-        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
-        ctx.fill();
+      if (ANIM_DEFS['player_shardshot_aim']) {
+        this.shardAimAnimator.draw(ctx);
+      } else {
+        const pulse = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.25) * 0.2 + 0.7;
+        drawShardAimLine(ctx, this.x, this.y, this.width, this.height, this.facing, this.shardAimVy, pulse);
       }
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
     }
 
     // ── Shard Shot Lv3 Beam — solid straight line, no arc ("show a straight
     // line for the blue one" — user feedback 2026-07-16, since the parabola
     // above was confusing to aim with; a beam has no gravity so a straight
-    // line is also just literally where it goes). ──────────────────────────
+    // line is also just literally where it goes). Anim-driven (2026-07-19)
+    // when 'player_shardshot_beam' exists. ──────────────────────────────────
     if (this.beaming && typeof getBeamSegment === 'function') {
-      const seg = getBeamSegment(this);
-      const pulse = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.4) * 0.15 + 0.85;
-      ctx.strokeStyle = `rgba(103, 232, 249, ${0.85 * pulse})`;
-      ctx.lineWidth = 4;
-      ctx.shadowColor = '#67e8f9';
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.moveTo(seg.x1, seg.y1);
-      ctx.lineTo(seg.x2, seg.y2);
-      ctx.stroke();
-      ctx.lineWidth = 1;
-      ctx.shadowBlur = 0;
-    }
-
-    // ── Wall slide indicator ──────────────────────────────────────────────
-    // Positioned entirely in world space using wallNormal (which side the wall
-    // is on) — no translate/scale trick needed, since wallNormal already tells
-    // us the correct side regardless of which way the sprite is facing.
-    if (this.wallSliding && this.wallNormal !== 0) {
-      // Glow on the wall-facing side of the player
-      const glowPulse = Math.sin(frameCount * 0.15) * 0.15 + 0.5;
-      const cx = this.x + this.width / 2;
-      const gx = cx + this.wallNormal * this.width * 0.3;
-      const gy = this.y + this.height * 0.3;
-      const gradient = ctx.createRadialGradient(gx, gy, 0, gx, gy, this.width * 1.5);
-      gradient.addColorStop(0, `rgba(196, 181, 253, ${glowPulse})`);
-      gradient.addColorStop(1, 'rgba(196, 181, 253, 0)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(cx - this.width * 1.5, this.y - this.height * 0.5, this.width * 3, this.height * 2.5);
-
-      // Small vertical sparks along the wall contact point
-      ctx.fillStyle = `rgba(203, 245, 255, ${glowPulse * 0.6})`;
-      for (let i = 0; i < 3; i++) {
-        const sparkX = this.x + this.width / 2 + this.wallNormal * (this.width / 2 - 1);
-        const sparkY = this.y + (i + 1) * (this.height / 4) + Math.sin(frameCount * 0.3 + i) * 2;
-        ctx.fillRect(sparkX - 1, sparkY, 2, 2);
+      if (ANIM_DEFS['player_shardshot_beam']) {
+        this.shardBeamAnimator.draw(ctx);
+      } else {
+        const seg = getBeamSegment(this);
+        const pulse = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.4) * 0.15 + 0.85;
+        drawShardBeam(ctx, seg.x1, seg.y1, seg.x2, seg.y2, pulse);
       }
     }
 

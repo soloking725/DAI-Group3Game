@@ -89,6 +89,19 @@ Other design docs, read as needed for their specific topic:
   `validateAllRoomLayouts()` re-run since the linter simulates physics
   against those exact constants — read this before touching
   `MOVE_SPEED`/`DASH_SPEED`/dash-cooldown behavior.
+- `human_proportions_plan.md` — proposal (not started, 2026-07-26), written
+  as a discussion doc analyzing what giving the player (and possibly the
+  cast) real human-scale proportions (reference given: Ike from Smash
+  Ultimate — tall, broad, muscular) instead of the current abstract 24×32
+  rectangle would ripple into: art production cost, hurtbox/collision
+  geometry (a full `validateAllRoomLayouts()` re-run, same class of risk
+  `movement_feel_plan.md` already flags for a smaller change), movement
+  feel, enemy/world scale (directly interacts with the "Sovereign should
+  always read as stronger than you" design note elsewhere in this file),
+  and tonal fit against the game's declared Hollow Knight/Celeste/Hyper
+  Light Drifter visual references, which all use small, non-realistic
+  silhouettes on purpose. Ends with open questions for the user, not a
+  plan of record — nothing here is scoped for implementation yet.
 - `cave_design_plan.md` — "how to make rooms read as a cave, not a
   platform gauntlet" research notes; informed the Crag of the Colossus
   build. Largely superseded for new work by the Task 4 decoration system
@@ -117,9 +130,10 @@ Other design docs, read as needed for their specific topic:
   the 13 expansion.md regions exist (built or planned), cluster/col/row,
   room counts, miniboss assignment, and each region's special effect.
   Rebuilt 2026-07-13 to fold in the col/row/cluster data that used to only
-  live in `worldmap.html`'s `PLANNED_REGIONS` array (keep both in sync by
-  hand) and to drop the old 25-physics-concept brainstorm (nothing in it
-  was ever assigned to a region). Use alongside yEd (`export_graph.js`
+  live in `worldmap.html`'s `PLANNED_REGIONS` array (that tool was removed
+  2026-07-26 — see the Dev/debug tooling section below — this file is now
+  the only place that data lives) and to drop the old 25-physics-concept
+  brainstorm (nothing in it was ever assigned to a region). Use alongside yEd (`export_graph.js`
   exports the live world graph to yEd's GraphML format — the actual answer
   to "is there a tool to plan the map spatially," no custom tool needed)
   and `levelEditor.html` for individual room detail.
@@ -128,6 +142,53 @@ Other design docs, read as needed for their specific topic:
   its "recommended order" reasoning should be folded into roadmap.md and
   the file itself archived/retired — don't treat it as a standing doc the
   way roadmap.md/expansion.md are.
+- `enemy_attack_vocabulary_plan.md` — the newest, best-maintained plan doc
+  (self-updating dated status entries through 2026-07-20): new enemy attack
+  verbs (Reversal, Aggro-Pull, The Catch, Tiger Knee, Afterimage Strike,
+  Mote Eater) layered on the Phase 19 AI/defense-verb base. Most of it is
+  now built in `enemy.js`/`ability.js` — read its own tail for exact
+  remaining scope (Reversal's Sword-Clash interrupt-punish check) before
+  assuming anything in it is still just a plan.
+- `Plans/room_progress.js` — a read-only Node CLI (not a doc) classifying
+  every room in `area.js` as SHELL/started/designed from design signals
+  (see roadmap.md Phase 23). Run `node Plans/room_progress.js --full` or
+  `--todo` for the live per-room design-progress state instead of trusting
+  any doc's static "N of 13 regions" claim.
+- `Plans/rebuild_levels_from_svg.js` — the one-off Node script that bulk-
+  generated `area.js`'s current room scaffolding from an SVG floor-plan
+  export (roadmap.md Phase 20, 2026-07-17). **Do not re-run this once
+  hand level-design starts** — it overwrites `area.js` wholesale.
+
+## Where this project is right now (added 2026-07-24 — read before suggesting "build more tools" or "build more content")
+
+**The user is intentionally in an infrastructure-building phase right now,
+on purpose, while working a summer internship with limited free time.**
+The plan is a dedicated ~1 month content push (enemies + levels) once the
+internship ends — building infra now so it's all ready to use then, not
+because content work is blocked on it. Concretely, per this session's
+audit: tooling (undo/redo, unsaved-guard, IndexedDB sprite storage, live
+overrides, the dev hub, now the difficulty bot) is in good shape, while
+content is thin — only 5-13 of 26+2 planned enemies are built and **none
+are placed in any room** (every `AREAS` entry has `enemies: []`), and only
+4 rooms are actually hand-designed despite all 71 existing as scaffolded
+shells (`node Plans/room_progress.js --full` for the live count).
+
+**Implications for future sessions:**
+- Don't push back on "let's build another tool" as premature just because
+  infra outpaces content — that imbalance is the user's deliberate choice
+  for this phase, not an oversight to correct.
+- Also don't assume every session should default to more tooling — when
+  asked for a general recommendation on what to do next (not a specific
+  tool request), the honest answer is still "the content build-out is the
+  real bottleneck," per the analysis in
+  `Plans/difficulty_bot_and_combat_polish_plan.md`'s framing. Give that
+  answer when asked; don't volunteer it as pushback when the user has
+  already chosen to build infrastructure.
+- When the content push actually starts, `Plans/difficulty_bot_and_combat_polish_plan.md`'s
+  Part 1 (difficulty bot, built) becomes actually useful for balancing new
+  enemies/rooms as they're built — Part 2 (hit-impact/hitstop cleanup,
+  input buffering) is pure feel-polish, lower priority than either infra
+  or content, do it opportunistically.
 
 ## Explicit design decisions (do not relitigate without asking)
 
@@ -187,7 +248,7 @@ The repo root used to be flat (every `.js`/dev-tool `.html` alongside
   inline; kept here anyway since it's thematically a game asset).
 - `editor/` — every dev/debug tool (`debug_v1.html`, `debug_new.html`,
   `levelEditor.html`, `enemy_test.html`, `enemy_editor.html`,
-  `enemy_designer.html`, `worldmap.html`, `graph_analyzer.html`,
+  `enemy_designer.html`, `graph_analyzer.html`,
   `export_graph.js`). Cross-references between these tools (e.g.
   `enemy_editor.html`'s "Test in Arena" opening `enemy_test.html`) are
   same-folder and needed no changes; each tool's own `<script src="...">`
@@ -240,6 +301,11 @@ game/enemy.js     → all enemy classes + ComposedEnemy. Base-class AI: notice d
                     dashPunish) + windupVariance/feintChance mix-ups.
 game/companion.js → NEW the Child (companionState + Child class) — follow/hide/heal/
                     tether-assist; never dies, teleport failsafe only off-screen.
+game/attackVFX.js → NEW (2026-07-19) shared player VFX/hitbox math, extracted out of
+                    player.js/ability.js so anim_editor.html's "Dissect from current
+                    game" button and animdata.js's POSE_RENDERERS reuse identical
+                    shapes/hitboxes to the legacy fallback draw path. Self-contained
+                    (plain numbers/ctx only, no other game/*.js dependency).
 game/player.js    → Player class — movement, combat, all physics constants
 game/game.js      → main loop, game state machine, HUD (HUD_LAYOUT data table),
                     ABILITY_GRANTS pickup table, save/load, everything else
@@ -333,7 +399,9 @@ gate only the damage checks on `!dead`.
   styling only renders in the real game, not this editor's canvas), and
   still no UI for hazards/switches/moving/one-way platforms since those
   need new `game.js` runtime behavior first — see
-  `Plans/level_editor_guide.md` for the prioritized next-session list.
+  `roadmap.md`'s own "WHAT'S ACTUALLY NEXT"/tail section for the
+  prioritized next-session list (`Plans/archive/level_editor_guide.md` is
+  the older, now-superseded version of this same punch list).
 - **`enemy_test.html`** — spawns any real enemy/miniboss class in an
   isolated flat arena with a chosen ability loadout, for balance/behavior
   testing without playing through the full game.
@@ -344,13 +412,18 @@ gate only the damage checks on `!dead`.
   logic or enemy.js itself — a "Save JSON" export gives a paste-ready
   overrides block instead. Safe for a non-coder to use directly; no code
   risk.
-- **`worldmap.html`** — standalone compass-graph visualizer, reads live
-  `AREAS` data plus a hand-maintained `PLANNED_REGIONS` list for the
-  regions in `expansion.md` that don't exist as real `AREAS` entries yet,
-  plus a region-status table (built vs. planned, cluster membership) added
-  2026-07-12. Keep `PLANNED_REGIONS`/`CROSS_LINKS` in sync with
-  `expansion.md` §3.13b by hand — there's no automatic validation between
-  the two.
+- **`worldmap.html`** — REMOVED 2026-07-26 (user call): its core premise (one
+  room = one grid cell) never held — `col`/`row` in `area.js` is a region-
+  level positioning convention, not a per-room-unique one, so region-chain
+  helper/cutscene/corridor sub-rooms routinely share a cell with an
+  unrelated region's room. Verified directly against the live `AREAS` data
+  (not assumed): 22 of 35 occupied cells had 2+ real rooms stacked on the
+  same cell, making the rendered map genuinely unreadable. A real fix would
+  mean redesigning the renderer to cluster/stack overlapping rooms instead
+  of a flat grid — a rework, not a patch — and the user judged the tool low-
+  value even without the bug, so it was deleted rather than fixed. `regions.md`
+  (region-level cluster/col/row planning) and `graph_analyzer.html`/
+  `levelEditor.html` (room-level detail) remain the right tools for this.
 - **`anim_editor.html`** — NEW (2026-07-16): frame-strip animation/hitbox
   editor over `game/animdata.js`'s `ANIM_DEFS` — durations, drag-resize
   hitboxes/hurtbox, per-frame image upload (data URLs, self-contained),
@@ -365,6 +438,22 @@ gate only the damage checks on `!dead`.
 - **`companion_test.html`** — NEW: boots the real game into
   `enemy_test_arena` with the Child active (mode override, canFight
   toggle, wave spawner, player-teleport fuzzer, live tuning sliders).
+- **`ability_tester.html`** — NEW (untracked, exact date/scope not yet
+  documented): loads the real game scripts in the same load order as
+  `index.html`. Confirm/document its actual purpose next time it's touched.
+- **`difficulty_bot.html`** — NEW (2026-07-24): evolves a small
+  fixed-topology neural net (`game/agentController.js`) to play the real
+  game against a customizable enemy/boss/miniboss roster in the new
+  dev-only `bot_arena` room (`area.js`), producing a quantitative
+  difficulty score instead of a guess. Fast-forwards by stubbing
+  `requestAnimationFrame` before `game.js` loads and calling the real
+  `update()` directly; replays the best genome of each generation live
+  (real `update()`+`draw()` at real speed) so training stays watchable.
+  Net inputs include the target's real `.attacks[]`/`.defense` data (the
+  same data `enemy_designer.html` edits), not just position/HP. Full design
+  in `Plans/difficulty_bot_and_combat_polish_plan.md` — that doc's Part 2
+  (centralized hit-impact/hitstop, player attack → Animator migration,
+  input buffering) is scoped but not built yet.
 - **`level_designer.html`** — PLANNED, not built (see roadmap.md's tail
   end for the full spec). Would be a live visual tuning tool for the Task
   4 decoration system (`REGION_STYLES` etc.) — palette/parameter controls
@@ -404,17 +493,24 @@ this section is prone to, so **always trust `roadmap.md`'s own tail end
 - Crag of the Colossus (a full region: 4 rooms + Colossus Core miniboss)
   is built and live-verified — see `roadmap.md` Phase 7 for the bugs
   found/fixed while building it.
-- 3 of the 13 expansion.md spacetime regions are built as real skeletons
-  (Mirror Veil, Event Horizon, Chrono-Space Rift — empty rooms + doors,
-  cross-linked to each other, 2 of Mirror Veil's abilities/enemies placed;
-  no cave-aesthetic-level room population like Crag has yet). The
-  remaining 10, the rest of the 26+2 enemy roster, and the 8 minibosses in
-  `expansion.md` are **planned, not built**. See `roadmap.md` Phase 9/10
-  and `regions.md` for detail.
+- 3 of the 13 expansion.md spacetime regions (Mirror Veil, Event Horizon,
+  Chrono-Space Rift) have their special *mechanical* effect built, and are
+  further along visually (Task 4 cave-aesthetic pass, 2 of Mirror Veil's
+  abilities/enemies placed). **Corrected 2026-07-21**: all 13 regions now
+  exist as real `AREAS{}` entries (71 rooms total) — the 2026-07-17 SVG
+  rebuild (`roadmap.md` Phase 20) scaffolded the other 10 as flat SHELL
+  rooms (geometry/doors only, no mechanical effect or hand-design yet). Run
+  `node Plans/room_progress.js --full` for the live per-room state. The
+  rest of the 26+2 enemy roster and the 8 minibosses in `expansion.md` are
+  still **planned, not built**. See `roadmap.md` Phase 9/10/20 and
+  `regions.md` for detail.
 - 5 new enemies (Null Sentinel, Anchor Wraith, Deflector Drone, Mirror
   Sprite, Echo Stalker) are built in `enemy.js`, spawnable via
   `enemy_test.html`/`enemy_editor.html` (new tool — see Dev/debug tooling
-  below) and placed in `AREAS`. Two known balance issues open: BUG-013
+  below). **NOT placed in `AREAS`** — corrected 2026-07-17: every room has
+  `enemies: []`, verified against committed HEAD too, so this was never
+  true rather than something a later pass undid. 10 enemy types exist
+  (incl. BlitzGuard); placing them is open level-design work. Two known balance issues open: BUG-013
   (Stillpoint) and BAL-001 (Phase Dash's echo-distraction) — both partially
   addressed this session but need a human playtest to confirm, see
   `BUG_ANALYSIS_AND_QA_PLAN.md`.

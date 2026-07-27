@@ -38,7 +38,7 @@ const ACTION_LABELS = {
   aimUp: 'Aim / Move Up',
   aimDown: 'Aim / Move Down',
   jump: 'Jump',
-  attack: 'Attack / Parry',
+  attack: 'Attack',
   dash: 'Dash / Phase Dash',
   shardShot: 'Shard Shot (hold)',
   stillpoint: 'Stillpoint',
@@ -106,7 +106,28 @@ function cancelRebind() {
   rebindingAction = null;
 }
 
+// Every dev tool (enemy_test.html, difficulty_bot.html, etc.) loads this
+// file alongside real form controls in its own sidebar — number inputs for
+// roster counts, population size, and so on. This listener used to call
+// preventDefault() unconditionally on every keydown/keyup regardless of
+// focus, which blocks a text field's own default behavior too (typing a
+// digit, arrow-key cursor movement) since preventDefault cancels the
+// default action for the whole dispatch, not just "the game's" interest in
+// the key. A native number input's up/down SPIN arrows are a separate
+// browser behavior from typing and weren't affected the same way, which is
+// what made this read as "arrows work, typing doesn't" (user report
+// 2026-07-24) rather than "nothing works." Skip entirely when focus is on
+// an actual editable control — the game canvas is never a text field, so
+// this never affects real gameplay input.
+function isTypingIntoControl() {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+
 window.addEventListener('keydown', (e) => {
+  if (isTypingIntoControl()) return;
   if (rebindingAction) {
     if (e.code !== 'Escape') {
       setBinding(rebindingAction, e.code);
@@ -123,8 +144,21 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+  if (isTypingIntoControl()) return;
   keys[e.code] = false;
   e.preventDefault();
+});
+
+// If the tab/window loses focus while a key is held (alt-tab, clicking
+// outside the canvas, opening devtools), the browser never delivers a
+// matching keyup — without this, `keys[code]` stays stuck true and the
+// game keeps reading that key as held after refocus.
+function clearAllKeys() {
+  for (const code in keys) keys[code] = false;
+}
+window.addEventListener('blur', clearAllKeys);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) clearAllKeys();
 });
 
 function clearJustPressed() {

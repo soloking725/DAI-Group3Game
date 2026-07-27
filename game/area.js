@@ -14,2927 +14,4552 @@
 // =====================================================================
 
 const AREAS = {
-
-  // ─────────────────────────────────────────────────────────────────────
-  // SPAWN AREA 1 (cosmetic upgrade only)
-  // ─────────────────────────────────────────────────────────────────────
     spawn_area_1: {
-    id: 'spawn_area_1',
-    name: 'Spawn Area',
-    region: 'origin',
-    col: -1,
-    row: 0,
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(196,181,253,0.02)',
-    ambientColor: '#6a6a8e',
-    platforms: [
-      {
-        x: 0,
-        y: 390,
-        w: 900,
-        h: 60
-      },
-      {
-        x: 0,
-        y: 280,
-        w: 80,
-        h: 20,
-        destructible: false
-      }
-    ],
-    transitions: [
-      {
-        x: 865,
-        y: 326,
-        w: 35,
-        h: 64,
-        to: 'tutorial_area',
-        toX: 60,
-        toY: 310
-      }
-    ],
-    connections: [
-      {
-        direction: 'east',
-        to: 'tutorial_area',
-        requires: null,
-        oneWay: false,
-        order: 0,
-        doorIndex: 0
-      }
-    ],
-    enemies: [],
-    anchors: [
-      {
-        x: 30,
-        y: 240,
-        index: 0
-      }
-    ],
-    abilityReward: null,
-    loreFragments: [],
-    fracturePipRewards: []
-  },
+      id: 'spawn_area_1',
+      name: 'Spawn Area',
+      region: 'origin',
+      col: 0,
+      row: 0,
+      width: 1000,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(196,181,253,0.02)',
+      ambientColor: '#6a6a8e',
+      platforms: [
+        { x: 0, y: 500, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 940, y: 428, w: 60, h: 72, to: 'tutorial_area', toX: 60, toY: 730 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'tutorial_area',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 480, index: 0 }
+      ],
+      abilityReward: null,
+      cosmeticUpgrades: [
+        { id: 'cu_sa11_1', x: 280, y: 460, name: 'Cosmetic Upgrade' }
+      ]
+    },
 
-  // ─────────────────────────────────────────────────────────────────────
-  // TUTORIAL AREA
-  // ─────────────────────────────────────────────────────────────────────
     tutorial_area: {
-    id: 'tutorial_area',
-    name: 'Tutorial Area',
-    region: 'origin',
-    col: 0,
-    row: 0,
-    width: 1520,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(196,181,253,0.02)',
-    ambientColor: '#6a6a8e',
-    platforms: [
-      {
-        x: 0,
-        y: 390,
-        w: 1520,
-        h: 60
-      },
-      {
-        x: 380,
-        y: 300,
-        w: 140,
-        h: 14
-      }
-    ],
-    transitions: [
-      {
-        x: 1480,
-        y: 320,
-        w: 35,
-        h: 64,
-        to: 'the_fracture_part1',
-        toX: 60,
-        toY: 310
-      }
-    ],
-    connections: [
-      {
-        direction: 'east',
-        to: 'the_fracture_part1',
-        requires: null,
-        oneWay: true,
-        order: 0,
-        doorIndex: 0
-      }
-    ],
-    enemies: [],
-    anchors: [
-      {
-        x: 140,
-        y: 370,
-        index: 0
-      }
-    ],
-    loreFragments: [],
-    abilityReward: null
-  },
+      id: 'tutorial_area',
+      name: 'Tutorial Area',
+      region: 'origin',
+      col: 1,
+      row: 0,
+      width: 1577,
+      roomHeight: 830,
+      groundY: 770,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(196,181,253,0.02)',
+      ambientColor: '#6a6a8e',
+      platforms: [
+        { x: 0, y: 770, w: 1577, h: 60 }
+      ],
+      transitions: [
+        { x: 771, y: 698, w: 60, h: 72, to: 'the_fracture_part1', toX: 455, toY: 896 },
+        { x: 0, y: 698, w: 60, h: 72, to: 'spawn_area_1', toX: 940, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'south',
+          to: 'the_fracture_part1',
+          requires: null,
+          oneWay: true,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'west',
+          to: 'spawn_area_1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 750, index: 0 }
+      ],
+      abilityReward: null,
+      // Read by updateTutorial()/drawTrainingDummy() in game.js — dropped
+      // during the 2026-07-17 bulk SVG regeneration (not part of the SVG
+      // schema, so it was silently lost) and never restored, leaving the
+      // ATTACK step of the tutorial permanently unsatisfiable. Placed
+      // between the entry door (spawn_area_1, lands at x:60) and the exit
+      // door (the_fracture_part1, at x:771) so the player walks past it
+      // either way; groundY is 770, dummy sits flush on the floor.
+      trainingDummy: { x: 400, y: 714, w: 36, h: 56 }
+    },
 
-  // ─────────────────────────────────────────────────────────────────────
-  // THE FRACTURE – PART 1 (fast travel)
-  // ─────────────────────────────────────────────────────────────────────
-   the_fracture_part1: {
-    id: 'the_fracture_part1',
-    name: 'The Fracture, part 1',
-    region: 'origin',
-    col: 1,
-    row: 0,
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(100,60,150,0.03)',
-    ambientColor: '#c4b5fd',
-    platforms: [
-      {
-        x: 0,
-        y: 390,
-        w: 1200,
-        h: 60
+    the_fracture_part1: {
+      id: 'the_fracture_part1',
+      name: 'The Fracture, part 1',
+      region: 'origin',
+      col: 1,
+      row: 1,
+      width: 1000,
+      roomHeight: 996,
+      groundY: 936,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(100,60,150,0.03)',
+      ambientColor: '#c4b5fd',
+      platforms: [
+        { x: 0, y: 936, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 425, y: 864, w: 60, h: 72, to: 'tutorial_area', toX: 801, toY: 730 },
+        { x: 0, y: 864, w: 60, h: 72, to: 'the_fracture_part3', toX: 940, toY: 460 },
+        { x: 940, y: 864, w: 60, h: 72, to: 'the_fracture_part2', toX: 60, toY: 460 },
+        {
+          x: 826,
+          y: 864,
+          w: 60,
+          h: 72,
+          to: 'crag_entrance',
+          toX: 60,
+          toY: 693,
+          requires: 'phase_dash'
+        }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'tutorial_area',
+          requires: null,
+          oneWay: true,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'west',
+          to: 'the_fracture_part3',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'east',
+          to: 'the_fracture_part2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2
+        },
+        {
+          direction: 'east',
+          to: 'crag_entrance',
+          requires: 'phase_dash',
+          oneWay: false,
+          order: 1,
+          doorIndex: 3,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 916, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    the_fracture_part2: {
+      id: 'the_fracture_part2',
+      name: 'The Fracture, part 2',
+      region: 'origin',
+      col: 2,
+      row: 1,
+      width: 2462,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(100,60,150,0.03)',
+      ambientColor: '#c4b5fd',
+      platforms: [
+        { x: 0, y: 500, w: 2462, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 428, w: 60, h: 72, to: 'the_fracture_part1', toX: 940, toY: 896 },
+        { x: 1201, y: 428, w: 60, h: 72, to: 'mirror_veil_gate', toX: 150, toY: 3855 },
+        {
+          x: 2402,
+          y: 428,
+          w: 60,
+          h: 72,
+          to: 'sovereign_room1',
+          toX: 60,
+          toY: 460,
+          requires: 'post_game'
+        }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'the_fracture_part1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'mirror_veil_gate',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'sovereign_room1',
+          requires: 'post_game',
+          oneWay: false,
+          order: 0,
+          doorIndex: 2
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 480, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    the_fracture_part3: {
+      id: 'the_fracture_part3',
+      name: 'The Fracture, part 3',
+      region: 'origin',
+      col: 0,
+      row: 1,
+      width: 1000,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(100,60,150,0.03)',
+      ambientColor: '#c4b5fd',
+      platforms: [
+        { x: 0, y: 500, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 940, y: 428, w: 60, h: 72, to: 'the_fracture_part1', toX: 60, toY: 896 },
+        { x: 470, y: 428, w: 60, h: 72, to: 'the_fracture_part4', toX: 150, toY: 2721 },
+        {
+          x: 0,
+          y: 428,
+          w: 60,
+          h: 72,
+          to: 'chrono_rift_echo',
+          toX: 4447,
+          toY: 460,
+          requires: 'void_tether'
+        }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'the_fracture_part1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'the_fracture_part4',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'west',
+          to: 'chrono_rift_echo',
+          requires: 'void_tether',
+          oneWay: false,
+          order: 0,
+          doorIndex: 2
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 480, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    the_fracture_part4: {
+      id: 'the_fracture_part4',
+      name: 'The Fracture, part 4',
+      region: 'origin',
+      col: 0,
+      row: 2,
+      width: 1000,
+      roomHeight: 2821,
+      groundY: 2761,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(100,60,150,0.03)',
+      ambientColor: '#c4b5fd',
+      platforms: [
+        { x: 0, y: 2761, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 120, y: 2689, w: 60, h: 72, to: 'the_fracture_part3', toX: 500, toY: 460 },
+        { x: 820, y: 2689, w: 60, h: 72, to: 'echo_bridge_part1', toX: 4229, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'the_fracture_part3',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'echo_bridge_part1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 2741, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    crag_entrance: {
+      id: 'crag_entrance',
+      name: 'Crag Entrance',
+      region: 'crag',
+      mapAccent: '#d97757',
+      col: 2,
+      row: 1,
+      width: 1286,
+      roomHeight: 793,
+      groundY: 733,
+      bgColor: '#120a06',
+      bgTint: 'rgba(180,90,40,0.05)',
+      ambientColor: '#d97757',
+      platforms: [
+        { x: 0, y: 733, w: 1286, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 661, w: 60, h: 72, to: 'the_fracture_part1', toX: 856, toY: 896 },
+        { x: 1226, y: 661, w: 60, h: 72, to: 'crag_breach', toX: 60, toY: 1283 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'the_fracture_part1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'east',
+          to: 'crag_breach',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 129, y: 713, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    crag_breach: {
+      id: 'crag_breach',
+      name: 'Crag Breach',
+      region: 'crag',
+      mapAccent: '#d97757',
+      col: 3,
+      row: 1,
+      width: 1000,
+      roomHeight: 1383,
+      groundY: 1323,
+      bgColor: '#0f0805',
+      bgTint: 'rgba(160,70,30,0.06)',
+      ambientColor: '#c2703d',
+      platforms: [
+        { x: 0, y: 1323, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 1251, w: 60, h: 72, to: 'crag_entrance', toX: 1226, toY: 693 },
+        { x: 114, y: 1251, w: 60, h: 72, to: 'crag_altar', toX: 991, toY: 1283 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'crag_entrance',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'west',
+          to: 'crag_altar',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 1303, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    crag_altar: {
+      id: 'crag_altar',
+      name: 'Crag Altar',
+      region: 'crag',
+      mapAccent: '#d97757',
+      col: 2,
+      row: 1,
+      width: 1051,
+      roomHeight: 1383,
+      groundY: 1323,
+      bgColor: '#0d0704',
+      bgTint: 'rgba(217,119,87,0.08)',
+      ambientColor: '#fb923c',
+      platforms: [
+        { x: 0, y: 1323, w: 1051, h: 60 }
+      ],
+      transitions: [
+        { x: 991, y: 1251, w: 60, h: 72, to: 'crag_breach', toX: 144, toY: 1283 },
+        { x: 484, y: 1251, w: 60, h: 72, to: 'crag_warden', toX: 583, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'crag_breach',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'crag_warden',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 105, y: 1303, index: 0 }
+      ],
+      abilityReward: {
+        id: 'charged_attack',
+        x: 526,
+        y: 1263,
+        name: 'Charged Attack',
+        desc: 'Hold Z/J to charge a heavy strike.'
       },
-      {
+      healingCrystals: [
+        { id: 'hc_crag_altar_1', x: 294, y: 1283 }
+      ]
+    },
+
+    crag_warden: {
+      id: 'crag_warden',
+      name: 'Crag Warden',
+      region: 'crag',
+      roomType: 'miniboss',
+      mapAccent: '#d97757',
+      col: 2,
+      row: 2,
+      width: 1051,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0503',
+      bgTint: 'rgba(217,119,87,0.1)',
+      ambientColor: '#fb923c',
+      platforms: [
+        { x: 0, y: 500, w: 1051, h: 60 }
+      ],
+      transitions: [
+        { x: 553, y: 428, w: 60, h: 72, to: 'crag_altar', toX: 514, toY: 1283 },
+        { x: 0, y: 428, w: 60, h: 72, to: 'echo_bridge_part1', toX: 4274, toY: 460 },
+        {
+          x: 114,
+          y: 428,
+          w: 60,
+          h: 72,
+          to: 'sovereign_room3',
+          toX: 940,
+          toY: 965,
+          requires: 'post_game'
+        }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'crag_altar',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'west',
+          to: 'echo_bridge_part1',
+          requires: null,
+          oneWay: true,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'sovereign_room3',
+          requires: 'post_game',
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 105, y: 480, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_cw1', x: 294, y: 460, text: 'A heart doesn\'t ask what it\'s protecting.' }
+      ],
+      miniboss: 'colossus_core',
+      bossSpawn: { x: 600, y: 334 }
+    },
+
+    mirror_veil_gate: {
+      id: 'mirror_veil_gate',
+      name: 'Mirror Veil — Gate',
+      region: 'mirror_veil',
+      mapAccent: '#c084fc',
+      col: 2,
+      row: 2,
+      width: 1000,
+      roomHeight: 3955,
+      groundY: 3895,
+      bgColor: '#0a0a12',
+      bgTint: 'rgba(192,132,252,0.05)',
+      ambientColor: '#c084fc',
+      platforms: [
+        { x: 0, y: 3895, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 940, y: 3823, w: 60, h: 72, to: 'mirror_veil_reflection', toX: 60, toY: 591 },
+        { x: 120, y: 3823, w: 60, h: 72, to: 'the_fracture_part2', toX: 1231, toY: 460 },
+        { x: 796, y: 3823, w: 60, h: 72, to: 'timeline_x_roads_room1', toX: 264, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'mirror_veil_reflection',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'north',
+          to: 'the_fracture_part2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'timeline_x_roads_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 3875, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    mirror_veil_reflection: {
+      id: 'mirror_veil_reflection',
+      name: 'Mirror Veil — Reflection',
+      region: 'mirror_veil',
+      mapAccent: '#c084fc',
+      col: 3,
+      row: 2,
+      width: 2102,
+      roomHeight: 691,
+      groundY: 631,
+      bgColor: '#0a0a12',
+      bgTint: 'rgba(192,132,252,0.06)',
+      ambientColor: '#c084fc',
+      platforms: [
+        { x: 0, y: 631, w: 2102, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 559, w: 60, h: 72, to: 'mirror_veil_gate', toX: 940, toY: 3855 },
+        { x: 1033, y: 559, w: 60, h: 72, to: 'mirror_veil_hollow', toX: 512, toY: 591 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'mirror_veil_gate',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'mirror_veil_hollow',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 611, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_mvr1', x: 589, y: 591, text: 'The reflection knows what you will become.' }
+      ]
+    },
+
+    mirror_veil_hollow: {
+      id: 'mirror_veil_hollow',
+      name: 'Mirror Veil — Hollow',
+      region: 'mirror_veil',
+      roomType: 'miniboss',
+      mapAccent: '#c084fc',
+      col: 3,
+      row: 3,
+      width: 1000,
+      roomHeight: 691,
+      groundY: 631,
+      bgColor: '#0a0a12',
+      bgTint: 'rgba(192,132,252,0.07)',
+      ambientColor: '#c084fc',
+      platforms: [
+        { x: 0, y: 631, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 482, y: 559, w: 60, h: 72, to: 'mirror_veil_reflection', toX: 1063, toY: 591 },
+        { x: 0, y: 559, w: 60, h: 72, to: 'mirror_veil_sanctum', toX: 940, toY: 591 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'mirror_veil_reflection',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'west',
+          to: 'mirror_veil_sanctum',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 611, index: 0 }
+      ],
+      abilityReward: null,
+      miniboss: 'hollow_guardian',
+      bossSpawn: { x: 450, y: 334 }
+    },
+
+    mirror_veil_sanctum: {
+      id: 'mirror_veil_sanctum',
+      name: 'Mirror Veil — Sanctum',
+      region: 'mirror_veil',
+      mapAccent: '#c084fc',
+      col: 2,
+      row: 3,
+      width: 1000,
+      roomHeight: 691,
+      groundY: 631,
+      bgColor: '#0a0a12',
+      bgTint: 'rgba(192,132,252,0.08)',
+      ambientColor: '#c084fc',
+      platforms: [
+        { x: 0, y: 631, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 940, y: 559, w: 60, h: 72, to: 'mirror_veil_hollow', toX: 60, toY: 591 },
+        { x: 458, y: 559, w: 60, h: 72, to: 'mirror_corridor', toX: 488, toY: 1919 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'mirror_veil_hollow',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'mirror_corridor',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 611, index: 0 }
+      ],
+      abilityReward: { id: 'phase_dash', x: 500, y: 571, name: 'Phase Dash', desc: 'C – dash through space.' }
+    },
+
+    mirror_corridor: {
+      id: 'mirror_corridor',
+      name: 'Mirror Corridor',
+      region: 'mirror_veil',
+      mapAccent: '#c084fc',
+      col: -3,
+      row: 1,
+      width: 1000,
+      roomHeight: 2019,
+      groundY: 1959,
+      bgColor: '#0a0a12',
+      bgTint: 'rgba(192,132,252,0.05)',
+      ambientColor: '#c084fc',
+      platforms: [
+        { x: 0, y: 1959, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 458, y: 1887, w: 60, h: 72, to: 'mirror_veil_sanctum', toX: 488, toY: 591 },
+        { x: 940, y: 1887, w: 60, h: 72, to: 'event_horizon_gate', toX: 60, toY: 591 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'mirror_veil_sanctum',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'event_horizon_gate',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 1939, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    echo_bridge_part1: {
+      id: 'echo_bridge_part1',
+      name: 'Echo Bridge, part 1',
+      region: 'origin',
+      col: 0,
+      row: 3,
+      width: 8547,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(140,80,200,0.04)',
+      ambientColor: '#8b5cf6',
+      platforms: [
+        { x: 0, y: 500, w: 8547, h: 60 }
+      ],
+      transitions: [
+        { x: 4199, y: 428, w: 60, h: 72, to: 'the_fracture_part4', toX: 850, toY: 2721 },
+        { x: 8487, y: 428, w: 60, h: 72, to: 'upper_ruins', toX: 60, toY: 923 },
+        {
+          x: 0,
+          y: 428,
+          w: 60,
+          h: 72,
+          to: 'void_expanse_room1',
+          toX: 5693,
+          toY: 2943,
+          requires: 'prison_sequence_finished'
+        },
+        {
+          x: 114,
+          y: 428,
+          w: 60,
+          h: 72,
+          to: 'observatory_room2',
+          toX: 2125,
+          toY: 1034,
+          requires: 'void_tether'
+        },
+        { x: 8373, y: 428, w: 60, h: 72, to: 'crystal_cavern', toX: 60, toY: 1034 },
+        { x: 8283, y: 428, w: 60, h: 72, to: 'timeline_x_roads_room1', toX: 144, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'the_fracture_part4',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'upper_ruins',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'west',
+          to: 'void_expanse_room1',
+          requires: 'prison_sequence_finished',
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'observatory_room2',
+          requires: 'void_tether',
+          oneWay: false,
+          order: 1,
+          doorIndex: 3,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'crystal_cavern',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 4,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'timeline_x_roads_room1',
+          requires: null,
+          oneWay: false,
+          order: 2,
+          doorIndex: 5,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 480, index: 0 },
+        { x: 4274, y: 480, index: 1 },
+        { x: 8347, y: 480, index: 2 }
+      ],
+      abilityReward: {
+        id: 'max_health_upgrade_1',
+        x: 4274,
+        y: 440,
+        name: 'Max Health +1',
+        desc: 'Increases max health by 1.'
+      }
+    },
+
+    echo_bridge_prison: {
+      id: 'echo_bridge_prison',
+      name: 'Echo Bridge Prison',
+      region: 'origin',
+      col: 3,
+      row: 3,
+      width: 1715,
+      roomHeight: 682,
+      groundY: 622,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(140,80,200,0.04)',
+      ambientColor: '#8b5cf6',
+      platforms: [
+        { x: 0, y: 622, w: 1715, h: 60 }
+      ],
+      transitions: [
+        { x: 828, y: 550, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 3601, toY: 2113 },
+        { x: 1655, y: 550, w: 60, h: 72, to: 'event_horizon_pull', toX: 144, toY: 2472 },
+        { x: 0, y: 550, w: 60, h: 72, to: 'timeline_x_roads_room1', toX: 940, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'south',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'event_horizon_pull',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'timeline_x_roads_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 602, index: 0 }
+      ],
+      abilityReward: { id: 'parry', x: 900, y: 582, name: 'Parry',
+        desc: 'Tap Down to deflect an attack. Hold Down to duck/crawl instead.' },
+      cosmeticUpgrades: [
+        { id: 'cu_ebp_1', x: 480, y: 582, name: 'Cosmetic Upgrade' }
+      ]
+    },
+
+    upper_ruins: {
+      id: 'upper_ruins',
+      name: 'Upper Ruins',
+      region: 'origin',
+      mapAccent: '#fbbf24',
+      col: 1,
+      row: 3,
+      width: 1023,
+      roomHeight: 1023,
+      groundY: 963,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(160,120,80,0.04)',
+      ambientColor: '#fbbf24',
+      platforms: [
+        { x: 0, y: 963, w: 1023, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 891, w: 60, h: 72, to: 'echo_bridge_part1', toX: 8487, toY: 460 },
+        { x: 494, y: 891, w: 60, h: 72, to: 'pacifist_region', toX: 500, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'echo_bridge_part1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'north',
+          to: 'pacifist_region',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 102, y: 943, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    pacifist_region: {
+      id: 'pacifist_region',
+      name: 'Pacifist Region',
+      region: 'origin',
+      col: 1,
+      row: 2,
+      width: 1000,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(160,120,80,0.04)',
+      ambientColor: '#fbbf24',
+      platforms: [
+        { x: 0, y: 500, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 470, y: 428, w: 60, h: 72, to: 'upper_ruins', toX: 524, toY: 923 }
+      ],
+      connections: [
+        {
+          direction: 'south',
+          to: 'upper_ruins',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 480, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_pr1', x: 280, y: 460, text: 'Peace is a choice, not a victory.' }
+      ]
+    },
+
+    crystal_cavern: {
+      id: 'crystal_cavern',
+      name: 'Crystal Cavern',
+      region: 'origin',
+      col: 1,
+      row: 3,
+      width: 1798,
+      roomHeight: 1134,
+      groundY: 1074,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(45,212,191,0.05)',
+      ambientColor: '#2dd4bf',
+      platforms: [
+        { x: 0, y: 1074, w: 1798, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 1002, w: 60, h: 72, to: 'echo_bridge_part1', toX: 8403, toY: 460 },
+        { x: 114, y: 1002, w: 60, h: 72, to: 'echoing_abyss_room1', toX: 1157, toY: 460 },
+        {
+          x: 914,
+          y: 1002,
+          w: 60,
+          h: 72,
+          to: 'timeline_x_roads_room3',
+          toX: 826,
+          toY: 460,
+          requires: 'void_tether'
+        },
+        { x: 1738, y: 1002, w: 60, h: 72, to: 'timeline_x_roads_room1', toX: 60, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'echo_bridge_part1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'west',
+          to: 'echoing_abyss_room1',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'timeline_x_roads_room3',
+          requires: 'void_tether',
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'timeline_x_roads_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 3,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1054, index: 0 }
+      ],
+      abilityReward: {
+        id: 'shard_shot',
+        x: 899,
+        y: 1014,
+        name: 'Shard Shot',
+        desc: 'Hold V to aim, release to fire.'
+      }
+    },
+
+    echoing_abyss_room1: {
+      id: 'echoing_abyss_room1',
+      name: 'Echoing Abyss Room 1',
+      region: 'abyss',
+      mapAccent: '#0CFFD3',
+      col: 0,
+      row: 3,
+      width: 1217,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(12,255,211,0.05)',
+      ambientColor: '#0CFFD3',
+      platforms: [
+        { x: 0, y: 500, w: 1217, h: 60 }
+      ],
+      transitions: [
+        { x: 1157, y: 428, w: 60, h: 72, to: 'crystal_cavern', toX: 144, toY: 1034 },
+        { x: 567, y: 428, w: 60, h: 72, to: 'echoing_abyss_room2', toX: 609, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'crystal_cavern',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'echoing_abyss_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 122, y: 480, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    echoing_abyss_room2: {
+      id: 'echoing_abyss_room2',
+      name: 'Echoing Abyss Room 2',
+      region: 'abyss',
+      roomType: 'miniboss',
+      mapAccent: '#0CFFD3',
+      col: 0,
+      row: 4,
+      width: 1217,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(12,255,211,0.07)',
+      ambientColor: '#0CFFD3',
+      platforms: [
+        { x: 0, y: 500, w: 1217, h: 60 }
+      ],
+      transitions: [
+        { x: 579, y: 428, w: 60, h: 72, to: 'echoing_abyss_room1', toX: 597, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'echoing_abyss_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 122, y: 480, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_ea2_1', x: 341, y: 460, text: 'The abyss echoes back only what you bring.' }
+      ],
+      miniboss: 'abyss_guardian',
+      bossSpawn: { x: 500, y: 334 }
+    },
+
+    timeline_x_roads_room1: {
+      id: 'timeline_x_roads_room1',
+      name: 'Timeline X Roads, Room 1',
+      region: 'timeline',
+      mapAccent: '#8E00FF',
+      col: 2,
+      row: 3,
+      width: 1000,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(142,0,255,0.05)',
+      ambientColor: '#8E00FF',
+      platforms: [
+        { x: 0, y: 500, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 234, y: 428, w: 60, h: 72, to: 'mirror_veil_gate', toX: 826, toY: 3855 },
+        { x: 796, y: 428, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 354, toY: 2113 },
+        { x: 940, y: 428, w: 60, h: 72, to: 'echo_bridge_prison', toX: 60, toY: 582 },
+        { x: 0, y: 428, w: 60, h: 72, to: 'crystal_cavern', toX: 1738, toY: 1034 },
+        { x: 114, y: 428, w: 60, h: 72, to: 'echo_bridge_part1', toX: 8313, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'mirror_veil_gate',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'echo_bridge_prison',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2
+        },
+        {
+          direction: 'west',
+          to: 'crystal_cavern',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 3,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'echo_bridge_part1',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 4,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 480, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    timeline_x_roads_room2: {
+      id: 'timeline_x_roads_room2',
+      name: 'Timeline X Roads, Room 2',
+      region: 'timeline',
+      roomType: 'miniboss',
+      mapAccent: '#8E00FF',
+      col: 2,
+      row: 4,
+      width: 3955,
+      roomHeight: 2213,
+      groundY: 2153,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(142,0,255,0.07)',
+      ambientColor: '#8E00FF',
+      platforms: [
+        { x: 0, y: 2153, w: 3955, h: 60 }
+      ],
+      transitions: [
+        { x: 324, y: 2081, w: 60, h: 72, to: 'timeline_x_roads_room1', toX: 826, toY: 460 },
+        { x: 0, y: 2081, w: 60, h: 72, to: 'timeline_x_roads_room3', toX: 940, toY: 460 },
+        {
+          x: 3895,
+          y: 2081,
+          w: 60,
+          h: 72,
+          to: 'puppet_strings_part1',
+          toX: 60,
+          toY: 730,
+          requires: 'void_tether'
+        },
+        {
+          x: 114,
+          y: 2081,
+          w: 60,
+          h: 72,
+          to: 'observatory_room1',
+          toX: 1987,
+          toY: 1034,
+          requires: 'charged_attack'
+        },
+        {
+          x: 1406,
+          y: 2081,
+          w: 60,
+          h: 72,
+          to: 'sovereign_room2',
+          toX: 500,
+          toY: 702,
+          requires: 'post_game'
+        },
+        {
+          x: 2489,
+          y: 2081,
+          w: 60,
+          h: 72,
+          to: 'graviton_core_room1',
+          toX: 1369,
+          toY: 1034,
+          requires: 'shard_shot'
+        },
+        {
+          x: 204,
+          y: 2081,
+          w: 60,
+          h: 72,
+          to: 'the_rift',
+          toX: 4171,
+          toY: 840,
+          requires: 'stillpoint,phase_dash,timeline_x_roads_2_visited'
+        },
+        { x: 3571, y: 2081, w: 60, h: 72, to: 'echo_bridge_prison', toX: 858, toY: 582 },
+        { x: 3781, y: 2081, w: 60, h: 72, to: 'puppet_strings_part2', toX: 60, toY: 730 },
+        { x: 3691, y: 2081, w: 60, h: 72, to: 'inverted_spire', toX: 60, toY: 1214 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'timeline_x_roads_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'west',
+          to: 'timeline_x_roads_room3',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'puppet_strings_part1',
+          requires: 'void_tether',
+          oneWay: false,
+          order: 0,
+          doorIndex: 2
+        },
+        {
+          direction: 'west',
+          to: 'observatory_room1',
+          requires: 'charged_attack',
+          oneWay: false,
+          order: 1,
+          doorIndex: 3,
+          shortcut: true
+        },
+        {
+          direction: 'south',
+          to: 'sovereign_room2',
+          requires: 'post_game',
+          oneWay: false,
+          order: 0,
+          doorIndex: 4,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'graviton_core_room1',
+          requires: 'shard_shot',
+          oneWay: false,
+          order: 1,
+          doorIndex: 5,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'west',
+          to: 'the_rift',
+          requires: 'stillpoint,phase_dash,timeline_x_roads_2_visited',
+          oneWay: false,
+          order: 2,
+          doorIndex: 6,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'north',
+          to: 'echo_bridge_prison',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 7,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'puppet_strings_part2',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 8,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'inverted_spire',
+          requires: null,
+          oneWay: false,
+          order: 2,
+          doorIndex: 9,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 2133, index: 0 },
+        { x: 1978, y: 2133, index: 1 }
+      ],
+      abilityReward: {
+        id: 'void_tether',
+        name: 'Void Tether',
+        desc: 'R pulls the enemy you face to you — or you to a wall.',
+        x: 1978,
+        y: 2093
+      },
+      loreFragments: [
+        {
+          id: 'lore_txr2_1',
+          x: 1107,
+          y: 2113,
+          text: 'The crossroads bend to those who have walked them.'
+        }
+      ],
+      miniboss: 'timeline_keeper',
+      bossSpawn: { x: 600, y: 334 }
+    },
+
+    timeline_x_roads_room3: {
+      id: 'timeline_x_roads_room3',
+      name: 'Timeline X Roads, Room 3',
+      region: 'timeline',
+      mapAccent: '#8E00FF',
+      col: 1,
+      row: 4,
+      width: 1000,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(142,0,255,0.06)',
+      ambientColor: '#8E00FF',
+      platforms: [
+        { x: 0, y: 500, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 940, y: 428, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 60, toY: 2113 },
+        { x: 0, y: 428, w: 60, h: 72, to: 'chrono_rift_gate', toX: 1709, toY: 1089 },
+        {
+          x: 144,
+          y: 428,
+          w: 60,
+          h: 72,
+          to: 'the_forge',
+          toX: 264,
+          toY: 1034,
+          requires: 'stillpoint'
+        },
+        { x: 796, y: 428, w: 60, h: 72, to: 'crystal_cavern', toX: 944, toY: 1034 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'chrono_rift_gate',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        },
+        {
+          direction: 'south',
+          to: 'the_forge',
+          requires: 'stillpoint',
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          shortcut: true
+        },
+        {
+          direction: 'north',
+          to: 'crystal_cavern',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 3,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 480, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    puppet_strings_part1: {
+      id: 'puppet_strings_part1',
+      name: 'Puppet Strings / Tether Part 1',
+      region: 'timeline',
+      mapAccent: '#BD34D1',
+      col: 3,
+      row: 4,
+      width: 1936,
+      roomHeight: 830,
+      groundY: 770,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(189,52,209,0.05)',
+      ambientColor: '#BD34D1',
+      platforms: [
+        { x: 0, y: 770, w: 1936, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 698, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 3895, toY: 2113 },
+        { x: 950, y: 698, w: 60, h: 72, to: 'puppet_strings_part2', toX: 980, toY: 730 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'puppet_strings_part2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 750, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    puppet_strings_part2: {
+      id: 'puppet_strings_part2',
+      name: 'Puppet Strings / Tether Part 2',
+      region: 'timeline',
+      mapAccent: '#BD34D1',
+      col: 3,
+      row: 4,
+      width: 1936,
+      roomHeight: 830,
+      groundY: 770,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(189,52,209,0.06)',
+      ambientColor: '#BD34D1',
+      platforms: [
+        { x: 0, y: 770, w: 1936, h: 60 }
+      ],
+      transitions: [
+        { x: 950, y: 698, w: 60, h: 72, to: 'puppet_strings_part1', toX: 980, toY: 730 },
+        { x: 0, y: 698, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 3811, toY: 2113 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'puppet_strings_part1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 750, index: 0 }
+      ],
+      abilityReward: {
+        id: 'max_health_upgrade_2',
+        x: 968,
+        y: 710,
+        name: 'Max Health +1',
+        desc: 'Increases max health by 1.'
+      }
+    },
+
+    observatory_room1: {
+      id: 'observatory_room1',
+      name: 'Observatory, Room 1',
+      region: 'observatory',
+      mapAccent: '#F7C325',
+      col: -1,
+      row: 4,
+      width: 2047,
+      roomHeight: 1134,
+      groundY: 1074,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(247,195,37,0.05)',
+      ambientColor: '#F7C325',
+      platforms: [
+        { x: 0, y: 1074, w: 2047, h: 60 }
+      ],
+      transitions: [
+        { x: 1987, y: 1002, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 144, toY: 2113 },
+        { x: 937, y: 1002, w: 60, h: 72, to: 'observatory_room2', toX: 1093, toY: 1034 },
+        { x: 1873, y: 1002, w: 60, h: 72, to: 'the_forge', toX: 144, toY: 1034 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'north',
+          to: 'observatory_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'the_forge',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1054, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    observatory_room2: {
+      id: 'observatory_room2',
+      name: 'Observatory, Room 2',
+      region: 'observatory',
+      mapAccent: '#F7C325',
+      col: -1,
+      row: 3,
+      width: 2185,
+      roomHeight: 1134,
+      groundY: 1074,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(247,195,37,0.06)',
+      ambientColor: '#F7C325',
+      platforms: [
+        { x: 0, y: 1074, w: 2185, h: 60 }
+      ],
+      transitions: [
+        { x: 1063, y: 1002, w: 60, h: 72, to: 'observatory_room1', toX: 967, toY: 1034 },
+        { x: 0, y: 1002, w: 60, h: 72, to: 'observatory_room3', toX: 1738, toY: 1034 },
+        { x: 2125, y: 1002, w: 60, h: 72, to: 'echo_bridge_part1', toX: 144, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'south',
+          to: 'observatory_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'west',
+          to: 'observatory_room3',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'east',
+          to: 'echo_bridge_part1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1054, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        {
+          id: 'lore_obs2_1',
+          x: 612,
+          y: 1034,
+          text: 'The stars align only for those who look up.'
+        }
+      ]
+    },
+
+    observatory_room3: {
+      id: 'observatory_room3',
+      name: 'Observatory, Room 3',
+      region: 'observatory',
+      mapAccent: '#F7C325',
+      col: -2,
+      row: 3,
+      width: 1798,
+      roomHeight: 1134,
+      groundY: 1074,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(247,195,37,0.07)',
+      ambientColor: '#F7C325',
+      platforms: [
+        { x: 0, y: 1074, w: 1798, h: 60 }
+      ],
+      transitions: [
+        { x: 1738, y: 1002, w: 60, h: 72, to: 'observatory_room2', toX: 60, toY: 1034 },
+        {
+          x: 0,
+          y: 1002,
+          w: 60,
+          h: 72,
+          to: 'sovereign_observatory',
+          toX: 1987,
+          toY: 1034,
+          requires: 'graviton_surge'
+        }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'observatory_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'west',
+          to: 'sovereign_observatory',
+          requires: 'graviton_surge',
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1054, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    sovereign_observatory: {
+      id: 'sovereign_observatory',
+      name: 'Sovereign’s Observatory',
+      region: 'observatory',
+      mapAccent: '#F7C325',
+      col: -1,
+      row: 3,
+      width: 2047,
+      roomHeight: 1134,
+      groundY: 1074,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(247,195,37,0.08)',
+      ambientColor: '#F7C325',
+      platforms: [
+        { x: 0, y: 1074, w: 2047, h: 60 }
+      ],
+      transitions: [
+        { x: 1987, y: 1002, w: 60, h: 72, to: 'observatory_room3', toX: 60, toY: 1034 },
+        { x: 982, y: 1002, w: 60, h: 72, to: 'void_expanse_room1', toX: 2820, toY: 2943 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'observatory_room3',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'north',
+          to: 'void_expanse_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1054, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_so_1', x: 573, y: 1034, text: 'The Sovereign sees all, but watches nothing.' }
+      ]
+    },
+
+    the_forge: {
+      id: 'the_forge',
+      name: 'The Forge',
+      region: 'origin',
+      col: 0,
+      row: 4,
+      width: 2047,
+      roomHeight: 1134,
+      groundY: 1074,
+      bgColor: '#080812',
+      bgTint: 'rgba(45,130,180,0.04)',
+      ambientColor: '#67e8f9',
+      platforms: [
+        { x: 0, y: 1074, w: 2047, h: 60 }
+      ],
+      transitions: [
+        { x: 234, y: 1002, w: 60, h: 72, to: 'timeline_x_roads_room3', toX: 174, toY: 460 },
+        { x: 0, y: 1002, w: 60, h: 72, to: 'chrono_rift_gate', toX: 1793, toY: 1089 },
+        { x: 1867, y: 1002, w: 60, h: 72, to: 'the_vault_room1', toX: 264, toY: 1034 },
+        { x: 114, y: 1002, w: 60, h: 72, to: 'observatory_room1', toX: 1903, toY: 1034 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'timeline_x_roads_room3',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'chrono_rift_gate',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        },
+        {
+          direction: 'south',
+          to: 'the_vault_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'observatory_room1',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 3,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1054, index: 0 }
+      ],
+      abilityReward: null,
+      fracturePipRewards: [
+        { id: 'fp_tf_1', x: 573, y: 1034 }
+      ]
+    },
+
+    chrono_rift_gate: {
+      id: 'chrono_rift_gate',
+      name: 'Chrono Space Rift, Gate',
+      region: 'chrono_rift',
+      mapAccent: '#a78bfa',
+      col: -1,
+      row: 2,
+      width: 1853,
+      roomHeight: 1189,
+      groundY: 1129,
+      bgColor: '#0a0a10',
+      bgTint: 'rgba(167,139,250,0.05)',
+      ambientColor: '#a78bfa',
+      platforms: [
+        { x: 0, y: 1129, w: 1853, h: 60 }
+      ],
+      transitions: [
+        { x: 1793, y: 1057, w: 60, h: 72, to: 'the_forge', toX: 60, toY: 1034 },
+        { x: 0, y: 1057, w: 60, h: 72, to: 'chrono_rift_loop1', toX: 7102, toY: 1089 },
+        { x: 1679, y: 1057, w: 60, h: 72, to: 'timeline_x_roads_room3', toX: 60, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'the_forge',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'chrono_rift_loop1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'east',
+          to: 'timeline_x_roads_room3',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1109, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    chrono_rift_loop1: {
+      id: 'chrono_rift_loop1',
+      name: 'Chrono Space Rift, Loop, Part 1',
+      region: 'chrono_rift',
+      mapAccent: '#a78bfa',
+      col: -2,
+      row: 2,
+      width: 7162,
+      roomHeight: 1189,
+      groundY: 1129,
+      bgColor: '#0a0a10',
+      bgTint: 'rgba(167,139,250,0.06)',
+      ambientColor: '#a78bfa',
+      platforms: [
+        { x: 0, y: 1129, w: 7162, h: 60 }
+      ],
+      transitions: [
+        { x: 7102, y: 1057, w: 60, h: 72, to: 'chrono_rift_gate', toX: 60, toY: 1089 },
+        { x: 120, y: 1057, w: 60, h: 72, to: 'chrono_rift_loop2', toX: 510, toY: 5847 },
+        {
+          x: 6868,
+          y: 1057,
+          w: 60,
+          h: 72,
+          to: 'void_expanse_room1',
+          toX: 150,
+          toY: 2943,
+          requires: 'void_tether'
+        },
+        {
+          x: 6988,
+          y: 1057,
+          w: 60,
+          h: 72,
+          to: 'sovereign_room4',
+          toX: 60,
+          toY: 1089,
+          requires: 'post_game'
+        }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'chrono_rift_gate',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'north',
+          to: 'chrono_rift_loop2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'north',
+          to: 'void_expanse_room1',
+          requires: 'void_tether',
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'sovereign_room4',
+          requires: 'post_game',
+          oneWay: false,
+          order: 1,
+          doorIndex: 3,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1109, index: 0 },
+        { x: 3581, y: 1109, index: 1 },
+        { x: 6962, y: 1109, index: 2 }
+      ],
+      abilityReward: null,
+      cosmeticUpgrades: [
+        { id: 'cu_crl1_1', x: 2005, y: 1089, name: 'Cosmetic Upgrade' }
+      ]
+    },
+
+    chrono_rift_loop2: {
+      id: 'chrono_rift_loop2',
+      name: 'Chrono Space Rift, Loop, Part 2',
+      region: 'chrono_rift',
+      mapAccent: '#a78bfa',
+      col: -2,
+      row: 1,
+      width: 1133,
+      roomHeight: 5947,
+      groundY: 5887,
+      bgColor: '#0a0a10',
+      bgTint: 'rgba(167,139,250,0.07)',
+      ambientColor: '#a78bfa',
+      platforms: [
+        { x: 0, y: 5887, w: 1133, h: 60 }
+      ],
+      transitions: [
+        { x: 480, y: 5815, w: 60, h: 72, to: 'chrono_rift_loop1', toX: 150, toY: 1089 },
+        { x: 1073, y: 5815, w: 60, h: 72, to: 'chrono_rift_echo', toX: 60, toY: 460 },
+        {
+          x: 959,
+          y: 5815,
+          w: 60,
+          h: 72,
+          to: 'event_horizon_pull',
+          toX: 234,
+          toY: 2472,
+          requires: 'void_tether'
+        }
+      ],
+      connections: [
+        {
+          direction: 'south',
+          to: 'chrono_rift_loop1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'chrono_rift_echo',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'east',
+          to: 'event_horizon_pull',
+          requires: 'void_tether',
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 113, y: 5867, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_crl2_1', x: 317, y: 5847, text: 'Time loops, but we do not.' }
+      ]
+    },
+
+    chrono_rift_echo: {
+      id: 'chrono_rift_echo',
+      name: 'Chrono Space Rift, Echo',
+      region: 'chrono_rift',
+      mapAccent: '#a78bfa',
+      col: -1,
+      row: 1,
+      width: 4591,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a10',
+      bgTint: 'rgba(167,139,250,0.08)',
+      ambientColor: '#a78bfa',
+      platforms: [
+        { x: 0, y: 500, w: 4591, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 428, w: 60, h: 72, to: 'chrono_rift_loop2', toX: 1073, toY: 5847 },
+        { x: 4531, y: 428, w: 60, h: 72, to: 'chrono_rift_sanctum', toX: 60, toY: 887 },
+        { x: 2221, y: 428, w: 60, h: 72, to: 'void_expanse_room1', toX: 5489, toY: 2943 },
+        { x: 4417, y: 428, w: 60, h: 72, to: 'the_fracture_part3', toX: 60, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'chrono_rift_loop2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'east',
+          to: 'chrono_rift_sanctum',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'south',
+          to: 'void_expanse_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'the_fracture_part3',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 3,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 480, index: 0 },
+        { x: 2296, y: 480, index: 1 }
+      ],
+      abilityReward: null
+    },
+
+    chrono_rift_sanctum: {
+      id: 'chrono_rift_sanctum',
+      name: 'Chrono Space Rift, Sanctum',
+      region: 'chrono_rift',
+      roomType: 'miniboss',
+      mapAccent: '#a78bfa',
+      col: 0,
+      row: 1,
+      width: 1000,
+      roomHeight: 987,
+      groundY: 927,
+      bgColor: '#0a0a10',
+      bgTint: 'rgba(167,139,250,0.09)',
+      ambientColor: '#a78bfa',
+      platforms: [
+        { x: 0, y: 927, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 855, w: 60, h: 72, to: 'chrono_rift_echo', toX: 4531, toY: 460 },
+        { x: 482, y: 855, w: 60, h: 72, to: 'echoing_abyss_room1', toX: 609, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'chrono_rift_echo',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'echoing_abyss_room1',
+          requires: null,
+          oneWay: true,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 907, index: 0 }
+      ],
+      abilityReward: {
+        id: 'stillpoint',
+        name: 'Stillpoint',
+        desc: 'Q – slow the world to 15% speed.',
         x: 500,
-        y: 300,
-        w: 200,
-        h: 14
+        y: 867
+      },
+      fracturePipRewards: [
+        { id: 'fp_crs_1', x: 280, y: 887 }
+      ],
+      miniboss: 'chrono_ally',
+      bossSpawn: { x: 500, y: 334 }
+    },
+
+    event_horizon_gate: {
+      id: 'event_horizon_gate',
+      name: 'Event Horizon - Gate',
+      region: 'event_horizon',
+      mapAccent: '#818cf8',
+      col: -2,
+      row: 1,
+      width: 1000,
+      roomHeight: 691,
+      groundY: 631,
+      bgColor: '#07070f',
+      bgTint: 'rgba(129,140,248,0.06)',
+      ambientColor: '#818cf8',
+      platforms: [
+        { x: 0, y: 631, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 559, w: 60, h: 72, to: 'mirror_corridor', toX: 940, toY: 1919 },
+        { x: 940, y: 559, w: 60, h: 72, to: 'event_horizon_pull', toX: 60, toY: 2472 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'mirror_corridor',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'east',
+          to: 'event_horizon_pull',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 611, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    event_horizon_pull: {
+      id: 'event_horizon_pull',
+      name: 'Event Horizon - Pull',
+      region: 'event_horizon',
+      mapAccent: '#818cf8',
+      col: -1,
+      row: 1,
+      width: 1383,
+      roomHeight: 2572,
+      groundY: 2512,
+      bgColor: '#07070f',
+      bgTint: 'rgba(129,140,248,0.07)',
+      ambientColor: '#818cf8',
+      platforms: [
+        { x: 0, y: 2512, w: 1383, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 2440, w: 60, h: 72, to: 'event_horizon_gate', toX: 940, toY: 591 },
+        { x: 1323, y: 2440, w: 60, h: 72, to: 'event_horizon_drift', toX: 60, toY: 591 },
+        { x: 114, y: 2440, w: 60, h: 72, to: 'echo_bridge_prison', toX: 1655, toY: 582 },
+        { x: 204, y: 2440, w: 60, h: 72, to: 'chrono_rift_loop2', toX: 989, toY: 5847 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'event_horizon_gate',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'east',
+          to: 'event_horizon_drift',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'west',
+          to: 'echo_bridge_prison',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'chrono_rift_loop2',
+          requires: null,
+          oneWay: false,
+          order: 2,
+          doorIndex: 3,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 138, y: 2492, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    event_horizon_drift: {
+      id: 'event_horizon_drift',
+      name: 'Event Horizon - Drift',
+      region: 'event_horizon',
+      mapAccent: '#818cf8',
+      col: 0,
+      row: 1,
+      width: 1000,
+      roomHeight: 691,
+      groundY: 631,
+      bgColor: '#07070f',
+      bgTint: 'rgba(129,140,248,0.08)',
+      ambientColor: '#818cf8',
+      platforms: [
+        { x: 0, y: 631, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 559, w: 60, h: 72, to: 'event_horizon_pull', toX: 1323, toY: 2472 },
+        { x: 482, y: 559, w: 60, h: 72, to: 'event_horizon_core', toX: 150, toY: 1214 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'event_horizon_pull',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'event_horizon_core',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 611, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        {
+          id: 'lore_ehd_1',
+          x: 280,
+          y: 591,
+          text: 'Drifting between moments, you find the truth.'
+        }
+      ]
+    },
+
+    event_horizon_core: {
+      id: 'event_horizon_core',
+      name: 'Event Horizon - Core',
+      region: 'event_horizon',
+      roomType: 'miniboss',
+      mapAccent: '#818cf8',
+      col: 0,
+      row: 2,
+      width: 1383,
+      roomHeight: 1314,
+      groundY: 1254,
+      bgColor: '#07070f',
+      bgTint: 'rgba(129,140,248,0.09)',
+      ambientColor: '#818cf8',
+      // Hand-authored 2026-07-26 for Gravity Collapse Core (was a flat
+      // SVG-scaffold floor-only box, same as every other miniboss room
+      // before its own fight got built) — sanctioned hand-editing, not
+      // something `rebuild_levels_from_svg.js` should ever regenerate.
+      // Real platforms on all 4 sides so there's something to land on
+      // whichever direction `roomGravityDir` currently points (see
+      // `physics.js`'s `resolveRotatedGravityCollision`) — none carry
+      // `wall: true`, since that would make them permanently non-standable
+      // in every direction, defeating the point. Left/right walls (x:0-60,
+      // x:1323-1383) and the ceiling (y:0-60) clear both existing
+      // transition doors (x:120 and x:1203, both y:1182-1254) with a clean
+      // 60px+ margin either side. No `pitDeathY` — a sealed 4-wall arena
+      // needs no down-axis-specific fall-death override. Verified
+      // reachable under ordinary down-gravity via a headless
+      // `validateRoomLayout(AREAS.event_horizon_core)` run (zero
+      // failures) before commit.
+      platforms: [
+        { x: 0, y: 1254, w: 1383, h: 60 },   // floor — always standable
+        { x: 0, y: 0, w: 1383, h: 60, rotatedGravityOnly: true },    // ceiling
+        { x: 0, y: 0, w: 60, h: 1314, rotatedGravityOnly: true },    // left wall
+        { x: 1323, y: 0, w: 60, h: 1314, rotatedGravityOnly: true }  // right wall
+      ],
+      transitions: [
+        { x: 120, y: 1182, w: 60, h: 72, to: 'event_horizon_drift', toX: 512, toY: 591 },
+        {
+          x: 1203,
+          y: 1182,
+          w: 60,
+          h: 72,
+          to: 'inverted_spire',
+          toX: 749,
+          toY: 1214,
+          requires: 'graviton_surge'
+        }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'event_horizon_drift',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'inverted_spire',
+          requires: 'graviton_surge',
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 138, y: 1234, index: 0 }
+      ],
+      abilityReward: null,
+      miniboss: 'horizon_core',
+      bossSpawn: { x: 450, y: 334 }
+    },
+
+    void_expanse_room1: {
+      id: 'void_expanse_room1',
+      name: 'The Void Expanse, Room 1',
+      region: 'void_expanse',
+      mapAccent: '#E100BB',
+      col: -1,
+      row: 2,
+      width: 5753,
+      roomHeight: 3043,
+      groundY: 2983,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(225,0,187,0.05)',
+      ambientColor: '#E100BB',
+      platforms: [
+        { x: 0, y: 2983, w: 5753, h: 60 }
+      ],
+      transitions: [
+        { x: 5693, y: 2911, w: 60, h: 72, to: 'echo_bridge_part1', toX: 60, toY: 460 },
+        {
+          x: 5579,
+          y: 2911,
+          w: 60,
+          h: 72,
+          to: 'void_expanse_room2',
+          toX: 60,
+          toY: 460,
+          requires: 'shard_shot'
+        },
+        { x: 120, y: 2911, w: 60, h: 72, to: 'chrono_rift_loop1', toX: 6898, toY: 1089 },
+        { x: 2790, y: 2911, w: 60, h: 72, to: 'sovereign_observatory', toX: 1012, toY: 1034 },
+        { x: 5459, y: 2911, w: 60, h: 72, to: 'chrono_rift_echo', toX: 2251, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'echo_bridge_part1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'void_expanse_room2',
+          requires: 'shard_shot',
+          oneWay: false,
+          order: 1,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'chrono_rift_loop1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          shortcut: true
+        },
+        {
+          direction: 'south',
+          to: 'sovereign_observatory',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 3,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'north',
+          to: 'chrono_rift_echo',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 4,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 2963, index: 0 },
+        { x: 2877, y: 2963, index: 1 },
+        { x: 5553, y: 2963, index: 2 }
+      ],
+      abilityReward: null,
+      cosmeticUpgrades: [
+        { id: 'cu_ver1_1', x: 1611, y: 2943, name: 'Cosmetic Upgrade' }
+      ],
+      loreFragments: [
+        {
+          id: 'lore_ve1_1',
+          x: 1791,
+          y: 2943,
+          text: 'The void is not empty; it is full of absence.'
+        }
+      ]
+    },
+
+    void_expanse_room2: {
+      id: 'void_expanse_room2',
+      name: 'The Void Expanse, Room 2',
+      region: 'void_expanse',
+      mapAccent: '#E100BB',
+      col: 0,
+      row: 2,
+      width: 1000,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(225,0,187,0.06)',
+      ambientColor: '#E100BB',
+      platforms: [
+        { x: 0, y: 500, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 428, w: 60, h: 72, to: 'void_expanse_room1', toX: 5609, toY: 2943 },
+        {
+          x: 144,
+          y: 428,
+          w: 60,
+          h: 72,
+          to: 'one_way_teleport_gate_to_paradox_engine',
+          toX: 150,
+          toY: 460
+        },
+        { x: 820, y: 428, w: 60, h: 72, to: 'warp_gate_nexus_room1', toX: 150, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'void_expanse_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'north',
+          to: 'one_way_teleport_gate_to_paradox_engine',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'warp_gate_nexus_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 480, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    one_way_teleport_gate_to_paradox_engine: {
+      id: 'one_way_teleport_gate_to_paradox_engine',
+      name: 'One Way Teleport Gate to Paradox Engine',
+      region: 'teleport',
+      col: 0,
+      row: 1,
+      width: 600,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(255,255,255,0.01)',
+      ambientColor: '#aaaaaa',
+      platforms: [
+        { x: 0, y: 500, w: 600, h: 60 }
+      ],
+      transitions: [
+        { x: 120, y: 428, w: 60, h: 72, to: 'void_expanse_room2', toX: 174, toY: 460 },
+        { x: 420, y: 428, w: 60, h: 72, to: 'paradox_engine_room1', toX: 150, toY: 1186 }
+      ],
+      connections: [
+        {
+          direction: 'south',
+          to: 'void_expanse_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'paradox_engine_room1',
+          requires: null,
+          oneWay: true,
+          order: 1,
+          doorIndex: 1,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 60, y: 480, index: 0 }
+      ],
+      abilityReward: null,
+      cosmeticUpgrades: [
+        { id: 'cu_owtgtpe_1', x: 180, y: 460, name: 'Cosmetic Upgrade' }
+      ]
+    },
+
+    warp_gate_nexus_room1: {
+      id: 'warp_gate_nexus_room1',
+      name: 'Warp Gate Nexus Room 1',
+      region: 'warp',
+      mapAccent: '#AC6363',
+      col: 0,
+      row: 3,
+      width: 1000,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(172,99,99,0.05)',
+      ambientColor: '#AC6363',
+      platforms: [
+        { x: 0, y: 500, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 120, y: 428, w: 60, h: 72, to: 'void_expanse_room2', toX: 850, toY: 460 },
+        { x: 820, y: 428, w: 60, h: 72, to: 'warp_gate_nexus_room2', toX: 150, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'void_expanse_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'warp_gate_nexus_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 480, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    warp_gate_nexus_room2: {
+      id: 'warp_gate_nexus_room2',
+      name: 'Warp Gate Nexus Room 2',
+      region: 'warp',
+      roomType: 'miniboss',
+      mapAccent: '#AC6363',
+      col: 0,
+      row: 4,
+      width: 1000,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(172,99,99,0.07)',
+      ambientColor: '#AC6363',
+      platforms: [
+        { x: 0, y: 500, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 120, y: 428, w: 60, h: 72, to: 'warp_gate_nexus_room1', toX: 850, toY: 460 },
+        {
+          x: 820,
+          y: 428,
+          w: 60,
+          h: 72,
+          to: 'one_way_warp_gate_to_inverted_spire',
+          toX: 288,
+          toY: 460
+        }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'warp_gate_nexus_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'one_way_warp_gate_to_inverted_spire',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 480, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_wgn2_1', x: 280, y: 460, text: 'The gates remember every traveller.' }
+      ],
+      miniboss: 'warp_guardian',
+      bossSpawn: { x: 500, y: 334 }
+    },
+
+    one_way_warp_gate_to_inverted_spire: {
+      id: 'one_way_warp_gate_to_inverted_spire',
+      name: 'One Way Warp Gate to Inverted Spire',
+      region: 'teleport',
+      col: 0,
+      row: 5,
+      width: 600,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(255,255,255,0.01)',
+      ambientColor: '#aaaaaa',
+      platforms: [
+        { x: 0, y: 500, w: 600, h: 60 }
+      ],
+      transitions: [
+        { x: 258, y: 428, w: 60, h: 72, to: 'warp_gate_nexus_room2', toX: 850, toY: 460 },
+        { x: 540, y: 428, w: 60, h: 72, to: 'inverted_spire', toX: 692, toY: 1214 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'warp_gate_nexus_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'inverted_spire',
+          requires: null,
+          oneWay: true,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 60, y: 480, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    inverted_spire: {
+      id: 'inverted_spire',
+      name: 'Inverted Spire',
+      region: 'spire',
+      mapAccent: '#0088FF',
+      col: 3,
+      row: 4,
+      width: 1383,
+      roomHeight: 1314,
+      groundY: 1254,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(0,136,255,0.05)',
+      ambientColor: '#0088FF',
+      platforms: [
+        { x: 0, y: 1254, w: 1383, h: 60 }
+      ],
+      transitions: [
+        { x: 719, y: 1182, w: 60, h: 72, to: 'event_horizon_core', toX: 1233, toY: 1214 },
+        { x: 0, y: 1182, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 3721, toY: 2113 },
+        { x: 114, y: 1182, w: 60, h: 72, to: 'graviton_core_room2', toX: 1766, toY: 1034 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'event_horizon_core',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'west',
+          to: 'graviton_core_room2',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 138, y: 1234, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_is_1', x: 387, y: 1214, text: 'The spire points inward, not upward.' }
+      ]
+    },
+
+    graviton_core_room1: {
+      id: 'graviton_core_room1',
+      name: 'Graviton Core, Room 1',
+      region: 'graviton',
+      mapAccent: '#4BCA61',
+      col: 2,
+      row: 5,
+      width: 2738,
+      roomHeight: 1134,
+      groundY: 1074,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(75,202,97,0.05)',
+      ambientColor: '#4BCA61',
+      platforms: [
+        { x: 0, y: 1074, w: 2738, h: 60 }
+      ],
+      transitions: [
+        { x: 1339, y: 1002, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 2519, toY: 2113 },
+        {
+          x: 2678,
+          y: 1002,
+          w: 60,
+          h: 72,
+          to: 'graviton_core_room2',
+          toX: 60,
+          toY: 1034,
+          requires: 'shard_shot'
+        },
+        { x: 0, y: 1002, w: 60, h: 72, to: 'the_vault_room1', toX: 8680, toY: 1034 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'graviton_core_room2',
+          requires: 'shard_shot',
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'west',
+          to: 'the_vault_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1054, index: 0 },
+        { x: 1369, y: 1054, index: 1 }
+      ],
+      abilityReward: null
+    },
+
+    graviton_core_room2: {
+      id: 'graviton_core_room2',
+      name: 'Graviton Core, Room 2',
+      region: 'graviton',
+      mapAccent: '#4BCA61',
+      col: 3,
+      row: 5,
+      width: 1826,
+      roomHeight: 1134,
+      groundY: 1074,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(75,202,97,0.07)',
+      ambientColor: '#4BCA61',
+      platforms: [
+        { x: 0, y: 1074, w: 1826, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 1002, w: 60, h: 72, to: 'graviton_core_room1', toX: 2678, toY: 1034 },
+        {
+          x: 883,
+          y: 1002,
+          w: 60,
+          h: 72,
+          to: 'graviton_core_room3',
+          toX: 778,
+          toY: 1573,
+          requires: 'shard_shot'
+        },
+        { x: 1766, y: 1002, w: 60, h: 72, to: 'inverted_spire', toX: 144, toY: 1214 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'graviton_core_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'graviton_core_room3',
+          requires: 'shard_shot',
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'inverted_spire',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1054, index: 0 }
+      ],
+      abilityReward: {
+        id: 'graviton_surge',
+        x: 913,
+        y: 1014,
+        name: 'Graviton Surge',
+        desc: 'Unlocks heavy gravity abilities.'
+      },
+      fracturePipRewards: [
+        { id: 'fp_gcr2_1', x: 511, y: 1034 }
+      ]
+    },
+
+    graviton_core_room3: {
+      id: 'graviton_core_room3',
+      name: 'Graviton Core, Room 3',
+      region: 'graviton',
+      roomType: 'miniboss',
+      mapAccent: '#4BCA61',
+      col: 3,
+      row: 6,
+      width: 1466,
+      roomHeight: 1673,
+      groundY: 1613,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(75,202,97,0.08)',
+      ambientColor: '#4BCA61',
+      platforms: [
+        { x: 0, y: 1613, w: 1466, h: 60 }
+      ],
+      transitions: [
+        { x: 748, y: 1541, w: 60, h: 72, to: 'graviton_core_room2', toX: 913, toY: 1034 },
+        { x: 0, y: 1541, w: 60, h: 72, to: 'the_vault_room1', toX: 8596, toY: 1034 },
+        {
+          x: 114,
+          y: 1541,
+          w: 60,
+          h: 72,
+          to: 'the_vault_room2',
+          toX: 1779,
+          toY: 460,
+          requires: 'void_tether'
+        },
+        {
+          x: 1406,
+          y: 1541,
+          w: 60,
+          h: 72,
+          to: 'sovereign_army_reserve',
+          toX: 60,
+          toY: 633,
+          requires: 'four_fracture_pips,ten_lore_pips'
+        }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'graviton_core_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'west',
+          to: 'the_vault_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'the_vault_room2',
+          requires: 'void_tether',
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'sovereign_army_reserve',
+          requires: 'four_fracture_pips,ten_lore_pips',
+          oneWay: false,
+          order: 0,
+          doorIndex: 3
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1593, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_gc3_1', x: 410, y: 1573, text: 'Gravity bends to the will of the core.' }
+      ],
+      miniboss: 'graviton_sentinel',
+      bossSpawn: { x: 500, y: 334 }
+    },
+
+    the_vault_room1: {
+      id: 'the_vault_room1',
+      name: 'The Vault, Room 1',
+      region: 'origin',
+      mapAccent: '#897A5F',
+      col: 1,
+      row: 5,
+      width: 8740,
+      roomHeight: 1134,
+      groundY: 1074,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(137,122,95,0.05)',
+      ambientColor: '#897A5F',
+      platforms: [
+        { x: 0, y: 1074, w: 8740, h: 60 }
+      ],
+      transitions: [
+        { x: 234, y: 1002, w: 60, h: 72, to: 'the_forge', toX: 1897, toY: 1034 },
+        { x: 0, y: 1002, w: 60, h: 72, to: 'polar_shift_room1', toX: 1876, toY: 1809 },
+        { x: 8680, y: 1002, w: 60, h: 72, to: 'graviton_core_room1', toX: 60, toY: 1034 },
+        {
+          x: 114,
+          y: 1002,
+          w: 60,
+          h: 72,
+          to: 'the_rift',
+          toX: 4081,
+          toY: 840,
+          requires: 'timeline_x_roads_2_visited'
+        },
+        { x: 8446, y: 1002, w: 60, h: 72, to: 'the_vault_room2', toX: 920, toY: 460 },
+        { x: 8566, y: 1002, w: 60, h: 72, to: 'graviton_core_room3', toX: 60, toY: 1573 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'the_forge',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'polar_shift_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'graviton_core_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2
+        },
+        {
+          direction: 'west',
+          to: 'the_rift',
+          requires: 'timeline_x_roads_2_visited',
+          oneWay: false,
+          order: 1,
+          doorIndex: 3,
+          shortcut: true
+        },
+        {
+          direction: 'south',
+          to: 'the_vault_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 4,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'graviton_core_room3',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 5,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1054, index: 0 },
+        { x: 4370, y: 1054, index: 1 },
+        { x: 8540, y: 1054, index: 2 }
+      ],
+      abilityReward: null
+    },
+
+    the_vault_room2: {
+      id: 'the_vault_room2',
+      name: 'The Vault, Room 2',
+      region: 'origin',
+      mapAccent: '#897A5F',
+      col: 2,
+      row: 4,
+      width: 1839,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(137,122,95,0.06)',
+      ambientColor: '#897A5F',
+      platforms: [
+        { x: 0, y: 500, w: 1839, h: 60 }
+      ],
+      transitions: [
+        { x: 890, y: 428, w: 60, h: 72, to: 'the_vault_room1', toX: 8476, toY: 1034 },
+        { x: 0, y: 428, w: 60, h: 72, to: 'the_rift', toX: 4255, toY: 840 },
+        { x: 1779, y: 428, w: 60, h: 72, to: 'graviton_core_room3', toX: 144, toY: 1573 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'the_vault_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'the_rift',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'east',
+          to: 'graviton_core_room3',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 480, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        {
+          id: 'lore_tv2_1',
+          x: 515,
+          y: 460,
+          text: 'The vault holds memories of a world that never was.'
+        }
+      ]
+    },
+
+    the_rift: {
+      id: 'the_rift',
+      name: 'The Rift',
+      region: 'origin',
+      col: 1,
+      row: 4,
+      width: 4315,
+      roomHeight: 940,
+      groundY: 880,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(80,40,160,0.07)',
+      ambientColor: '#7c3aed',
+      platforms: [
+        { x: 0, y: 880, w: 4315, h: 60 }
+      ],
+      transitions: [
+        { x: 4255, y: 808, w: 60, h: 72, to: 'the_vault_room2', toX: 60, toY: 460 },
+        { x: 0, y: 808, w: 60, h: 72, to: 'polar_shift_room1', toX: 1792, toY: 1809 },
+        { x: 2083, y: 808, w: 60, h: 72, to: 'antechamber', toX: 150, toY: 1532 },
+        { x: 4141, y: 808, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 234, toY: 2113 },
+        { x: 4051, y: 808, w: 60, h: 72, to: 'the_vault_room1', toX: 144, toY: 1034 },
+        { x: 114, y: 808, w: 60, h: 72, to: 'static_field_room2', toX: 1240, toY: 1186 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'the_vault_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'west',
+          to: 'polar_shift_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'south',
+          to: 'antechamber',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 3,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'the_vault_room1',
+          requires: null,
+          oneWay: false,
+          order: 2,
+          doorIndex: 4,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'static_field_room2',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 5,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 860, index: 0 },
+        { x: 2158, y: 860, index: 1 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        {
+          id: 'lore_tr_1',
+          x: 1208,
+          y: 840,
+          text: 'The rift is the seam between what is and what could be.'
+        }
+      ]
+    },
+
+    polar_shift_room1: {
+      id: 'polar_shift_room1',
+      name: 'Polar Shift, Room 1',
+      region: 'polar',
+      mapAccent: '#F7E600',
+      col: 0,
+      row: 4,
+      width: 1936,
+      roomHeight: 1909,
+      groundY: 1849,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(247,230,0,0.05)',
+      ambientColor: '#F7E600',
+      platforms: [
+        { x: 0, y: 1849, w: 1936, h: 60 }
+      ],
+      transitions: [
+        { x: 1876, y: 1777, w: 60, h: 72, to: 'the_vault_room1', toX: 60, toY: 1034 },
+        { x: 0, y: 1777, w: 60, h: 72, to: 'polar_shift_room2', toX: 1351, toY: 813 },
+        { x: 1762, y: 1777, w: 60, h: 72, to: 'the_rift', toX: 60, toY: 840 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'the_vault_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'west',
+          to: 'polar_shift_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'east',
+          to: 'the_rift',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1829, index: 0 }
+      ],
+      abilityReward: {
+        id: 'max_health_upgrade_3',
+        x: 968,
+        y: 1789,
+        name: 'Max Health +1',
+        desc: 'Increases max health by 1.'
       }
-    ],
-    transitions: [
-      {
-        x: 0,
-        y: 326,
-        w: 35,
-        h: 64,
-        to: 'tutorial_area',
-        toX: 830,
-        toY: 310
-      },
-      {
-        x: 1165,
-        y: 326,
-        w: 35,
-        h: 64,
-        to: 'the_fracture_part3',
-        toX: 60,
-        toY: 310
-      },
-      {
-        x: 640,
-        y: 250,
-        w: 40,
-        h: 40,
-        to: 'the_fracture_part2',
-        toX: 580,
-        toY: 60
-      },
-      {
-        x: 510,
-        y: 250,
-        w: 40,
-        h: 40,
-        to: 'crag_entrance',
-        toX: 60,
-        toY: 450,
-        requires: 'phase_dash'
+    },
+
+    polar_shift_room2: {
+      id: 'polar_shift_room2',
+      name: 'Polar Shift, Room 2',
+      region: 'polar',
+      roomType: 'miniboss',
+      mapAccent: '#F7E600',
+      col: -1,
+      row: 4,
+      width: 1411,
+      roomHeight: 913,
+      groundY: 853,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(247,230,0,0.07)',
+      ambientColor: '#F7E600',
+      // Hand-authored 2026-07-26 for the Electromagnetic Golem fight (was a
+      // flat SVG-scaffold floor-only box) — per project convention this is
+      // sanctioned hand-editing, not something `rebuild_levels_from_svg.js`
+      // should ever regenerate. `magnetizable: true` surfaces are what the
+      // Golem's own attack charges at runtime (sets/clears `polarity`
+      // directly on these objects); the two `polarity`-authored platforms
+      // are permanent counterplay platforms the player touches to flip
+      // their own charge (see the `polarity` force loop in
+      // `player.js`'s physics block). All four sit at y:770 — a single
+      // ~83px rise from the floor (jump height caps at ~114px per
+      // `validateRoomLayout`'s own linter physics), each independently
+      // reachable straight from the floor with no dash needed, verified via
+      // `node -e` headlessly (`validateRoomLayout(AREAS.polar_shift_room2)`
+      // returns zero failures — an earlier 620/480/380 draft didn't and was
+      // corrected before commit). Positions clear both transition doors
+      // (x:664 and x:1351, both y:781) and the anchor (x:140,y:833).
+      platforms: [
+        { x: 0, y: 853, w: 1411, h: 60 },
+        { x: 150, y: 770, w: 200, h: 24, magnetizable: true },
+        { x: 950, y: 770, w: 200, h: 24, magnetizable: true },
+        { x: 420, y: 770, w: 90, h: 20, polarity: 'positive' },
+        { x: 800, y: 770, w: 90, h: 20, polarity: 'negative' }
+      ],
+      transitions: [
+        { x: 1351, y: 781, w: 60, h: 72, to: 'polar_shift_room1', toX: 60, toY: 1809 },
+        { x: 664, y: 781, w: 60, h: 72, to: 'paradox_engine_room1', toX: 1126, toY: 1186 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'polar_shift_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'south',
+          to: 'paradox_engine_room1',
+          requires: null,
+          oneWay: true,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 833, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_ps2_1', x: 395, y: 813, text: 'The poles shift, but the axis stays true.' }
+      ],
+      miniboss: 'polar_guardian',
+      bossSpawn: { x: 500, y: 334 }
+    },
+
+    paradox_engine_room1: {
+      id: 'paradox_engine_room1',
+      name: 'Paradox Engine, Room 1',
+      region: 'paradox',
+      mapAccent: '#4BCA61',
+      col: -2,
+      row: 3,
+      width: 1300,
+      roomHeight: 1286,
+      groundY: 1226,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(75,202,97,0.06)',
+      ambientColor: '#4BCA61',
+      platforms: [
+        { x: 0, y: 1226, w: 1300, h: 60 }
+      ],
+      transitions: [
+        {
+          x: 120,
+          y: 1154,
+          w: 60,
+          h: 72,
+          to: 'one_way_teleport_gate_to_paradox_engine',
+          toX: 450,
+          toY: 460
+        },
+        {
+          x: 1240,
+          y: 1154,
+          w: 60,
+          h: 72,
+          to: 'paradox_engine_room2',
+          toX: 60,
+          toY: 1186,
+          requires: 'shard_shot'
+        },
+        { x: 1096, y: 1154, w: 60, h: 72, to: 'polar_shift_room2', toX: 694, toY: 813 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'one_way_teleport_gate_to_paradox_engine',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'paradox_engine_room2',
+          requires: 'shard_shot',
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'north',
+          to: 'polar_shift_room2',
+          requires: null,
+          oneWay: false,
+          order: 1,
+          doorIndex: 2,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 130, y: 1206, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    paradox_engine_room2: {
+      id: 'paradox_engine_room2',
+      name: 'Paradox Engine, Room 2',
+      region: 'paradox',
+      roomType: 'miniboss',
+      mapAccent: '#4BCA61',
+      col: -1,
+      row: 3,
+      width: 1300,
+      roomHeight: 1286,
+      groundY: 1226,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(75,202,97,0.08)',
+      ambientColor: '#4BCA61',
+      platforms: [
+        { x: 0, y: 1226, w: 1300, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 1154, w: 60, h: 72, to: 'paradox_engine_room1', toX: 1240, toY: 1186 },
+        {
+          x: 144,
+          y: 1154,
+          w: 60,
+          h: 72,
+          to: 'teleport_from_paradox_engine_to_upper_ruins_1',
+          toX: 288,
+          toY: 502
+        },
+        { x: 1120, y: 1154, w: 60, h: 72, to: 'static_field_room1', toX: 150, toY: 1186 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'paradox_engine_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'north',
+          to: 'teleport_from_paradox_engine_to_upper_ruins_1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'south',
+          to: 'static_field_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 130, y: 1206, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        { id: 'lore_pe2_1', x: 364, y: 1186, text: 'The engine runs on contradictions.' }
+      ],
+      miniboss: 'paradox_engine',
+      bossSpawn: { x: 500, y: 334 }
+    },
+
+    teleport_from_paradox_engine_to_upper_ruins_1: {
+      id: 'teleport_from_paradox_engine_to_upper_ruins_1',
+      name: 'Teleport from Paradox Engine to Upper Ruins',
+      region: 'teleport',
+      col: -1,
+      row: 2,
+      width: 600,
+      roomHeight: 602,
+      groundY: 542,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(255,255,255,0.01)',
+      ambientColor: '#aaaaaa',
+      platforms: [
+        { x: 0, y: 542, w: 600, h: 60 }
+      ],
+      transitions: [
+        { x: 258, y: 470, w: 60, h: 72, to: 'paradox_engine_room2', toX: 174, toY: 1186 },
+        {
+          x: 540,
+          y: 470,
+          w: 60,
+          h: 72,
+          to: 'pacifist_region',
+          toX: 500,
+          toY: 460,
+          requires: 'shard_shot'
+        }
+      ],
+      connections: [
+        {
+          direction: 'south',
+          to: 'paradox_engine_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'pacifist_region',
+          requires: 'shard_shot',
+          oneWay: true,
+          order: 0,
+          doorIndex: 1,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 60, y: 522, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    static_field_room1: {
+      id: 'static_field_room1',
+      name: 'Static Field, Room 1',
+      region: 'static',
+      mapAccent: '#6558F5',
+      col: -1,
+      row: 4,
+      width: 1300,
+      roomHeight: 1286,
+      groundY: 1226,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(101,88,245,0.05)',
+      ambientColor: '#6558F5',
+      platforms: [
+        { x: 0, y: 1226, w: 1300, h: 60 }
+      ],
+      transitions: [
+        { x: 120, y: 1154, w: 60, h: 72, to: 'paradox_engine_room2', toX: 1150, toY: 1186 },
+        {
+          x: 1240,
+          y: 1154,
+          w: 60,
+          h: 72,
+          to: 'static_field_room2',
+          toX: 60,
+          toY: 1186,
+          requires: 'phase_dash'
+        },
+        { x: 1006, y: 1154, w: 60, h: 72, to: 'void_expanse_room2', toX: 500, toY: 460 },
+        { x: 1126, y: 1154, w: 60, h: 72, to: 'graviton_core_room1', toX: 1369, toY: 1034 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'paradox_engine_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'static_field_room2',
+          requires: 'phase_dash',
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'north',
+          to: 'void_expanse_room2',
+          requires: null,
+          oneWay: true,
+          order: 1,
+          doorIndex: 2,
+          shortcut: true
+        },
+        {
+          direction: 'east',
+          to: 'graviton_core_room1',
+          requires: null,
+          oneWay: true,
+          order: 1,
+          doorIndex: 3,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 130, y: 1206, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    static_field_room2: {
+      id: 'static_field_room2',
+      name: 'Static Field, Room 2',
+      region: 'static',
+      roomType: 'miniboss',
+      mapAccent: '#6558F5',
+      col: 0,
+      row: 4,
+      width: 1300,
+      roomHeight: 1286,
+      groundY: 1226,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(101,88,245,0.07)',
+      ambientColor: '#6558F5',
+      platforms: [
+        { x: 0, y: 1226, w: 1300, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 1154, w: 60, h: 72, to: 'static_field_room1', toX: 1240, toY: 1186 },
+        { x: 1240, y: 1154, w: 60, h: 72, to: 'the_rift', toX: 144, toY: 840 },
+        { x: 1126, y: 1154, w: 60, h: 72, to: 'graviton_core_room1', toX: 1369, toY: 1034 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'static_field_room1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'east',
+          to: 'the_rift',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'east',
+          to: 'graviton_core_room1',
+          requires: null,
+          oneWay: true,
+          order: 1,
+          doorIndex: 2,
+          shortcut: true
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 130, y: 1206, index: 0 }
+      ],
+      abilityReward: null,
+      fracturePipRewards: [
+        { id: 'fp_sfr2_1', x: 364, y: 1186 }
+      ],
+      miniboss: 'static_guardian',
+      bossSpawn: { x: 500, y: 334 }
+    },
+
+    antechamber: {
+      id: 'antechamber',
+      name: 'The Antechamber',
+      region: 'origin',
+      col: 1,
+      row: 5,
+      width: 2462,
+      roomHeight: 1632,
+      groundY: 1572,
+      bgColor: '#08080e',
+      bgTint: 'rgba(200,40,40,0.04)',
+      ambientColor: '#f87171',
+      platforms: [
+        { x: 0, y: 1572, w: 2462, h: 60 }
+      ],
+      transitions: [
+        { x: 120, y: 1500, w: 60, h: 72, to: 'the_rift', toX: 2113, toY: 840 },
+        { x: 2402, y: 1500, w: 60, h: 72, to: 'hollow_core', toX: 60, toY: 481 },
+        {
+          x: 2258,
+          y: 1500,
+          w: 60,
+          h: 72,
+          to: 'spawn_area_2',
+          toX: 488,
+          toY: 460,
+          requires: 'phase_dash'
+        }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'the_rift',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'hollow_core',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        },
+        {
+          direction: 'south',
+          to: 'spawn_area_2',
+          requires: 'phase_dash',
+          oneWay: false,
+          order: 0,
+          doorIndex: 2,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1552, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    hollow_core: {
+      id: 'hollow_core',
+      name: 'Hollow Core',
+      region: 'origin',
+      mapAccent: '#C08CEA',
+      col: 2,
+      row: 5,
+      width: 1162,
+      roomHeight: 581,
+      groundY: 521,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(192,140,234,0.05)',
+      ambientColor: '#C08CEA',
+      platforms: [
+        { x: 0, y: 521, w: 1162, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 449, w: 60, h: 72, to: 'antechamber', toX: 2402, toY: 1532 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'antechamber',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 116, y: 501, index: 0 }
+      ],
+      abilityReward: null,
+      loreFragments: [
+        {
+          id: 'lore_hc_1',
+          x: 325,
+          y: 481,
+          text: 'The core is hollow because it has already given everything.'
+        }
+      ]
+    },
+
+    spawn_area_2: {
+      id: 'spawn_area_2',
+      name: 'Spawn Area?',
+      region: 'origin',
+      col: 1,
+      row: 6,
+      width: 1000,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(196,181,253,0.02)',
+      ambientColor: '#6a6a8e',
+      platforms: [
+        { x: 0, y: 500, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 458, y: 428, w: 60, h: 72, to: 'antechamber', toX: 2288, toY: 1532 },
+        { x: 940, y: 428, w: 60, h: 72, to: 'tutorial_final', toX: 60, toY: 730 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'antechamber',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        },
+        {
+          direction: 'east',
+          to: 'tutorial_final',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 480, index: 0 }
+      ],
+      abilityReward: null,
+      cosmeticUpgrades: [
+        { id: 'cu_sa22_1', x: 280, y: 460, name: 'Cosmetic Upgrade' }
+      ]
+    },
+
+    tutorial_final: {
+      id: 'tutorial_final',
+      name: 'Tutorial Area? Final Boss Fight',
+      region: 'origin',
+      roomType: 'boss',
+      col: 2,
+      row: 6,
+      width: 1577,
+      roomHeight: 830,
+      groundY: 770,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(200,40,40,0.06)',
+      ambientColor: '#f87171',
+      platforms: [
+        { x: 0, y: 770, w: 1577, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 698, w: 60, h: 72, to: 'spawn_area_2', toX: 940, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'spawn_area_2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 750, index: 0 }
+      ],
+      abilityReward: null,
+      bossSpawn: { x: 400, y: 334 }
+    },
+
+    sovereign_room1: {
+      id: 'sovereign_room1',
+      name: 'Sovereign Room 1',
+      region: 'sovereign',
+      mapAccent: '#D3455B',
+      col: 3,
+      row: 1,
+      width: 1106,
+      roomHeight: 560,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(211,69,91,0.05)',
+      ambientColor: '#D3455B',
+      platforms: [
+        { x: 0, y: 500, w: 1106, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 428, w: 60, h: 72, to: 'the_fracture_part2', toX: 2402, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'the_fracture_part2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 111, y: 480, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    sovereign_room2: {
+      id: 'sovereign_room2',
+      name: 'Sovereign Room 2',
+      region: 'sovereign',
+      mapAccent: '#D3455B',
+      col: 2,
+      row: 5,
+      width: 1000,
+      roomHeight: 802,
+      groundY: 742,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(211,69,91,0.05)',
+      ambientColor: '#D3455B',
+      platforms: [
+        { x: 0, y: 742, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 470, y: 670, w: 60, h: 72, to: 'timeline_x_roads_room2', toX: 1436, toY: 2113 }
+      ],
+      connections: [
+        {
+          direction: 'north',
+          to: 'timeline_x_roads_room2',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0,
+          edgeExempt: true,
+          edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 722, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    sovereign_room3: {
+      id: 'sovereign_room3',
+      name: 'Sovereign Room 3',
+      region: 'sovereign',
+      mapAccent: '#D3455B',
+      col: 1,
+      row: 2,
+      width: 1000,
+      roomHeight: 1065,
+      groundY: 1005,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(211,69,91,0.05)',
+      ambientColor: '#D3455B',
+      platforms: [
+        { x: 0, y: 1005, w: 1000, h: 60 }
+      ],
+      transitions: [
+        { x: 940, y: 933, w: 60, h: 72, to: 'crag_warden', toX: 144, toY: 460 }
+      ],
+      connections: [
+        {
+          direction: 'east',
+          to: 'crag_warden',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 100, y: 985, index: 0 }
+      ],
+      abilityReward: null
+    },
+
+    sovereign_room4: {
+      id: 'sovereign_room4',
+      name: 'Sovereign Room 4',
+      region: 'sovereign',
+      mapAccent: '#D3455B',
+      col: -1,
+      row: 2,
+      width: 7162,
+      roomHeight: 1189,
+      groundY: 1129,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(211,69,91,0.05)',
+      ambientColor: '#D3455B',
+      platforms: [
+        { x: 0, y: 1129, w: 7162, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 1057, w: 60, h: 72, to: 'chrono_rift_loop1', toX: 7018, toY: 1089 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'chrono_rift_loop1',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 1109, index: 0 },
+        { x: 3581, y: 1109, index: 1 },
+        { x: 6962, y: 1109, index: 2 }
+      ],
+      abilityReward: null
+    },
+
+    sovereign_army_reserve: {
+      id: 'sovereign_army_reserve',
+      name: 'Sovereign Army Reserve',
+      region: 'sovereign',
+      mapAccent: '#D3455B',
+      col: 4,
+      row: 6,
+      width: 6998,
+      roomHeight: 733,
+      groundY: 673,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(211,69,91,0.06)',
+      ambientColor: '#D3455B',
+      platforms: [
+        { x: 0, y: 673, w: 6998, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 601, w: 60, h: 72, to: 'graviton_core_room3', toX: 1406, toY: 1573 },
+        { x: 6938, y: 601, w: 60, h: 72, to: 'try_out_region', toX: 60, toY: 633 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'graviton_core_room3',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        },
+        {
+          direction: 'east',
+          to: 'try_out_region',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 1
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 140, y: 653, index: 0 },
+        { x: 3499, y: 653, index: 1 },
+        { x: 6798, y: 653, index: 2 }
+      ],
+      abilityReward: null
+    },
+
+    try_out_region: {
+      id: 'try_out_region',
+      name: 'Try out region',
+      region: 'sovereign',
+      mapAccent: '#D3455B',
+      col: 5,
+      row: 6,
+      width: 1079,
+      roomHeight: 733,
+      groundY: 673,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(211,69,91,0.07)',
+      ambientColor: '#D3455B',
+      platforms: [
+        { x: 0, y: 673, w: 1079, h: 60 }
+      ],
+      transitions: [
+        { x: 0, y: 601, w: 60, h: 72, to: 'sovereign_army_reserve', toX: 6938, toY: 633 }
+      ],
+      connections: [
+        {
+          direction: 'west',
+          to: 'sovereign_army_reserve',
+          requires: null,
+          oneWay: false,
+          order: 0,
+          doorIndex: 0
+        }
+      ],
+      enemies: [],
+      anchors: [
+        { x: 108, y: 653, index: 0 }
+      ],
+      abilityReward: {
+        id: 'level_4_limit_break',
+        x: 540,
+        y: 613,
+        name: 'Level 4 Limit Break',
+        desc: 'Unlocks ultimate ability.'
       }
-    ],
-    connections: [
-      {
-        direction: 'west',
-        to: 'tutorial_area',
-        requires: null,
-        oneWay: true,
-        order: 0,
-        doorIndex: 0
-      },
-      {
-        direction: 'east',
-        to: 'the_fracture_part3',
-        requires: null,
-        oneWay: false,
-        order: 0,
-        doorIndex: 1
-      },
-      {
-        direction: 'south',
-        to: 'the_fracture_part2',
-        requires: null,
-        oneWay: false,
-        order: 0,
-        doorIndex: 2
-      },
-      {
-        direction: 'north',
-        to: 'crag_entrance',
-        requires: 'phase_dash',
-        oneWay: false,
-        order: 0,
-        doorIndex: 3
-      }
-    ],
-    enemies: [],
-    anchors: [
-      {
-        x: 140,
-        y: 370,
-        index: 0
-      }
-    ],
-    loreFragments: [],
-    abilityReward: null
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // THE FRACTURE – PART 2
-  // ─────────────────────────────────────────────────────────────────────
-  the_fracture_part2: {
-    id: 'the_fracture_part2',
-    name: 'The Fracture, part 2',
-    region: 'origin',
-    col: 1, row: 1,
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(100,60,150,0.03)',
-    ambientColor: '#c4b5fd',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-    ],
-    transitions: [
-      // North → part 1
-      { x: 580, y: 0, w: 40, h: 40, to: 'the_fracture_part1', toX: 580, toY: 450 },
-      // South → Mirror Veil Gate (fast travel)
-      { x: 580, y: 450, w: 40, h: 40, to: 'mirror_veil_gate', toX: 580, toY: 60 },
-      // East → Sovereign Room 1 (post‑game locked)
-      { x: 1165, y: 326, w: 35, h: 64, to: 'sovereign_room1', toX: 60, toY: 310, requires: 'post_game' },
-    ],
-    connections: [
-      { direction: 'north', to: 'the_fracture_part1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'mirror_veil_gate', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'east', to: 'sovereign_room1', requires: 'post_game', oneWay: false, order: 0, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // THE FRACTURE – PART 3
-  // ─────────────────────────────────────────────────────────────────────
-  the_fracture_part3: {
-    id: 'the_fracture_part3',
-    name: 'The Fracture, part 3',
-    region: 'origin',
-    col: 2, row: 0,
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(100,60,150,0.03)',
-    ambientColor: '#c4b5fd',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-    ],
-    transitions: [
-      // West → part 1
-      { x: 0, y: 326, w: 35, h: 64, to: 'the_fracture_part1', toX: 1130, toY: 310 },
-      // East → part 4
-      { x: 1165, y: 326, w: 35, h: 64, to: 'the_fracture_part4', toX: 60, toY: 310 },
-      // North → Chrono Space Rift Echo (requires Void Tether)
-      { x: 580, y: 0, w: 40, h: 40, to: 'chrono_rift_echo', toX: 60, toY: 450, requires: 'void_tether' },
-    ],
-    connections: [
-      { direction: 'west', to: 'the_fracture_part1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'the_fracture_part4', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'chrono_rift_echo', requires: 'void_tether', oneWay: false, order: 0, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // THE FRACTURE – PART 4
-  // ─────────────────────────────────────────────────────────────────────
-  the_fracture_part4: {
-    id: 'the_fracture_part4',
-    name: 'The Fracture, part 4',
-    region: 'origin',
-    col: 3, row: 0,
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(100,60,150,0.03)',
-    ambientColor: '#c4b5fd',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-    ],
-    transitions: [
-      // West → part 3
-      { x: 0, y: 326, w: 35, h: 64, to: 'the_fracture_part3', toX: 1130, toY: 310 },
-      // East → Echo Bridge part 1
-      { x: 1165, y: 326, w: 35, h: 64, to: 'echo_bridge_part1', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'the_fracture_part3', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'echo_bridge_part1', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // CRAG ENTRANCE (fast travel, entry requires phase dash)
-  // ─────────────────────────────────────────────────────────────────────
-  crag_entrance: {
-    id: 'crag_entrance',
-    name: 'Crag Entrance',
-    region: 'crag',
-    col: 1, row: -1,
-    mapAccent: '#d97757',
-    width: 1200,
-    groundY: 390,
-    bgColor: '#120a06',
-    bgTint: 'rgba(180,90,40,0.05)',
-    ambientColor: '#d97757',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-    ],
-    transitions: [
-      // South → The Fracture part1 (back)
-      { x: 580, y: 450, w: 40, h: 40, to: 'the_fracture_part1', toX: 580, toY: 0 },
-      // North → Crag Breach
-      { x: 580, y: 0, w: 40, h: 40, to: 'crag_breach', toX: 60, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'the_fracture_part1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'crag_breach', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // CRAG BREACH
-  // ─────────────────────────────────────────────────────────────────────
-  crag_breach: {
-    id: 'crag_breach',
-    name: 'Crag Breach',
-    region: 'crag',
-    col: 1, row: -2,
-    mapAccent: '#d97757',
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0f0805',
-    bgTint: 'rgba(160,70,30,0.06)',
-    ambientColor: '#c2703d',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-    ],
-    transitions: [
-      // South → Crag Entrance
-      { x: 580, y: 450, w: 40, h: 40, to: 'crag_entrance', toX: 580, toY: 0 },
-      // North → Crag Altar
-      { x: 580, y: 0, w: 40, h: 40, to: 'crag_altar', toX: 60, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'crag_entrance', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'crag_altar', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // CRAG ALTAR (unlocks charged attack)
-  // ─────────────────────────────────────────────────────────────────────
-  crag_altar: {
-    id: 'crag_altar',
-    name: 'Crag Altar',
-    region: 'crag',
-    col: 1, row: -3,
-    mapAccent: '#d97757',
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0d0704',
-    bgTint: 'rgba(217,119,87,0.08)',
-    ambientColor: '#fb923c',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-      { x: 480, y: 280, w: 240, h: 14 }, // altar platform
-    ],
-    abilityReward: {
-      id: 'charged_attack',
-      x: 600,
-      y: 258, // above platform
-      name: 'Charged Attack',
-      desc: 'Hold Z/J to charge a heavy strike.',
     },
-    // Strike-open healing crystal (healing.js, 2026-07-16) — full heal,
-    // regrows on the next anchor rest. First placement; keep these SPARSE
-    // (0–2 per region, exploration nooks) per Plans/healing_items_plan.md.
-    healingCrystals: [
-      { id: 'hc_crag_altar_1', x: 80, y: 390 },
-    ],
-    transitions: [
-      // South → Crag Breach
-      { x: 580, y: 450, w: 40, h: 40, to: 'crag_breach', toX: 580, toY: 0 },
-      // North → Crag Warden (miniboss)
-      { x: 580, y: 0, w: 40, h: 40, to: 'crag_warden', toX: 60, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'crag_breach', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'crag_warden', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    fracturePipRewards: [],
-  },
 
-  // ─────────────────────────────────────────────────────────────────────
-  // CRAG WARDEN (miniboss)
-  // ─────────────────────────────────────────────────────────────────────
-  crag_warden: {
-    id: 'crag_warden',
-    name: 'Crag Warden',
-    region: 'crag',
-    col: 1, row: -4,
-    mapAccent: '#d97757',
-    roomType: 'miniboss',
-    miniboss: 'colossus_core',
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0a0503',
-    bgTint: 'rgba(217,119,87,0.1)',
-    ambientColor: '#fb923c',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-      { x: 500, y: 300, w: 200, h: 14 }, // reposition platform
-    ],
-    transitions: [
-      // South → Crag Altar
-      { x: 580, y: 450, w: 40, h: 40, to: 'crag_altar', toX: 580, toY: 0 },
-      // One‑way shortcut to Echo Bridge part 1 (reward)
-      { x: 1100, y: 326, w: 35, h: 64, to: 'echo_bridge_part1', toX: 60, toY: 310, requires: null, oneWay: true },
-      // East → Sovereign Room 3 (post‑game)
-      { x: 1165, y: 326, w: 35, h: 64, to: 'sovereign_room3', toX: 60, toY: 310, requires: 'post_game' },
-    ],
-    connections: [
-      { direction: 'south', to: 'crag_altar', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'echo_bridge_part1', requires: null, oneWay: true, order: 1, doorIndex: 1, shortcut: true },
-      { direction: 'east', to: 'sovereign_room3', requires: 'post_game', oneWay: false, order: 2, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [
-      { id: 'lore_cw1', x: 600, y: 360, text: 'A heart doesn\'t ask what it\'s protecting.' }
-    ],
-    abilityReward: null,
-    bossSpawn: { x: 600, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // MIRROR VEIL – GATE (fast travel)
-  // ─────────────────────────────────────────────────────────────────────
-  mirror_veil_gate: {
-    id: 'mirror_veil_gate',
-    name: 'Mirror Veil — Gate',
-    region: 'mirror_veil',
-    mapAccent: '#c084fc',
-    col: 2, row: -2,
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a12',
-    bgTint: 'rgba(192,132,252,0.05)',
-    ambientColor: '#c084fc',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-    ],
-    transitions: [
-      // North → Reflection
-      { x: 420, y: 0, w: 60, h: 40, to: 'mirror_veil_reflection', toX: 420, toY: 450 },
-      // South → The Fracture part2 (back)
-      { x: 420, y: 450, w: 60, h: 40, to: 'the_fracture_part2', toX: 420, toY: 0 },
-      // East → Timeline X Roads Room 1 (fast travel)
-      { x: 865, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room1', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'north', to: 'mirror_veil_reflection', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'the_fracture_part2', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'east', to: 'timeline_x_roads_room1', requires: null, oneWay: false, order: 0, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // MIRROR VEIL – REFLECTION (1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  mirror_veil_reflection: {
-    id: 'mirror_veil_reflection',
-    name: 'Mirror Veil — Reflection',
-    region: 'mirror_veil',
-    mapAccent: '#c084fc',
-    col: 2, row: -3,
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a12',
-    bgTint: 'rgba(192,132,252,0.06)',
-    ambientColor: '#c084fc',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 }, // for lore fragment
-    ],
-    transitions: [
-      // South → Gate
-      { x: 420, y: 450, w: 60, h: 40, to: 'mirror_veil_gate', toX: 420, toY: 0 },
-      // North → Hollow
-      { x: 420, y: 0, w: 60, h: 40, to: 'mirror_veil_hollow', toX: 420, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'mirror_veil_gate', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'mirror_veil_hollow', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_mvr1', x: 450, y: 276, text: 'The reflection knows what you will become.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // MIRROR VEIL – HOLLOW (miniboss)
-  // ─────────────────────────────────────────────────────────────────────
-  mirror_veil_hollow: {
-    id: 'mirror_veil_hollow',
-    name: 'Mirror Veil — Hollow',
-    region: 'mirror_veil',
-    mapAccent: '#c084fc',
-    col: 2, row: -4,
-    roomType: 'miniboss',
-    miniboss: 'hollow_guardian',
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a12',
-    bgTint: 'rgba(192,132,252,0.07)',
-    ambientColor: '#c084fc',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 },
-    ],
-    transitions: [
-      // South → Reflection
-      { x: 420, y: 450, w: 60, h: 40, to: 'mirror_veil_reflection', toX: 420, toY: 0 },
-      // North → Sanctum
-      { x: 420, y: 0, w: 60, h: 40, to: 'mirror_veil_sanctum', toX: 420, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'mirror_veil_reflection', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'mirror_veil_sanctum', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-    bossSpawn: { x: 450, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // MIRROR VEIL – SANCTUM (unlocks Phase Dash)
-  // ─────────────────────────────────────────────────────────────────────
-  mirror_veil_sanctum: {
-    id: 'mirror_veil_sanctum',
-    name: 'Mirror Veil — Sanctum',
-    region: 'mirror_veil',
-    mapAccent: '#c084fc',
-    col: 2, row: -5,
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a12',
-    bgTint: 'rgba(192,132,252,0.08)',
-    ambientColor: '#c084fc',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 280, w: 140, h: 14 }, // altar
-    ],
-    abilityReward: {
-      id: 'phase_dash',
-      x: 450,
-      y: 258,
-      name: 'Phase Dash',
-      desc: 'C – dash through space.',
+    enemy_test_arena: {
+      id: 'enemy_test_arena',
+      name: 'Test Arena',
+      width: 2000,
+      groundY: 500,
+      bgColor: '#0a0a0f',
+      bgTint: 'rgba(120, 120, 140, 0.04)',
+      ambientColor: '#8888aa',
+      platforms: [
+        {
+          x: 0,
+          y: 500,
+          w: 2000,
+          h: 60
+        },
+        {
+          x: 400,
+          y: 380,
+          w: 200,
+          h: 14
+        },
+        {
+          x: 1400,
+          y: 380,
+          w: 200,
+          h: 14
+        },
+        {
+          x: 800,
+          y: 440,
+          w: 120,
+          h: 14
+        },
+        {
+          x: 1050,
+          y: 380,
+          w: 120,
+          h: 14
+        },
+        {
+          x: 1710,
+          y: 310,
+          w: 120,
+          h: 200
+        },
+        {
+          x: -10,
+          y: 80,
+          w: 2000,
+          h: 60,
+          destructible: false,
+          ceiling: true
+        }
+      ],
+      transitions: [],
+      connections: [],
+      enemies: [],
+      anchors: [],
+      abilityReward: null,
+      healingCrystals: [
+        {
+          id: 'hc_test_arena_1',
+          x: 120,
+          y: 500
+        }
+      ],
+      loreFragments: []
     },
-    transitions: [
-      // South → Hollow
-      { x: 420, y: 450, w: 60, h: 40, to: 'mirror_veil_hollow', toX: 420, toY: 0 },
-      // North → Mirror Corridor
-      { x: 420, y: 0, w: 60, h: 40, to: 'mirror_corridor', toX: 420, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'mirror_veil_hollow', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'mirror_corridor', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // MIRROR CORRIDOR
-  // ─────────────────────────────────────────────────────────────────────
-  mirror_corridor: {
-    id: 'mirror_corridor',
-    name: 'Mirror Corridor',
-    region: 'mirror_veil',
-    mapAccent: '#c084fc',
-    col: 2, row: -6,
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a12',
-    bgTint: 'rgba(192,132,252,0.05)',
-    ambientColor: '#c084fc',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-    ],
-    transitions: [
-      // South → Sanctum
-      { x: 420, y: 450, w: 60, h: 40, to: 'mirror_veil_sanctum', toX: 420, toY: 0 },
-      // North → Event Horizon Gate (fast travel)
-      { x: 420, y: 0, w: 60, h: 40, to: 'event_horizon_gate', toX: 420, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'mirror_veil_sanctum', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'event_horizon_gate', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    // INTERIM placement (2026-07-16, see Plans/combat_ai_overhaul_plan.md §A):
-    // story-wise Void Tether comes from the give-up-the-Child choice, which
-    // needs the cutscene/choice sequence — until that's built, this pickup
-    // makes the ability reachable in normal play (Mirror Corridor is already
-    // gated behind child_choice_resolved in the floor plan, so the location
-    // is at least thematically post-choice). Move the grant into the Child
-    // choice when that scene exists.
-    abilityReward: {
-      id: 'void_tether',
-      x: 700,
-      y: 340,
-      name: 'Void Tether',
-      desc: 'R pulls the enemy you face to you — or you to a wall.',
+    // Bounded box for editor/difficulty_bot.html's evolved-agent training —
+    // deliberately small and walled (unlike enemy_test_arena's 2000px open
+    // runway) so an evolving agent can't discover "run to the edge and kite
+    // forever" as a free fitness win. Left/right are already hard-walled by
+    // getBounds()'s area.width clamp (game.js) with no platforms needed;
+    // floor + a real ceiling platform close the box vertically. Dev-only —
+    // no col/row, same skip rule as enemy_test_arena.
+    bot_arena: {
+      id: 'bot_arena',
+      name: 'Difficulty Bot Arena (dev only)',
+      width: 700,
+      groundY: 500,
+      roomHeight: 460,
+      pitDeathY: Infinity,
+      bgColor: '#06060e',
+      bgTint: 'rgba(140, 120, 200, 0.05)',
+      ambientColor: '#8888aa',
+      platforms: [
+        { x: 0, y: 500, w: 700, h: 60 },
+        { x: -10, y: 100, w: 720, h: 40, destructible: false, ceiling: true },
+        // Real wall geometry (added 2026-07-24, was missing) — the room's
+        // horizontal bound was assumed to come from getBounds()'s numeric
+        // area.width clamp in physics.js, but that clamp only lives inside
+        // resolveEnemyPhysics (enemies); the player goes through
+        // resolveEntityCollision, which only resolves against actual
+        // platform geometry and has no numeric-bounds fallback. With no
+        // real wall here, a knockback hit could shove the player past
+        // x:0/x:700 into empty space with no floor there either (the floor
+        // above only spans that same range) — reported as "enemies push
+        // the player out of bounds." wallMargin in physics.js scales with
+        // how far the entity moved this frame specifically so a hard
+        // knockback can't tunnel through, so plain wall platforms (no
+        // special flag needed) are the actual fix, not a bigger numeric
+        // clamp.
+        { x: -20, y: 100, w: 20, h: 460 },
+        { x: 700, y: 100, w: 20, h: 460 },
+      ],
+      transitions: [],
+      connections: [],
+      enemies: [],
+      anchors: [],
+      abilityReward: null,
+      healingCrystals: [],
+      loreFragments: []
     },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // ECHO BRIDGE – PART 1 (meet the Child, +1 max health)
-  // ─────────────────────────────────────────────────────────────────────
-  echo_bridge_part1: {
-    id: 'echo_bridge_part1',
-    name: 'Echo Bridge, part 1',
-    region: 'origin',
-    col: 4, row: 0,
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(140,80,200,0.04)',
-    ambientColor: '#8b5cf6',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-      { x: 500, y: 300, w: 200, h: 14 }, // platform for max health pickup
-    ],
-    abilityReward: {
-      id: 'max_health_upgrade_1',
-      x: 600,
-      y: 278,
-      name: 'Max Health +1',
-      desc: 'Increases max health by 1.',
-    },
-    transitions: [
-      // West → The Fracture part4
-      { x: 0, y: 326, w: 35, h: 64, to: 'the_fracture_part4', toX: 1130, toY: 310 },
-      // East → Upper Ruins
-      { x: 1165, y: 326, w: 35, h: 64, to: 'upper_ruins', toX: 60, toY: 310 },
-      // North → The Void Expanse Room 1 (locked until prison sequence finished)
-      { x: 580, y: 0, w: 40, h: 40, to: 'void_expanse_room1', toX: 60, toY: 450, requires: 'prison_sequence_finished' },
-      // North (another) → Observatory Room 2 (requires Void Tether? Actually diagram: requires Void Tether? It says "entry requires Graviton Surge" for Observatory Room 2, but from Echo Bridge part1 it goes to Observatory Room 2 with Graviton Surge? The edge says: Echo_Bridge_part_1_m_99e4e301 -->|Void Tether is required for this path| Observatory_Room_2_e_b28df5db. So requires void_tether.
-      { x: 600, y: 0, w: 40, h: 40, to: 'observatory_room2', toX: 60, toY: 450, requires: 'void_tether' },
-      // East → Crystal Cavern
-      { x: 1165, y: 326, w: 35, h: 64, to: 'crystal_cavern', toX: 60, toY: 310 },
-      // East → Timeline X Roads Room 1 (fast travel) – but diagram shows Echo Bridge part1 -> Timeline X Roads Room 1, so add another door
-      { x: 1100, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room1', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'the_fracture_part4', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'upper_ruins', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'void_expanse_room1', requires: 'prison_sequence_finished', oneWay: false, order: 0, doorIndex: 2 },
-      { direction: 'north', to: 'observatory_room2', requires: 'void_tether', oneWay: false, order: 1, doorIndex: 3 },
-      { direction: 'east', to: 'crystal_cavern', requires: null, oneWay: false, order: 1, doorIndex: 4 },
-      { direction: 'east', to: 'timeline_x_roads_room1', requires: null, oneWay: false, order: 2, doorIndex: 5 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    fracturePipRewards: [],
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // ECHO BRIDGE PRISON (1 cosmetic upgrade)
-  // ─────────────────────────────────────────────────────────────────────
-  echo_bridge_prison: {
-    id: 'echo_bridge_prison',
-    name: 'Echo Bridge Prison',
-    region: 'origin',
-    col: 5, row: 1,
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(140,80,200,0.04)',
-    ambientColor: '#8b5cf6',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 }, // cosmetic placeholder
-    ],
-    transitions: [
-      // West → Timeline X Roads Room 2 (after prison)
-      { x: 0, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room2', toX: 830, toY: 310 },
-      // East → Event Horizon Pull (or other)
-      { x: 865, y: 326, w: 35, h: 64, to: 'event_horizon_pull', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'timeline_x_roads_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'event_horizon_pull', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null, // cosmetic only, ignore
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // UPPER RUINS
-  // ─────────────────────────────────────────────────────────────────────
-  upper_ruins: {
-    id: 'upper_ruins',
-    name: 'Upper Ruins',
-    region: 'origin',
-    col: 5, row: 0,
-    mapAccent: '#fbbf24',
-    width: 800,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(160,120,80,0.04)',
-    ambientColor: '#fbbf24',
-    platforms: [
-      { x: 0, y: 390, w: 800, h: 60 },
-    ],
-    transitions: [
-      // West → Echo Bridge part1
-      { x: 0, y: 326, w: 35, h: 64, to: 'echo_bridge_part1', toX: 1130, toY: 310 },
-      // North → Pacifist Region
-      { x: 380, y: 0, w: 40, h: 40, to: 'pacifist_region', toX: 380, toY: 450 },
-    ],
-    connections: [
-      { direction: 'west', to: 'echo_bridge_part1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'pacifist_region', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // PACIFIST REGION (1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  pacifist_region: {
-    id: 'pacifist_region',
-    name: 'Pacifist Region',
-    region: 'origin',
-    col: 5, row: -1,
-    width: 800,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(160,120,80,0.04)',
-    ambientColor: '#fbbf24',
-    platforms: [
-      { x: 0, y: 390, w: 800, h: 60 },
-      { x: 340, y: 300, w: 120, h: 14 },
-    ],
-    transitions: [
-      // South → Upper Ruins
-      { x: 380, y: 450, w: 40, h: 40, to: 'upper_ruins', toX: 380, toY: 0 },
-    ],
-    connections: [
-      { direction: 'south', to: 'upper_ruins', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_pr1', x: 400, y: 276, text: 'Peace is a choice, not a victory.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // CRYSTAL CAVERN (unlocks Shard Shot)
-  // ─────────────────────────────────────────────────────────────────────
-  crystal_cavern: {
-    id: 'crystal_cavern',
-    name: 'Crystal Cavern',
-    region: 'origin',
-    col: 6, row: 0,
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(45,212,191,0.05)',
-    ambientColor: '#2dd4bf',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-      { x: 500, y: 280, w: 200, h: 14 }, // altar
-    ],
-    abilityReward: {
-      id: 'shard_shot',
-      x: 600,
-      y: 258,
-      name: 'Shard Shot',
-      desc: 'Hold V to aim, release to fire.',
-    },
-    transitions: [
-      // West → Echo Bridge part1
-      { x: 0, y: 326, w: 35, h: 64, to: 'echo_bridge_part1', toX: 1130, toY: 310 },
-      // East → Echoing Abyss Room 1
-      { x: 1165, y: 326, w: 35, h: 64, to: 'echoing_abyss_room1', toX: 60, toY: 310 },
-      // North → Timeline X Roads Room 3 (requires Void Tether)
-      { x: 580, y: 0, w: 40, h: 40, to: 'timeline_x_roads_room3', toX: 60, toY: 450, requires: 'void_tether' },
-      // East (another) → Timeline X Roads Room 1 (fast travel)
-      { x: 1100, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room1', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'echo_bridge_part1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'echoing_abyss_room1', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'timeline_x_roads_room3', requires: 'void_tether', oneWay: false, order: 0, doorIndex: 2 },
-      { direction: 'east', to: 'timeline_x_roads_room1', requires: null, oneWay: false, order: 1, doorIndex: 3 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    fracturePipRewards: [],
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // ECHOING ABYSS ROOM 1 (fast travel, entry requires Phase Dash)
-  // ─────────────────────────────────────────────────────────────────────
-  echoing_abyss_room1: {
-    id: 'echoing_abyss_room1',
-    name: 'Echoing Abyss Room 1',
-    region: 'abyss',
-    col: 7, row: 0,
-    mapAccent: '#0CFFD3',
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(12,255,211,0.05)',
-    ambientColor: '#0CFFD3',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // West → Crystal Cavern
-      { x: 0, y: 326, w: 35, h: 64, to: 'crystal_cavern', toX: 1130, toY: 310 },
-      // East → Echoing Abyss Room 2
-      { x: 965, y: 326, w: 35, h: 64, to: 'echoing_abyss_room2', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'crystal_cavern', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'echoing_abyss_room2', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // ECHOING ABYSS ROOM 2 (miniboss, 1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  echoing_abyss_room2: {
-    id: 'echoing_abyss_room2',
-    name: 'Echoing Abyss Room 2',
-    region: 'abyss',
-    col: 8, row: 0,
-    mapAccent: '#0CFFD3',
-    roomType: 'miniboss',
-    miniboss: 'abyss_guardian',
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(12,255,211,0.07)',
-    ambientColor: '#0CFFD3',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 400, y: 300, w: 200, h: 14 },
-    ],
-    transitions: [
-      // West → Echoing Abyss Room 1
-      { x: 0, y: 326, w: 35, h: 64, to: 'echoing_abyss_room1', toX: 930, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'echoing_abyss_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_ea2_1', x: 500, y: 276, text: 'The abyss echoes back only what you bring.' }
-    ],
-    abilityReward: null,
-    bossSpawn: { x: 500, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // TIMELINE X ROADS – ROOM 1 (fast travel)
-  // ─────────────────────────────────────────────────────────────────────
-  timeline_x_roads_room1: {
-    id: 'timeline_x_roads_room1',
-    name: 'Timeline X Roads, Room 1',
-    region: 'timeline',
-    mapAccent: '#8E00FF',
-    col: 3, row: 1,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(142,0,255,0.05)',
-    ambientColor: '#8E00FF',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // West → Mirror Veil Gate
-      { x: 0, y: 326, w: 35, h: 64, to: 'mirror_veil_gate', toX: 830, toY: 310 },
-      // East → Timeline X Roads Room 2
-      { x: 965, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room2', toX: 60, toY: 310 },
-      // East → Echo Bridge Prison (conditional: cannot go if coming from mandatory order? We'll simplify: allow)
-      { x: 900, y: 326, w: 35, h: 64, to: 'echo_bridge_prison', toX: 60, toY: 310 },
-      // North → Crystal Cavern (back)
-      { x: 500, y: 0, w: 40, h: 40, to: 'crystal_cavern', toX: 500, toY: 450 },
-    ],
-    connections: [
-      { direction: 'west', to: 'mirror_veil_gate', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'timeline_x_roads_room2', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'east', to: 'echo_bridge_prison', requires: null, oneWay: false, order: 1, doorIndex: 2 },
-      { direction: 'north', to: 'crystal_cavern', requires: null, oneWay: false, order: 0, doorIndex: 3 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // TIMELINE X ROADS – ROOM 2 (unlocks Void Tether, miniboss, 1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  timeline_x_roads_room2: {
-    id: 'timeline_x_roads_room2',
-    name: 'Timeline X Roads, Room 2',
-    region: 'timeline',
-    mapAccent: '#8E00FF',
-    col: 4, row: 1,
-    roomType: 'miniboss',
-    miniboss: 'timeline_keeper',
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(142,0,255,0.07)',
-    ambientColor: '#8E00FF',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-      { x: 500, y: 280, w: 200, h: 14 }, // altar for Void Tether
-    ],
-    abilityReward: {
-      id: 'void_tether',
-      x: 600,
-      y: 258,
-      name: 'Void Tether',
-      desc: 'Unlocks new pathways.',
-    },
-    transitions: [
-      // West → Timeline X Roads Room 1
-      { x: 0, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room1', toX: 930, toY: 310 },
-      // East → Timeline X Roads Room 3
-      { x: 1165, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room3', toX: 60, toY: 310 },
-      // North → Puppet Strings Part 1 (requires Void Tether)
-      { x: 580, y: 0, w: 40, h: 40, to: 'puppet_strings_part1', toX: 60, toY: 450, requires: 'void_tether' },
-      // North → Observatory Room 1 (requires charged attack)
-      { x: 600, y: 0, w: 40, h: 40, to: 'observatory_room1', toX: 60, toY: 450, requires: 'charged_attack' },
-      // East → Sovereign Room 2 (post-game)
-      { x: 1165, y: 326, w: 35, h: 64, to: 'sovereign_room2', toX: 60, toY: 310, requires: 'post_game' },
-      // East → Graviton Core Room 1 (requires Shard Shot)
-      { x: 1100, y: 326, w: 35, h: 64, to: 'graviton_core_room1', toX: 60, toY: 310, requires: 'shard_shot' },
-      // North → The Rift (requires Stillpoint, Phase Dash, and timeline_x_roads_2_visited)
-      { x: 620, y: 0, w: 40, h: 40, to: 'the_rift', toX: 60, toY: 450, requires: 'stillpoint,phase_dash,timeline_x_roads_2_visited' },
-      // East → Echo Bridge Prison (back) - from prison to room2 is already handled
-    ],
-    connections: [
-      { direction: 'west', to: 'timeline_x_roads_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'timeline_x_roads_room3', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'puppet_strings_part1', requires: 'void_tether', oneWay: false, order: 0, doorIndex: 2 },
-      { direction: 'north', to: 'observatory_room1', requires: 'charged_attack', oneWay: false, order: 1, doorIndex: 3 },
-      { direction: 'east', to: 'sovereign_room2', requires: 'post_game', oneWay: false, order: 1, doorIndex: 4 },
-      { direction: 'east', to: 'graviton_core_room1', requires: 'shard_shot', oneWay: false, order: 2, doorIndex: 5 },
-      { direction: 'north', to: 'the_rift', requires: 'stillpoint,phase_dash,timeline_x_roads_2_visited', oneWay: false, order: 2, doorIndex: 6 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_txr2_1', x: 700, y: 360, text: 'The crossroads bend to those who have walked them.' }
-    ],
-    abilityReward: null, // actual ability is in abilityReward above
-    bossSpawn: { x: 600, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // TIMELINE X ROADS – ROOM 3
-  // ─────────────────────────────────────────────────────────────────────
-  timeline_x_roads_room3: {
-    id: 'timeline_x_roads_room3',
-    name: 'Timeline X Roads, Room 3',
-    region: 'timeline',
-    mapAccent: '#8E00FF',
-    col: 5, row: 1,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(142,0,255,0.06)',
-    ambientColor: '#8E00FF',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // West → Timeline X Roads Room 2
-      { x: 0, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room2', toX: 1130, toY: 310 },
-      // South → Chrono Space Rift Gate
-      { x: 500, y: 450, w: 40, h: 40, to: 'chrono_rift_gate', toX: 500, toY: 0 },
-      // South → The Forge (requires Stillpoint)
-      { x: 520, y: 450, w: 40, h: 40, to: 'the_forge', toX: 520, toY: 0, requires: 'stillpoint' },
-    ],
-    connections: [
-      { direction: 'west', to: 'timeline_x_roads_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'chrono_rift_gate', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'south', to: 'the_forge', requires: 'stillpoint', oneWay: false, order: 1, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // PUPPET STRINGS / TETHER – PART 1 (locked by Void Tether)
-  // ─────────────────────────────────────────────────────────────────────
-  puppet_strings_part1: {
-    id: 'puppet_strings_part1',
-    name: 'Puppet Strings / Tether Part 1',
-    region: 'timeline',
-    mapAccent: '#BD34D1',
-    col: 4, row: 0, // placed above room2
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(189,52,209,0.05)',
-    ambientColor: '#BD34D1',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // South → Timeline X Roads Room 2
-      { x: 500, y: 450, w: 40, h: 40, to: 'timeline_x_roads_room2', toX: 500, toY: 0 },
-      // North → Puppet Strings Part 2
-      { x: 500, y: 0, w: 40, h: 40, to: 'puppet_strings_part2', toX: 500, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'timeline_x_roads_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'puppet_strings_part2', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // PUPPET STRINGS / TETHER – PART 2 (+1 max health)
-  // ─────────────────────────────────────────────────────────────────────
-  puppet_strings_part2: {
-    id: 'puppet_strings_part2',
-    name: 'Puppet Strings / Tether Part 2',
-    region: 'timeline',
-    mapAccent: '#BD34D1',
-    col: 4, row: -1,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(189,52,209,0.06)',
-    ambientColor: '#BD34D1',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 420, y: 300, w: 160, h: 14 },
-    ],
-    abilityReward: {
-      id: 'max_health_upgrade_2',
-      x: 500,
-      y: 278,
-      name: 'Max Health +1',
-      desc: 'Increases max health by 1.',
-    },
-    transitions: [
-      // South → Puppet Strings Part 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'puppet_strings_part1', toX: 500, toY: 0 },
-      // South (another) → Timeline X Roads Room 2 (shortcut back)
-      { x: 520, y: 450, w: 40, h: 40, to: 'timeline_x_roads_room2', toX: 520, toY: 0 },
-    ],
-    connections: [
-      { direction: 'south', to: 'puppet_strings_part1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'timeline_x_roads_room2', requires: null, oneWay: false, order: 1, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    fracturePipRewards: [],
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // OBSERVATORY – ROOM 1 (entry requires charged attack)
-  // ─────────────────────────────────────────────────────────────────────
-  observatory_room1: {
-    id: 'observatory_room1',
-    name: 'Observatory, Room 1',
-    region: 'observatory',
-    mapAccent: '#F7C325',
-    col: 5, row: 0, // placed near timeline
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(247,195,37,0.05)',
-    ambientColor: '#F7C325',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // South → Timeline X Roads Room 2
-      { x: 500, y: 450, w: 40, h: 40, to: 'timeline_x_roads_room2', toX: 500, toY: 0 },
-      // North → Observatory Room 2
-      { x: 500, y: 0, w: 40, h: 40, to: 'observatory_room2', toX: 500, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'timeline_x_roads_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'observatory_room2', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // OBSERVATORY – ROOM 2 (entry requires Graviton Surge, 1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  observatory_room2: {
-    id: 'observatory_room2',
-    name: 'Observatory, Room 2',
-    region: 'observatory',
-    mapAccent: '#F7C325',
-    col: 5, row: -1,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(247,195,37,0.06)',
-    ambientColor: '#F7C325',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 420, y: 300, w: 160, h: 14 },
-    ],
-    transitions: [
-      // South → Observatory Room 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'observatory_room1', toX: 500, toY: 0 },
-      // North → Observatory Room 3
-      { x: 500, y: 0, w: 40, h: 40, to: 'observatory_room3', toX: 500, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'observatory_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'observatory_room3', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_obs2_1', x: 500, y: 276, text: 'The stars align only for those who look up.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // OBSERVATORY – ROOM 3
-  // ─────────────────────────────────────────────────────────────────────
-  observatory_room3: {
-    id: 'observatory_room3',
-    name: 'Observatory, Room 3',
-    region: 'observatory',
-    mapAccent: '#F7C325',
-    col: 5, row: -2,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(247,195,37,0.07)',
-    ambientColor: '#F7C325',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // South → Observatory Room 2
-      { x: 500, y: 450, w: 40, h: 40, to: 'observatory_room2', toX: 500, toY: 0 },
-      // North → Sovereign Observatory (requires Graviton Surge)
-      { x: 500, y: 0, w: 40, h: 40, to: 'sovereign_observatory', toX: 500, toY: 450, requires: 'graviton_surge' },
-    ],
-    connections: [
-      { direction: 'south', to: 'observatory_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'sovereign_observatory', requires: 'graviton_surge', oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // SOVEREIGN OBSERVATORY (unlocks fast travel, 1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  sovereign_observatory: {
-    id: 'sovereign_observatory',
-    name: 'Sovereign’s Observatory',
-    region: 'observatory',
-    mapAccent: '#F7C325',
-    col: 5, row: -3,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(247,195,37,0.08)',
-    ambientColor: '#F7C325',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 420, y: 300, w: 160, h: 14 },
-    ],
-    transitions: [
-      // South → Observatory Room 3
-      { x: 500, y: 450, w: 40, h: 40, to: 'observatory_room3', toX: 500, toY: 0 },
-      // South → Void Expanse Room 1 (shortcut)
-      { x: 520, y: 450, w: 40, h: 40, to: 'void_expanse_room1', toX: 520, toY: 0 },
-    ],
-    connections: [
-      { direction: 'south', to: 'observatory_room3', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'void_expanse_room1', requires: null, oneWay: false, order: 1, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_so_1', x: 500, y: 276, text: 'The Sovereign sees all, but watches nothing.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // THE FORGE (entry requires Stillpoint, 1 fracture pip)
-  // ─────────────────────────────────────────────────────────────────────
-  the_forge: {
-    id: 'the_forge',
-    name: 'The Forge',
-    region: 'origin',
-    col: 6, row: 1,
-    width: 1200,
-    groundY: 390,
-    bgColor: '#080812',
-    bgTint: 'rgba(45,130,180,0.04)',
-    ambientColor: '#67e8f9',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-      { x: 500, y: 280, w: 200, h: 14 }, // fracture pip
-    ],
-    transitions: [
-      // North → Timeline X Roads Room 3
-      { x: 580, y: 0, w: 40, h: 40, to: 'timeline_x_roads_room3', toX: 580, toY: 450 },
-      // East → Chrono Space Rift Gate
-      { x: 1165, y: 326, w: 35, h: 64, to: 'chrono_rift_gate', toX: 60, toY: 310 },
-      // East → The Vault Room 1
-      { x: 1100, y: 326, w: 35, h: 64, to: 'the_vault_room1', toX: 60, toY: 310 },
-      // East → Observatory Room 1
-      { x: 1130, y: 326, w: 35, h: 64, to: 'observatory_room1', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'north', to: 'timeline_x_roads_room3', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'chrono_rift_gate', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'east', to: 'the_vault_room1', requires: null, oneWay: false, order: 1, doorIndex: 2 },
-      { direction: 'east', to: 'observatory_room1', requires: null, oneWay: false, order: 2, doorIndex: 3 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    fracturePipRewards: [
-      { id: 'fp_forge_1', x: 600, y: 258 }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // CHRONO SPACE RIFT – GATE (fast travel)
-  // ─────────────────────────────────────────────────────────────────────
-  chrono_rift_gate: {
-    id: 'chrono_rift_gate',
-    name: 'Chrono Space Rift, Gate',
-    region: 'chrono_rift',
-    mapAccent: '#a78bfa',
-    col: 6, row: 2,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a10',
-    bgTint: 'rgba(167,139,250,0.05)',
-    ambientColor: '#a78bfa',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // West → The Forge
-      { x: 0, y: 326, w: 35, h: 64, to: 'the_forge', toX: 1130, toY: 310 },
-      // North → Chrono Space Rift Loop Part 1
-      { x: 500, y: 0, w: 40, h: 40, to: 'chrono_rift_loop1', toX: 500, toY: 450 },
-    ],
-    connections: [
-      { direction: 'west', to: 'the_forge', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'chrono_rift_loop1', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // CHRONO SPACE RIFT – LOOP PART 1 (1 cosmetic upgrade)
-  // ─────────────────────────────────────────────────────────────────────
-  chrono_rift_loop1: {
-    id: 'chrono_rift_loop1',
-    name: 'Chrono Space Rift, Loop, Part 1',
-    region: 'chrono_rift',
-    mapAccent: '#a78bfa',
-    col: 6, row: 3,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a10',
-    bgTint: 'rgba(167,139,250,0.06)',
-    ambientColor: '#a78bfa',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 420, y: 300, w: 160, h: 14 }, // cosmetic placeholder
-    ],
-    transitions: [
-      // South → Chrono Rift Gate
-      { x: 500, y: 450, w: 40, h: 40, to: 'chrono_rift_gate', toX: 500, toY: 0 },
-      // North → Chrono Rift Loop Part 2
-      { x: 500, y: 0, w: 40, h: 40, to: 'chrono_rift_loop2', toX: 500, toY: 450 },
-      // North (teleport) → Void Expanse Room 1 (requires Void Tether) — reverse
-      // side of void_expanse_room1's own 'south' shortcut back to this room.
-      { x: 520, y: 0, w: 40, h: 40, to: 'void_expanse_room1', toX: 520, toY: 450, requires: 'void_tether' },
-      // East → Sovereign Room 4 (post-game)
-      { x: 965, y: 326, w: 35, h: 64, to: 'sovereign_room4', toX: 60, toY: 310, requires: 'post_game' },
-    ],
-    connections: [
-      { direction: 'south', to: 'chrono_rift_gate', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'chrono_rift_loop2', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'void_expanse_room1', requires: 'void_tether', oneWay: false, order: 1, doorIndex: 2, shortcut: true },
-      { direction: 'east', to: 'sovereign_room4', requires: 'post_game', oneWay: false, order: 0, doorIndex: 3 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // CHRONO SPACE RIFT – LOOP PART 2 (1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  chrono_rift_loop2: {
-    id: 'chrono_rift_loop2',
-    name: 'Chrono Space Rift, Loop, Part 2',
-    region: 'chrono_rift',
-    mapAccent: '#a78bfa',
-    col: 6, row: 4,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a10',
-    bgTint: 'rgba(167,139,250,0.07)',
-    ambientColor: '#a78bfa',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 420, y: 300, w: 160, h: 14 },
-    ],
-    transitions: [
-      // South → Chrono Rift Loop Part 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'chrono_rift_loop1', toX: 500, toY: 0 },
-      // North → Chrono Rift Echo
-      { x: 500, y: 0, w: 40, h: 40, to: 'chrono_rift_echo', toX: 500, toY: 450 },
-      // North → Event Horizon Pull (requires Void Tether)
-      { x: 520, y: 0, w: 40, h: 40, to: 'event_horizon_pull', toX: 520, toY: 450, requires: 'void_tether' },
-    ],
-    connections: [
-      { direction: 'south', to: 'chrono_rift_loop1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'chrono_rift_echo', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'event_horizon_pull', requires: 'void_tether', oneWay: false, order: 1, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_crl2_1', x: 500, y: 276, text: 'Time loops, but we do not.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // CHRONO SPACE RIFT – ECHO (entry from Fracture part3, requires Void Tether)
-  // ─────────────────────────────────────────────────────────────────────
-  chrono_rift_echo: {
-    id: 'chrono_rift_echo',
-    name: 'Chrono Space Rift, Echo',
-    region: 'chrono_rift',
-    mapAccent: '#a78bfa',
-    col: 6, row: 5,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a10',
-    bgTint: 'rgba(167,139,250,0.08)',
-    ambientColor: '#a78bfa',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // South → Chrono Rift Loop Part 2
-      { x: 500, y: 450, w: 40, h: 40, to: 'chrono_rift_loop2', toX: 500, toY: 0 },
-      // North → Chrono Rift Sanctum
-      { x: 500, y: 0, w: 40, h: 40, to: 'chrono_rift_sanctum', toX: 500, toY: 450 },
-      // South → Void Expanse Room 1 (shortcut)
-      { x: 520, y: 450, w: 40, h: 40, to: 'void_expanse_room1', toX: 520, toY: 0 },
-    ],
-    connections: [
-      { direction: 'south', to: 'chrono_rift_loop2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'chrono_rift_sanctum', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'south', to: 'void_expanse_room1', requires: null, oneWay: false, order: 1, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // CHRONO SPACE RIFT – SANCTUM (miniboss, unlocks Stillpoint, 1 fracture pip)
-  // ─────────────────────────────────────────────────────────────────────
-  chrono_rift_sanctum: {
-    id: 'chrono_rift_sanctum',
-    name: 'Chrono Space Rift, Sanctum',
-    region: 'chrono_rift',
-    mapAccent: '#a78bfa',
-    col: 6, row: 6,
-    roomType: 'miniboss',
-    miniboss: 'chrono_ally',
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a10',
-    bgTint: 'rgba(167,139,250,0.09)',
-    ambientColor: '#a78bfa',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 400, y: 280, w: 200, h: 14 }, // altar
-    ],
-    abilityReward: {
-      id: 'stillpoint',
-      x: 500,
-      y: 258,
-      name: 'Stillpoint',
-      desc: 'Q – slow the world to 15% speed.',
-    },
-    transitions: [
-      // South → Chrono Rift Echo
-      { x: 500, y: 450, w: 40, h: 40, to: 'chrono_rift_echo', toX: 500, toY: 0 },
-      // One‑way teleport to Echoing Abyss Room 1
-      { x: 965, y: 326, w: 35, h: 64, to: 'echoing_abyss_room1', toX: 60, toY: 310, oneWay: true },
-    ],
-    connections: [
-      { direction: 'south', to: 'chrono_rift_echo', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'echoing_abyss_room1', requires: null, oneWay: true, order: 0, doorIndex: 1, shortcut: true },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    fracturePipRewards: [
-      { id: 'fp_crs_1', x: 600, y: 258 }
-    ],
-    bossSpawn: { x: 500, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // EVENT HORIZON – GATE (fast travel)
-  // ─────────────────────────────────────────────────────────────────────
-  event_horizon_gate: {
-    id: 'event_horizon_gate',
-    name: 'Event Horizon - Gate',
-    region: 'event_horizon',
-    mapAccent: '#818cf8',
-    col: 3, row: -1,
-    width: 900,
-    groundY: 390,
-    bgColor: '#07070f',
-    bgTint: 'rgba(129,140,248,0.06)',
-    ambientColor: '#818cf8',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-    ],
-    transitions: [
-      // South → Mirror Corridor
-      { x: 420, y: 450, w: 60, h: 40, to: 'mirror_corridor', toX: 420, toY: 0 },
-      // North → Event Horizon Pull
-      { x: 420, y: 0, w: 60, h: 40, to: 'event_horizon_pull', toX: 420, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'mirror_corridor', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'event_horizon_pull', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // EVENT HORIZON – PULL
-  // ─────────────────────────────────────────────────────────────────────
-  event_horizon_pull: {
-    id: 'event_horizon_pull',
-    name: 'Event Horizon - Pull',
-    region: 'event_horizon',
-    mapAccent: '#818cf8',
-    col: 3, row: -2,
-    width: 900,
-    groundY: 390,
-    bgColor: '#07070f',
-    bgTint: 'rgba(129,140,248,0.07)',
-    ambientColor: '#818cf8',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-    ],
-    transitions: [
-      // South → Gate
-      { x: 420, y: 450, w: 60, h: 40, to: 'event_horizon_gate', toX: 420, toY: 0 },
-      // North → Event Horizon Drift
-      { x: 420, y: 0, w: 60, h: 40, to: 'event_horizon_drift', toX: 420, toY: 450 },
-      // East → Echo Bridge Prison (shortcut)
-      { x: 865, y: 326, w: 35, h: 64, to: 'echo_bridge_prison', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'south', to: 'event_horizon_gate', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'event_horizon_drift', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'east', to: 'echo_bridge_prison', requires: null, oneWay: false, order: 0, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // EVENT HORIZON – DRIFT (1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  event_horizon_drift: {
-    id: 'event_horizon_drift',
-    name: 'Event Horizon - Drift',
-    region: 'event_horizon',
-    mapAccent: '#818cf8',
-    col: 3, row: -3,
-    width: 900,
-    groundY: 390,
-    bgColor: '#07070f',
-    bgTint: 'rgba(129,140,248,0.08)',
-    ambientColor: '#818cf8',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 },
-    ],
-    transitions: [
-      // South → Pull
-      { x: 420, y: 450, w: 60, h: 40, to: 'event_horizon_pull', toX: 420, toY: 0 },
-      // North → Event Horizon Core
-      { x: 420, y: 0, w: 60, h: 40, to: 'event_horizon_core', toX: 420, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'event_horizon_pull', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'event_horizon_core', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_ehd_1', x: 450, y: 276, text: 'Drifting between moments, you find the truth.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // EVENT HORIZON – CORE (miniboss)
-  // ─────────────────────────────────────────────────────────────────────
-  event_horizon_core: {
-    id: 'event_horizon_core',
-    name: 'Event Horizon - Core',
-    region: 'event_horizon',
-    mapAccent: '#818cf8',
-    col: 3, row: -4,
-    roomType: 'miniboss',
-    miniboss: 'horizon_core',
-    width: 900,
-    groundY: 390,
-    bgColor: '#07070f',
-    bgTint: 'rgba(129,140,248,0.09)',
-    ambientColor: '#818cf8',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 },
-    ],
-    transitions: [
-      // South → Drift
-      { x: 420, y: 450, w: 60, h: 40, to: 'event_horizon_drift', toX: 420, toY: 0 },
-      // North → Inverted Spire (requires Graviton Surge)
-      { x: 420, y: 0, w: 60, h: 40, to: 'inverted_spire', toX: 420, toY: 450, requires: 'graviton_surge' },
-    ],
-    connections: [
-      { direction: 'south', to: 'event_horizon_drift', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'inverted_spire', requires: 'graviton_surge', oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-    bossSpawn: { x: 450, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // VOID EXPANSE – ROOM 1 (1 lore pip, 1 cosmetic upgrade)
-  // ─────────────────────────────────────────────────────────────────────
-  void_expanse_room1: {
-    id: 'void_expanse_room1',
-    name: 'The Void Expanse, Room 1',
-    region: 'void_expanse',
-    mapAccent: '#E100BB',
-    col: 7, row: 1,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(225,0,187,0.05)',
-    ambientColor: '#E100BB',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 420, y: 300, w: 160, h: 14 },
-    ],
-    transitions: [
-      // South → Echo Bridge part1 (back)
-      { x: 500, y: 450, w: 40, h: 40, to: 'echo_bridge_part1', toX: 500, toY: 0 },
-      // North → Void Expanse Room 2 (requires Shard Shot)
-      { x: 500, y: 0, w: 40, h: 40, to: 'void_expanse_room2', toX: 500, toY: 450, requires: 'shard_shot' },
-      // South → Chrono Rift Loop Part 1 (shortcut)
-      { x: 520, y: 450, w: 40, h: 40, to: 'chrono_rift_loop1', toX: 520, toY: 0 },
-    ],
-    connections: [
-      { direction: 'south', to: 'echo_bridge_part1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'void_expanse_room2', requires: 'shard_shot', oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'south', to: 'chrono_rift_loop1', requires: null, oneWay: false, order: 1, doorIndex: 2, shortcut: true },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_ve1_1', x: 500, y: 276, text: 'The void is not empty; it is full of absence.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // VOID EXPANSE – ROOM 2 (requires Shard Shot)
-  // ─────────────────────────────────────────────────────────────────────
-  void_expanse_room2: {
-    id: 'void_expanse_room2',
-    name: 'The Void Expanse, Room 2',
-    region: 'void_expanse',
-    mapAccent: '#E100BB',
-    col: 7, row: 2,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(225,0,187,0.06)',
-    ambientColor: '#E100BB',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // South → Void Expanse Room 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'void_expanse_room1', toX: 500, toY: 0 },
-      // North → One Way Teleport Gate to Paradox Engine
-      { x: 500, y: 0, w: 40, h: 40, to: 'one_way_teleport_gate_to_paradox_engine', toX: 500, toY: 450 },
-      // North → Warp Gate Nexus Room 1
-      { x: 520, y: 0, w: 40, h: 40, to: 'warp_gate_nexus_room1', toX: 520, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'void_expanse_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'one_way_teleport_gate_to_paradox_engine', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'warp_gate_nexus_room1', requires: null, oneWay: false, order: 1, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // ONE WAY TELEPORT GATE TO PARADOX ENGINE (teleport node)
-  // ─────────────────────────────────────────────────────────────────────
-  one_way_teleport_gate_to_paradox_engine: {
-    id: 'one_way_teleport_gate_to_paradox_engine',
-    name: 'One Way Teleport Gate to Paradox Engine',
-    region: 'teleport',
-    col: 7, row: 3,
-    width: 400,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(255,255,255,0.01)',
-    ambientColor: '#aaaaaa',
-    platforms: [
-      { x: 0, y: 390, w: 400, h: 60 },
-    ],
-    transitions: [
-      // South → Void Expanse Room 2
-      { x: 200, y: 450, w: 40, h: 40, to: 'void_expanse_room2', toX: 200, toY: 0 },
-      // One‑way to Paradox Engine Room 1
-      { x: 365, y: 326, w: 35, h: 64, to: 'paradox_engine_room1', toX: 60, toY: 310, oneWay: true },
-    ],
-    connections: [
-      { direction: 'south', to: 'void_expanse_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'paradox_engine_room1', requires: null, oneWay: true, order: 0, doorIndex: 1, shortcut: true },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // WARP GATE NEXUS – ROOM 1
-  // ─────────────────────────────────────────────────────────────────────
-  warp_gate_nexus_room1: {
-    id: 'warp_gate_nexus_room1',
-    name: 'Warp Gate Nexus Room 1',
-    region: 'warp',
-    mapAccent: '#AC6363',
-    col: 7, row: 4,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(172,99,99,0.05)',
-    ambientColor: '#AC6363',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // South → Void Expanse Room 2
-      { x: 500, y: 450, w: 40, h: 40, to: 'void_expanse_room2', toX: 500, toY: 0 },
-      // North → Warp Gate Nexus Room 2
-      { x: 500, y: 0, w: 40, h: 40, to: 'warp_gate_nexus_room2', toX: 500, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'void_expanse_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'warp_gate_nexus_room2', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // WARP GATE NEXUS – ROOM 2 (miniboss, 1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  warp_gate_nexus_room2: {
-    id: 'warp_gate_nexus_room2',
-    name: 'Warp Gate Nexus Room 2',
-    region: 'warp',
-    mapAccent: '#AC6363',
-    col: 7, row: 5,
-    roomType: 'miniboss',
-    miniboss: 'warp_guardian',
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(172,99,99,0.07)',
-    ambientColor: '#AC6363',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 400, y: 300, w: 200, h: 14 },
-    ],
-    transitions: [
-      // South → Warp Gate Nexus Room 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'warp_gate_nexus_room1', toX: 500, toY: 0 },
-      // North → One Way Warp Gate to Inverted Spire
-      { x: 500, y: 0, w: 40, h: 40, to: 'one_way_warp_gate_to_inverted_spire', toX: 500, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'warp_gate_nexus_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'one_way_warp_gate_to_inverted_spire', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_wgn2_1', x: 500, y: 276, text: 'The gates remember every traveller.' }
-    ],
-    abilityReward: null,
-    bossSpawn: { x: 500, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // ONE WAY WARP GATE TO INVERTED SPIRE (teleport node)
-  // ─────────────────────────────────────────────────────────────────────
-  one_way_warp_gate_to_inverted_spire: {
-    id: 'one_way_warp_gate_to_inverted_spire',
-    name: 'One Way Warp Gate to Inverted Spire',
-    region: 'teleport',
-    col: 7, row: 6,
-    width: 400,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(255,255,255,0.01)',
-    ambientColor: '#aaaaaa',
-    platforms: [
-      { x: 0, y: 390, w: 400, h: 60 },
-    ],
-    transitions: [
-      // South → Warp Gate Nexus Room 2
-      { x: 200, y: 450, w: 40, h: 40, to: 'warp_gate_nexus_room2', toX: 200, toY: 0 },
-      // One‑way to Inverted Spire
-      { x: 365, y: 326, w: 35, h: 64, to: 'inverted_spire', toX: 60, toY: 310, oneWay: true },
-    ],
-    connections: [
-      { direction: 'south', to: 'warp_gate_nexus_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'inverted_spire', requires: null, oneWay: true, order: 0, doorIndex: 1, shortcut: true },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // INVERTED SPIRE (entry requires Graviton Surge, 1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  inverted_spire: {
-    id: 'inverted_spire',
-    name: 'Inverted Spire',
-    region: 'spire',
-    mapAccent: '#0088FF',
-    col: 3, row: -5, // placed near event horizon
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(0,136,255,0.05)',
-    ambientColor: '#0088FF',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 420, y: 300, w: 160, h: 14 },
-    ],
-    transitions: [
-      // South → Event Horizon Core (back)
-      { x: 500, y: 450, w: 40, h: 40, to: 'event_horizon_core', toX: 500, toY: 0 },
-      // South → Timeline X Roads Room 2 (shortcut)
-      { x: 520, y: 450, w: 40, h: 40, to: 'timeline_x_roads_room2', toX: 520, toY: 0 },
-    ],
-    connections: [
-      { direction: 'south', to: 'event_horizon_core', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'timeline_x_roads_room2', requires: null, oneWay: false, order: 1, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_is_1', x: 500, y: 276, text: 'The spire points inward, not upward.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // GRAVITON CORE – ROOM 1 (entry requires Shard Shot)
-  // ─────────────────────────────────────────────────────────────────────
-  graviton_core_room1: {
-    id: 'graviton_core_room1',
-    name: 'Graviton Core, Room 1',
-    region: 'graviton',
-    mapAccent: '#4BCA61',
-    col: 8, row: 1,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(75,202,97,0.05)',
-    ambientColor: '#4BCA61',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // West → Timeline X Roads Room 2
-      { x: 0, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room2', toX: 930, toY: 310 },
-      // North → Graviton Core Room 2 (requires Shard Shot)
-      { x: 500, y: 0, w: 40, h: 40, to: 'graviton_core_room2', toX: 500, toY: 450, requires: 'shard_shot' },
-      // South → The Vault Room 1 (shortcut)
-      { x: 500, y: 450, w: 40, h: 40, to: 'the_vault_room1', toX: 500, toY: 0 },
-    ],
-    connections: [
-      { direction: 'west', to: 'timeline_x_roads_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'graviton_core_room2', requires: 'shard_shot', oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'south', to: 'the_vault_room1', requires: null, oneWay: false, order: 0, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // GRAVITON CORE – ROOM 2 (unlocks Graviton Surge, 1 fracture pip)
-  // ─────────────────────────────────────────────────────────────────────
-  graviton_core_room2: {
-    id: 'graviton_core_room2',
-    name: 'Graviton Core, Room 2',
-    region: 'graviton',
-    mapAccent: '#4BCA61',
-    col: 8, row: 2,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(75,202,97,0.07)',
-    ambientColor: '#4BCA61',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 400, y: 280, w: 200, h: 14 },
-    ],
-    abilityReward: {
-      id: 'graviton_surge',
-      x: 500,
-      y: 258,
-      name: 'Graviton Surge',
-      desc: 'Unlocks heavy gravity abilities.',
-    },
-    transitions: [
-      // South → Graviton Core Room 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'graviton_core_room1', toX: 500, toY: 0 },
-      // North → Graviton Core Room 3 (requires Shard Shot)
-      { x: 500, y: 0, w: 40, h: 40, to: 'graviton_core_room3', toX: 500, toY: 450, requires: 'shard_shot' },
-      // North → Inverted Spire (shortcut)
-      { x: 520, y: 0, w: 40, h: 40, to: 'inverted_spire', toX: 520, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'graviton_core_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'graviton_core_room3', requires: 'shard_shot', oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'inverted_spire', requires: null, oneWay: false, order: 1, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    fracturePipRewards: [
-      { id: 'fp_gc2_1', x: 600, y: 258 }
-    ],
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // GRAVITON CORE – ROOM 3 (miniboss, 1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  graviton_core_room3: {
-    id: 'graviton_core_room3',
-    name: 'Graviton Core, Room 3',
-    region: 'graviton',
-    mapAccent: '#4BCA61',
-    col: 8, row: 3,
-    roomType: 'miniboss',
-    miniboss: 'graviton_sentinel',
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(75,202,97,0.08)',
-    ambientColor: '#4BCA61',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 400, y: 300, w: 200, h: 14 },
-    ],
-    transitions: [
-      // South → Graviton Core Room 2
-      { x: 500, y: 450, w: 40, h: 40, to: 'graviton_core_room2', toX: 500, toY: 0 },
-      // South → The Vault Room 1 (shortcut)
-      { x: 520, y: 450, w: 40, h: 40, to: 'the_vault_room1', toX: 520, toY: 0 },
-      // North → The Vault Room 2 (requires Void Tether)
-      { x: 500, y: 0, w: 40, h: 40, to: 'the_vault_room2', toX: 500, toY: 450, requires: 'void_tether' },
-      // North → Sovereign Army Reserve (locked by pips)
-      { x: 520, y: 0, w: 40, h: 40, to: 'sovereign_army_reserve', toX: 520, toY: 450, requires: 'four_fracture_pips,ten_lore_pips' },
-    ],
-    connections: [
-      { direction: 'south', to: 'graviton_core_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'the_vault_room1', requires: null, oneWay: false, order: 1, doorIndex: 1 },
-      { direction: 'north', to: 'the_vault_room2', requires: 'void_tether', oneWay: false, order: 0, doorIndex: 2 },
-      { direction: 'north', to: 'sovereign_army_reserve', requires: 'four_fracture_pips,ten_lore_pips', oneWay: false, order: 1, doorIndex: 3 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_gc3_1', x: 500, y: 276, text: 'Gravity bends to the will of the core.' }
-    ],
-    abilityReward: null,
-    bossSpawn: { x: 500, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // THE VAULT – ROOM 1 (Memory Resonance, fast travel)
-  // ─────────────────────────────────────────────────────────────────────
-  the_vault_room1: {
-    id: 'the_vault_room1',
-    name: 'The Vault, Room 1',
-    region: 'origin',
-    col: 8, row: 0,
-    mapAccent: '#897A5F',
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(137,122,95,0.05)',
-    ambientColor: '#897A5F',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 },
-    ],
-    transitions: [
-      // West → The Forge
-      { x: 0, y: 326, w: 35, h: 64, to: 'the_forge', toX: 1130, toY: 310 },
-      // North → Polar Shift Room 1
-      { x: 420, y: 0, w: 60, h: 40, to: 'polar_shift_room1', toX: 420, toY: 450 },
-      // North → Graviton Core Room 1 (shortcut)
-      { x: 440, y: 0, w: 60, h: 40, to: 'graviton_core_room1', toX: 440, toY: 450 },
-      // North → The Rift (via timeline condition)
-      { x: 460, y: 0, w: 60, h: 40, to: 'the_rift', toX: 460, toY: 450, requires: 'timeline_x_roads_2_visited' },
-      // North → The Vault Room 2 (lore pip)
-      { x: 480, y: 0, w: 60, h: 40, to: 'the_vault_room2', toX: 480, toY: 450 },
-    ],
-    connections: [
-      { direction: 'west', to: 'the_forge', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'polar_shift_room1', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'graviton_core_room1', requires: null, oneWay: false, order: 1, doorIndex: 2 },
-      { direction: 'north', to: 'the_rift', requires: 'timeline_x_roads_2_visited', oneWay: false, order: 2, doorIndex: 3 },
-      { direction: 'north', to: 'the_vault_room2', requires: null, oneWay: false, order: 3, doorIndex: 4 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // THE VAULT – ROOM 2 (1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  the_vault_room2: {
-    id: 'the_vault_room2',
-    name: 'The Vault, Room 2',
-    region: 'origin',
-    mapAccent: '#897A5F',
-    col: 8, row: -1,
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(137,122,95,0.06)',
-    ambientColor: '#897A5F',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 },
-    ],
-    transitions: [
-      // South → The Vault Room 1
-      { x: 420, y: 450, w: 60, h: 40, to: 'the_vault_room1', toX: 420, toY: 0 },
-      // North → The Rift
-      { x: 420, y: 0, w: 60, h: 40, to: 'the_rift', toX: 420, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'the_vault_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'the_rift', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_tv2_1', x: 450, y: 276, text: 'The vault holds memories of a world that never was.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // THE RIFT (entry requires Stillpoint, Phase Dash, and timeline_x_roads_2_visited)
-  // ─────────────────────────────────────────────────────────────────────
-  the_rift: {
-    id: 'the_rift',
-    name: 'The Rift',
-    region: 'origin',
-    col: 9, row: 0,
-    width: 1200,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(80,40,160,0.07)',
-    ambientColor: '#7c3aed',
-    platforms: [
-      { x: 0, y: 390, w: 1200, h: 60 },
-    ],
-    transitions: [
-      // South → The Vault Room 2
-      { x: 580, y: 450, w: 40, h: 40, to: 'the_vault_room2', toX: 580, toY: 0 },
-      // South → Polar Shift Room 1
-      { x: 600, y: 450, w: 40, h: 40, to: 'polar_shift_room1', toX: 600, toY: 0 },
-      // East → The Antechamber
-      { x: 1165, y: 326, w: 35, h: 64, to: 'antechamber', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'south', to: 'the_vault_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'polar_shift_room1', requires: null, oneWay: false, order: 1, doorIndex: 1 },
-      { direction: 'east', to: 'antechamber', requires: null, oneWay: false, order: 0, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_tr_1', x: 600, y: 360, text: 'The rift is the seam between what is and what could be.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // POLAR SHIFT – ROOM 1 (fast travel, +1 max health)
-  // ─────────────────────────────────────────────────────────────────────
-  polar_shift_room1: {
-    id: 'polar_shift_room1',
-    name: 'Polar Shift, Room 1',
-    region: 'polar',
-    mapAccent: '#F7E600',
-    col: 9, row: 1,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(247,230,0,0.05)',
-    ambientColor: '#F7E600',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 420, y: 300, w: 160, h: 14 },
-    ],
-    abilityReward: {
-      id: 'max_health_upgrade_3',
-      x: 500,
-      y: 278,
-      name: 'Max Health +1',
-      desc: 'Increases max health by 1.',
-    },
-    transitions: [
-      // South → The Vault Room 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'the_vault_room1', toX: 500, toY: 0 },
-      // North → Polar Shift Room 2
-      { x: 500, y: 0, w: 40, h: 40, to: 'polar_shift_room2', toX: 500, toY: 450 },
-      // North → The Rift
-      { x: 520, y: 0, w: 40, h: 40, to: 'the_rift', toX: 520, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'the_vault_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'polar_shift_room2', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'the_rift', requires: null, oneWay: false, order: 1, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    fracturePipRewards: [],
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // POLAR SHIFT – ROOM 2 (miniboss, 1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  polar_shift_room2: {
-    id: 'polar_shift_room2',
-    name: 'Polar Shift, Room 2',
-    region: 'polar',
-    mapAccent: '#F7E600',
-    col: 9, row: 2,
-    roomType: 'miniboss',
-    miniboss: 'polar_guardian',
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(247,230,0,0.07)',
-    ambientColor: '#F7E600',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 400, y: 300, w: 200, h: 14 },
-    ],
-    transitions: [
-      // South → Polar Shift Room 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'polar_shift_room1', toX: 500, toY: 0 },
-      // One‑way to Paradox Engine Room 1
-      { x: 965, y: 326, w: 35, h: 64, to: 'paradox_engine_room1', toX: 60, toY: 310, oneWay: true },
-    ],
-    connections: [
-      { direction: 'south', to: 'polar_shift_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'paradox_engine_room1', requires: null, oneWay: true, order: 0, doorIndex: 1, shortcut: true },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_ps2_1', x: 500, y: 276, text: 'The poles shift, but the axis stays true.' }
-    ],
-    abilityReward: null,
-    bossSpawn: { x: 500, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // PARADOX ENGINE – ROOM 1
-  // ─────────────────────────────────────────────────────────────────────
-  paradox_engine_room1: {
-    id: 'paradox_engine_room1',
-    name: 'Paradox Engine, Room 1',
-    region: 'paradox',
-    mapAccent: '#4BCA61',
-    col: 10, row: 0,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(75,202,97,0.06)',
-    ambientColor: '#4BCA61',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // West → One Way Teleport Gate to Paradox Engine (from Void Expanse)
-      { x: 0, y: 326, w: 35, h: 64, to: 'one_way_teleport_gate_to_paradox_engine', toX: 330, toY: 310 },
-      // North → Paradox Engine Room 2 (requires Shard Shot)
-      { x: 500, y: 0, w: 40, h: 40, to: 'paradox_engine_room2', toX: 500, toY: 450, requires: 'shard_shot' },
-      // South → Polar Shift Room 2 (one-way back)
-      { x: 500, y: 450, w: 40, h: 40, to: 'polar_shift_room2', toX: 500, toY: 0 },
-    ],
-    connections: [
-      { direction: 'west', to: 'one_way_teleport_gate_to_paradox_engine', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'paradox_engine_room2', requires: 'shard_shot', oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'south', to: 'polar_shift_room2', requires: null, oneWay: false, order: 0, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // PARADOX ENGINE – ROOM 2 (miniboss, 1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  paradox_engine_room2: {
-    id: 'paradox_engine_room2',
-    name: 'Paradox Engine, Room 2',
-    region: 'paradox',
-    mapAccent: '#4BCA61',
-    col: 10, row: 1,
-    roomType: 'miniboss',
-    miniboss: 'paradox_engine',
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(75,202,97,0.08)',
-    ambientColor: '#4BCA61',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 400, y: 300, w: 200, h: 14 },
-    ],
-    transitions: [
-      // South → Paradox Engine Room 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'paradox_engine_room1', toX: 500, toY: 0 },
-      // East → Teleport to Upper Ruins (first)
-      { x: 965, y: 326, w: 35, h: 64, to: 'teleport_from_paradox_engine_to_upper_ruins_1', toX: 60, toY: 310 },
-      // East → Static Field Room 1
-      { x: 900, y: 326, w: 35, h: 64, to: 'static_field_room1', toX: 60, toY: 310 },
-    ],
-    connections: [
-      { direction: 'south', to: 'paradox_engine_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'teleport_from_paradox_engine_to_upper_ruins_1', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'east', to: 'static_field_room1', requires: null, oneWay: false, order: 1, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_pe2_1', x: 500, y: 276, text: 'The engine runs on contradictions.' }
-    ],
-    abilityReward: null,
-    bossSpawn: { x: 500, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // TELEPORT FROM PARADOX ENGINE TO UPPER RUINS (blocked by Shard Shot)
-  // ─────────────────────────────────────────────────────────────────────
-  teleport_from_paradox_engine_to_upper_ruins_1: {
-    id: 'teleport_from_paradox_engine_to_upper_ruins_1',
-    name: 'Teleport from Paradox Engine to Upper Ruins',
-    region: 'teleport',
-    col: 10, row: 2,
-    width: 400,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(255,255,255,0.01)',
-    ambientColor: '#aaaaaa',
-    platforms: [
-      { x: 0, y: 390, w: 400, h: 60 },
-    ],
-    transitions: [
-      // West → Paradox Engine Room 2
-      { x: 0, y: 326, w: 35, h: 64, to: 'paradox_engine_room2', toX: 930, toY: 310 },
-      // One‑way to Pacifist Region (blocked by Shard Shot? Actually it says blocked by Shard Shot, meaning you need Shard Shot to pass? But it's a one-way teleport that requires shard shot to use? We'll add requires: 'shard_shot')
-      { x: 365, y: 326, w: 35, h: 64, to: 'pacifist_region', toX: 60, toY: 310, requires: 'shard_shot', oneWay: true },
-    ],
-    connections: [
-      { direction: 'west', to: 'paradox_engine_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'pacifist_region', requires: 'shard_shot', oneWay: true, order: 0, doorIndex: 1, shortcut: true },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // STATIC FIELD – ROOM 1
-  // ─────────────────────────────────────────────────────────────────────
-  static_field_room1: {
-    id: 'static_field_room1',
-    name: 'Static Field, Room 1',
-    region: 'static',
-    mapAccent: '#6558F5',
-    col: 11, row: 0,
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(101,88,245,0.05)',
-    ambientColor: '#6558F5',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-    ],
-    transitions: [
-      // West → Paradox Engine Room 2
-      { x: 0, y: 326, w: 35, h: 64, to: 'paradox_engine_room2', toX: 930, toY: 310 },
-      // North → Static Field Room 2 (requires Phase Dash)
-      { x: 500, y: 0, w: 40, h: 40, to: 'static_field_room2', toX: 500, toY: 450, requires: 'phase_dash' },
-      // One‑way teleport to Void Expanse Room 2
-      { x: 965, y: 326, w: 35, h: 64, to: 'void_expanse_room2', toX: 60, toY: 310, oneWay: true },
-      // One‑way teleport to Graviton Core Room 1 (with cosmetic upgrade)
-      { x: 900, y: 326, w: 35, h: 64, to: 'graviton_core_room1', toX: 60, toY: 310, oneWay: true },
-    ],
-    connections: [
-      { direction: 'west', to: 'paradox_engine_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'static_field_room2', requires: 'phase_dash', oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'east', to: 'void_expanse_room2', requires: null, oneWay: true, order: 0, doorIndex: 2, shortcut: true },
-      { direction: 'east', to: 'graviton_core_room1', requires: null, oneWay: true, order: 1, doorIndex: 3, shortcut: true },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // STATIC FIELD – ROOM 2 (miniboss, 1 fracture pip)
-  // ─────────────────────────────────────────────────────────────────────
-  static_field_room2: {
-    id: 'static_field_room2',
-    name: 'Static Field, Room 2',
-    region: 'static',
-    mapAccent: '#6558F5',
-    col: 11, row: 1,
-    roomType: 'miniboss',
-    miniboss: 'static_guardian',
-    width: 1000,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(101,88,245,0.07)',
-    ambientColor: '#6558F5',
-    platforms: [
-      { x: 0, y: 390, w: 1000, h: 60 },
-      { x: 400, y: 300, w: 200, h: 14 },
-    ],
-    transitions: [
-      // South → Static Field Room 1
-      { x: 500, y: 450, w: 40, h: 40, to: 'static_field_room1', toX: 500, toY: 0 },
-      // South → The Rift (shortcut)
-      { x: 520, y: 450, w: 40, h: 40, to: 'the_rift', toX: 520, toY: 0 },
-      // One‑way teleport to Graviton Core Room 1 (with cosmetic upgrade)
-      { x: 965, y: 326, w: 35, h: 64, to: 'graviton_core_room1', toX: 60, toY: 310, oneWay: true },
-    ],
-    connections: [
-      { direction: 'south', to: 'static_field_room1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'the_rift', requires: null, oneWay: false, order: 1, doorIndex: 1 },
-      { direction: 'east', to: 'graviton_core_room1', requires: null, oneWay: true, order: 0, doorIndex: 2, shortcut: true },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    fracturePipRewards: [
-      { id: 'fp_sf2_1', x: 500, y: 258 }
-    ],
-    abilityReward: null,
-    bossSpawn: { x: 500, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // ANTECHAMBER
-  // ─────────────────────────────────────────────────────────────────────
-  antechamber: {
-    id: 'antechamber',
-    name: 'The Antechamber',
-    region: 'origin',
-    col: 10, row: -1,
-    width: 900,
-    groundY: 390,
-    bgColor: '#08080e',
-    bgTint: 'rgba(200,40,40,0.04)',
-    ambientColor: '#f87171',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 },
-    ],
-    transitions: [
-      // West → The Rift
-      { x: 0, y: 326, w: 35, h: 64, to: 'the_rift', toX: 1130, toY: 310 },
-      // East → Hollow Core
-      { x: 865, y: 326, w: 35, h: 64, to: 'hollow_core', toX: 60, toY: 310 },
-      // North → Spawn Area 2 (requires phase dash)
-      { x: 420, y: 0, w: 60, h: 40, to: 'spawn_area_2', toX: 420, toY: 450, requires: 'phase_dash' },
-    ],
-    connections: [
-      { direction: 'west', to: 'the_rift', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'east', to: 'hollow_core', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-      { direction: 'north', to: 'spawn_area_2', requires: 'phase_dash', oneWay: false, order: 0, doorIndex: 2 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // HOLLOW CORE (1 lore pip)
-  // ─────────────────────────────────────────────────────────────────────
-  hollow_core: {
-    id: 'hollow_core',
-    name: 'Hollow Core',
-    region: 'origin',
-    mapAccent: '#C08CEA',
-    col: 11, row: -1,
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(192,140,234,0.05)',
-    ambientColor: '#C08CEA',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 },
-    ],
-    transitions: [
-      // West → Antechamber
-      { x: 0, y: 326, w: 35, h: 64, to: 'antechamber', toX: 830, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'antechamber', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [
-      { id: 'lore_hc_1', x: 450, y: 276, text: 'The core is hollow because it has already given everything.' }
-    ],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // SPAWN AREA 2 (cosmetic upgrade)
-  // ─────────────────────────────────────────────────────────────────────
-  spawn_area_2: {
-    id: 'spawn_area_2',
-    name: 'Spawn Area?',
-    region: 'origin',
-    col: 0, row: -1,
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(196,181,253,0.02)',
-    ambientColor: '#6a6a8e',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 380, y: 300, w: 140, h: 14 },
-    ],
-    transitions: [
-      // South → Antechamber
-      { x: 420, y: 450, w: 60, h: 40, to: 'antechamber', toX: 420, toY: 0 },
-      // South → Tutorial Area Final (boss)
-      { x: 440, y: 450, w: 60, h: 40, to: 'tutorial_final', toX: 440, toY: 0 },
-    ],
-    connections: [
-      { direction: 'south', to: 'antechamber', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'south', to: 'tutorial_final', requires: null, oneWay: false, order: 1, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 140, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // TUTORIAL FINAL – final boss fight
-  // ─────────────────────────────────────────────────────────────────────
-  tutorial_final: {
-    id: 'tutorial_final',
-    name: 'Tutorial Area? Final Boss Fight',
-    region: 'origin',
-    col: 0, row: -2,
-    roomType: 'boss',
-    width: 900,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(200,40,40,0.06)',
-    ambientColor: '#f87171',
-    platforms: [
-      { x: 0, y: 390, w: 900, h: 60 },
-      { x: 130, y: 295, w: 130, h: 14 },
-      { x: 640, y: 295, w: 130, h: 14 },
-      { x: 350, y: 210, w: 200, h: 14 },
-    ],
-    transitions: [
-      // North → Spawn Area 2
-      { x: 420, y: 0, w: 60, h: 40, to: 'spawn_area_2', toX: 420, toY: 450 },
-    ],
-    connections: [
-      { direction: 'north', to: 'spawn_area_2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-    ],
-    enemies: [],
-    anchors: [
-      { x: 430, y: 370, index: 0 }
-    ],
-    loreFragments: [],
-    abilityReward: null,
-    bossSpawn: { x: 400, y: 334 },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // SOVEREIGN ROOMS 1–4 (post-game locked)
-  // ─────────────────────────────────────────────────────────────────────
-  sovereign_room1: {
-    id: 'sovereign_room1',
-    name: 'Sovereign Room 1',
-    region: 'sovereign',
-    mapAccent: '#D3455B',
-    col: 2, row: 2,
-    width: 600,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(211,69,91,0.05)',
-    ambientColor: '#D3455B',
-    platforms: [
-      { x: 0, y: 390, w: 600, h: 60 },
-    ],
-    transitions: [
-      // West → The Fracture part2
-      { x: 0, y: 326, w: 35, h: 64, to: 'the_fracture_part2', toX: 1130, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'the_fracture_part2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    abilityReward: null,
-  },
-  sovereign_room2: {
-    id: 'sovereign_room2',
-    name: 'Sovereign Room 2',
-    region: 'sovereign',
-    mapAccent: '#D3455B',
-    col: 5, row: 2,
-    width: 600,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(211,69,91,0.05)',
-    ambientColor: '#D3455B',
-    platforms: [
-      { x: 0, y: 390, w: 600, h: 60 },
-    ],
-    transitions: [
-      // West → Timeline X Roads Room 2
-      { x: 0, y: 326, w: 35, h: 64, to: 'timeline_x_roads_room2', toX: 1130, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'timeline_x_roads_room2', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    abilityReward: null,
-  },
-  sovereign_room3: {
-    id: 'sovereign_room3',
-    name: 'Sovereign Room 3',
-    region: 'sovereign',
-    mapAccent: '#D3455B',
-    col: 2, row: -5, // near crag
-    width: 600,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(211,69,91,0.05)',
-    ambientColor: '#D3455B',
-    platforms: [
-      { x: 0, y: 390, w: 600, h: 60 },
-    ],
-    transitions: [
-      // West → Crag Warden
-      { x: 0, y: 326, w: 35, h: 64, to: 'crag_warden', toX: 1130, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'crag_warden', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    abilityReward: null,
-  },
-  sovereign_room4: {
-    id: 'sovereign_room4',
-    name: 'Sovereign Room 4',
-    region: 'sovereign',
-    mapAccent: '#D3455B',
-    col: 7, row: 7,
-    width: 600,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(211,69,91,0.05)',
-    ambientColor: '#D3455B',
-    platforms: [
-      { x: 0, y: 390, w: 600, h: 60 },
-    ],
-    transitions: [
-      // West → Chrono Rift Loop Part 1
-      { x: 0, y: 326, w: 35, h: 64, to: 'chrono_rift_loop1', toX: 930, toY: 310 },
-    ],
-    connections: [
-      { direction: 'west', to: 'chrono_rift_loop1', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // SOVEREIGN ARMY RESERVE (locked by pips)
-  // ─────────────────────────────────────────────────────────────────────
-  sovereign_army_reserve: {
-    id: 'sovereign_army_reserve',
-    name: 'Sovereign Army Reserve',
-    region: 'sovereign',
-    mapAccent: '#D3455B',
-    col: 9, row: 3,
-    width: 800,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(211,69,91,0.06)',
-    ambientColor: '#D3455B',
-    platforms: [
-      { x: 0, y: 390, w: 800, h: 60 },
-    ],
-    transitions: [
-      // South → Graviton Core Room 3
-      { x: 400, y: 450, w: 40, h: 40, to: 'graviton_core_room3', toX: 400, toY: 0 },
-      // North → Try out region
-      { x: 400, y: 0, w: 40, h: 40, to: 'try_out_region', toX: 400, toY: 450 },
-    ],
-    connections: [
-      { direction: 'south', to: 'graviton_core_room3', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-      { direction: 'north', to: 'try_out_region', requires: null, oneWay: false, order: 0, doorIndex: 1 },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    abilityReward: null,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────
-  // TRY OUT REGION (Level 4 Limit Break Unlock)
-  // ─────────────────────────────────────────────────────────────────────
-  try_out_region: {
-    id: 'try_out_region',
-    name: 'Try out region',
-    region: 'sovereign',
-    mapAccent: '#D3455B',
-    col: 9, row: 4,
-    width: 600,
-    groundY: 390,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(211,69,91,0.07)',
-    ambientColor: '#D3455B',
-    platforms: [
-      { x: 0, y: 390, w: 600, h: 60 },
-      { x: 240, y: 280, w: 120, h: 14 },
-    ],
-    abilityReward: {
-      id: 'level_4_limit_break',
-      x: 300,
-      y: 258,
-      name: 'Level 4 Limit Break',
-      desc: 'Unlocks ultimate ability.',
-    },
-    transitions: [
-      // South → Sovereign Army Reserve
-      { x: 300, y: 450, w: 40, h: 40, to: 'sovereign_army_reserve', toX: 300, toY: 0 },
-    ],
-    connections: [
-      { direction: 'south', to: 'sovereign_army_reserve', requires: null, oneWay: false, order: 0, doorIndex: 0 },
-    ],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    fracturePipRewards: [],
-  },
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // DEV-ONLY — Enemy Test Arena. Not reachable via normal play (no
-  // transitions in or out, no col/row so validateAreaGraph() skips it).
-  // Used by enemy_test.html / enemy_designer.html / companion_test.html to
-  // spawn any enemy/miniboss (or the Child) in a flat, generous, standard
-  // room for isolated testing. Enemies are spawned dynamically by the
-  // tools, not listed here.
-  // (Restored 2026-07-16 — this entry existed in the committed area.js but
-  // was silently lost from the working tree during the game/ folder reorg,
-  // which broke all three arena tools.)
-  // ─────────────────────────────────────────────────────────────────────────
-  enemy_test_arena: {
-    id: 'enemy_test_arena',
-    name: 'Test Arena',
-    width: 2000,
-    groundY: 500,
-    bgColor: '#0a0a0f',
-    bgTint: 'rgba(120, 120, 140, 0.04)',
-    ambientColor: '#8888aa',
-    platforms: [
-      { x: 0, y: 500, w: 2000, h: 60 },   // full flat floor — enough room for a charge-attack miniboss too
-      { x: 400, y: 380, w: 200, h: 14 },  // a couple of low platforms, for enemies/tests that care about verticality
-      { x: 1400, y: 380, w: 200, h: 14 },
-      // Companion-test additions (2026-07-16): a jump-height step and a wide
-      // gap-with-island, exercising the Child's gap-probe/mirror-jump and
-      // catch-up logic. Harmless to enemy tests (off to the right side).
-      { x: 800, y: 440, w: 120, h: 14 },
-      { x: 1050, y: 380, w: 120, h: 14 },
-    ],
-    transitions: [],
-    connections: [],
-    enemies: [],
-    anchors: [],
-    loreFragments: [],
-    abilityReward: null,
-    // One healing crystal so motes/crystal healing are testable in the arena
-    healingCrystals: [
-      { id: 'hc_test_arena_1', x: 120, y: 500 },
-    ],
-  },
-
 };
+
+// ── Editor overrides ─────────────────────────────────────────────────────
+// levelEditor.html's "💾 Save to Browser (Live)" button saves the working
+// room here; applied on load so testing a room in index.html needs no
+// copy-paste into this file. Same pattern as animdata.js's
+// applyAnimOverrides() / game.js's applyHudLayoutOverrides() — one room
+// replaced per key, not merged field-by-field, since a room is one
+// linter-checked unit (see validateAreaGraph() below, which runs on the
+// post-override AREAS so a bad saved room still gets caught).
+const AREA_OVERRIDES_KEY = 'stillpoint_area_overrides_v1';
+(function applyAreaOverrides() {
+  try {
+    const raw = localStorage.getItem(AREA_OVERRIDES_KEY);
+    if (!raw) return;
+    const overrides = JSON.parse(raw);
+    for (const id in overrides) AREAS[id] = overrides[id];
+  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+})();
 
 // =====================================================================
 // Existing helper functions (unchanged)
@@ -2977,10 +4602,13 @@ function getArea(id) {
 // 10+ regions exist, the map can group/zoom by region instead of rendering
 // one flat grid — see the TODO on buildMapGraph() in map.js.
 //
-// `roomType` is optional metadata for map styling — 'boss' is already used
-// by drawMap() (red border). Future miniboss rooms should set
-// roomType: 'miniboss' so the map can style them distinctly without touching
-// the boss-spawn logic in game.js, which keys off `isBossArena` specifically.
+// `roomType` doubles as map-styling metadata ('boss' gets drawMap()'s red
+// border) AND the source of truth for the boss/miniboss spawn gates game.js
+// actually checks (`isBossArena`/`isMinibossArena`) — the derivation loop
+// right before validateAreaGraph() below sets those flags from roomType, so
+// a new boss/miniboss room only ever needs roomType + miniboss + bossSpawn,
+// never the flags themselves by hand (they used to require manual setting,
+// which nothing in the real room data ever did — see the loop's own comment).
 //
 // `roomHeight` (optional number) — the room's real total vertical extent,
 // used by game.js's getBounds()/updateCamera() as the camera's bottom
@@ -3120,6 +4748,21 @@ function validateAreaGraph() {
   return ok;
 }
 
+// Derive the spawn-gating flags game.js's per-frame update loop actually
+// reads (isMinibossArena/isBossArena) from the authored roomType. These
+// were two separate fields meant to always agree, but isMinibossArena/
+// isBossArena were never set on any real room here (only in dev tools —
+// levelEditor.html, enemy_test.html, agentController.js) — so no boss or
+// miniboss has ever spawned in real gameplay despite 11 miniboss rooms +
+// the final boss room already having roomType/miniboss/bossSpawn authored.
+// Deriving instead of duplicating means a new boss/miniboss room only ever
+// needs one field kept correct, not three.
+for (const roomId in AREAS) {
+  const room = AREAS[roomId];
+  if (room.roomType === 'miniboss') room.isMinibossArena = true;
+  if (room.roomType === 'boss') room.isBossArena = true;
+}
+
 validateAreaGraph();
 
 // `const AREAS = {...}` above is a top-level script-scope binding, not a
@@ -3238,8 +4881,27 @@ function _linterEdge(phys, a, b, loadout, blockers) {
 // upward jumps but is never meant to be landed on, see player.js) aren't
 // real standable surfaces either, so they shouldn't be checked for
 // reachability the way an actual floor/ledge is.
+// Standable = something the player can actually come to rest on.
+//   • wall / ceiling / destructible — excluded (pre-existing rules).
+//   • hazard — excluded: it's a trigger volume, never solid, and treating it
+//     as ground would let the linter "prove" a route that actually damages
+//     you or drops you into a pit.
+//   • oneWay — INCLUDED: you land on top of it normally.
+//   • crumble — INCLUDED: it holds you long enough to be a real route (it's
+//     a timing challenge, not an absence of floor).
+// Moving platforms are measured at their authored anchor position, which is
+// the conservative choice — the linter can't simulate them over time.
+// `rotatedGravityOnly` (2026-07-26, Gravity Collapse Core): a platform only
+// ever standable once `roomGravityDir` points somewhere other than 'down'
+// (a ceiling or side wall meant to become a floor when the boss flips
+// gravity) — real, ordinary, fully-standable platform data at runtime
+// (nothing in physics.js reads this flag; it has zero gameplay effect),
+// excluded here for the same reason `ceiling`/`hazard` already are: this
+// linter has no concept of rotated gravity, so under its own
+// always-down-gravity simulation these platforms are genuinely unreachable
+// and would otherwise read as a false-positive bug on every page load.
 function _linterStandable(room) {
-  return (room.platforms || []).filter((p) => !p.wall && !p.destructible && !p.ceiling);
+  return (room.platforms || []).filter((p) => !p.wall && !p.destructible && !p.ceiling && !p.hazard && !p.rotatedGravityOnly);
 }
 
 // The platform a body dropped at (cx, fromY) lands on, or null (= void).

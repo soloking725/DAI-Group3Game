@@ -1,11 +1,12 @@
-# Combat & Enemy AI Overhaul — Plan (not built)
+# Combat & Enemy AI Overhaul — Plan (built 2026-07-16, see roadmap Phase 19)
 
-Status: **planning only**, 2026-07-16. User direction: "enemy fixes are
-urgent — combat is the point of this game at this moment." This doc covers
-(A) the Void Tether fix (diagnosed, ready to implement), (B) enemy AI
-capability upgrades, (C) enemy defensive/offensive verbs that balance a
-strong player, and (D) the shared collision resolver that several of these
-(and the Child companion) depend on.
+Status: **A/B/C/D below all built 2026-07-16** (roadmap.md Phase 19), same
+session as this doc's user direction: "enemy fixes are urgent — combat is
+the point of this game at this moment." (A) the Void Tether fix, (B) enemy
+AI capability upgrades, (C) enemy defensive/offensive verbs, and (D) the
+shared collision resolver (`physics.js`) all shipped. The enemy attack
+vocabulary work that followed (Reversal, Aggro-Pull, etc.) is a separate,
+newer doc — see `enemy_attack_vocabulary_plan.md`.
 
 Read alongside `enemy_system_plan.md` (the ComposedEnemy module system —
 most new verbs land there first) and `animation_editor_plan.md` (attack

@@ -17,7 +17,23 @@ canvas.height = H;
 // same whether the browser is windowed or the page is in real Fullscreen
 // API mode (F key or the ⛶ button).
 function resizeCanvasToFit() {
-  const availW = window.innerWidth;
+  // Several editor/*.html dev tools (difficulty_bot.html, enemy_test.html,
+  // companion_test.html, enemy_designer.html, ability_tester.html) lay the
+  // canvas out next to a fixed-width `#side` sidebar instead of filling the
+  // whole window the way index.html does. Sizing against the full window
+  // here (ignoring the sidebar) makes the canvas wider than the space
+  // actually left for it, and since #stage/#side are flex-shrink:0 flex
+  // items, the overflow gets clipped by body's `overflow:hidden` — the
+  // sidebar renders fully off-screen to the right, invisible, not just
+  // squeezed. Each of those pages used to carry its own copy of this exact
+  // sidebar-aware calc as a second 'resize' listener registered after this
+  // one specifically to override it — four duplicated, order-dependent
+  // copies of the same fix. Centralizing it here (index.html has no #side,
+  // so this is a no-op there) means every current and future #side-based
+  // tool gets it for free with no override needed.
+  const sideEl = document.getElementById('side');
+  const sideWidth = (sideEl && sideEl.offsetParent !== null) ? sideEl.offsetWidth : 0;
+  const availW = window.innerWidth - sideWidth;
   const availH = window.innerHeight;
   const scale = Math.min(availW / W, availH / H);
   canvas.style.width = Math.floor(W * scale) + 'px';
@@ -53,15 +69,55 @@ let player;
 let currentAreaId = 'spawn_area_1';
 let echoes = [];
 let standEcho = null; // Phase Dash Lv4 Limit Break — a persistent Echo that follows the player and mirrors every swing
+// Style-only playback for the Void Tether beam's 'void_tether_beam'
+// ANIM_DEFS entry (2026-07-19) — see game/animdata.js's FRAME SHAPE comment.
+// The mock entity is never actually used (style frames carry no
+// position/pose), Animator just needs something non-null to construct.
+let tetherBeamAnimator = new Animator({ x: 0, y: 0, width: 0, height: 0, facing: 1 });
 let projectiles = [];
 let particles = [];
+// Afterimage Strike hazards (enemy_attack_vocabulary_plan.md, phase_dash
+// counter "afterimage_strike") — { x, y, timer, radius, damage, def } —
+// armed where the player lands after dashing through a marked enemy, then
+// explodes once `timer` runs out. See the phase_dash overlap check in the
+// main enemy loop below for where these get pushed, and the update/draw
+// passes near the projectile ones for how they tick and render.
+let afterimageHazards = [];
 let menuParticles = []; // ambient particles for start screen
 let menuClick = false; // canvas click for menu
 let gameRunning = true;
 let gameState = 'menu'; // 'menu', 'playing', 'gameover', 'paused', 'paused_controls', 'reviving', 'inventory', 'victory', 'cutscene'
+
+// `let player`/`let gameState` above are top-level script-scope bindings,
+// not `window` properties — same class of bug as the AREAS fix in area.js
+// (see the comment there): debug_v1.html reaches into a sandboxed iframe
+// via `win.player`/`win.gameState` (R10) and got `undefined`, so the check
+// threw immediately on the first room instead of ever running. Both are
+// reassigned throughout this file (not just here), so a one-time
+// `window.player = player` would go stale the moment a new game starts —
+// live getters keep external readers in sync with whatever the current
+// binding actually holds.
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'player', { get: () => player, configurable: true });
+  Object.defineProperty(window, 'gameState', { get: () => gameState, configurable: true });
+}
 let frameCount = 0;
 let transitionAlpha = 0;
 let transitioning = false;
+// Grace period after switchArea() during which the transitions-check loop
+// is skipped (2026-07-19 audit: 149/195 authored door pairs land the player
+// inside the destination room's own return-door trigger — e.g. tutorial's
+// south door lands at (455,896), which sits inside the_fracture_part1's own
+// door back to tutorial at (425,864,60x72)). With no debounce, that overlap
+// re-fires switchArea() on the very next tick, which flips right back into
+// an equally-overlapping trigger on the other side — an every-tick infinite
+// ping-pong that also pins transitionAlpha at 1 forever (switchArea() resets
+// it to 1 each call, so it never gets a tick to count down), which is why
+// this reads as the screen going solid black rather than merely flickering.
+// A short cooldown is the fix for the whole class at once, rather than
+// hand-recomputing ~150 authored toX/toY pairs across the world map.
+let doorCooldown = 0;
+const DOOR_COOLDOWN_FRAMES = 20; // ~330ms — well under normal reaction time to walk back through a door on purpose
 
 // Death/respawn FX
 let screenShake = 0; // frames of shake remaining
@@ -108,18 +164,89 @@ let bossDefeated = false;
 let miniboss = null;
 let defeatedMinibosses = {};
 
+// id (area.miniboss) -> class. One entry per miniboss; adding a new one
+// never touches the spawn-check block below. Ids with no entry here yet
+// (the other 10 already-wired rooms) simply don't spawn anything — see
+// the `if (spawn && MinibossClass)` guard.
+const MINIBOSS_CLASSES = {
+  colossus_core: ColossusCore,
+  static_guardian: TheConduit,
+  hollow_guardian: MirrorKing,
+  graviton_sentinel: GravitonGuard,
+  paradox_engine: TheAssembler,
+  timeline_keeper: TheStationmaster,
+  abyss_guardian: QuantumPursuer,
+  warp_guardian: WardenAndHollow,
+  polar_guardian: ElectromagneticGolem,
+  horizon_core: HorizonCore,
+  chrono_ally: TemporalWarden,
+};
+
 // The Child companion (companion.js) — exists only while
 // companionState.active (the keep-the-Child branch, or the arena tool).
 let child = null;
 
 // Camera
-let camera = { x: 0, y: 0 };
+// zoom 1 = original fixed W x H framing; >1 zooms in (smaller world slice
+// visible, entities read bigger), <1 zooms out. Live-adjustable in-game via
+// BracketLeft/BracketRight (see the 'playing' input block) so it's easy to
+// fiddle with while testing enemy/arena scale — not just a hardcoded const.
+let camera = { x: 0, y: 0, zoom: 1 };
+
+// Debug overlay (F3 toggles) — shows each enemy's current AI
+// state/attack/role above its head, for tuning ComposedEnemy behavior
+// without guessing from animation alone. Not Backquote — that's already
+// bound to fullscreen (input.js's 'fullscreen' action).
+let DEBUG_MODE = false;
+
+// Builds the F3 debug-overlay label for one enemy. Handles both the older
+// bespoke enemy classes (a plain this.state string) and ComposedEnemy
+// (windingUp/attacking/_activeAttack — no single state string) since both
+// kinds can be on screen at once.
+function debugLabelForEnemy(enemy) {
+  const parts = [];
+  if (enemy.role) parts.push(enemy.role);
+  if (typeof enemy.attacks !== 'undefined') {
+    // ComposedEnemy
+    if (enemy.attacking && enemy._activeAttack != null) {
+      parts.push('atk:' + enemy.attacks[enemy._activeAttack].type);
+    } else if (enemy.windingUp && enemy._activeAttack != null) {
+      parts.push('wind:' + enemy.attacks[enemy._activeAttack].type);
+    } else if (enemy.aware) {
+      parts.push('chase');
+    } else {
+      parts.push('idle');
+    }
+  } else if (enemy.state) {
+    parts.push(enemy.state);
+  }
+  if (enemy.blocking > 0) parts.push('block');
+  if (enemy.dodgeIFrames > 0) parts.push('dodge');
+  if (enemy.breakoutCharge > 0) parts.push('breakout');
+  parts.push(Math.max(0, Math.round(enemy.health)) + '/' + (enemy.maxHealth ?? '?'));
+  return parts.join(' ');
+}
 
 // Hitstop (freeze frames on impacts for game feel)
 let hitstopTimer = 0;
 
 // Time-scale for Stillpoint slow-world effect (1.0 = normal, ~0.15 = slow)
 let gameTimeScale = 1.0;
+
+// hitstopTimer decrements one raw frame per real frame (unaffected by
+// gameTimeScale), so a hit landing during Stillpoint's slow-mo reads as a
+// proportionally SHORTER freeze than the same hit at normal speed (the rest
+// of the world is already crawling, so a fixed-length freeze barely
+// registers against it). setHitstop() scales the requested duration up by
+// how slow the world currently is, capped at HITSTOP_SLOWMO_MAX_MULT so deep
+// slow-mo (gameTimeScale near its 0.05 floor) can't turn a hit into a
+// multi-second freeze. Always takes the max against any hitstop already in
+// flight, same as every call site's prior `Math.max(hitstopTimer, N)` usage.
+const HITSTOP_SLOWMO_MAX_MULT = 2;
+function setHitstop(frames) {
+  const mult = Math.min(HITSTOP_SLOWMO_MAX_MULT, 1 / Math.max(gameTimeScale, 0.001));
+  hitstopTimer = Math.max(hitstopTimer, Math.round(frames * mult));
+}
 
 // Wall bounce (2026-07-16, user feedback) — a HARD bounce (85% speed
 // retained) so a wall-adjacent knockback hit is a real combo opener, not a
@@ -192,7 +319,27 @@ const ABILITY_GRANTS = {
                     notification: 'ABILITY: Graviton Surge — E to flip gravity / conjure a graviton ball' },
   void_tether:    { flag: 'hasVoidTether',    color: '#34d399', popup: 'VOID TETHER',
                     notification: 'ABILITY: Void Tether — R pulls the enemy you face to you (or you to a wall)' },
+  parry:          { flag: 'hasParry',         color: '#fbbf24', popup: 'PARRY',
+                    notification: 'ABILITY: Parry — tap Down to deflect an attack (hold Down to duck/crawl)' },
 };
+
+// Parry deflect — player.parryTimer (opened by a quick Down-tap, see
+// player.js's Duck/Parry block) is a brief window during which a regular
+// enemy's melee hit or body contact gets deflected instead of landing:
+// the enemy is stunned (reusing its stunTimer field — same mechanic the
+// enemy-side counter tech in enemy.js already drives) and the player keeps
+// their i-frames instead of taking damage. One deflect per window (consumed
+// on success). Boss/miniboss hits are intentionally untouched for now.
+function tryParryDeflect(enemy) {
+  if (!(player.parryTimer > 0)) return false;
+  enemy.stunTimer = PARRY_STUN;
+  player.invincibleTimer = Math.max(player.invincibleTimer, PARRY_IFRAMES);
+  player.parryTimer = 0;
+  spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 10);
+  screenShake = Math.max(screenShake, 6);
+  if (typeof SFX !== 'undefined' && SFX.parry) SFX.parry();
+  return true;
+}
 
 // ── Canvas HUD state (Phase 0.1) ────────────────────────────────────────
 let hudVisible = false;       // whether the HUD should be drawn at all
@@ -221,16 +368,17 @@ let inventoryReturnState = 'paused'; // gameState to restore on exit — 'paused
 // Data-driven upgrade list — the Inventory screen's draw/nav code iterates
 // this instead of hand-drawing each stat, so adding a new Lore-Pip-funded
 // upgrade line only means adding an entry here, not touching the screen
-// itself. Per-level costs (Lv1/Lv2/Lv3 = 2/3/4 lore pips, Enemy_Design.pdf
-// 2026-07-16) — `max: 3` is the lore-pip-purchasable ceiling; Lv4 (Limit
+// itself. Per-level costs (Lv1/Lv2/Lv3/Lv4 = 1/2/3/4 lore pips, 2026-07-27
+// rebalance — Lv1 is deliberately cheap, "just a small boost" per user
+// direction) — `max: 4` is the lore-pip-purchasable ceiling; Lv5 (Limit
 // Break) is a separate one-time endgame unlock, see `grantLimitBreak()`.
 const INVENTORY_UPGRADES = [
-  { key: 'strength', label: 'Strength', desc: 'Attack speed, melee damage, and knockback resistance per level.', color: '#c4b5fd', costs: [2, 3, 4], max: 3 },
-  { key: 'phase_dash', label: 'Phase Dash', desc: '8-directional aim, longer echo stun, echo counter-attack.', color: '#a78bfa', costs: [2, 3, 4], max: 3 },
-  { key: 'shard_shot', label: 'Shard Shot', desc: 'More damage, a second shard, then a piercing beam.', color: '#fbbf24', costs: [2, 3, 4], max: 3 },
-  { key: 'stillpoint', label: 'Stillpoint', desc: 'Longer slow, deeper slow, higher lifesteal cap.', color: '#67e8f9', costs: [2, 3, 4], max: 3 },
-  { key: 'graviton_surge', label: 'Graviton Surge', desc: 'Longer flip, slam damage, Gravity Ball pull + explosion.', color: '#f472b6', costs: [2, 3, 4], max: 3 },
-  { key: 'void_tether', label: 'Void Tether', desc: 'Longer range, electrified stun, chained arc stun.', color: '#34d399', costs: [2, 3, 4], max: 3 },
+  { key: 'strength', label: 'Strength', desc: 'Small damage boost, then attack speed, more damage, and knockback resistance per level.', color: '#c4b5fd', costs: [1, 2, 3, 4], max: 4 },
+  { key: 'phase_dash', label: 'Phase Dash', desc: 'Slightly longer echo stun, then 8-directional aim, longer echo stun, echo counter-attack.', color: '#a78bfa', costs: [1, 2, 3, 4], max: 4 },
+  { key: 'shard_shot', label: 'Shard Shot', desc: 'Small damage boost, then more damage, a second shard, then a piercing beam.', color: '#fbbf24', costs: [1, 2, 3, 4], max: 4 },
+  { key: 'stillpoint', label: 'Stillpoint', desc: 'Slightly longer slow, then longer slow, deeper slow, higher lifesteal cap.', color: '#67e8f9', costs: [1, 2, 3, 4], max: 4 },
+  { key: 'graviton_surge', label: 'Graviton Surge', desc: 'Slightly longer flip, then longer flip, slam damage, Gravity Ball pull + explosion.', color: '#f472b6', costs: [1, 2, 3, 4], max: 4 },
+  { key: 'void_tether', label: 'Void Tether', desc: 'Slightly longer range, then longer range, electrified stun, chained arc stun.', color: '#34d399', costs: [1, 2, 3, 4], max: 4 },
 ];
 
 // Cumulative lore-pip cost to own `level` levels of a given upgrade def.
@@ -249,6 +397,15 @@ function totalPipsSpent() {
 // Lore pips collected but not yet spent on any upgrade.
 function lorePipsBanked() {
   return Object.keys(collectedLore).length - totalPipsSpent();
+}
+
+// Lifetime lore pips ever collected, regardless of how many have since been
+// spent — for gates like 'ten_lore_pips' that mean "found this many over the
+// course of the game," not "currently holding this many unspent." Spending
+// pips on upgrades is the whole point of collecting them; a gate that
+// effectively forced players to hoard 10 unspent would fight that.
+function lorePipsCollectedTotal() {
+  return Object.keys(collectedLore).length;
 }
 
 // Spends a line's next lore-pip cost for +1 level. Returns true on success.
@@ -271,10 +428,10 @@ function tryUpgrade(key) {
 let limitBreakChosen = null; // ability key, or null
 
 function grantLimitBreak(key) {
-  if (limitBreakChosen) return false; // already spent the one Lv4 slot
+  if (limitBreakChosen) return false; // already spent the one Lv5 slot
   if (!INVENTORY_UPGRADES.find(d => d.key === key)) return false;
   limitBreakChosen = key;
-  statUpgrades[key] = 4;
+  statUpgrades[key] = 5;
   saveGame();
   return true;
 }
@@ -298,7 +455,13 @@ function isTutorialComplete() {
 // door's own destination coordinates so it feels the same as walking through.
 function skipTutorial() {
   tutorialState = { moved: true, jumped: true, attacked: true, dashed: true };
-  switchArea('the_fracture', 60, 310);
+  // Was 'the_fracture', which doesn't exist in AREAS (the room is
+  // 'the_fracture_part1') — every Escape-to-skip press in the tutorial hit
+  // switchArea() with a bad id and produced the same black-screen symptom
+  // as the door self-retrigger bug, just via a different path. Let the door
+  // spawn itself the same way a real door walk-through does now.
+  const spawn = computeDoorSpawn('the_fracture_part1', 'tutorial_area');
+  switchArea('the_fracture_part1', spawn.x, spawn.y);
 }
 
 // Per-frame tutorial bookkeeping — called only while currentAreaId === 'tutorial_area'.
@@ -392,10 +555,7 @@ function getCurrentArea() {
   return AREAS[currentAreaId];
 }
 
-// Get area by ID (used by spawnAreaEnemies)
-function getArea(areaId) {
-  return AREAS[areaId];
-}
+// getArea(id) lives in area.js (used here by spawnAreaEnemies)
 
 // Reset camera to origin
 function resetCamera() {
@@ -405,8 +565,13 @@ function resetCamera() {
 
 // Smooth follow camera with bounds clamping
 function updateCamera(player, area) {
-  const targetX = player.x - W / 2 + player.width / 2;
-  const targetY = player.y - H / 2 + player.height / 2;
+  // Visible world slice shrinks as zoom increases (zoomed in = less world
+  // visible, same W x H screen), so centering has to divide by zoom too —
+  // otherwise the player drifts off-center any time zoom != 1.
+  const viewW = W / camera.zoom;
+  const viewH = H / camera.zoom;
+  const targetX = player.x - viewW / 2 + player.width / 2;
+  const targetY = player.y - viewH / 2 + player.height / 2;
 
   // Lerp toward target (camera smoothing)
   camera.x += (targetX - camera.x) * 0.1;
@@ -418,30 +583,32 @@ function updateCamera(player, area) {
   // deeper/taller than the nominal floor line. Falls back to the old
   // groundY+100 behavior for rooms that don't set roomHeight.
   const roomBottom = typeof area.roomHeight === 'number' ? area.roomHeight : area.groundY + 100;
-  camera.x = Math.max(0, Math.min(camera.x, area.width - W));
-  camera.y = Math.max(0, Math.min(camera.y, roomBottom - H + 100));
+  camera.x = Math.max(0, Math.min(camera.x, Math.max(0, area.width - viewW)));
+  camera.y = Math.max(0, Math.min(camera.y, Math.max(0, roomBottom - viewH + 100)));
 }
 
-// Apply camera transform to canvas
+// Apply camera transform to canvas — scale first so the translate below is
+// expressed in world units; screen = zoom * (world - camera.xy), which is
+// why updateCamera() above divides its framing math by zoom too.
 function applyCamera(ctx) {
+  ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-camera.x, -camera.y);
 }
 
-// Add notification to queue (consumed by draw(), which reads abilityState.notifications)
-function addAbilityNotification(text) {
-  abilityState.notifications.push({ text: text, timer: 180 });
-}
+// addAbilityNotification(text) lives in ability.js (consumed by draw())
 
 // Fire shard shot projectile along the aimed arc (expansion §0.1 — aimVy
 // comes from player.shardAimVy, set by the hold-to-aim input in player.js;
 // 0 = flat forward shot, the quick-tap default).
-// Shard Shot damage per level (Enemy_Design.pdf): Lv0 = 1, Lv1 = +25%
-// (1.25), Lv4 Enhanced State (if Shard Shot is the chosen Limit Break)
-// replaces melee with 150%-damage blasts — handled by the melee-swing
-// override in game.js's attack loop, not here.
+// Shard Shot damage per level (Enemy_Design.pdf): Lv0 = 1, Lv2 (old Lv1) =
+// +25% (1.25). Lv1 (2026-07-27, the new cheap entry tier) is a smaller +10%
+// partial step. Lv5 Enhanced State (if Shard Shot is the chosen Limit
+// Break) replaces melee with 150%-damage blasts — handled by the
+// melee-swing override in game.js's attack loop, not here.
 function shardShotDamage() {
-  const lvl = statUpgrades.shard_shot || 0;
-  return lvl >= 1 ? 1.25 : 1;
+  const raw = statUpgrades.shard_shot || 0;
+  if (oldTier('shard_shot') >= 1) return 1.25;
+  return raw >= 1 ? 1.1 : 1;
 }
 
 // Returns an array of 1 or 2 Projectiles — Lv2+ fires a second shard with a
@@ -456,7 +623,7 @@ function useShardShot(player, aimVy) {
   const startY = player.y + player.height / 2;
   const dmg = shardShotDamage();
   const shots = [new Projectile(startX, startY, vx, aimVy || 0, dmg, '#fbbf24')];
-  if ((statUpgrades.shard_shot || 0) >= 2) {
+  if (oldTier('shard_shot') >= 2) {
     shots.push(new Projectile(startX, startY + 10, vx, aimVy || 0, dmg, '#fbbf24'));
   }
   for (const s of shots) s.seekWalls = true; // slight magnetism toward destructible crystal walls
@@ -503,11 +670,67 @@ function resolveCeilingY(entity, area) {
       if (plat.wall) continue;
       if (entity.x + entity.width > plat.x && entity.x < plat.x + plat.w) {
         const bottom = plat.y + plat.h;
-        if (entity.y <= bottom && bottom > stopY) stopY = bottom;
+        // Was `entity.y <= bottom` — true for almost every platform in the
+        // room, including the main FLOOR (its bottom edge, e.g. groundY+60,
+        // is a huge y value that's "below" the entity from practically any
+        // normal standing position), so the floor routinely won this
+        // "biggest qualifying bottom" comparison and got treated as the
+        // ceiling to stop at. Confirmed via harness (user report
+        // 2026-07-19: "when I press E I teleport beneath the floor") — the
+        // player was snapped straight to the floor's OWN underside. A
+        // genuine ceiling is a platform whose bottom edge is AT OR ABOVE
+        // the entity right now (`bottom <= entity.y`); among those, the one
+        // with the largest bottom is the nearest one overhead.
+        if (bottom <= entity.y && bottom > stopY) stopY = bottom;
       }
     }
   }
   return stopY;
+}
+
+// Does the segment (x1,y1)-(x2,y2) cross the rect [rx,rx+rw] x [ry,ry+rh]?
+// Liang-Barsky clip test — used to keep Void Tether from locking onto a
+// target with a solid wall in the way (user request 2026-07-19: "make sure
+// it autoaims if there are no platforms in between").
+function segmentIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
+  let tmin = 0, tmax = 1;
+  const dx = x2 - x1, dy = y2 - y1;
+  const p = [-dx, dx, -dy, dy];
+  const q = [x1 - rx, (rx + rw) - x1, y1 - ry, (ry + rh) - y1];
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) {
+      if (q[i] < 0) return false; // parallel to this edge and outside it
+    } else {
+      const t = q[i] / p[i];
+      if (p[i] < 0) { if (t > tmax) return false; if (t > tmin) tmin = t; }
+      else { if (t < tmin) return false; if (t < tmax) tmax = t; }
+    }
+  }
+  return true;
+}
+
+// True if nothing solid sits on the straight line between the player and
+// the enemy. Hazards/one-way platforms/dead destructibles don't block a
+// pull the same way they don't block normal movement through them.
+function voidTetherLineClear(player, enemy, platforms) {
+  if (!platforms) return true;
+  const px = player.x + player.width / 2, py = player.y + player.height / 2;
+  const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
+  for (const plat of platforms) {
+    if (plat.destructible && plat.hp <= 0) continue;
+    if (plat.hazard) continue;
+    if (plat.oneWay) continue;
+    if (plat.crumble && plat.crumbleGone) continue;
+    // The platform either of them is currently standing ON doesn't count
+    // as "in the way" — any line from the player's center down to a target
+    // below necessarily grazes whatever they're standing on, so without
+    // this a tether on an elevated platform could never target anything
+    // below it at all (found while testing the Void Lancer report — every
+    // downward tether whiffed as blocked).
+    if (plat === player.standingPlat || plat === enemy.standingPlat) continue;
+    if (segmentIntersectsRect(px, py, ex, ey, plat.x, plat.y, plat.w, plat.h)) return false;
+  }
+  return true;
 }
 
 // ── Void Tether targeting (2026-07-16 — facing auto-aim, user spec) ────────
@@ -520,6 +743,7 @@ function findVoidTetherTarget(player, range) {
   const px = player.x + player.width / 2;
   const py = player.y + player.height / 2;
   const enemiesHere = areaEnemies[currentAreaId] || [];
+  const platforms = (typeof getCurrentArea === 'function' && getCurrentArea()) ? getCurrentArea().platforms : null;
   let target = null, bestScore = range;
   for (const enemy of enemiesHere) {
     if (enemy.dead) continue;
@@ -527,6 +751,7 @@ function findVoidTetherTarget(player, range) {
     if ((ex - px) * player.facing <= 0) continue; // behind the player — never eligible
     const d = Math.hypot(ex - px, ey - py);
     if (d > range) continue;
+    if (!voidTetherLineClear(player, enemy, platforms)) continue; // a wall's in the way — not a valid pull
     const score = d + Math.abs(ey - py) * 0.5; // prefer enemies near the facing line
     if (score < bestScore) { bestScore = score; target = enemy; }
   }
@@ -614,14 +839,18 @@ class Projectile {
 // landed melee hit restores 1 health pip (capped at MAX_HEALTH). Shared by
 // all three melee hit loops (enemies, the King, minibosses) so the numbers
 // can never drift apart between them.
-// Strength Lv2/Lv3 damage multipliers (Enemy_Design.pdf): Lv2 +20%, Lv3 an
-// additional +25% (total +45% over base). Limit Break (Lv4, when active
-// and Strength is the chosen ability) adds another +50% (total +95%).
+// Strength Lv3/Lv4 damage multipliers (Enemy_Design.pdf, old Lv2/Lv3): Lv3
+// +20%, Lv4 an additional +25% (total +45% over base). Lv1 (2026-07-27, the
+// new cheap entry tier) adds a small +10% of its own, stacking underneath.
+// Limit Break (Lv5, when active and Strength is the chosen ability) adds
+// another +50%.
 function strengthDamageMultiplier() {
-  const lvl = statUpgrades.strength || 0;
+  const raw = statUpgrades.strength || 0;
+  const tier = oldTier('strength');
   let mult = 1;
-  if (lvl >= 2) mult += 0.2;
-  if (lvl >= 3) mult += 0.25;
+  if (raw >= 1) mult += 0.1;
+  if (tier >= 2) mult += 0.2;
+  if (tier >= 3) mult += 0.25;
   if (limitBreak.active && limitBreak.ability === 'strength') mult += 0.5;
   return mult;
 }
@@ -638,12 +867,22 @@ function playerMeleeDamage() {
 // Lv2 = 2 HP, Lv3 = 3 HP, Lv4 Limit Break = 4 HP — per Stillpoint
 // *activation*, tracked on the player instance and reset each time
 // Stillpoint (re)activates (see Player.update()'s tap/hold block).
+// Temporal Warden's defeat reward (2026-07-26) — "Stillpoint upgrade,
+// +1 lifesteal per hit" — additive on top of the lore-pip-purchased level,
+// mirroring maxHealthBonus's exact shape (healing.js) rather than bumping
+// statUpgrades.stillpoint directly: totalPipsSpent() derives spent-pips
+// purely from statUpgrades[key] levels, so mutating that would silently
+// make the game think the player spent 2-4 lore pips they never actually
+// spent. A separate additive bonus avoids that entirely. Saved/loaded/reset
+// alongside maxHealthBonus — see saveGame()/loadGame()/startNewGame().
+let stillpointLifestealBonus = 0;
+
 function stillpointLifestealCap() {
-  const lvl = statUpgrades.stillpoint || 0;
-  if (limitBreak.active && limitBreak.ability === 'stillpoint') return 4;
-  if (lvl >= 3) return 3;
-  if (lvl >= 2) return 2;
-  return 1;
+  const tier = oldTier('stillpoint');
+  if (limitBreak.active && limitBreak.ability === 'stillpoint') return 4 + stillpointLifestealBonus;
+  if (tier >= 3) return 3 + stillpointLifestealBonus;
+  if (tier >= 2) return 2 + stillpointLifestealBonus;
+  return 1 + stillpointLifestealBonus;
 }
 
 function applyStillpointLifeSteal() {
@@ -653,6 +892,19 @@ function applyStillpointLifeSteal() {
   player.health = Math.min(playerMaxHealth(), player.health + 1);
   player.stillpointHealed = (player.stillpointHealed || 0) + 1;
   spawnParticles(player.x + player.width / 2, player.y + 4, '#2dd4bf', 6);
+}
+
+// ComposedEnemy phase system's `dotOnHit` flag (enemy.js) lands here — a hit
+// from an enemy/boss/miniboss in a DoT-flagged phase applies this instead of
+// (or alongside) its normal damage. Re-applying while already dotted just
+// refreshes the duration/tick rate rather than stacking multiple timers.
+function applyPlayerDot(player, dotDef) {
+  player.dot = {
+    damagePerTick: dotDef.damagePerTick ?? 1,
+    tickInterval: dotDef.tickInterval ?? 30,
+    tickTimer: dotDef.tickInterval ?? 30,
+    timer: dotDef.duration ?? 180,
+  };
 }
 
 // Particle system
@@ -722,9 +974,77 @@ function separateFromEnemy(player, enemy) {
   if (overlapX <= 0 || overlapY <= 0) return;
 
   if (overlapX < overlapY) {
-    player.x += (pCenterX < eCenterX) ? -overlapX : overlapX;
+    const pushDir = (pCenterX < eCenterX) ? -1 : 1;
+    // Same class of bug as the pushDown/floor clamp below (2026-07-19):
+    // shoving the player straight through a wall they're already pinned
+    // against — with zero regard for what's on the other side — used to
+    // read as "an enemy bumps you at a wall and you fall through the
+    // floor," since the far side of a wall is very often a pit or a lower
+    // area with nothing underneath at that x. Clamp the same way: don't
+    // push the player past a wall they're currently (or very recently, via
+    // wall-jump coyote) touching on that exact side — shove the enemy
+    // instead by simply not moving the player.
+    if (player.wallNormal === pushDir) {
+      // no-op: player stays put, enemy's own separation (if any) absorbs it
+    } else {
+      // The `wallNormal` guard above only covers a wall the player is
+      // ALREADY registered as touching — it does nothing the first frame a
+      // big enemy (or a lunge/charge overlapping heavily) shoves the player
+      // INTO a wall they weren't flagged against yet, and overlapX has no
+      // upper bound (it's just "however much the two boxes overlap"). That
+      // could — and, confirmed via harness, did — push the player fully
+      // through a wall's near face and out the other side, or deep enough
+      // inside it that the shared collision resolver's margin-based wall
+      // check (physics.js resolveEntityCollision) can no longer recognize
+      // the overlap as "approaching from outside" on any later frame. Once
+      // that happens, a wall flush with the floor (the common case — a wall
+      // built rising off the ground) reads the embedded player's vertical
+      // position as "bumping its underside," which snaps them to exactly
+      // the floor's own surface with vy=0 — one frame later they're already
+      // past the floor's own landing margin too, and gravity carries them
+      // through it forever with grounded never recovering. Clamp the push
+      // the same way the Y-branch below already clamps to the floor: never
+      // move the player past the near edge of a solid platform in the push
+      // direction, so the wall stops the shove instead of the player
+      // tunneling into (or through) it.
+      let pushAmount = overlapX;
+      const area = typeof getCurrentArea === 'function' ? getCurrentArea() : null;
+      if (area && area.platforms) {
+        for (const plat of area.platforms) {
+          if (plat.destructible && plat.hp <= 0) continue;
+          if (plat.hazard) continue;
+          if (plat.oneWay) continue; // never a side wall
+          if (plat.crumble && plat.crumbleGone) continue;
+          // Same vertical-overlap band the resolver's own wall pass uses.
+          if (!(player.y + player.height > plat.y + 4 && player.y < plat.y + plat.h)) continue;
+          if (pushDir > 0 && player.x + player.width <= plat.x) {
+            pushAmount = Math.min(pushAmount, plat.x - (player.x + player.width));
+          } else if (pushDir < 0 && player.x >= plat.x + plat.w) {
+            pushAmount = Math.min(pushAmount, player.x - (plat.x + plat.w));
+          }
+        }
+      }
+      player.x += pushDir * Math.max(0, pushAmount);
+    }
   } else {
-    player.y += (pCenterY < eCenterY) ? -overlapY : overlapY;
+    const pushDown = pCenterY >= eCenterY;
+    // A grounded player being pushed DOWN by an enemy above them (a
+    // divebomb, a jump-attack landing on top, two enemies stacking) used to
+    // just add overlapY straight into player.y with zero regard for the
+    // floor underneath — confirmed via harness test: a single call could
+    // embed the player ~20px into their own standing platform, and because
+    // the embed was deeper than the platform collision's landing margin,
+    // the very next tick's landing check no longer saw them as "approaching
+    // from above" and they fell straight through into the void, forever
+    // (grounded never recovered). Clamp the push so it can never cross the
+    // surface the player is actually standing on — shove the enemy instead
+    // by simply not moving the player past ground level.
+    if (pushDown && player.grounded && player.standingPlat) {
+      const floorY = player.standingPlat.y - player.height;
+      player.y = Math.min(player.y + overlapY, floorY);
+    } else {
+      player.y += pushDown ? overlapY : -overlapY;
+    }
   }
 }
 
@@ -773,9 +1093,135 @@ function clearAreaEnemies(areaId) {
 }
 
 // Switch area
+// ═══════════════════════════════════════════════════════════════════════
+// PLATFORM BEHAVIOURS — hazard / oneWay / moving / crumble
+// ═══════════════════════════════════════════════════════════════════════
+// Authoring (per platform in area.js):
+//   hazard: true, damage: 1       — trigger volume, never solid; damages on
+//                                   overlap. Lay it on top of a real floor.
+//   oneWay: true                  — jump up through it, land on top;
+//                                   down+jump drops through.
+//   moving: { toX, toY, speed }   — oscillates between the authored x/y and
+//                                   toX/toY; carries whatever stands on it.
+//   crumble: true, crumbleDelay:30, respawn: 120
+//                                 — falls away `crumbleDelay` frames after
+//                                   being stood on; comes back after
+//                                   `respawn` frames (0 = never).
+//
+// Runtime state lives in underscore fields on the platform object. AREAS is
+// otherwise static data, so every one of these is derived from an authored
+// anchor (`_baseX`/`_baseY`) and reset on room entry — re-entering a room
+// recomputes rather than accumulating drift.
+function resetPlatformRuntime(area) {
+  if (!area || !area.platforms) return;
+  for (const p of area.platforms) {
+    if (p._baseX !== undefined) { p.x = p._baseX; p.y = p._baseY; }
+    p._t = 0;
+    p._dir = 1;
+    p._crumbleT = -1;
+    p.crumbleGone = false;
+  }
+}
+
+function updatePlatformSystems(area) {
+  if (!area || !area.platforms) return;
+  const ts = (typeof gameTimeScale === 'number') ? gameTimeScale : 1;
+  for (const p of area.platforms) {
+    // ── moving ──
+    if (p.moving) {
+      if (p._baseX === undefined) { p._baseX = p.x; p._baseY = p.y; }
+      const dx = (p.moving.toX !== undefined ? p.moving.toX : p._baseX) - p._baseX;
+      const dy = (p.moving.toY !== undefined ? p.moving.toY : p._baseY) - p._baseY;
+      const span = Math.hypot(dx, dy) || 1;
+      const step = ((p.moving.speed || 1) * ts) / span; // normalised 0..1 per frame
+      if (p._t === undefined) { p._t = 0; p._dir = 1; }
+      p._t += step * (p._dir || 1);
+      if (p._t >= 1) { p._t = 1; p._dir = -1; }
+      else if (p._t <= 0) { p._t = 0; p._dir = 1; }
+      const nx = p._baseX + dx * p._t;
+      const ny = p._baseY + dy * p._t;
+      // Carry anything standing on this platform by the same delta.
+      if (player && player.standingPlat === p) {
+        player.x += nx - p.x;
+        player.y += ny - p.y;
+      }
+      p.x = nx; p.y = ny;
+    }
+    // ── crumble ──
+    if (p.crumble) {
+      if (p._crumbleT === undefined) p._crumbleT = -1;
+      if (!p.crumbleGone) {
+        if (player && player.standingPlat === p && p._crumbleT < 0) {
+          p._crumbleT = (p.crumbleDelay !== undefined ? p.crumbleDelay : 30);
+        }
+        if (p._crumbleT >= 0) {
+          p._crumbleT -= ts;
+          if (p._crumbleT <= 0) {
+            p.crumbleGone = true;
+            p._crumbleT = (p.respawn !== undefined ? p.respawn : 120);
+            spawnParticles(p.x + p.w / 2, p.y, '#9ca3af', 14);
+          }
+        }
+      } else if (p._crumbleT > 0) {
+        p._crumbleT -= ts;
+        if (p._crumbleT <= 0) { p.crumbleGone = false; p._crumbleT = -1; }
+      }
+    }
+  }
+}
+
+function applyHazardDamage(area) {
+  if (!area || !area.platforms || !player || player.dead) return;
+  if (player.invincibleTimer > 0) return; // i-frames already throttle this
+  const px = player.x, py = player.y, pw = player.width, ph = player.height;
+  for (const p of area.platforms) {
+    if (!p.hazard) continue;
+    if (px + pw > p.x && px < p.x + p.w && py + ph > p.y && py < p.y + p.h) {
+      player.takeDamage(p.damage !== undefined ? p.damage : 1, p.x + p.w / 2);
+      return; // one hazard hit per frame is enough
+    }
+  }
+}
+
+// Hollow Knight-style door spawn (2026-07-19): a transition that omits
+// toX/toY no longer needs a hand-authored landing point — this finds the
+// door in the destination room that leads back to where the player came
+// from, and stands them just clear of it. `requires`-gated levelEditor doors
+// still take an explicit toX/toY if the level designer wants one (e.g. a
+// warp/teleport with no reciprocal door to anchor off of); this is only the
+// fallback when those are left unset.
+function computeDoorSpawn(targetId, fromId) {
+  const dest = AREAS[targetId];
+  if (!dest) return { x: 100, y: 400 }; // switchArea()'s own missing-area guard handles logging; just don't throw here
+  const doorTrans = (dest.transitions || []).find(t => t.to === fromId);
+  if (!doorTrans) {
+    // No door in the destination leads back where we came from (a one-way
+    // link, e.g. the teleport gates) — fall back to the room's first anchor,
+    // or a generic safe spot near its floor.
+    const anchor = dest.anchors && dest.anchors[0];
+    if (anchor) return { x: anchor.x, y: anchor.y };
+    return { x: 100, y: (dest.groundY || 500) - 60 };
+  }
+  // Clearance so the player doesn't land back inside the door's own
+  // trigger box — the exact mechanism behind the black-screen door loop
+  // this replaces. Spawn is centered vertically on the door and pushed
+  // horizontally toward whichever side of the room has more space, so it
+  // works for doors on either wall without needing a `direction` lookup.
+  const margin = 40;
+  const roomMid = (dest.width || 1000) / 2;
+  const doorCenterX = doorTrans.x + doorTrans.w / 2;
+  const spawnY = doorTrans.y + doorTrans.h / 2 - (player ? player.height / 2 : 16);
+  if (doorCenterX < roomMid) {
+    return { x: doorTrans.x + doorTrans.w + margin, y: spawnY }; // door on the west side — enter moving east
+  } else {
+    return { x: doorTrans.x - margin - (player ? player.width : 24), y: spawnY }; // door on the east side — enter moving west
+  }
+}
+
 function switchArea(targetId, targetX, targetY) {
   // Clear current area enemies
   clearAreaEnemies(currentAreaId);
+  resetPlatformRuntime(getCurrentArea());
 
   // Echoes are world-space (x,y) snapshots of the room being left — carrying
   // them into a new room's coordinate space puts them at a meaningless
@@ -785,10 +1231,15 @@ function switchArea(targetId, targetX, targetY) {
   standEcho = null;
   clearVitalityMotes(); // motes are room-space too (healing.js)
   child = null; // the Child re-enters at the player's side (companion.js recreates her)
+  // Phase Dash pass-through immunity is keyed by enemy reference (see the
+  // fix note by phasedThroughEnemies below) — those enemies don't exist in
+  // the new room, so drop any stale references rather than holding them.
+  if (player && player.phasedThroughEnemies) player.phasedThroughEnemies.clear();
 
   // Switch
   currentAreaId = targetId;
   discoveredAreas[targetId] = true;
+  resetPlatformRuntime(getCurrentArea()); // moving/crumble state starts fresh
   SFX.setAreaAmbient(targetId);
 
   // Teleport player
@@ -815,6 +1266,11 @@ function switchArea(targetId, targetX, targetY) {
   // Transition effect
   transitioning = true;
   transitionAlpha = 1;
+
+  // See doorCooldown's declaration up top — suppresses the transitions-check
+  // loop for a few frames so a landing spot inside the destination's own
+  // return-door trigger can't bounce the player right back this same tick.
+  doorCooldown = DOOR_COOLDOWN_FRAMES;
 
   saveGame();
 
@@ -850,6 +1306,25 @@ function platformEdgeCovered(plat, edge, allPlatforms) {
 // Draw a platform
 function drawPlatform(ctx, plat, allPlatforms) {
   if (plat.destructible && plat.hp <= 0) return;
+  if (plat.crumble && plat.crumbleGone) return; // fallen away this frame
+
+  // ── hazard — spikes/energy field, red; never a solid surface ──
+  if (plat.hazard) {
+    ctx.fillStyle = 'rgba(248,113,113,0.18)';
+    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+    ctx.strokeStyle = '#f87171';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const teeth = Math.max(1, Math.floor(plat.w / 12));
+    for (let i = 0; i < teeth; i++) {
+      const x0 = plat.x + (i * plat.w) / teeth;
+      ctx.moveTo(x0, plat.y + plat.h);
+      ctx.lineTo(x0 + plat.w / teeth / 2, plat.y);
+      ctx.lineTo(x0 + plat.w / teeth, plat.y + plat.h);
+    }
+    ctx.stroke();
+    return;
+  }
 
   if (plat.destructible) {
     // Crystal block — teal, glowing, crackling
@@ -869,9 +1344,30 @@ function drawPlatform(ctx, plat, allPlatforms) {
     return;
   }
 
-  // Regular platform
-  ctx.fillStyle = '#1a1a2e';
+  // Regular platform. Moving/crumble/oneWay/polarity tint so they read as
+  // special while designing (and in play). Polarity (Electromagnetic
+  // Golem, The Polar Shift) wins over moving/crumble since a charged
+  // surface is the more urgent read mid-fight; pulses like the destructible
+  // block above so a live charge reads as "active," not static decor.
+  const crumbling = plat.crumble && plat._crumbleT >= 0 && !plat.crumbleGone;
+  if (plat.polarity) {
+    const pulse = Math.sin(frameCount * 0.08) * 0.15 + 0.75;
+    ctx.fillStyle = plat.polarity === 'positive' ? `rgba(248, 113, 113, ${pulse})` : `rgba(96, 165, 250, ${pulse})`;
+  } else {
+    ctx.fillStyle = crumbling ? '#2e211a' : (plat.moving ? '#1a2436' : '#1a1a2e');
+  }
   ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+  if (plat.oneWay) {
+    // dashed top only — signals "pass up through me"
+    ctx.strokeStyle = '#8b9dc3';
+    ctx.setLineDash([6, 5]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(plat.x, plat.y + 1);
+    ctx.lineTo(plat.x + plat.w, plat.y + 1);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   // Top highlight — skipped where another platform sits flush above (an
   // internal seam, not a real top surface facing open air).
@@ -1064,13 +1560,28 @@ function mulberry32(seed) {
 // value not listed here (e.g. `graviton_surge`, or any other ability not
 // implemented yet) returns false — a deliberately-inert stub door must
 // never be treated as open just because its ability doesn't exist yet.
+// A comma-joined `requires` (e.g. 'stillpoint,phase_dash,timeline_x_roads_2_visited')
+// is an AND of each sub-condition, checked recursively below.
 function hasAbilityRequirement(requires) {
+  if (requires.indexOf(',') !== -1) {
+    return requires.split(',').every(part => hasAbilityRequirement(part));
+  }
   if (requires === 'phase_dash') return abilityState.hasPhaseDash;
   if (requires === 'shard_shot') return abilityState.hasShardShot;
   if (requires === 'stillpoint') return abilityState.hasStillpoint;
   if (requires === 'charged_attack') return abilityState.hasChargedAttack;
+  if (requires === 'void_tether') return abilityState.hasVoidTether;
   if (requires === 'boss_gate') return abilityState.hasPhaseDash && abilityState.hasShardShot && abilityState.hasStillpoint;
   if (requires === 'tutorial_complete') return isTutorialComplete();
+  // "post-game" locks (Sovereign Rooms) — unlocked once the Sovereign is defeated.
+  if (requires === 'post_game') return bossDefeated;
+  // "requires Timeline X Roads, Room 2" — implemented as a room-visited flag.
+  if (requires === 'timeline_x_roads_2_visited') return !!discoveredAreas['timeline_x_roads_room2'];
+  // Echo Bridge prison shortcut — unlocked once the mandatory prison path
+  // has actually been walked through to its far end (Void Expanse, Room 1).
+  if (requires === 'prison_sequence_finished') return !!discoveredAreas['void_expanse_room1'];
+  if (requires === 'four_fracture_pips') return player.fractureMax >= 4;
+  if (requires === 'ten_lore_pips') return lorePipsCollectedTotal() >= 10;
   return false;
 }
 
@@ -1216,6 +1727,16 @@ function decoratePlatformForRegion(ctx, plat, region) {
 // above). Three shapes: glowing portal (ability-gated), one-way arrow
 // (shortcut/oneWay), arched stone entrance (everything else).
 function drawDoor(ctx, trans, area, blocked) {
+  // Edge exit (2026-07-27) — Hollow Knight-style "no floating door," just
+  // open space at the room's own boundary: the camera clamp already stops
+  // panning once the player's within one screen-width of the edge (see
+  // updateCamera()), so the player visually walks past the edge of the
+  // SCREEN, not through a decorated portal/arch sitting mid-room. An
+  // ability gate still needs to communicate "locked" somehow even on an
+  // edge exit, so that one case keeps the glowing-portal treatment; a
+  // plain or shortcut edge exit draws nothing at all.
+  if (trans.edgeExit && !trans.requires) return;
+
   const tint = area.mapAccent || area.ambientColor || '#c4b5fd';
   const color = blocked ? '#946060' : tint;
   const cx = trans.x + trans.w / 2, cy = trans.y + trans.h / 2;
@@ -1455,6 +1976,7 @@ function init() {
   echoes = [];
   standEcho = null;
   projectiles = [];
+  afterimageHazards = [];
   particles = [];
   gameState = 'menu';
   menuScreen = 'main';
@@ -1483,12 +2005,14 @@ function init() {
   abilityState.shardShotCooldown = 0;
   abilityState.gravitonSurgeCooldown = 0;
   abilityState.voidTetherCooldown = 0;
+  abilityState.parryCooldown = 0;
   abilityState.hasPhaseDash = false;
   abilityState.hasShardShot = false;
   abilityState.hasStillpoint = false;
   abilityState.hasChargedAttack = false;
   abilityState.hasGravitonSurge = false;
   abilityState.hasVoidTether = false;
+  abilityState.hasParry = false;
   gameTimeScale = 1.0;
 
   // Spawn menu particles
@@ -1613,6 +2137,14 @@ function saveGame(slot) {
         hasChargedAttack: abilityState.hasChargedAttack,
         hasGravitonSurge: abilityState.hasGravitonSurge,
         hasVoidTether: abilityState.hasVoidTether,
+        hasParry: abilityState.hasParry,
+        // Cooldowns persisted (2026-07-24 fix) so quitting/reloading mid-fight
+        // can't be used to reset an ability early — see BUG list.
+        phaseDashCooldown: abilityState.phaseDashCooldown,
+        shardShotCooldown: abilityState.shardShotCooldown,
+        gravitonSurgeCooldown: abilityState.gravitonSurgeCooldown,
+        voidTetherCooldown: abilityState.voidTetherCooldown,
+        parryCooldown: abilityState.parryCooldown,
       },
       anchorActivated,
       lastAnchor,
@@ -1625,6 +2157,7 @@ function saveGame(slot) {
       companion: { active: companionState.active, canFight: companionState.canFight },
       maxHealthBonus,           // healing.js — max-health shards
       maxHealthShardsCollected,
+      stillpointLifestealBonus, // Temporal Warden's defeat reward
     };
     localStorage.setItem(getSaveKey(s), JSON.stringify(data));
   } catch (e) {
@@ -1656,10 +2189,17 @@ function loadGame(slot) {
     abilityState.hasChargedAttack = !!(data.abilityState && data.abilityState.hasChargedAttack);
     abilityState.hasGravitonSurge = !!(data.abilityState && data.abilityState.hasGravitonSurge);
     abilityState.hasVoidTether = !!(data.abilityState && data.abilityState.hasVoidTether);
-    abilityState.phaseDashCooldown = 0;
-    abilityState.shardShotCooldown = 0;
-    abilityState.gravitonSurgeCooldown = 0;
-    abilityState.voidTetherCooldown = 0;
+    abilityState.hasParry = !!(data.abilityState && data.abilityState.hasParry);
+    // Cooldowns persisted (2026-07-24 fix) — clamp to the real max so a
+    // hand-edited/corrupted save can't hand the player a stuck-forever
+    // cooldown; missing/old-format saves fall back to 0 (ready), same as
+    // before this fix.
+    const savedCd = data.abilityState || {};
+    abilityState.phaseDashCooldown = Math.min(Math.max(0, savedCd.phaseDashCooldown || 0), PHASE_DASH_COOLDOWN);
+    abilityState.shardShotCooldown = Math.min(Math.max(0, savedCd.shardShotCooldown || 0), SHARD_SHOT_COOLDOWN);
+    abilityState.gravitonSurgeCooldown = Math.min(Math.max(0, savedCd.gravitonSurgeCooldown || 0), GRAVITON_SURGE_COOLDOWN);
+    abilityState.voidTetherCooldown = Math.min(Math.max(0, savedCd.voidTetherCooldown || 0), VOID_TETHER_COOLDOWN);
+    abilityState.parryCooldown = Math.min(Math.max(0, savedCd.parryCooldown || 0), PARRY_COOLDOWN);
     abilityState.notifications = [];
 
     anchorActivated = data.anchorActivated || {};
@@ -1677,12 +2217,14 @@ function loadGame(slot) {
     child = null; // recreated lazily next frame if active
     maxHealthBonus = typeof data.maxHealthBonus === 'number' ? data.maxHealthBonus : 0;
     maxHealthShardsCollected = data.maxHealthShardsCollected || {};
+    stillpointLifestealBonus = typeof data.stillpointLifestealBonus === 'number' ? data.stillpointLifestealBonus : 0;
     clearVitalityMotes();
     resetHealingCrystals();
 
     echoes = [];
     standEcho = null;
     projectiles = [];
+    afterimageHazards = [];
     particles = [];
     bossProjectiles = [];
     boss = null;
@@ -1751,6 +2293,7 @@ function startNewGame() {
   echoes = [];
   standEcho = null;
   projectiles = [];
+  afterimageHazards = [];
   particles = [];
   bossProjectiles = [];
   boss = null;
@@ -1773,6 +2316,7 @@ function startNewGame() {
   child = null;
   maxHealthBonus = 0;
   maxHealthShardsCollected = {};
+  stillpointLifestealBonus = 0;
   clearVitalityMotes();
   resetHealingCrystals();
   abilityState.hasPhaseDash = false;
@@ -1781,10 +2325,12 @@ function startNewGame() {
   abilityState.hasChargedAttack = false;
   abilityState.hasGravitonSurge = false;
   abilityState.hasVoidTether = false;
+  abilityState.hasParry = false;
   abilityState.phaseDashCooldown = 0;
   abilityState.shardShotCooldown = 0;
   abilityState.gravitonSurgeCooldown = 0;
   abilityState.voidTetherCooldown = 0;
+  abilityState.parryCooldown = 0;
   abilityState.notifications = [];
   resetTutorial();
   spawnAreaEnemies('spawn_area_1');
@@ -1829,6 +2375,7 @@ function respawnPlayer() {
   echoes = [];
   standEcho = null;
   projectiles = [];
+  afterimageHazards = [];
 }
 
 // Teleport to the most recent Anchor checkpoint (full health).
@@ -1858,6 +2405,7 @@ function returnToAnchor() {
   echoes = [];
   standEcho = null;
   projectiles = [];
+  afterimageHazards = [];
   spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 12);
   SFX.stillpoint();
 }
@@ -1884,6 +2432,7 @@ function restartRoom() {
   echoes = [];
   standEcho = null;
   projectiles = [];
+  afterimageHazards = [];
   boss = null;
   miniboss = null;
   bossProjectiles = [];
@@ -1894,6 +2443,9 @@ function restartRoom() {
 // Update game state
 function update() {
   frameCount++;
+
+  // Debug overlay toggle — runs in every state, mirrors the FX updates below.
+  if (wasJustPressed('F3')) DEBUG_MODE = !DEBUG_MODE;
 
   // FX updates (run in all states)
   if (screenShake > 0) screenShake--;
@@ -1917,9 +2469,17 @@ function update() {
   }
 
   // Hitstop - freeze frame for impact feel (respect accessibility toggle)
+  // Landing a hit triggers this every time (see setHitstop() call sites), so
+  // during any combo it fires constantly. clearJustPressed() here used to
+  // wipe out any jump/dash/attack press that happened to land during the
+  // freeze before player.update() (below, after hitstop ends) ever got a
+  // chance to read it — a press during those frames was simply gone,
+  // reported by users as "keys feel unresponsive, like jumping" since jump
+  // has no input buffer of its own to fall back on. Leaving justPressed
+  // untouched lets it survive across frozen ticks and fire on the first real
+  // tick once the freeze ends, instead of being silently eaten.
   if (hitstopEnabled && hitstopTimer > 0) {
     hitstopTimer--;
-    clearJustPressed();
     return;
   }
 
@@ -1930,9 +2490,10 @@ function update() {
       slowMoSkip = 0;
       slowMoTimer--;
     } else {
-      // Still render, but skip game logic
+      // Still render, but skip game logic. Same reasoning as the hitstop
+      // branch above: don't clear justPressed here, or a press during the
+      // skipped frame never reaches any real update tick.
       draw();
-      clearJustPressed();
       return;
     }
   }
@@ -1946,6 +2507,13 @@ function update() {
       inventoryReturnState = 'playing';
       gameState = 'inventory';
       SFX.uiSelect();
+      // Must return here: without it, the gameState==='inventory' dispatch
+      // further down runs in this SAME frame and re-reads this same
+      // still-true wasActionJustPressed('inventory') as "close it," bouncing
+      // straight back to 'playing' before a single frame is ever drawn —
+      // the inventory screen would open and close invisibly on every press.
+      clearJustPressed();
+      return;
     }
   }
 
@@ -1973,8 +2541,7 @@ function update() {
       } else if (wasJustPressed('Space') || wasJustPressed('Enter') || menuClick) {
         menuClick = false;
         if (menuSelection === 0) {
-          menuScreen = 'play';
-          menuSelectionPlay = menuSelectionPlay; // preserve slot selection
+          menuScreen = 'play'; // menuSelectionPlay untouched — slot selection persists
           SFX.uiSelect();
         } else if (menuSelection === 1) {
           menuScreen = 'controls';
@@ -2254,6 +2821,16 @@ function update() {
     return;
   }
 
+  // Live camera zoom (dev/tuning control, 2026-07-27) — BracketRight/Left
+  // zoom in/out around the player, Backslash resets to 1. Distinct keys
+  // from the map's own Equal/Minus zoom above (mutually exclusive anyway
+  // since that block returns early) so the two never read as the same
+  // control conceptually.
+  const CAMERA_ZOOM_SPEED = 0.02;
+  if (keys['BracketRight']) camera.zoom = Math.min(2.5, camera.zoom + CAMERA_ZOOM_SPEED);
+  if (keys['BracketLeft']) camera.zoom = Math.max(0.5, camera.zoom - CAMERA_ZOOM_SPEED);
+  if (wasJustPressed('Backslash')) camera.zoom = 1;
+
   // Toggle pause during gameplay — except in the tutorial room, where the
   // pause action skips straight to The Fracture instead (tutorial is meant
   // to be skippable).
@@ -2282,12 +2859,14 @@ function update() {
       screenShakeIntensity = 4;
       spawnParticles(spawn.x + BOSS_WIDTH / 2, spawn.y + BOSS_HEIGHT / 2, '#f87171', 20);
       spawnParticles(spawn.x + BOSS_WIDTH / 2, spawn.y + BOSS_HEIGHT / 2, '#c4b5fd', 15);
+      SFX.setBossMusic('sovereign');
     }
   }
   // Clear boss when leaving boss arena
   if (!area.isBossArena && boss) {
     boss = null;
     bossProjectiles = [];
+    SFX.setBossMusic(null);
   }
 
   // Spawn miniboss when entering a miniboss arena (Colossus Core, etc.) —
@@ -2296,17 +2875,20 @@ function update() {
   // in different regions can each persist their own defeated flag.
   if (area.isMinibossArena && !miniboss && !defeatedMinibosses[area.miniboss]) {
     const spawn = area.bossSpawn;
-    if (spawn && area.miniboss === 'colossus_core') {
-      miniboss = new ColossusCore(spawn.x, spawn.y);
+    const MinibossClass = MINIBOSS_CLASSES[area.miniboss];
+    if (spawn && MinibossClass) {
+      miniboss = new MinibossClass(spawn.x, spawn.y);
       screenShake = 30;
       screenShakeIntensity = 4;
       spawnParticles(spawn.x + 32, spawn.y + 32, '#d97757', 20);
       spawnParticles(spawn.x + 32, spawn.y + 32, '#fb923c', 12);
+      SFX.setBossMusic(area.miniboss);
     }
   }
   // Clear miniboss when leaving its arena
   if (!area.isMinibossArena && miniboss) {
     miniboss = null;
+    SFX.setBossMusic(null);
   }
 
   // Tutorial room: track move/jump/attack/dash steps, hit-test the dummy
@@ -2332,12 +2914,35 @@ function update() {
   // The player is deliberately never scaled by this at all (Stillpoint
   // moves at 100% speed per the design doc) — if the player ever looks
   // frozen during Stillpoint, that's a different bug, not this line.
-  gameTimeScale = (player.stillpointActive && abilityState.hasStillpoint) ? Math.max(0.05, 1 - player.stillpointSlow) : 1.0;
+  // Sovereign's Phase 3 Stillpoint (2026-07-26) also drives this — a real,
+  // room-wide cast mirroring the player's own ability, just steeper
+  // (BOSS_STILLPOINT_SLOW, boss.js). Player's own Stillpoint still wins if
+  // both are somehow active; else her own cast drives it.
+  gameTimeScale = (player.stillpointActive && abilityState.hasStillpoint)
+    ? Math.max(0.05, 1 - player.stillpointSlow)
+    : (typeof boss !== 'undefined' && boss && boss.bossStillpointActive)
+      ? Math.max(0.05, 1 - BOSS_STILLPOINT_SLOW)
+      : 1.0;
 
-  if (abilityState.phaseDashCooldown > 0) abilityState.phaseDashCooldown--;
-  if (abilityState.shardShotCooldown > 0) abilityState.shardShotCooldown--;
-  if (abilityState.gravitonSurgeCooldown > 0) abilityState.gravitonSurgeCooldown--;
-  if (abilityState.voidTetherCooldown > 0) abilityState.voidTetherCooldown--;
+  if (abilityState.phaseDashCooldown > 0) abilityState.phaseDashCooldown -= player.timeScale;
+  if (abilityState.shardShotCooldown > 0) abilityState.shardShotCooldown -= player.timeScale;
+  if (abilityState.gravitonSurgeCooldown > 0) abilityState.gravitonSurgeCooldown -= player.timeScale;
+  if (abilityState.voidTetherCooldown > 0) abilityState.voidTetherCooldown -= player.timeScale;
+  if (abilityState.parryCooldown > 0) abilityState.parryCooldown -= player.timeScale;
+
+  // Player DoT (ComposedEnemy phase system's `dotOnHit` flag — see
+  // applyPlayerDot() below) — same un-scaled-by-gameTimeScale, plain
+  // per-frame countdown shape as `enemy.burning`'s tick (game.js:3424-3432),
+  // deliberate since the player is never Stillpoint-scaled either.
+  if (player.dot) {
+    player.dot.tickTimer--;
+    if (player.dot.tickTimer <= 0) {
+      player.dot.tickTimer = player.dot.tickInterval;
+      player.takeDamage(player.dot.damagePerTick); // no sourceX -> no knockback, just chip damage
+    }
+    player.dot.timer--;
+    if (player.dot.timer <= 0) player.dot = null;
+  }
 
   // Ambient area particles
   ambientTimer++;
@@ -2370,8 +2975,27 @@ function update() {
     if (pop.life <= 0) abilityPopups.splice(i, 1);
   }
 
+  // Moving/crumbling platforms run BEFORE the player so a moving platform
+  // carries them with it, and so a crumbled piece is already gone when
+  // collision runs this frame.
+  updatePlatformSystems(area);
+
+  // Sovereign's Phase 3 Stillpoint (2026-07-26) — the reversed version of
+  // the player's own Stillpoint: slows the PLAYER's own world-resolution,
+  // the same way gameTimeScale normally slows enemies. A separate field
+  // from gameTimeScale on purpose — the player deliberately never reads
+  // gameTimeScale itself (see the comment above), so this is the one
+  // mechanism that can ever slow the player.
+  player.timeScale = (typeof boss !== 'undefined' && boss && boss.bossStillpointActive)
+    ? Math.max(0.05, 1 - BOSS_STILLPOINT_SLOW)
+    : 1.0;
+
   // Update player
   player.update(bounds, area.platforms);
+
+  // Hazards are trigger volumes (never solid) — damage on overlap. The
+  // player's own i-frames throttle repeat contact, so no per-hazard timer.
+  applyHazardDamage(area);
 
   // Combo chains (combo.js) — watches player state flags for action events
   // and matches them against COMBO_DEFS; rewards fire on completion.
@@ -2426,7 +3050,12 @@ function update() {
   // Limit Break (Lv4, any ability): "immunity to environmental hazards
   // (spikes, pits, lava) for the duration" — see Enemy_Design.pdf Rule 0.
   const pitDeath = player.y > pitDeathY && !limitBreak.active;
-  if ((playerDead || pitDeath) && (playerDead || player.invincibleTimer <= 0)) {
+  // Combat i-frames are irrelevant to falling off the map — a player who
+  // got knocked into a pit while still invincible from that same hit
+  // should still die, not fall forever/clip below the room. Only real
+  // health-death (playerDead) and pit-death itself gate this; invincibility
+  // never blocks either.
+  if (playerDead || pitDeath) {
     screenShake = 15;
     screenShakeIntensity = 6;
     deathFadeDir = -1;
@@ -2470,6 +3099,11 @@ function update() {
       spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 4);
     }
     SFX.shardShot();
+    // Cooldown was declared, decremented, gated on, and even drawn in the
+    // HUD ring — but never actually set on fire (user report 2026-07-19:
+    // "does shard shot cooldown actually work?"). canUseShardShot() was
+    // permanently reading 0, so Shard Shot had zero real cooldown.
+    abilityState.shardShotCooldown = SHARD_SHOT_COOLDOWN;
   }
   // Shard Shot Lv4 Limit Break — "your melee swings are replaced with Shard
   // Blasts (glowing projectiles, 150% damage)" (Enemy_Design.pdf). Was not
@@ -2485,7 +3119,7 @@ function update() {
     proj.width = 12; proj.height = 12;
     projectiles.push(proj);
     spawnParticles(proj.x + 6, proj.y + 6, '#67e8f9', 8);
-    screenShake = 4; screenShakeIntensity = 2; hitstopTimer = 3;
+    screenShake = 4; screenShakeIntensity = 2; setHitstop(3);
     SFX.attack();
   }
   // Lv3 Beam Attack — continuous channel, ticks damage every BEAM_TICK_INTERVAL
@@ -2509,15 +3143,15 @@ function update() {
     }
   }
 
-  // Phase Dash Lv3 — "when you swing your sword, the echo attacks once from
-  // its position (deals 50% of your normal damage), then fades" (Enemy_Design.pdf).
-  // Lv4 Limit Break: the Stand echo (standEcho, spawned above) mirrors
-  // every swing at 100% damage instead, and never fades while the
-  // Enhanced State is active.
+  // Phase Dash Lv4 (old Lv3) — "when you swing your sword, the echo attacks
+  // once from its position (deals 50% of your normal damage), then fades"
+  // (Enemy_Design.pdf). Lv5 Limit Break: the Stand echo (standEcho, spawned
+  // above) mirrors every swing at 100% damage instead, and never fades
+  // while the Enhanced State is active.
   if (player.echoAttackPending) {
     player.echoAttackPending = false;
     const isStand = limitBreak.active && limitBreak.ability === 'phase_dash' && standEcho;
-    if (isStand || (abilityLevel('phase_dash') >= 3 && echoes.length > 0)) {
+    if (isStand || (oldTier('phase_dash') >= 3 && echoes.length > 0)) {
       const echo = isStand ? standEcho : echoes[0];
       const echoDmg = playerMeleeDamage() * (isStand ? 1.0 : 0.5);
       // Always show the swing, hit or not (user feedback 2026-07-16 — the
@@ -2539,20 +3173,42 @@ function update() {
 
   // ── Void Tether (base ability built 2026-07-16, Enemy_Design.pdf) ───────
   // Lv0: pulls the nearest enemy in range to the player, no bonus effect.
-  // Lv1: +30% range. Lv2: electrified — +1 dmg & 15f stun on arrival. Lv3:
-  // +50% pull speed, arc-stuns 1 other nearby enemy too. Lv4 Limit Break:
-  // 0-pip/1.5s-cooldown cast + a 3s/2dps burning DoT on arrival.
+  // Lv1 (2026-07-27, the new cheap entry tier): +15% range, a smaller
+  // partial step. Lv2 (old Lv1): +30% range. Lv3 (old Lv2): electrified —
+  // +1 dmg & 15f stun on arrival. Lv4 (old Lv3): +50% pull speed, arc-stuns
+  // 1 other nearby enemy too. Lv5 Limit Break: 0-pip/1.5s-cooldown cast + a
+  // 3s/2dps burning DoT on arrival.
   if (player.voidTetherFired) {
-    const lvl = abilityLevel('void_tether');
-    const range = VOID_TETHER_RANGE_BASE * (lvl >= 1 ? 1.3 : 1);
+    const rawTether = abilityLevel('void_tether');
+    const range = VOID_TETHER_RANGE_BASE * (oldTier('void_tether') >= 1 ? 1.3 : (rawTether >= 1 ? 1.15 : 1));
     // Facing auto-aim (user spec 2026-07-16): target the nearest enemy IN
     // THE DIRECTION THE PLAYER FACES — never yank something in from behind.
     // findVoidTetherTarget scores by distance + vertical offset so a level
     // enemy beats a diagonal one at similar range.
     const target = findVoidTetherTarget(player, range);
-    const speed = VOID_TETHER_PULL_SPEED_BASE * (lvl >= 3 ? 1.5 : 1);
+    const speed = VOID_TETHER_PULL_SPEED_BASE * (oldTier('void_tether') >= 3 ? 1.5 : 1);
     if (target) {
-      player.tether = { targetEnemy: target, speed };
+      // The Catch (enemy_attack_vocabulary_plan.md, priority #3 —
+      // 2026-07-20): a target carrying void_tether/the_catch reverses the
+      // pull direction (player flies to them instead) — the "or pulls you
+      // to walls" half of the ability repurposed onto a Heavy enemy instead
+      // of a wall. `armored` (def.stats.armored) additionally catches +
+      // grapple-throws the player on arrival, see the arrival block below.
+      const catchCounter = target.counters && target.counters.find((c) => c.ability === 'void_tether' && c.effect === 'the_catch');
+      player.tether = {
+        targetEnemy: target, speed, pullTimer: 0,
+        pullPlayerToEnemy: !!catchCounter,
+        catchOnArrival: !!(catchCounter && target.armored),
+        catchParams: catchCounter ? { ...COUNTER_EFFECTS.void_tether.the_catch.params, ...catchCounter } : null,
+      };
+      // A beat of hitstop right as the tether latches on — user feedback
+      // 2026-07-20: the pull used to start moving the same instant it
+      // fired, with nothing marking the moment it connected, so there was
+      // no window to register "it grabbed something" before the target was
+      // already in motion. This is the same freeze-frame convention every
+      // other big hit in the game already uses (see the heavy-attack and
+      // guard-break hitstop above) — just applied to the cast itself.
+      setHitstop(6);
       SFX.dash();
     } else {
       // "Pulls enemies to you, OR pulls you to walls" (Enemy_Design.pdf) —
@@ -2573,7 +3229,8 @@ function update() {
         }
       }
       if (wallTargetX !== null) {
-        player.tether = { targetPoint: { x: wallTargetX, y: player.y }, speed };
+        player.tether = { targetPoint: { x: wallTargetX, y: player.y }, speed, pullTimer: 0 };
+        setHitstop(6);
         SFX.dash();
       } else {
         // WHIFF — nothing in front to pull and no wall to grapple. The old
@@ -2595,13 +3252,36 @@ function update() {
       player.x = tp.x; player.y = tp.y; player.vx = 0; player.vy = 0;
       player.tether = null;
     } else {
-      player.vx = (dx / d) * player.tether.speed;
-      player.vy = (dy / d) * player.tether.speed;
+      player.tether.pullTimer++;
+      // Accelerates into the pull instead of an instant fixed speed (user
+      // feedback 2026-07-20: "so hard to respond in time" — ramping up
+      // buys a beat of reaction window right at the start, and reads as a
+      // yank building up rather than a teleport).
+      const rampedSpeed = player.tether.speed * Math.min(1, 0.35 + player.tether.pullTimer * 0.08);
+      player.vx = (dx / d) * rampedSpeed;
+      player.vy = (dy / d) * rampedSpeed;
+      // player.update() already ran earlier this frame and will run again
+      // BEFORE this code next frame — its own input-driven movement block
+      // (`if (!this.dashing && !this.phaseDashing && this.hitStunTimer<=0)`)
+      // would stomp the velocity just set above with whatever the arrow
+      // keys say before it's ever used to move. hitStunTimer already exists
+      // as exactly this "my velocity is externally driven, don't touch it"
+      // gate (used for knockback) — reusing it here, refreshed every frame
+      // the grapple is active, keeps the pull actually moving the player.
+      player.hitStunTimer = Math.max(player.hitStunTimer, 2);
     }
   }
   if (player.tether && player.tether.targetEnemy) {
     const enemy = player.tether.targetEnemy;
-    if (enemy.dead) {
+    // Attacking cancels the pull (user request 2026-07-20: "attacking the
+    // enemy should end the tether, which will encourage combos") — swing
+    // instead of waiting out the yank, and the attack's own hitbox check
+    // (already running elsewhere this same frame) lands normally against
+    // wherever the target currently is instead of fighting the tether's
+    // velocity override for it.
+    if (player.attacking) {
+      player.tether = null;
+    } else if (enemy.dead) {
       player.tether = null;
     } else {
       const px = player.x + player.width / 2, py = player.y + player.height / 2;
@@ -2609,47 +3289,128 @@ function update() {
       const d = Math.hypot(px - ex, py - ey);
       if (d <= player.tether.speed + 4) {
         // Arrival
-        // A tether yank rips a raised guard open (defense-verb counterplay:
-        // block is beaten by heavies, backstabs, and THIS — deliberate
-        // synergy: tether → guard broken → punish).
-        if (enemy.blocking > 0) {
-          enemy.blocking = 0;
-          enemy.guardBroken = 40;
-          spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#e2e8f0', 10);
-        }
-        const lvl = abilityLevel('void_tether');
-        if (lvl >= 2 || (limitBreak.active && limitBreak.ability === 'void_tether')) {
-          enemy.takeDamage(1, px);
-          // hitStun, not stunTimer — stunTimer is the parry-freeze mechanic
-          // (zeroes vx and skips physics entirely, see enemy.js's per-type
-          // update()); a "stunned" enemy from a non-parry source should
-          // still take knockback normally (user feedback 2026-07-16).
-          enemy.hitStun = Math.max(enemy.hitStun || 0, 15);
-        }
-        if (lvl >= 3) {
-          // Arc: stun (no damage) the next-nearest enemy too
-          let arcTarget = null, arcD = 120;
-          for (const other of (areaEnemies[currentAreaId] || [])) {
-            if (other === enemy || other.dead) continue;
-            const od = Math.hypot((other.x + other.width / 2) - ex, (other.y + other.height / 2) - ey);
-            if (od < arcD) { arcD = od; arcTarget = other; }
+        // The Catch, Armored branch — the enemy catches the incoming player
+        // and grapple-throws them instead of the usual "enemy takes
+        // damage" arrival: the real risk/reward payoff of Void Tether-ing a
+        // Heavy target. No guard-break/damage/hitstun for the enemy here —
+        // this is the punish landing on the PLAYER, not the other way
+        // around.
+        if (player.tether.catchOnArrival) {
+          const cp = player.tether.catchParams;
+          const dir = ex >= px ? 1 : -1;
+          player.vx = dir * cp.throwKnockbackX;
+          player.vy = cp.throwKnockbackY;
+          player.hitStunTimer = cp.throwHitStun;
+          if (player.invincibleTimer <= 0) player.takeDamage(cp.damage, ex);
+          spawnParticles(px, py, '#f87171', 12);
+          screenShake = Math.max(screenShake, 10); screenShakeIntensity = Math.max(screenShakeIntensity, 5);
+          setHitstop(8);
+          SFX.playerHurt();
+          player.tether = null;
+        } else {
+          // A tether yank rips a raised guard open (defense-verb counterplay:
+          // block is beaten by heavies, backstabs, and THIS — deliberate
+          // synergy: tether → guard broken → punish).
+          if (enemy.blocking > 0) {
+            enemy.blocking = 0;
+            enemy.guardBroken = 40;
+            spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#e2e8f0', 10);
           }
-          if (arcTarget) arcTarget.hitStun = Math.max(arcTarget.hitStun || 0, 15);
+          const tetherTier = oldTier('void_tether');
+          if (tetherTier >= 2 || (limitBreak.active && limitBreak.ability === 'void_tether')) {
+            enemy.takeDamage(1, px);
+            // hitStun, not stunTimer — stunTimer is the parry-freeze mechanic
+            // (zeroes vx and skips physics entirely, see enemy.js's per-type
+            // update()); a "stunned" enemy from a non-parry source should
+            // still take knockback normally (user feedback 2026-07-16).
+            enemy.hitStun = Math.max(enemy.hitStun || 0, 15);
+          }
+          if (tetherTier >= 3) {
+            // Arc: stun (no damage) the next-nearest enemy too
+            let arcTarget = null, arcD = 120;
+            for (const other of (areaEnemies[currentAreaId] || [])) {
+              if (other === enemy || other.dead) continue;
+              const od = Math.hypot((other.x + other.width / 2) - ex, (other.y + other.height / 2) - ey);
+              if (od < arcD) { arcD = od; arcTarget = other; }
+            }
+            if (arcTarget) arcTarget.hitStun = Math.max(arcTarget.hitStun || 0, 15);
+          }
+          if (limitBreak.active && limitBreak.ability === 'void_tether') {
+            enemy.burning = { timer: 180, tickTimer: 0 }; // 3s @ 2dmg/s (game.js's enemy-update tick applies this)
+          }
+          spawnParticles(ex, ey, '#34d399', 10);
+          screenShake = Math.max(screenShake, 6); screenShakeIntensity = Math.max(screenShakeIntensity, 3);
+          setHitstop(6);
+          player.tether = null;
         }
-        if (limitBreak.active && limitBreak.ability === 'void_tether') {
-          enemy.burning = { timer: 180, tickTimer: 0 }; // 3s @ 2dmg/s (game.js's enemy-update tick applies this)
-        }
-        spawnParticles(ex, ey, '#34d399', 10);
+      } else if (!player.tether.pullPlayerToEnemy && player.tether.hitStunSetLastFrame !== undefined && enemy.hitStun >= player.tether.hitStunSetLastFrame) {
+        // Resisted pull (user report 2026-07-20: Void Lancer, and any other
+        // enemy type whose own update() never checks hitStun — confirmed
+        // several exist: Stutterer, EchoStalker, BlitzGuard, FracturedSlime,
+        // CrystalSentinel, ColossusCore — silently overwrite the velocity
+        // set below with their own AI's vx every frame, same as this file's
+        // comment above already explains for the general case).
+        //
+        // Was detected by "distance to target stopped shrinking," but that
+        // missed the actual reported symptom: a target resisting on ONE
+        // axis (Void Lancer never moves horizontally without sight/aggro)
+        // still has its OVERALL distance shrink from the other axis alone
+        // (the vy leak this whole check exists to catch), so distance-stall
+        // didn't fire until the enemy physically hit a ceiling — 20+ frames
+        // of visible vertical drift first. hitStun is a much sharper
+        // signal: an enemy that actually respects it decrements it by 1 in
+        // its own update() every frame (see enemy.js's `if (hitStun>0) {
+        // hitStun--; ...}` gate); one that doesn't (never even reads the
+        // property) leaves it exactly where this block last set it. Compare
+        // this frame's value to what was set last frame — if it didn't
+        // drop, the enemy never took the suppression, and we bail within a
+        // frame or two instead of tens of frames of leak.
+        spawnParticles(ex, ey, '#94a3b8', 6);
+        SFX.parry(); // reuse the fizzle tick, matches the whiff-cast SFX
         player.tether = null;
+      } else if (player.tether.pullPlayerToEnemy) {
+        // The Catch — reversed pull: the PLAYER flies toward the (possibly
+        // still-moving) enemy instead of the other way around. Same accel
+        // ramp/hitStunTimer-as-external-velocity-gate trick as the
+        // targetPoint wall-grapple case above, just tracking a moving
+        // target each frame instead of a fixed point.
+        player.tether.pullTimer++;
+        const rampedSpeed = player.tether.speed * Math.min(1, 0.35 + player.tether.pullTimer * 0.08);
+        player.vx = ((ex - px) / d) * rampedSpeed;
+        player.vy = ((ey - py) / d) * rampedSpeed;
+        player.hitStunTimer = Math.max(player.hitStunTimer, 2);
       } else {
-        enemy.vx = ((px - ex) / d) * player.tether.speed;
-        enemy.vy = ((py - ey) / d) * player.tether.speed;
+        player.tether.pullTimer++;
+        // Same accel ramp as the wall-grapple case above.
+        const rampedSpeed = player.tether.speed * Math.min(1, 0.35 + player.tether.pullTimer * 0.08);
+        enemy.vx = ((px - ex) / d) * rampedSpeed;
+        enemy.vy = ((py - ey) / d) * rampedSpeed;
+        // Confirmed via harness (user report 2026-07-19: "void tether
+        // still doesn't even work" / "enemies float at your level"): the
+        // velocity set above did nothing — enemy.update() runs LATER this
+        // same frame (see the main enemy loop below) and, unless the enemy
+        // is already in hitStun, its own chase/patrol AI recomputes vx/vy
+        // from scratch and overwrites this every single frame before any
+        // movement ever uses it. The pull target sat frozen in place while
+        // `player.tether` stayed set indefinitely — which also explains
+        // "shard shot after void tether pulls the enemy closer": the tether
+        // never actually resolved, so it kept running in the background and
+        // stomped the shard hit's own (correct, outward) knockback on the
+        // very next frame. hitStun already exists as an AI-suppression
+        // gate (enemy.js's update() early-returns and just runs physics
+        // with whatever vx/vy is already set) — reusing it here, refreshed
+        // every frame while the pull is active, is the same pattern the
+        // player-side fix above uses.
+        enemy.hitStun = Math.max(enemy.hitStun || 0, 3);
+        player.tether.hitStunSetLastFrame = enemy.hitStun;
       }
     }
   }
 
   // ── Graviton Surge Gravity Ball (Lv2+, built 2026-07-16) ─────────────────
-  if (player.gravitonBallCharging) {
+  // Pulls while anchored (charging) AND while it's flying forward+upward
+  // after release, right up until it explodes (2026-07-19).
+  if (player.gravitonBallCharging || player.gravitonBallFlying) {
     const enemiesHere = areaEnemies[currentAreaId] || [];
     for (const enemy of enemiesHere) {
       if (enemy.dead) continue;
@@ -2664,10 +3425,9 @@ function update() {
   }
   if (player.gravitonBallPop) {
     player.gravitonBallPop = false;
-    const lvl = abilityLevel('graviton_surge');
-    if (lvl >= 3 || (limitBreak.active && limitBreak.ability === 'graviton_surge')) {
-      const dmg = limitBreak.active && limitBreak.ability === 'graviton_surge' ? 6 : 4;
-      const kb = limitBreak.active && limitBreak.ability === 'graviton_surge' ? 8 : 4; // 300%/200% knockback multiplier on a base of ~2-4
+    if (oldTier('graviton_surge') >= 3 || (limitBreak.active && limitBreak.ability === 'graviton_surge')) {
+      const dmg = limitBreak.active && limitBreak.ability === 'graviton_surge' ? GRAVITON_BALL_EXPLODE_DAMAGE * 1.5 : GRAVITON_BALL_EXPLODE_DAMAGE;
+      const kb = limitBreak.active && limitBreak.ability === 'graviton_surge' ? GRAVITON_BALL_EXPLODE_KB * 2 : GRAVITON_BALL_EXPLODE_KB; // 300%/200% knockback multiplier on a base of ~2-4
       const enemiesHere = areaEnemies[currentAreaId] || [];
       for (const enemy of enemiesHere) {
         if (enemy.dead) continue;
@@ -2680,7 +3440,7 @@ function update() {
         }
       }
       spawnParticles(player.gravitonBallX, player.gravitonBallY, '#f472b6', 20);
-      screenShake = 14; screenShakeIntensity = 8; hitstopTimer = 8;
+      screenShake = 14; screenShakeIntensity = 8; setHitstop(8);
     }
   }
 
@@ -2694,29 +3454,118 @@ function update() {
   // physics entirely), which was silently making these "stunned" enemies
   // immune to their own slam knockback (user feedback 2026-07-16).
   if (player.gravitonActive) {
-    const lvl = abilityLevel('graviton_surge');
-    const dealsDamage = lvl >= 1 || (limitBreak.active && limitBreak.ability === 'graviton_surge');
+    const dealsDamage = oldTier('graviton_surge') >= 1 || (limitBreak.active && limitBreak.ability === 'graviton_surge');
     const px = player.x + player.width / 2, py = player.y + player.height / 2;
     const area = getCurrentArea();
     const enemiesHere = areaEnemies[currentAreaId] || [];
     for (const enemy of enemiesHere) {
       if (enemy.dead) continue;
+      // Flying enemies (ComposedEnemy's hover/teleport_blink movement —
+      // Crystal Sentinel included since its 2026-07-24 ComposedEnemy
+      // migration — plus any remaining bespoke class's own isFlying flag)
+      // ignore gravity entirely already, so a gravity flip has nothing to
+      // grab onto — they
+      // stay fully immune to both the ceiling pin and the slam damage
+      // instead of getting yanked upward like grounded enemies (user
+      // clarification 2026-07-24: this is intended, not the "flies through
+      // the ceiling" bug — the pin/damage just shouldn't apply to them).
+      if (enemy._movementFlies || enemy.isFlying) continue;
       const ex = enemy.x + enemy.width / 2, ey = enemy.y + enemy.height / 2;
-      if (Math.hypot(ex - px, ey - py) > GRAVITON_SURGE_RANGE) { enemy.gravitonSlammed = false; continue; }
+      if (Math.hypot(ex - px, ey - py) > GRAVITON_SURGE_RANGE) {
+        enemy.gravitonSlammed = false; enemy.gravitonBounceTimer = 0; enemy._groundStompFired = false;
+        continue;
+      }
+      // Ground Stomp counter (enemy_attack_vocabulary_plan.md — fixed
+      // 2026-07-24, see COUNTER_EFFECTS.graviton_surge in enemy.js): this
+      // enemy stands its ground instead of getting pinned to the ceiling —
+      // "Surge isn't a free wail-on-them window" for enemies that carry it.
+      // Fires once per active flip while the enemy is in Graviton Surge
+      // range, regardless of which side of the flip the player ends up on
+      // — the enemy itself never leaves the ground to care which way is down.
+      if (enemy.groundStomp) {
+        if (!enemy._groundStompFired) {
+          enemy._groundStompFired = true;
+          const gs = enemy.groundStomp;
+          if (Math.hypot(px - ex, py - ey) <= gs.shockwaveRadius && player.invincibleTimer <= 0) {
+            player.takeDamage(gs.damage, enemy.x);
+            player.vy = Math.min(player.vy, gs.knockbackY);
+          }
+          spawnParticles(ex, enemy.y + enemy.height, '#f472b6', 16);
+          if (typeof screenShake !== 'undefined') { screenShake = Math.max(screenShake, 10); screenShakeIntensity = Math.max(screenShakeIntensity, 5); }
+          setHitstop(6);
+        }
+        continue;
+      }
+
+      // Bounce grace window (user report 2026-07-19: "still turn white and
+      // frozen on the ceiling" — the bounce added below was being undone
+      // one frame later. Two compounding bugs: (1) the anti-gravity force
+      // and the `enemy.y <= ceilingY` re-pin ran unconditionally every
+      // frame for every enemy still in range, so a bounce's downward vy=2
+      // got overwritten right back to pinned-at-ceiling before it could
+      // move the entity anywhere; (2) `hitStun = max(hitStun, 20)` was
+      // ALSO refreshed every one of those frames, so hitStun never
+      // actually counted down — the enemy sat in its hit-stun branch
+      // indefinitely, which is what reads as "frozen" and, since that
+      // branch only decrements flashTimer (see e.g. line ~1020's
+      // `flashTimer = max(0, flashTimer - 1)`), kept it perpetually under
+      // the <6 threshold that draws white. Now a bounce starts a short
+      // countdown during which this loop leaves the enemy alone — gravity
+      // stays flipped (still inside graviton range) but the anti-gravity
+      // PUSH and the re-pin are skipped, so vx/vy from the bounce actually
+      // carries it off the ceiling — and hitStun is only set once per
+      // slam, not refreshed every frame, so it counts down normally.
+      if (enemy.gravitonBounceTimer > 0) {
+        enemy.gravitonBounceTimer--;
+        continue;
+      }
+
       enemy.vy -= 2 * GRAVITY; // cancels this frame's own +GRAVITY and replaces it with -GRAVITY
       const ceilingY = resolveCeilingY(enemy, area);
       if (enemy.y <= ceilingY) {
+        // A hard hit bounces off (mirrors physics.js's wall-bounce: reverse
+        // + dampen vx, plus a downward kick so it actually leaves the
+        // ceiling and falls to land/take damage) instead of freezing there;
+        // anything slower sticks but decays via the same 0.8 ground-friction
+        // factor physics.js uses for landed knockback, so it settles
+        // instead of sliding.
         enemy.y = ceilingY;
-        enemy.vy = 0;
-        enemy.hitStun = Math.max(enemy.hitStun || 0, 20);
+        if (Math.abs(enemy.vx) >= WALL_BOUNCE_MIN_SPEED) {
+          enemy.vx = -enemy.vx * WALL_BOUNCE_MULT;
+          enemy.vy = 3;
+          enemy.gravitonBounceTimer = 15; // ~0.25s to actually leave the ceiling
+        } else {
+          enemy.vy = 0;
+          enemy.vx *= 0.8;
+        }
         if (!enemy.gravitonSlammed) {
           enemy.gravitonSlammed = true;
+          enemy.hitStun = Math.max(enemy.hitStun || 0, 20);
           if (dealsDamage) enemy.takeDamage(1, enemy.x);
+          // A kill lands here mid-air (pinned at the ceiling) — every
+          // enemy class's own update() early-returns once `dead` is true
+          // (`if (this.dead) { this.deathTimer++; return; }`, enemy.js),
+          // which is correct for a normal ground death (the corpse just
+          // fades in place, already resting on the floor) but leaves an
+          // aerial death frozen wherever it died forever, since nothing
+          // ever applies gravity to it again (user report 2026-07-24:
+          // "sometimes they stay on the ceiling"). Snapping straight to
+          // the floor on the kill frame isn't a real fall animation, but
+          // it's a small, contained fix scoped to this one code path
+          // rather than touching the ~9 duplicated dead-early-return sites
+          // across enemy.js's classes — a real animated fall would need
+          // that broader change instead.
+          if (enemy.dead) {
+            enemy.y = area.groundY - enemy.height;
+            enemy.vx = 0; enemy.vy = 0;
+            enemy.gravitonSlammed = false;
+            enemy.gravitonBounceTimer = 0;
+          }
         }
       }
     }
   } else {
-    for (const enemy of (areaEnemies[currentAreaId] || [])) enemy.gravitonSlammed = false;
+    for (const enemy of (areaEnemies[currentAreaId] || [])) { enemy.gravitonSlammed = false; enemy.gravitonBounceTimer = 0; enemy._groundStompFired = false; }
   }
 
   // ── Graviton Surge: player ceiling landing ───────────────────────────────
@@ -2756,7 +3605,7 @@ function update() {
   // Reflected Shard Shots (Deflector Drone, expansion.md 2.3 #31) can hit
   // the player back — dodgeable, but punishes reflexive spam-firing. Only
   // player projectiles ever reach `projectiles[]` (enemy-fired shots use
-  // separate arrays — see CrystalSentinel.updateProjectiles/bossProjectiles),
+  // separate arrays — see ComposedEnemy.updateProjectiles/bossProjectiles),
   // so `reflected` is the only thing gating this from being a self-damage
   // bug on every normal shot.
   for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -2769,15 +3618,35 @@ function update() {
     }
   }
 
-  // ── Crystal Sentinel projectiles ──────────────────────────────────────
-  CrystalSentinel.updateProjectiles(player);
-  // ── ComposedEnemy projectiles (enemy_designer.html "ranged_projectile") ──
+  // Afterimage Strike hazards (enemy_attack_vocabulary_plan.md) — count
+  // down the arm delay, then explode: damage the player if they lingered
+  // in the blast radius, always show the tell (particles/shake), always
+  // remove. No dodge-the-spawn window is needed since the hazard already
+  // rode a real delay after the dash ended — "keep moving after" is the
+  // whole point, not "react to a projectile."
+  for (let i = afterimageHazards.length - 1; i >= 0; i--) {
+    const h = afterimageHazards[i];
+    h.timer -= (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
+    if (h.timer <= 0) {
+      const pcx = player.x + player.width / 2, pcy = player.y + player.height / 2;
+      if (player.invincibleTimer <= 0 && Math.hypot(pcx - h.x, pcy - h.y) <= h.radius) {
+        player.takeDamage(h.damage, h.x);
+        SFX.playerHurt();
+      }
+      spawnParticles(h.x, h.y, '#c084fc', 12);
+      if (typeof screenShake !== 'undefined') { screenShake = Math.max(screenShake, 8); screenShakeIntensity = Math.max(screenShakeIntensity, 4); }
+      afterimageHazards.splice(i, 1);
+    }
+  }
+
+  // ── ComposedEnemy projectiles (Crystal Sentinel's shots included since
+  // its 2026-07-24 ComposedEnemy migration — enemy_designer.html "ranged_projectile") ──
   ComposedEnemy.updateProjectiles(player);
 
   // Update enemies
   const enemies = areaEnemies[currentAreaId] || [];
   for (const enemy of enemies) {
-    enemy.update(player, bounds, echoes);
+    enemy.update(player, bounds, echoes, enemies);
 
     // ── Wall bounce impact VFX (2026-07-16, combo-focused: a knocked-back
     // enemy bounces hard off walls — a wall-adjacent hit opens a follow-up
@@ -2789,7 +3658,7 @@ function update() {
       enemy.wallBouncedThisFrame = false;
       spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#f87171', 10);
       screenShake = Math.max(screenShake, 8); screenShakeIntensity = Math.max(screenShakeIntensity, 4);
-      hitstopTimer = Math.max(hitstopTimer, 5);
+      setHitstop(5);
     }
 
     // ── Anti-juggle breakout burst (defense verbs, enemy.js) ──────────────
@@ -2811,7 +3680,7 @@ function update() {
       }
       spawnParticles(ex, ey, '#ffffff', 16);
       screenShake = Math.max(screenShake, 12); screenShakeIntensity = Math.max(screenShakeIntensity, 6);
-      hitstopTimer = Math.max(hitstopTimer, 6);
+      setHitstop(6);
       SFX.enemyDeath(); // deep burst thump — reuse until a dedicated SFX exists
     }
 
@@ -2866,7 +3735,7 @@ function update() {
           player.vx = -player.facing * 3;
           spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#cbd5e1', 8);
           screenShake = Math.max(screenShake, 3); screenShakeIntensity = Math.max(screenShakeIntensity, 2);
-          hitstopTimer = Math.max(hitstopTimer, 4);
+          setHitstop(4);
           SFX.parry(); // metallic clank — reuse until a dedicated SFX exists
           continue;
         }
@@ -2878,7 +3747,7 @@ function update() {
           enemy.hitStun = Math.max(enemy.hitStun, 20);
           spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#e2e8f0', 14);
           screenShake = Math.max(screenShake, 10); screenShakeIntensity = Math.max(screenShakeIntensity, 5);
-          hitstopTimer = Math.max(hitstopTimer, 8);
+          setHitstop(8);
         }
         // From behind: guard does nothing — fall through to normal damage.
       }
@@ -2900,13 +3769,13 @@ function update() {
         player.vy = ATK_POGO_VY;
         player.grounded = false;
         screenShake = player.heavy ? 16 : 10; screenShakeIntensity = player.heavy ? 8 : 5;
-        hitstopTimer = player.heavy ? 12 : 7;
+        setHitstop(player.heavy ? 12 : 7);
       } else if (playerAtk.dir === 'up') {
         screenShake = player.heavy ? 10 : 5; screenShakeIntensity = player.heavy ? 6 : 3;
-        hitstopTimer = player.heavy ? 9 : 5;
+        setHitstop(player.heavy ? 9 : 5);
       } else {
         screenShake = player.heavy ? 12 : 6; screenShakeIntensity = player.heavy ? 6 : 3;
-        hitstopTimer = player.heavy ? 8 : 4;
+        setHitstop(player.heavy ? 8 : 4);
       }
 
       // Extra knockback on heavy hit
@@ -2931,7 +3800,7 @@ function update() {
           slowMoTimer = 8; slowMoSkip = 0; // ~0.3x for 8 frames, last-enemy-in-group only
           screenShake = Math.max(screenShake, 12);
           screenShakeIntensity = Math.max(screenShakeIntensity, 6);
-          hitstopTimer = Math.max(hitstopTimer, 8);
+          setHitstop(8);
         }
       } else {
         SFX.attackHit();
@@ -2955,17 +3824,33 @@ function update() {
           SFX.shardHit();
           continue;
         }
-        // If it's a Crystal Sentinel, pass 'ranged' so the shield takes double damage
-        if (enemy instanceof CrystalSentinel) {
-          enemy.takeDamage(proj.damage, proj.x, 'ranged');
-        } else {
-          enemy.takeDamage(proj.damage, proj.x);
-        }
+        // takeDamage()'s knockback direction is `this.x > sourceX ? 1 : -1`
+        // — reliable for melee (sourceX is the attacker's position, always
+        // outside the target's body at hit time) but not for a projectile:
+        // at close range (Void Tether pulls a target adjacent before you
+        // can even fire — user report 2026-07-19: "shard shot after void
+        // tether, the enemy comes closer") proj.x can land INSIDE the
+        // enemy's own hitbox by the frame the hit registers, and the sign
+        // of that comparison becomes arbitrary — confirmed via harness: it
+        // occasionally flips knockback from "away from the shot" to
+        // "toward the player." A point synthesized far back along the
+        // projectile's own travel direction is guaranteed outside the
+        // target's body regardless of hit distance, and degrades to the
+        // same direction as plain proj.x for any normal (non-point-blank) hit.
+        const knockSourceX = proj.x - Math.sign(proj.vx || 1) * 200;
+        // 'ranged' — was Crystal Sentinel-only (its shield takes double
+        // damage from it), now passed universally so ComposedEnemy's
+        // shard_shot counters (Aggro-Pull, Mote Eater — enemy_attack_
+        // vocabulary_plan.md) can tell a projectile hit from a melee one.
+        // Harmless for every other class: their takeDamage() only branches
+        // on 'up'/'down', so 'ranged' falls into the same default/forward
+        // knockback path an omitted 3rd arg already used.
+        enemy.takeDamage(proj.damage, knockSourceX, 'ranged');
         spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 6);
         projectiles.splice(j, 1);
         screenShake = 4;
         screenShakeIntensity = 2;
-        hitstopTimer = 3;
+        setHitstop(3);
         if (enemy.dead) SFX.enemyDeath(); else SFX.shardHit();
         break;
       }
@@ -3002,30 +3887,23 @@ function update() {
     // hitbox could still land during a Phase Dash even though body contact
     // couldn't, since the two checks weren't kept consistent with each other.
     const enemyAtk = enemy.getAttackHitbox();
-    if (enemyAtk && rectsOverlap(enemyAtk, player) && player.invincibleTimer <= 0 && !player.phaseDashing) {
-      if (player.parrying) {
-        // SUCCESSFUL PARRY — deflect and stun enemy
-        enemy.stunTimer = PARRY_STUN;
-        enemy.flashTimer = 10;
-        enemy.parriedRecently = 90; // parry-respect: raises this enemy's feint odds briefly (enemy.js windup)
-        player.parrying = false;
-        player.parryTimer = 0;
-        player.invincibleTimer = PARRY_IFRAMES;
-        player.gainFracture();
-        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
-        screenShake = 4; screenShakeIntensity = 2;
-        hitstopTimer = 5;
-        SFX.parry();
+    if (enemyAtk && rectsOverlap(enemyAtk, player) && player.invincibleTimer <= 0 && !player.phaseDashing && !tryParryDeflect(enemy)) {
+      // ComposedEnemy attacks (enemy.js) can define their own damage/
+      // knockback per attack (e.g. a grab-throw or a heavy dash_charge
+      // that should send the player flying) instead of the flat default.
+      const custom = enemy.getAttackDamageAndKnockback && enemy.getAttackDamageAndKnockback();
+      if (custom) {
+        player.takeDamage(custom.damage, enemy.x + enemy.width / 2, custom.knockback);
+        if (custom.dotOnHit) applyPlayerDot(player, custom.dotOnHit);
       } else {
-        // ComposedEnemy attacks (enemy.js) can define their own damage/
-        // knockback per attack (e.g. a grab-throw or a heavy dash_charge
-        // that should send the player flying) instead of the flat default.
-        const custom = enemy.getAttackDamageAndKnockback && enemy.getAttackDamageAndKnockback();
-        if (custom) player.takeDamage(custom.damage, enemy.x + enemy.width / 2, custom.knockback);
-        else player.takeDamage(ENEMY_DAMAGE, enemy.x + enemy.width / 2);
-        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
-        SFX.playerHurt();
+        player.takeDamage(ENEMY_DAMAGE, enemy.x + enemy.width / 2);
       }
+      spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
+      // Scavenged-weapon melee hits (taser) get their own zap instead of the
+      // generic hurt grunt — every other attack type keeps playerHurt().
+      const hitType = (enemy._activeAttack !== null && enemy.attacks) ? enemy.attacks[enemy._activeAttack]?.type : null;
+      if (hitType === 'taser' && SFX.taserZap) SFX.taserZap();
+      else SFX.playerHurt();
     }
 
     // Enemy body contact with player — push apart every frame there's overlap
@@ -3035,28 +3913,54 @@ function update() {
     // to appear on the other side, so skip the physical separation then too
     // — otherwise this push-apart fought the dash's velocity every frame and
     // just shoved the player back out instead of letting them through.
+    // Also skip for the enemy actively being Void Tether-pulled: confirmed
+    // via harness that without this, the tether's approach and this
+    // push-apart fight every single frame once the two hitboxes touch (the
+    // tether pulls center-to-center, so contact happens before its own
+    // arrival-distance check fires) — the player got shoved backward the
+    // length of the room, with the enemy in tow, before arrival could ever
+    // trigger. Same fix shape as the Phase Dash case above.
+    const isTetherTarget = player.tether && player.tether.targetEnemy === enemy;
+    // Per-enemy pass-through immunity (2026-07-25 fix — see player.js's
+    // dash-start reset for the full story): a dash whose total travel
+    // (PHASE_DASH_SPEED * PHASE_DASH_DURATION) ends before the player fully
+    // clears the far edge of an enemy used to result in a normal hit the
+    // instant phaseDashing flipped false, even with no counter involved —
+    // the opposite of "the whole point of the ability." An enemy touched
+    // while phaseDashing was true stays immune here until the overlap
+    // itself clears, regardless of the dash timer. Enemy-specific counters
+    // (cancel_and_damage, afterimage_strike below) are untouched — both key
+    // off `player.phaseDashing`/overlap directly, so they still fire on the
+    // original contact exactly as before this set was added.
+    const phasedThrough = player.phasedThroughEnemies && player.phasedThroughEnemies.has(enemy);
     if (!enemy.dead && rectsOverlap(player, enemy)) {
-      if (!player.phaseDashing) separateFromEnemy(player, enemy);
-
-      if (player.invincibleTimer <= 0 && !player.phaseDashing) {
-        if (player.parrying) {
-          // SUCCESSFUL PARRY on body contact
-          enemy.stunTimer = PARRY_STUN;
-          enemy.flashTimer = 10;
-          player.parrying = false;
-          player.parryTimer = 0;
-          player.invincibleTimer = PARRY_IFRAMES;
-          player.gainFracture();
-          spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
-          screenShake = 4; screenShakeIntensity = 2;
-          hitstopTimer = 5;
-          SFX.parry();
-        } else {
-          player.takeDamage(ENEMY_DAMAGE, enemy.x + enemy.width / 2);
-          spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
-          SFX.playerHurt();
+      // Afterimage Strike (enemy_attack_vocabulary_plan.md) — arm right on
+      // the dash-through contact itself, the same moment/overlap this block
+      // already detects for the separation skip below. Only the first
+      // qualifying enemy touched per dash arms it (player._afterimageArmed
+      // guards that, see player.js's dash-start reset) — the actual hazard
+      // is pushed once the dash ends, in player.js, so it lands where the
+      // player actually stops, not mid-dash.
+      if (player.phaseDashing && !player._afterimageArmed && enemy.counters) {
+        const c = enemy.counters.find((c) => c.ability === 'phase_dash' && c.effect === 'afterimage_strike');
+        if (c) {
+          player._afterimageArmed = true;
+          player._afterimageParams = { ...COUNTER_EFFECTS.phase_dash.afterimage_strike.params, ...c };
         }
       }
+      if (player.phaseDashing && player.phasedThroughEnemies) player.phasedThroughEnemies.add(enemy);
+
+      if (!player.phaseDashing && !isTetherTarget && !phasedThrough) separateFromEnemy(player, enemy);
+
+      if (player.invincibleTimer <= 0 && !player.phaseDashing && !phasedThrough && !tryParryDeflect(enemy)) {
+        player.takeDamage(ENEMY_DAMAGE, enemy.x + enemy.width / 2);
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 4);
+        SFX.playerHurt();
+      }
+    } else if (phasedThrough) {
+      // Overlap cleared — release the immunity so a LATER, unrelated touch
+      // (this same enemy again, a different dash entirely) deals damage normally.
+      player.phasedThroughEnemies.delete(enemy);
     }
   }
 
@@ -3083,7 +3987,7 @@ function update() {
         spawnParticles(plat.x + plat.w / 2, plat.y + plat.h / 2, '#2dd4bf', plat.hp <= 0 ? 16 : 8);
         screenShake = Math.max(screenShake, 6);
         screenShakeIntensity = Math.max(screenShakeIntensity, 3);
-        hitstopTimer = Math.max(hitstopTimer, 5);
+        setHitstop(5);
         SFX.shardHit();
       }
     }
@@ -3126,7 +4030,7 @@ function update() {
       SFX.bossHit();
       if (player.heavy) {
         screenShake = 14; screenShakeIntensity = 7;
-        hitstopTimer = 10;
+        setHitstop(10);
       }
     }
 
@@ -3142,51 +4046,46 @@ function update() {
       }
     }
 
-    // Boss projectiles hit player
+    // Boss projectiles hit player — per-projectile damage/knockback
+    // (Shard Shot sets these explicitly) with a flat-constant fallback for
+    // anything that omits them (2026-07-26 damage-plumbing fix).
     for (let j = bossProjectiles.length - 1; j >= 0; j--) {
       const bp = bossProjectiles[j];
       const bpBounds = { x: bp.x, y: bp.y, width: bp.width, height: bp.height };
       if (rectsOverlap(bpBounds, player) && player.invincibleTimer <= 0 && !player.phaseDashing) {
-        if (player.parrying) {
-          // Parry boss projectile
-          boss.stunTimer = PARRY_STUN;
-          boss.flashTimer = 10;
-          player.parrying = false;
-          player.parryTimer = 0;
-          player.invincibleTimer = PARRY_IFRAMES;
-          player.gainFracture();
-          spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
-          screenShake = 4; screenShakeIntensity = 2;
-          hitstopTimer = 5;
-          SFX.parry();
+        if (bp.damage !== undefined) {
+          player.takeDamage(bp.damage, bp.x, bp.knockback);
         } else {
           player.takeDamage(BOSS_DAMAGE);
-          spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 4);
-          SFX.playerHurt();
         }
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 4);
+        SFX.playerHurt();
         bossProjectiles.splice(j, 1);
       }
     }
 
-    // Boss body contact with player
-    if (!boss.dead && rectsOverlap(player, boss) && player.invincibleTimer <= 0 && !player.phaseDashing) {
-      if (player.parrying) {
-        // Parry boss body contact
-        boss.stunTimer = PARRY_STUN;
-        boss.flashTimer = 10;
-        player.parrying = false;
-        player.parryTimer = 0;
-        player.invincibleTimer = PARRY_IFRAMES;
-        player.gainFracture();
-        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
-        screenShake = 4; screenShakeIntensity = 2;
-        hitstopTimer = 5;
-        SFX.parry();
+    // Boss attack hits player — per-attack damage/knockback via
+    // getAttackHitbox()/getAttackDamageAndKnockback() (2026-07-26 moveset
+    // rebuild), modeled 1:1 on the miniboss pattern below, falling back to
+    // the flat body-contact block underneath (the "just bumped into her
+    // passively" low tier) when no real attack is active.
+    const bossAtk = !boss.dead ? boss.getAttackHitbox() : null;
+    if (bossAtk && rectsOverlap(bossAtk, player) && player.invincibleTimer <= 0 && !player.phaseDashing) {
+      const custom = boss.getAttackDamageAndKnockback && boss.getAttackDamageAndKnockback();
+      if (custom) {
+        player.takeDamage(custom.damage, boss.x + boss.width / 2, custom.knockback);
       } else {
         player.takeDamage(BOSS_DAMAGE);
-        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 4);
-        SFX.playerHurt();
       }
+      spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 4);
+      SFX.playerHurt();
+    }
+
+    // Boss body contact with player
+    if (!boss.dead && rectsOverlap(player, boss) && player.invincibleTimer <= 0 && !player.phaseDashing) {
+      player.takeDamage(BOSS_DAMAGE);
+      spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 4);
+      SFX.playerHurt();
     }
 
     // Boss death — trigger victory!
@@ -3199,6 +4098,7 @@ function update() {
       victoryTimer = 180;
       gameState = 'victory';
       SFX.bossDeath();
+      SFX.setBossMusic(null); // final boss down — let region music (or silence, in victory state) take over
     }
   }
 
@@ -3219,44 +4119,60 @@ function update() {
 
     // Player attack hits miniboss — pass `player.heavy` through as a 4th
     // arg so ColossusCore.takeDamage() can enforce "only heavy attacks
-    // connect" (other enemy types simply ignore the extra argument).
+    // connect" (other classes simply ignore the extra argument). Whether
+    // the hit actually "connects" (for life-steal/fracture-gain purposes)
+    // is asked via willConnect() instead of hardcoding `player.heavy` —
+    // ColossusCore defines it (only heavy connects, unchanged behavior);
+    // anything without it (every ComposedEnemy miniboss) always connects.
     const playerAtk = player.getAttackHitbox();
     if (playerAtk && !miniboss.dead && rectsOverlap(playerAtk, miniboss) && !player.hitTargetsThisSwing.has(miniboss)) {
       player.hitTargetsThisSwing.add(miniboss);
       const dmg = playerMeleeDamage();
       miniboss.takeDamage(dmg, player.x, 'melee', player.heavy);
-      if (player.heavy) {
-        // Life steal only on hits that actually connect — normal attacks
-        // bounce off the Colossus shell without landing.
+      const connected = miniboss.willConnect ? miniboss.willConnect(player.heavy) : true;
+      if (connected) {
         applyStillpointLifeSteal();
         spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#fb923c', 10);
         player.gainFracture();
         screenShake = 10; screenShakeIntensity = 5;
-        hitstopTimer = 8;
+        setHitstop(8);
       } else {
         spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#d97757', 4);
       }
     }
 
-    // Miniboss attack hits player
+    // Player projectiles (Shard Shot) hit miniboss — mirrors the King's own
+    // block above; minibosses previously had no ranged interaction at all,
+    // so a Shard Shot silently passed through every one of them.
+    for (let j = projectiles.length - 1; j >= 0; j--) {
+      const proj = projectiles[j];
+      const projBounds = proj.getBounds();
+      if (!miniboss.dead && rectsOverlap(projBounds, miniboss)) {
+        miniboss.takeDamage(proj.damage, proj.x, 'ranged');
+        spawnParticles(proj.x + 5, proj.y + 3, '#67e8f9', 6);
+        projectiles.splice(j, 1);
+        SFX.bossHit();
+      }
+    }
+
+    // Miniboss attack hits player — per-attack damage/knockback via
+    // getAttackDamageAndKnockback() when the class defines it (every
+    // ComposedEnemy does), falling back to the old flat constant for
+    // bespoke classes that don't. Also now gated on invincibility/Phase
+    // Dash like every other player-damage check in this file, including
+    // the body-contact check three lines below — this block was the one
+    // exception, letting a miniboss's attack hitbox land mid-dash.
     const mbAtk = !miniboss.dead ? miniboss.getAttackHitbox() : null;
-    if (mbAtk && rectsOverlap(mbAtk, player)) {
-      if (player.parrying) {
-        miniboss.stunTimer = PARRY_STUN;
-        miniboss.flashTimer = 10;
-        player.parrying = false;
-        player.parryTimer = 0;
-        player.invincibleTimer = PARRY_IFRAMES;
-        player.gainFracture();
-        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#fbbf24', 12);
-        screenShake = 4; screenShakeIntensity = 2;
-        hitstopTimer = 5;
-        SFX.parry();
+    if (mbAtk && rectsOverlap(mbAtk, player) && player.invincibleTimer <= 0 && !player.phaseDashing) {
+      const custom = miniboss.getAttackDamageAndKnockback && miniboss.getAttackDamageAndKnockback();
+      if (custom) {
+        player.takeDamage(custom.damage, miniboss.x + miniboss.width / 2, custom.knockback);
+        if (custom.dotOnHit) applyPlayerDot(player, custom.dotOnHit);
       } else {
         player.takeDamage(COLOSSUS_DAMAGE);
-        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#d97757', 4);
-        SFX.playerHurt();
       }
+      spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#d97757', 4);
+      SFX.playerHurt();
     }
 
     // Miniboss body contact with player (its charge attack is the real threat, but guard against a plain collide too)
@@ -3266,16 +4182,32 @@ function update() {
       SFX.playerHurt();
     }
 
-    // Miniboss death — no victory cinematic, just persist the defeat and heal the player
+    // Miniboss death — no victory cinematic, just persist the defeat, heal
+    // the player, and grant a reward. maxHealthBonus/playerMaxHealth() is
+    // the exact generic, save-persisted mechanism healing.js's max-health
+    // shards already use — this used to be flagged as "out of scope," which
+    // was stale the moment that system existed for another reward path.
+    // Temporal Warden (`chrono_ally`, 2026-07-26) is the one documented
+    // exception — his reward is a Stillpoint upgrade (+1 lifesteal per
+    // hit), not +1 Max Health, per expansion.md's own per-fight reward
+    // table — see stillpointLifestealBonus above for why that's a separate
+    // additive bonus rather than a direct statUpgrades.stillpoint bump.
     if (miniboss.dead && miniboss.deathTimer === 1) {
       defeatedMinibosses[area.miniboss] = true;
+      SFX.setBossMusic(null); // fight's over — drop back to region music even though still in the arena
       screenShake = 40;
       screenShakeIntensity = 5;
       spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#fbbf24', 24);
       spawnParticles(miniboss.x + miniboss.width / 2, miniboss.y + miniboss.height / 2, '#fb923c', 18);
-      player.health = playerMaxHealth(); // full heal on defeat — a permanent Max Health increase would need
-                                   // MAX_HEALTH to become mutable + HUD/save changes, out of scope here
-      addAbilityNotification('COLOSSUS CORE DEFEATED');
+      player.health = playerMaxHealth();
+      const name = (miniboss.displayName || area.miniboss).toUpperCase();
+      if (area.miniboss === 'chrono_ally') {
+        stillpointLifestealBonus++;
+        addAbilityNotification(`${name} DEFEATED — STILLPOINT LIFESTEAL +1 (${stillpointLifestealCap()}/ACTIVATION)`);
+      } else {
+        maxHealthBonus++;
+        addAbilityNotification(`${name} DEFEATED — MAX HEALTH +1 (${playerMaxHealth()})`);
+      }
       SFX.bossDeath();
       saveGame();
     }
@@ -3289,8 +4221,12 @@ function update() {
     }
   }
 
-  // Check transitions
-  for (const trans of area.transitions) {
+  // Check transitions — skipped during doorCooldown (see its declaration),
+  // which prevents a same-tick bounce back through the door the player just
+  // used when the authored landing spot overlaps the destination's own
+  // return trigger.
+  if (doorCooldown > 0) doorCooldown--;
+  for (const trans of (doorCooldown > 0 ? [] : area.transitions)) {
     // Check ability requirement. Any `requires` value not recognized below
     // (e.g. `graviton_surge` on inert stub doors toward not-yet-built
     // regions — see Crag Warden / Event Horizon Core) is treated as an
@@ -3305,7 +4241,13 @@ function update() {
       { x: player.x, y: player.y, width: player.width, height: player.height },
       { x: trans.x, y: trans.y, width: trans.w, height: trans.h }
     )) {
-      switchArea(trans.to, trans.toX, trans.toY);
+      // Hollow Knight-style auto spawn (see computeDoorSpawn) when the
+      // level designer left toX/toY unset — no more per-door coordinate
+      // authoring required for a standard two-way door.
+      const spawn = (trans.toX !== undefined && trans.toY !== undefined)
+        ? { x: trans.toX, y: trans.toY }
+        : computeDoorSpawn(trans.to, currentAreaId);
+      switchArea(trans.to, spawn.x, spawn.y);
       break;
     }
   }
@@ -3499,6 +4441,7 @@ const HUD_LAYOUT = {
   limitBreakBar: { anchor: 'top-center',   x: 0,  y: 40, w: 160, h: 8,     visible: true },
   controlsHint:  { anchor: 'bottom-right', x: 16, y: 12,                    visible: true },
   fracturePips:  { anchor: 'bottom-left',  x: 14, y: 58, gap: 22,          visible: true },
+  abilityCooldowns: { anchor: 'bottom-center', x: 0, y: 34, size: 20, gap: 6, visible: true },
 };
 
 (function applyHudLayoutOverrides() {
@@ -3516,10 +4459,11 @@ const HUD_LAYOUT = {
 // canvas size. Returns {x, y} of the element's reference point.
 function hudResolve(el) {
   switch (el.anchor) {
-    case 'top-center':   return { x: W / 2 + el.x, y: el.y };
-    case 'bottom-left':  return { x: el.x, y: H - el.y };
-    case 'bottom-right': return { x: W - el.x, y: H - el.y };
-    default:             return { x: el.x, y: el.y }; // top-left
+    case 'top-center':    return { x: W / 2 + el.x, y: el.y };
+    case 'bottom-left':   return { x: el.x, y: H - el.y };
+    case 'bottom-right':  return { x: W - el.x, y: H - el.y };
+    case 'bottom-center': return { x: W / 2 + el.x, y: H - el.y };
+    default:              return { x: el.x, y: el.y }; // top-left
   }
 }
 
@@ -3538,6 +4482,60 @@ function drawHUD(ctx) {
   }
   if (HUD_LAYOUT.controlsHint.visible) drawControlsHint(ctx);
   if (HUD_LAYOUT.limitBreakBar.visible) drawLimitBreakBar(ctx);
+  if (HUD_LAYOUT.abilityCooldowns.visible) drawAbilityCooldownHUD(ctx);
+}
+
+// Fixed-position ability cooldown strip (bottom-center, Dead Cells-style) —
+// 2026-07-27, replacing Phase Dash/Shard Shot/Parry's old world-space rings
+// (drawDashCooldownRing below), which nested concentrically under the
+// player's feet and turned into an unreadable bullseye once 2+ were
+// cooling at once. Unlike a permanent skill bar, a slot only EXISTS while
+// that ability is actually cooling: nothing is drawn when everything's
+// ready, so a short cooldown just flashes briefly instead of sitting on
+// screen the whole game — same "quiet, only when it matters" rule the old
+// rings followed, just legible with more than one ability going at once.
+// Base Dash keeps its own single ring (still drawn by drawDashCooldownRing)
+// since it's core movement everyone has from frame one, not a "special."
+function drawAbilityCooldownHUD(ctx) {
+  const slots = [];
+  if (abilityState.hasPhaseDash && abilityState.phaseDashCooldown > 0) {
+    slots.push({ label: 'PD', frac: 1 - abilityState.phaseDashCooldown / PHASE_DASH_COOLDOWN, color: '167, 139, 250' });
+  }
+  if (abilityState.hasShardShot && abilityState.shardShotCooldown > 0) {
+    slots.push({ label: 'SS', frac: 1 - abilityState.shardShotCooldown / SHARD_SHOT_COOLDOWN, color: '45, 212, 191' });
+  }
+  if (abilityState.hasParry && abilityState.parryCooldown > 0) {
+    slots.push({ label: 'PA', frac: 1 - abilityState.parryCooldown / PARRY_COOLDOWN, color: '251, 191, 36' });
+  }
+  if (slots.length === 0) return;
+
+  const lay = HUD_LAYOUT.abilityCooldowns;
+  const pos = hudResolve(lay);
+  const r = lay.size / 2;
+  const totalW = slots.length * lay.size + (slots.length - 1) * lay.gap;
+  let cx = pos.x - totalW / 2 + r;
+  const cy = pos.y - r;
+
+  ctx.textAlign = 'center';
+  ctx.font = `bold ${Math.round(lay.size * 0.4)}px "Courier New", monospace`;
+  for (const s of slots) {
+    ctx.fillStyle = 'rgba(10, 10, 20, 0.7)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(${s.color}, 0.9)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 1, -Math.PI / 2, -Math.PI / 2 + s.frac * Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = `rgba(${s.color}, 0.9)`;
+    ctx.fillText(s.label, cx, cy + lay.size * 0.14);
+
+    cx += lay.size + lay.gap;
+  }
+  ctx.textAlign = 'left';
 }
 
 // Limit Break (Lv4) 6s countdown bar — "To add" list in Enemy_Design.pdf.
@@ -3708,11 +4706,13 @@ function drawControlsHint(ctx) {
 
 
 
-// Small recharge rings around the player's feet — one per ability that's
-// actually cooling down (world space, drawn while the camera transform is
-// still active). Nothing is shown for abilities that are ready or not yet
-// unlocked, so there's no permanent panel on screen — just a quiet pulse
-// under the player exactly when it matters.
+// Small recharge ring around the player's feet for base Dash only (world
+// space, drawn while the camera transform is still active) — Phase Dash,
+// Shard Shot, and Parry moved to the fixed-position bottom-center HUD strip
+// (drawAbilityCooldownHUD above, 2026-07-27) so multiple cooldowns overlap
+// legibly instead of nesting into a bullseye. Dash stays here: it's core
+// movement from frame one, not a "special," and there's only ever the one
+// ring so nesting was never the problem for it.
 function drawDashCooldownRing(ctx) {
   if (!player) return;
   const cx = player.x + player.width / 2;
@@ -3721,12 +4721,6 @@ function drawDashCooldownRing(ctx) {
   const rings = [];
   if (player.dashCooldown > 0) {
     rings.push({ frac: 1 - player.dashCooldown / DASH_COOLDOWN, color: '196, 181, 253' }); // violet
-  }
-  if (abilityState.hasPhaseDash && abilityState.phaseDashCooldown > 0) {
-    rings.push({ frac: 1 - abilityState.phaseDashCooldown / PHASE_DASH_COOLDOWN, color: '167, 139, 250' }); // purple
-  }
-  if (abilityState.hasShardShot && abilityState.shardShotCooldown > 0) {
-    rings.push({ frac: 1 - abilityState.shardShotCooldown / SHARD_SHOT_COOLDOWN, color: '45, 212, 191' }); // teal
   }
   if (rings.length === 0) return;
 
@@ -4283,13 +5277,33 @@ function draw() {
     enemy.draw(ctx);
   }
 
+  // Debug overlay (F3) — per-enemy AI status label, world-space so it
+  // tracks the sprite through the camera transform like everything else here.
+  if (DEBUG_MODE) {
+    for (const enemy of enemies) {
+      if (enemy.dead) continue;
+      ctx.save();
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      const label = debugLabelForEnemy(enemy);
+      const labelX = enemy.x + enemy.width / 2;
+      const labelY = enemy.y - 8;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      const textWidth = ctx.measureText(label).width;
+      ctx.fillRect(labelX - textWidth / 2 - 3, labelY - 10, textWidth + 6, 13);
+      ctx.fillStyle = '#7dffb3';
+      ctx.fillText(label, labelX, labelY);
+      ctx.restore();
+    }
+  }
+
   // Void Tether target telegraph — a faint ring on the enemy that WOULD be
   // pulled if R were pressed right now (only while the ability is held,
   // off cooldown, and not already mid-pull). Makes the facing auto-aim
   // legible without HUD chrome, per the in-world-feedback design rule.
   if (abilityState.hasVoidTether && abilityState.voidTetherCooldown <= 0 && !player.tether) {
-    const lvl = abilityLevel('void_tether');
-    const range = VOID_TETHER_RANGE_BASE * (lvl >= 1 ? 1.3 : 1);
+    const rawTetherTelegraph = abilityLevel('void_tether');
+    const range = VOID_TETHER_RANGE_BASE * (oldTier('void_tether') >= 1 ? 1.3 : (rawTetherTelegraph >= 1 ? 1.15 : 1));
     const tgt = findVoidTetherTarget(player, range);
     if (tgt) {
       const pulse = Math.sin(frameCount * 0.15) * 0.15;
@@ -4302,6 +5316,49 @@ function draw() {
     }
   }
 
+  // Void Tether beam — the actual pull had NO visual while active (user
+  // report 2026-07-19: "please make my void tether visible"); the ring
+  // above is only the pre-cast preview and disappears the instant
+  // player.tether is set. Modeled on the Child's tetherBeam convention
+  // (companion.js) — a glowing line from the player to whatever's being
+  // pulled, plus a small burst at the target end.
+  // Style-only ANIM_DEFS bridge (2026-07-19) — the beam's two endpoints
+  // (bx,by,tx,ty) are ALWAYS computed live here regardless of authoring,
+  // since the target is only known in this loop; only color/lineWidth come
+  // from 'void_tether_beam' when it exists. See animdata.js's FRAME SHAPE
+  // comment for why this doesn't use the entity/Animator.draw() model every
+  // other dissected animation in this game uses.
+  if (player.tether) {
+    const bx = player.x + player.width / 2, by = player.y + player.height / 2;
+    let tx, ty;
+    if (player.tether.targetEnemy) { tx = player.tether.targetEnemy.x + player.tether.targetEnemy.width / 2; ty = player.tether.targetEnemy.y + player.tether.targetEnemy.height / 2; }
+    else { tx = player.tether.targetPoint.x + player.width / 2; ty = player.tether.targetPoint.y + player.height / 2; }
+    const pulse = 0.7 + Math.sin(frameCount * 0.6) * 0.3;
+    const styleDef = ANIM_DEFS['void_tether_beam'];
+    let color, lineWidth;
+    if (styleDef) {
+      tetherBeamAnimator.play('void_tether_beam');
+      tetherBeamAnimator.update();
+      const styleFrame = tetherBeamAnimator.currentFrame();
+      color = (styleFrame && styleFrame.color) || `rgba(52, 211, 153, ${0.8 * pulse})`;
+      lineWidth = (styleFrame && styleFrame.lineWidth) ?? 2.5;
+    } else {
+      color = `rgba(52, 211, 153, ${0.8 * pulse})`;
+      lineWidth = 2.5;
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.fillStyle = `rgba(52, 211, 153, ${0.6 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Echoes
   for (const echo of echoes) {
     echo.draw(ctx);
@@ -4311,6 +5368,18 @@ function draw() {
   // Projectiles
   for (const proj of projectiles) {
     proj.draw(ctx);
+  }
+
+  // Afterimage Strike hazards — a growing/pulsing telegraph ring so the
+  // "delayed explosive drop" reads as a real tell, not an ambush (see
+  // update() above for the arm/explode logic).
+  for (const h of afterimageHazards) {
+    const frac = 1 - Math.max(0, h.timer) / (h.armDelay || 45);
+    ctx.strokeStyle = `rgba(192, 132, 252, ${0.4 + 0.4 * frac})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, h.radius * (0.3 + 0.7 * frac), 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   // Healing pickups (healing.js) — strike-open crystals + drifting motes
@@ -4337,8 +5406,6 @@ function draw() {
     miniboss.draw(ctx);
   }
 
-   // ── Crystal Sentinel projectiles ──────────────────────────────────────
-  CrystalSentinel.drawProjectiles(ctx);
   ComposedEnemy.drawProjectiles(ctx);
 
   // Particles
@@ -4410,7 +5477,7 @@ function draw() {
       ctx.translate(px + 7, py + 7);
       ctx.rotate(Math.PI / 4);
       if (filled) {
-        const alpha = isLastDraining ? (1 - player.fractureDrain / FRACTURE_DRAIN_RATE) * 0.9 + 0.1 : 1;
+        const alpha = isLastDraining ? (player.stillpointTimer / Math.max(1, player.stillpointDuration)) * 0.9 + 0.1 : 1;
         ctx.fillStyle = player.stillpointActive ? `rgba(103, 232, 249, ${alpha})` : `rgba(196, 181, 253, ${alpha})`;
         ctx.fillRect(-6, -6, 12, 12);
       }
@@ -4757,8 +5824,8 @@ function draw() {
   ctx.textAlign = 'center';
   for (const pop of abilityPopups) {
     const alpha = Math.min(1, pop.life / 30);
-    const screenX = pop.x - camera.x;
-    const screenY = pop.y - camera.y;
+    const screenX = (pop.x - camera.x) * camera.zoom;
+    const screenY = (pop.y - camera.y) * camera.zoom;
     ctx.globalAlpha = alpha;
     ctx.fillStyle = '#000';
     ctx.font = 'bold 16px "Courier New", monospace';
@@ -4838,6 +5905,23 @@ const MAX_TICKS_PER_FRAME = 5; // second safety net
 
 let lastTime = performance.now();
 let accumulator = 0;
+
+// rAF doesn't fire while a tab is hidden, so `now - lastTime` on the first
+// callback after switching back can be seconds long. MAX_ACCUMULATOR only
+// caps how much of that gets added in ONE call (250ms) — the leftover
+// still drains at up to MAX_TICKS_PER_FRAME ticks every subsequent
+// rendered frame until it's gone, which compresses a few hundred
+// milliseconds of game logic into a handful of real frames right after
+// refocusing (user report 2026-07-20: "leave a tab open and come back the
+// game is super sped up"). Discarding the backlog outright on
+// visibilitychange, instead of trying to catch it up, is the standard fix
+// — the game just resumes from where it was with no burst at all.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    lastTime = performance.now();
+    accumulator = 0;
+  }
+});
 
 function gameLoop(now) {
   const elapsed = Math.min(now - lastTime, MAX_ACCUMULATOR);

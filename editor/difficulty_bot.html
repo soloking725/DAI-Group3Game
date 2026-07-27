@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Difficulty Bot</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #06060e; color: #c4b5fd; font-family: 'Courier New', monospace; font-size: 12px;
+         display: flex; height: 100vh; overflow: hidden; }
+  #stage { position: relative; background: #000; flex-shrink: 0; }
+  canvas#game { display: block; image-rendering: pixelated; }
+  #stage .badge { position: absolute; top: 8px; left: 8px; font-size: 10px; padding: 3px 8px;
+    background: rgba(10,10,24,0.85); border: 1px solid #2e2e5e; }
+  #stage .badge.watching { border-color: #2dd4bf; color: #2dd4bf; }
+  #stage .badge.fast { border-color: #fbbf24; color: #fbbf24; }
+  #side { width: 380px; flex-shrink: 0; background: #0a0a18; border-left: 1px solid #1e1e3e;
+          overflow-y: auto; padding: 10px; }
+  h1 { font-size: 13px; margin: 0 0 4px; color: #e0d7ff; }
+  h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #4a4a7e;
+       border-bottom: 1px solid #1a1a2e; margin: 14px 0 6px; padding-bottom: 3px; }
+  p.note { color: #5a5a8e; font-size: 10.5px; line-height: 1.5; margin: 0 0 8px; }
+  select, button, input[type=number] { width: 100%; background: #141428; border: 1px solid #2e2e5e; color: #c4b5fd;
+    font-family: inherit; font-size: 11px; padding: 5px; margin-bottom: 6px; cursor: pointer; }
+  input[type=number] { cursor: text; }
+  button.primary { border-color: #2dd4bf; color: #2dd4bf; }
+  button.stop { border-color: #f87171; color: #f87171; }
+  button:hover { background: #1e1e3e; }
+  button:disabled { opacity: 0.35; cursor: default; }
+  label.inline { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #a8a8d8; margin-bottom: 6px; cursor: pointer; }
+  label.inline input[type=checkbox] { width: auto; margin: 0; }
+  .row { display: flex; gap: 6px; }
+  .row > * { flex: 1; }
+  .roster-row { display: flex; align-items: center; gap: 6px; font-size: 10.5px; margin-bottom: 4px; }
+  .roster-row label { flex: 1; color: #a8a8d8; }
+  .roster-row input[type=number] { width: 54px; flex: none; margin-bottom: 0; }
+  #liveStats, #genLog { background: #04040a; border: 1px solid #1a1a2e; padding: 8px; font-size: 10.5px; line-height: 1.6; }
+  #liveStats div.kv { display: flex; justify-content: space-between; }
+  #genLog { max-height: 220px; overflow-y: auto; }
+  .gen-row { display: flex; gap: 8px; padding: 2px 0; border-bottom: 1px dashed #14142a; }
+  .gen-row .n { color: #4a4a7e; width: 26px; flex-shrink: 0; }
+  .gen-row .best { color: #2dd4bf; width: 70px; flex-shrink: 0; }
+  .gen-row .avg { color: #6a6a9e; width: 70px; flex-shrink: 0; }
+  .gen-row .cleared { color: #34d399; }
+  #chart { width: 100%; height: 90px; background: #04040a; border: 1px solid #1a1a2e; }
+  .hint { color: #3a3a5e; font-size: 10px; }
+  .ability-row { display: flex; align-items: center; gap: 6px; font-size: 10.5px; margin-bottom: 4px; }
+  .ability-row label.name { flex: 1; display: flex; align-items: center; gap: 4px; color: #a8a8d8; }
+  .ability-row label.name input[type=checkbox] { width: auto; margin: 0; }
+  .ability-row select { width: 130px; flex: none; margin-bottom: 0; }
+  #abilityValidation { font-size: 10px; padding: 4px 6px; margin: 2px 0 8px; display: none; }
+  #abilityValidation.bad { display: block; color: #f87171; background: rgba(248,113,113,0.1); border: 1px solid #7f1d1d; }
+  #lorePipSummary { font-size: 10.5px; color: #a8a8d8; background: #0e0e1e; border: 1px solid #1e1e3e; padding: 6px 8px; margin-bottom: 8px; display: flex; justify-content: space-between; }
+  #lorePipSummary .n { color: #2dd4bf; }
+  #lorePipSummary.over .n { color: #f87171; }
+  #healthPanel { background: #04040a; border: 1px solid #1a1a2e; padding: 8px; font-size: 10.5px; }
+  .hp-row { margin-bottom: 6px; }
+  .hp-row:last-child { margin-bottom: 0; }
+  .hp-label { display: flex; justify-content: space-between; color: #a8a8d8; margin-bottom: 2px; }
+  .hp-label .dead { color: #6a6a9e; }
+  .hp-bar-track { background: #14142a; height: 6px; border: 1px solid #1e1e3e; }
+  .hp-bar-fill { height: 100%; background: #34d399; }
+  .hp-bar-fill.player { background: #2dd4bf; }
+  .hp-bar-fill.low { background: #f87171; }
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
+</style>
+</head>
+<body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
+
+<div id="stage">
+  <canvas id="game"></canvas>
+  <div class="badge" id="modeBadge">Idle</div>
+</div>
+
+<div id="side">
+  <h1>🧬 Difficulty Bot</h1>
+  <p class="note">
+    Evolves a small neural net to play the real game (real <code>player.js</code>/<code>enemy.js</code>/
+    <code>boss.js</code>, not a mock) against a chosen roster in the bounded <code>bot_arena</code> room.
+    Evaluation runs fast-forward (no rendering); after each generation the current best genome is replayed
+    live at real speed so you can actually watch it fight — see <a href="../Plans/difficulty_bot_and_combat_polish_plan.md" style="color:#2dd4bf" target="_blank">the plan doc</a> for the full design.
+  </p>
+
+  <h2>1. Roster</h2>
+  <div class="roster-row">
+    <label>Boss / Miniboss</label>
+  </div>
+  <select id="bossSelect">
+    <option value="">None</option>
+    <option value="boss">The Fractured King / Sovereign</option>
+    <option value="colossus_core">Colossus Core (miniboss)</option>
+    <option value="static_guardian">The Conduit (miniboss)</option>
+    <option value="hollow_guardian">The Mirror King (miniboss)</option>
+    <option value="graviton_sentinel">Fractured Sovereign's Guard (miniboss)</option>
+    <option value="paradox_engine">The Assembler (miniboss)</option>
+    <option value="timeline_keeper">The Stationmaster (miniboss)</option>
+    <option value="abyss_guardian">Quantum Pursuer (miniboss)</option>
+    <option value="warp_guardian">Warden &amp; Hollow (miniboss)</option>
+    <option value="polar_guardian">Electromagnetic Golem (miniboss)</option>
+    <option value="horizon_core">Gravity Collapse Core (miniboss)</option>
+  </select>
+  <div id="rosterList"></div>
+  <p class="hint">Spawn positions are spread evenly across the arena — no manual placement needed.</p>
+
+  <h2>2. Player Loadout</h2>
+  <div id="abilityLoadout"></div>
+  <div id="abilityValidation"></div>
+  <div id="lorePipSummary"><span>Lore Pips Used</span><span><span class="n" id="lorePipUsed">0</span> / 30</span></div>
+  <div class="row">
+    <label>Fracture Pip cap<input type="number" id="fractureMaxInput" value="4" min="0" max="4"></label>
+    <label>Fracture pips (current)<input type="number" id="fractureMeterInput" value="4" min="0" max="4"></label>
+  </div>
+  <p class="hint">Level 0-4 = the real lore-pip-funded tiers, costing 1/2/3/4 pips each (cumulative — Lv4 costs 1+2+3+4=10 total; 2026-07-27 rebalance added a cheap Lv1 "small boost" and shifted the old Lv1-3 up to Lv2-4), same table game.js's Inventory screen uses. Level 5 = Limit Break — a permanent Enhanced State for that one ability, no pip cost (bypasses the real per-playthrough limit for testing, same as enemy_test.html) — doesn't add to the pip count below. Only one ability may be Lv5 at a time — that's the actual in-game rule, not a bot limitation. 30 is the current target lore-pip total for a full playthrough (deliberately short of maxing every line — specialization is the point) — going over it is still runnable here, just not a loadout a real playthrough could ever reach at once.</p>
+
+  <h2>3. Search Algorithm</h2>
+  <select id="algorithmSelect">
+    <option value="ga" selected>Genetic Algorithm — crossover + mutation (most exploratory)</option>
+    <option value="es">Evolution Strategy — mutation-only clones (smoother convergence, no gene-mixing)</option>
+    <option value="baseline">Scripted Baseline — no learning, fixed reactive rules (difficulty floor / sanity check)</option>
+  </select>
+  <p class="hint">Baseline ignores the settings below — it's one run of a fixed policy, not a search. GA and ES both evolve the same net; the difference is only in how children are produced each generation.</p>
+
+  <h2>4. Evolution Settings</h2>
+  <div class="row">
+    <label>Population<input type="number" id="popInput" value="24" min="4" max="200"></label>
+    <label>Generations<input type="number" id="genInput" value="40" min="1" max="1000"></label>
+  </div>
+  <div class="row">
+    <label>Max ticks/eval<input type="number" id="maxTicksInput" value="900" min="60" max="6000"></label>
+    <label>Elitism<input type="number" id="elitismInput" value="2" min="0" max="10"></label>
+  </div>
+  <label>Reaction time (ticks between decisions)<input type="number" id="decisionIntervalInput" value="6" min="1" max="30"></label>
+  <p class="hint">1 = re-decide every simulated tick (very twitchy, snaps direction instantly — this was the "turns around really quickly" issue). Higher = holds each decision longer before reconsidering, closer to real reaction time (6 ≈ 100ms @60fps) — also lets hold-to-charge actions (attack, Shard Shot, Graviton Surge) actually commit instead of flickering on/off.</p>
+  <div class="row">
+    <label>Mutation rate<input type="number" id="mutRateInput" value="0.08" min="0" max="1" step="0.01"></label>
+    <label>Mutation amount<input type="number" id="mutAmountInput" value="0.4" min="0" max="3" step="0.05"></label>
+  </div>
+  <label class="inline"><input type="checkbox" id="watchBestInput" checked> Watch best genome after each generation (real-time replay)</label>
+  <label>Watch every N generations<input type="number" id="watchEveryInput" value="1" min="1" max="20"></label>
+
+  <label>Training speed</label>
+  <select id="speedSelect">
+    <option value="0">Max speed — no throttle (will peg a CPU core)</option>
+    <option value="10" selected>Fast — brief breather between genomes</option>
+    <option value="40">Moderate — noticeably cooler, slower wall-clock</option>
+    <option value="120">Cool — for long unattended runs</option>
+  </select>
+  <p class="hint">Fast-forward evaluation is one long synchronous burst of game-logic calls per genome with nothing to make it yield — that's almost certainly the fan/heat. This inserts a real pause between genomes so the CPU actually gets a break; higher = cooler but slower to finish.</p>
+
+  <p class="hint">
+    <b>How many generations is "enough"?</b> There's no fixed number — watch the chart below: keep going while best fitness is still climbing, stop once it's been flat for ~15-20 generations in a row (that's a plateau, not a countdown). Rough starting points: a single Fractured usually shows real learning within 20-40 generations; 2-3 enemies or a miniboss often needs 60-150+; the King can need more. <b>If it can't reliably clear 2 Fractured yet, that's expected before ~50+ generations</b> — the 3-target awareness window (was 2) and the reaction-time throttle above both help, but multi-enemy fights are a harder problem than 1v1 and need more generations to solve, not a sign something's broken. Start small (1 enemy), confirm it's actually learning, then scale up roster size — jumping straight to the full roster or the boss makes it much harder to tell "still training" from "stuck."
+  </p>
+
+  <button class="primary" id="runBtn">▶ Run Evolution</button>
+  <button class="stop" id="stopBtn" disabled>■ Stop</button>
+  <button id="skipReplayBtn" disabled>⏭ Skip Current Replay</button>
+
+  <h2>Combat State</h2>
+  <div id="healthPanel"><div class="hint">Run to see live health here.</div></div>
+
+  <h2>Live State</h2>
+  <div id="liveStats">
+    <div class="kv"><span>Status</span><span id="statStatus">idle</span></div>
+    <div class="kv"><span>Generation</span><span id="statGen">-</span></div>
+    <div class="kv"><span>Best fitness (all-time)</span><span id="statBestEver">-</span></div>
+    <div class="kv"><span>Best fitness (this gen)</span><span id="statBestGen">-</span></div>
+    <div class="kv"><span>Avg fitness (this gen)</span><span id="statAvgGen">-</span></div>
+    <div class="kv"><span>Boss/roster cleared?</span><span id="statCleared">-</span></div>
+  </div>
+
+  <h2>Fitness Over Generations</h2>
+  <canvas id="chart" width="360" height="90"></canvas>
+
+  <h2>Generation Log</h2>
+  <div id="genLog"><div class="hint">Run evolution to populate this.</div></div>
+</div>
+
+<!-- ─── Real game scripts — same load order as index.html/enemy_test.html,
+     with two additions: the requestAnimationFrame stub (must load BEFORE
+     game.js so its self-starting loop never fires) and agentController.js
+     (must load AFTER game.js so its globals — Player, Boss, ENEMY_REGISTRY,
+     update(), draw() — already exist). ─────────────────────────────────── -->
+<script>
+  // Freeze game.js's own free-running rAF loop before it starts. See the
+  // header comment in agentController.js for why: this controller drives
+  // update()/draw() by hand instead, so nothing should be ticking the game
+  // on its own in the background.
+  window.__realRAF = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = function () { return 0; };
+</script>
+<script src="../game/audio.js"></script>
+<script src="../game/input.js"></script>
+<script src="../game/physics.js"></script>
+<script src="../game/attackVFX.js"></script>
+<script src="../game/animdata.js"></script>
+<script src="../game/animImageStore.js"></script>
+<script src="../game/area.js"></script>
+<script src="../game/map.js"></script>
+<script src="../game/ability.js"></script>
+<script src="../game/cutscene.js"></script>
+<script src="../game/combo.js"></script>
+<script src="../game/healing.js"></script>
+<script src="../game/boss.js"></script>
+<script src="../game/enemy.js"></script>
+<script src="../game/companion.js"></script>
+<script src="../game/player.js"></script>
+<script src="../game/game.js"></script>
+<script src="../game/agentController.js"></script>
+<script src="../game/devContext.js"></script>
+<script>
+// ─── Roster UI — every concrete ENEMY_REGISTRY class except 'composed'
+// (needs a designer def, out of scope for this generic picker) ───────────
+const ROSTER_TYPES = Object.keys(ENEMY_REGISTRY).filter(id => id !== 'composed');
+const rosterListEl = document.getElementById('rosterList');
+rosterListEl.innerHTML = ROSTER_TYPES.map(id => `
+  <div class="roster-row">
+    <label>${id.replace(/_/g, ' ')}</label>
+    <input type="number" id="count_${id}" value="0" min="0" max="8">
+  </div>
+`).join('');
+// A sane default so "Run Evolution" works out of the box without configuring anything.
+document.getElementById('count_fractured').value = 2;
+
+function readRosterConfig() {
+  const roster = [];
+  for (const id of ROSTER_TYPES) {
+    const n = parseInt(document.getElementById(`count_${id}`).value, 10) || 0;
+    if (n > 0) roster.push({ type: id, count: n });
+  }
+  return roster;
+}
+
+// ─── Ability loadout — built off DifficultyBotEngine.abilityDefs, the same
+// list agentController.js's applyAbilityConfig() reads, so this UI can never
+// drift out of sync with what the engine actually understands. Per-ability
+// checkbox + level (0-4), same shape as enemy_test.html's loadout panel.
+const ABILITY_DEFS = DifficultyBotEngine.abilityDefs;
+const abilityLoadoutEl = document.getElementById('abilityLoadout');
+abilityLoadoutEl.innerHTML = ABILITY_DEFS.map(def => `
+  <div class="ability-row">
+    <label class="name"><input type="checkbox" id="grant_${def.key}" checked> ${def.label}</label>
+    <select id="level_${def.key}">
+      <option value="0">Lv0</option>
+      <option value="1">Lv1</option>
+      <option value="2">Lv2</option>
+      <option value="3" selected>Lv3</option>
+      <option value="4">Lv4</option>
+      <option value="5">Lv5 — Limit Break</option>
+    </select>
+  </div>
+`).join('');
+// Sane default matching the old "Tier 2" preset, so Run still works out of
+// the box: Phase Dash + Shard Shot + Stillpoint granted, rest off.
+const DEFAULT_GRANTED = new Set(['phase_dash', 'shard_shot', 'stillpoint']);
+for (const def of ABILITY_DEFS) {
+  document.getElementById(`grant_${def.key}`).checked = DEFAULT_GRANTED.has(def.key);
+}
+
+function readAbilityConfig() {
+  return ABILITY_DEFS.map(def => ({
+    key: def.key,
+    granted: document.getElementById(`grant_${def.key}`).checked,
+    level: parseInt(document.getElementById(`level_${def.key}`).value, 10) || 0,
+  }));
+}
+
+// Validation: at most one ability may be Lv5 (Limit Break) at a time — the
+// real one-per-playthrough rule, not an arbitrary bot restriction. Blocks
+// Run rather than silently picking a winner, so a misconfigured loadout
+// can't quietly produce misleading difficulty numbers.
+function validateAbilityConfig(rows) {
+  const lv5 = rows.filter(r => r.granted && r.level >= 5);
+  if (lv5.length > 1) {
+    return `${lv5.length} abilities set to Lv5 (Limit Break) at once — only one can be active in the real game (${lv5.map(r => r.key).join(', ')}). Drop the rest to Lv4 or lower.`;
+  }
+  return null;
+}
+
+// Same per-level cost table as game.js's INVENTORY_UPGRADES (identical for
+// all 6 abilities: Lv1/2/3/4 cost 1/2/3/4 pips, cumulative — 2026-07-27
+// rebalance). Lv5 (Limit Break) is a separate free unlock, not funded by
+// pips — it doesn't add anything past the Lv4 cost. Kept as a small local
+// copy rather than reading the real game.js constant, since this only needs
+// the cost numbers, not the labels/descriptions ABILITY_DEFS already covers.
+const LORE_PIP_COSTS = [1, 2, 3, 4]; // index 0 = cost of reaching Lv1, etc.
+const LORE_PIP_CAP = 30; // current target lore-pip total for a full playthrough
+
+function cumulativePipCost(level) {
+  let cost = 0;
+  for (let lv = 1; lv <= Math.min(level, 4); lv++) cost += LORE_PIP_COSTS[lv - 1];
+  return cost;
+}
+
+function refreshAbilityValidation() {
+  const rows = readAbilityConfig();
+  const error = validateAbilityConfig(rows);
+  const el = document.getElementById('abilityValidation');
+  el.textContent = error || '';
+  el.className = error ? 'bad' : '';
+  runBtn.disabled = !!error;
+
+  const pipsUsed = rows.reduce((sum, r) => sum + (r.granted ? cumulativePipCost(r.level) : 0), 0);
+  const pipEl = document.getElementById('lorePipUsed');
+  pipEl.textContent = pipsUsed;
+  document.getElementById('lorePipSummary').classList.toggle('over', pipsUsed > LORE_PIP_CAP);
+
+  return !error;
+}
+for (const def of ABILITY_DEFS) {
+  document.getElementById(`grant_${def.key}`).addEventListener('change', refreshAbilityValidation);
+  document.getElementById(`level_${def.key}`).addEventListener('change', refreshAbilityValidation);
+}
+
+function readConfig() {
+  return {
+    algorithm: document.getElementById('algorithmSelect').value,
+    roster: readRosterConfig(),
+    bossType: document.getElementById('bossSelect').value || null,
+    abilityConfig: readAbilityConfig(),
+    fractureMax: parseInt(document.getElementById('fractureMaxInput').value, 10) || 0,
+    fractureMeter: parseInt(document.getElementById('fractureMeterInput').value, 10) || 0,
+    populationSize: parseInt(document.getElementById('popInput').value, 10) || 24,
+    generations: parseInt(document.getElementById('genInput').value, 10) || 40,
+    maxTicks: parseInt(document.getElementById('maxTicksInput').value, 10) || 900,
+    elitism: parseInt(document.getElementById('elitismInput').value, 10) || 2,
+    decisionIntervalTicks: parseInt(document.getElementById('decisionIntervalInput').value, 10) || 6,
+    mutationRate: parseFloat(document.getElementById('mutRateInput').value) || 0.08,
+    mutationAmount: parseFloat(document.getElementById('mutAmountInput').value) || 0.4,
+    watchBest: document.getElementById('watchBestInput').checked,
+    watchEveryN: parseInt(document.getElementById('watchEveryInput').value, 10) || 1,
+    throttleMs: parseInt(document.getElementById('speedSelect').value, 10) || 0,
+  };
+}
+
+// ─── Combat State — live health, both during a real-time replay
+// (onReplayTick, wired below in the run handler) and as a final snapshot
+// after a fast-forward eval (genome.stats, no per-frame data to show).
+function renderHealthPanel(playerHealth, playerMaxHealth, targets) {
+  const playerPct = Math.max(0, Math.min(1, playerHealth / playerMaxHealth));
+  const rows = [`
+    <div class="hp-row">
+      <div class="hp-label"><span>Player</span><span>${playerHealth} / ${playerMaxHealth}</span></div>
+      <div class="hp-bar-track"><div class="hp-bar-fill player${playerPct <= 0.34 ? ' low' : ''}" style="width:${playerPct * 100}%"></div></div>
+    </div>
+  `];
+  for (const t of targets) {
+    const pct = Math.max(0, Math.min(1, t.health / t.maxHealth));
+    rows.push(`
+      <div class="hp-row">
+        <div class="hp-label"><span>${t.label}${t.dead ? ' <span class="dead">(dead)</span>' : ''}</span><span>${t.health} / ${t.maxHealth}</span></div>
+        <div class="hp-bar-track"><div class="hp-bar-fill${pct <= 0.34 && !t.dead ? ' low' : ''}" style="width:${t.dead ? 0 : pct * 100}%"></div></div>
+      </div>
+    `);
+  }
+  document.getElementById('healthPanel').innerHTML = rows.join('');
+}
+
+// ─── Canvas setup — game.js's init() already sized/found #game via its own
+// getElementById('game') call (same id this page uses), so no extra wiring
+// needed beyond having the canvas element present before game.js runs. ────
+//
+// game.js's own resizeCanvasToFit() scales the canvas off window.innerWidth
+// alone (correct for index.html, which has no sidebar) — here that pushes
+// the whole #side panel off-screen past the canvas's right edge. game.js's
+// own 'resize'/'fullscreenchange' listeners were already bound to the old
+// function by the time this runs, so redefining the global by name wouldn't
+// reach them; registering a second 'resize' listener (which fires after
+// game.js's, so it wins) and calling it once now is the actual fix.
+function fitCanvasWithSidebar() {
+  const sidebarWidth = document.getElementById('side').offsetWidth;
+  const availW = window.innerWidth - sidebarWidth;
+  const availH = window.innerHeight;
+  const scale = Math.min(availW / W, availH / H);
+  canvas.style.width = Math.floor(W * scale) + 'px';
+  canvas.style.height = Math.floor(H * scale) + 'px';
+}
+window.addEventListener('resize', fitCanvasWithSidebar);
+fitCanvasWithSidebar();
+
+const modeBadge = document.getElementById('modeBadge');
+function setBadge(text, cls) {
+  modeBadge.textContent = text;
+  modeBadge.className = 'badge' + (cls ? ' ' + cls : '');
+}
+
+// ─── Chart — plain canvas sparkline, best (teal) + avg (muted) per generation ───
+const chartEl = document.getElementById('chart');
+const chartCtx = chartEl.getContext('2d');
+function drawChart(history) {
+  const w = chartEl.width, h = chartEl.height;
+  chartCtx.clearRect(0, 0, w, h);
+  if (history.length < 2) return;
+  const bestVals = history.map(r => r.best);
+  const avgVals = history.map(r => r.avg);
+  const allVals = bestVals.concat(avgVals);
+  const min = Math.min(0, ...allVals), max = Math.max(1, ...allVals);
+  const scaleX = w / (history.length - 1);
+  const scaleY = (v) => h - ((v - min) / (max - min || 1)) * h;
+  function plot(vals, color) {
+    chartCtx.strokeStyle = color;
+    chartCtx.lineWidth = 1.5;
+    chartCtx.beginPath();
+    vals.forEach((v, i) => {
+      const x = i * scaleX, y = scaleY(v);
+      if (i === 0) chartCtx.moveTo(x, y); else chartCtx.lineTo(x, y);
+    });
+    chartCtx.stroke();
+  }
+  plot(avgVals, '#3a3a5e');
+  plot(bestVals, '#2dd4bf');
+}
+
+// ─── Generation log ─────────────────────────────────────────────────────
+const genLogEl = document.getElementById('genLog');
+function logGeneration(evt) {
+  const row = document.createElement('div');
+  row.className = 'gen-row';
+  const clearedTag = evt.best.stats && evt.best.stats.cleared ? '<span class="cleared">✓ cleared</span>' : '';
+  row.innerHTML = `<span class="n">#${evt.gen}</span><span class="best">best ${evt.best.fitness.toFixed(0)}</span><span class="avg">avg ${evt.avg.toFixed(0)}</span>${clearedTag}`;
+  genLogEl.prepend(row);
+}
+
+// ─── Run / Stop wiring ──────────────────────────────────────────────────
+const runBtn = document.getElementById('runBtn');
+const stopBtn = document.getElementById('stopBtn');
+const skipReplayBtn = document.getElementById('skipReplayBtn');
+let engine = null;
+let bestEverFitness = -Infinity;
+
+refreshAbilityValidation(); // set initial Run-button state before any interaction
+
+runBtn.addEventListener('click', async () => {
+  if (!refreshAbilityValidation()) return; // belt-and-suspenders — button should already be disabled
+  const cfg = readConfig();
+  if (cfg.roster.length === 0 && !cfg.bossType) {
+    alert('Pick at least one enemy (count > 0) or a boss/miniboss.');
+    return;
+  }
+  genLogEl.innerHTML = '';
+  bestEverFitness = -Infinity;
+  document.getElementById('statBestEver').textContent = '-';
+
+  // Live health during a real-time replay; a final snapshot (no per-frame
+  // data, fast-forward has no rendering to sample) after each fast eval.
+  cfg.onReplayTick = (state) => renderHealthPanel(state.playerHealth, state.playerMaxHealth, state.targets);
+
+  cfg.onGeneration = (evt) => {
+    document.getElementById('statGen').textContent = cfg.algorithm === 'baseline' ? 'n/a (single run)' : `${evt.gen + 1} / ${cfg.generations}`;
+    document.getElementById('statBestGen').textContent = evt.best.fitness.toFixed(0);
+    document.getElementById('statAvgGen').textContent = evt.avg.toFixed(0);
+    document.getElementById('statCleared').textContent = evt.best.stats && evt.best.stats.cleared ? 'yes' : 'no';
+    if (evt.best.stats && !cfg.watchBest) {
+      renderHealthPanel(evt.best.stats.playerHealth, evt.best.stats.playerMaxHealth, evt.best.stats.targets);
+    }
+    if (evt.best.fitness > bestEverFitness) {
+      bestEverFitness = evt.best.fitness;
+      document.getElementById('statBestEver').textContent = bestEverFitness.toFixed(0);
+    }
+    logGeneration(evt);
+    drawChart(evt.history);
+  };
+
+  engine = new DifficultyBotEngine(cfg);
+  runBtn.disabled = true; stopBtn.disabled = false;
+  document.getElementById('statStatus').textContent = 'evaluating (fast-forward)';
+  setBadge('Fast-forward — evaluating population', 'fast');
+
+  const origEvaluate = engine.evaluateGenome.bind(engine);
+  engine.evaluateGenome = function (genome) {
+    setBadge('Fast-forward — evaluating population', 'fast');
+    skipReplayBtn.disabled = true;
+    return origEvaluate(genome);
+  };
+  const origReplay = engine.replayGenome.bind(engine);
+  engine.replayGenome = function (genome, onDone) {
+    setBadge('Watching best of generation ' + engine.generation, 'watching');
+    skipReplayBtn.disabled = false;
+    document.getElementById('statStatus').textContent = 'replaying best of gen ' + engine.generation;
+    return origReplay(genome, () => {
+      skipReplayBtn.disabled = true;
+      document.getElementById('statStatus').textContent = 'evaluating (fast-forward)';
+      onDone();
+    });
+  };
+
+  DevContext.log('Difficulty Bot', 'Started run',
+    `[${cfg.algorithm}] ${cfg.algorithm === 'baseline' ? 'single scripted run' : cfg.populationSize + ' pop x ' + cfg.generations + ' gen'}, roster: ${cfg.roster.map(r => r.type + 'x' + r.count).join(', ') || '(none)'}${cfg.bossType ? ' + ' + cfg.bossType : ''}`);
+
+  await engine.run();
+
+  runBtn.disabled = false; stopBtn.disabled = true; skipReplayBtn.disabled = true;
+  document.getElementById('statStatus').textContent = 'done';
+  setBadge('Done', null);
+  DevContext.log('Difficulty Bot', 'Evolution run finished', `best-ever fitness ${bestEverFitness.toFixed(0)} after ${engine.generation + 1} generation(s)`);
+});
+
+stopBtn.addEventListener('click', () => {
+  if (engine) { engine.stop(); engine.stopReplay(); }
+  document.getElementById('statStatus').textContent = 'stopping…';
+});
+
+skipReplayBtn.addEventListener('click', () => {
+  if (engine) engine.stopReplay();
+});
+</script>
+</body>
+</html>

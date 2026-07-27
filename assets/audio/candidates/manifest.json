@@ -1,0 +1,1535 @@
+{
+  "regions": [
+    {
+      "key": "mirror_veil",
+      "name": "Mirror Veil",
+      "description": "Eerie, reflective, uncanny duplication \u2014 the Mirror King's domain.",
+      "liveTrack": "assets/audio/music/mirror_veil.ogg",
+      "candidates": [
+        {
+          "id": "dead_ship_mv",
+          "file": "assets/audio/candidates/regions/_shared/dead_ship.ogg",
+          "title": "Background Space Track (\"MyVeryOwnDeadShip\")",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/background-space-track"
+        },
+        {
+          "id": "derelict_mv",
+          "file": "assets/audio/candidates/regions/_shared2/derelict.ogg",
+          "title": "Derelict (dark ambient)",
+          "author": "unattributed on OGA collection page (CC0 collection)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cc0-dark-music"
+        },
+        {
+          "id": "horror_1_mv",
+          "file": "assets/audio/candidates/regions/_shared2/horror_1.ogg",
+          "title": "Oldschool Horror Theme",
+          "author": "EmoPreben",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oldschool-horror-theme"
+        }
+      ]
+    },
+    {
+      "key": "observatory",
+      "name": "The Observatory",
+      "description": "Floaty, low-gravity, vast and quiet \u2014 long hang-time verticality, not vertigo.",
+      "liveTrack": "assets/audio/music/observatory_spire.ogg",
+      "candidates": [
+        {
+          "id": "cosmic_navigation_obs",
+          "file": "assets/audio/candidates/regions/_shared/cosmic_navigation.ogg",
+          "title": "Cosmic Navigation",
+          "author": "rezoner",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cosmic-navigation"
+        },
+        {
+          "id": "observing_the_star_obs",
+          "file": "assets/audio/candidates/regions/_shared2/observing_the_star.ogg",
+          "title": "Observing the Star",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cc0-space-music"
+        },
+        {
+          "id": "out_there_obs",
+          "file": "assets/audio/candidates/regions/_shared2/out_there.ogg",
+          "title": "Space Music: Out There",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/space-music-out-there"
+        }
+      ]
+    },
+    {
+      "key": "inverted_spire",
+      "name": "The Inverted Spire",
+      "description": "Gravity permanently flipped from the moment you enter \u2014 vertiginous, disorienting.",
+      "liveTrack": "assets/audio/music/observatory_spire.ogg",
+      "candidates": [
+        {
+          "id": "outer_space_1_isp",
+          "file": "assets/audio/candidates/regions/_shared/outer_space_1.ogg",
+          "title": "Outer Space Loop",
+          "author": "cynicmusic",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/outer-space-loop"
+        },
+        {
+          "id": "out_there_isp",
+          "file": "assets/audio/candidates/regions/_shared2/out_there.ogg",
+          "title": "Space Music: Out There",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/space-music-out-there"
+        },
+        {
+          "id": "cosmic_navigation_isp",
+          "file": "assets/audio/candidates/regions/_shared/cosmic_navigation.ogg",
+          "title": "Cosmic Navigation",
+          "author": "rezoner",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cosmic-navigation"
+        }
+      ]
+    },
+    {
+      "key": "event_horizon",
+      "name": "Event Horizon",
+      "description": "Dread, inexorable gravitational pull, industrial catastrophe (a failed mining rig).",
+      "liveTrack": "assets/audio/music/event_horizon.ogg",
+      "candidates": [
+        {
+          "id": "cosmic_navigation_eh",
+          "file": "assets/audio/candidates/regions/_shared/cosmic_navigation.ogg",
+          "title": "Cosmic Navigation",
+          "author": "rezoner",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cosmic-navigation"
+        },
+        {
+          "id": "dead_ship_eh",
+          "file": "assets/audio/candidates/regions/_shared/dead_ship.ogg",
+          "title": "Background Space Track (\"MyVeryOwnDeadShip\")",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/background-space-track"
+        },
+        {
+          "id": "horror_1_eh",
+          "file": "assets/audio/candidates/regions/_shared2/horror_1.ogg",
+          "title": "Oldschool Horror Theme",
+          "author": "EmoPreben",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oldschool-horror-theme"
+        }
+      ]
+    },
+    {
+      "key": "polar_shift",
+      "name": "The Polar Shift",
+      "description": "Driving/urgent, magnetic push-pull traversal \u2014 bouncing between charged surfaces.",
+      "liveTrack": "assets/audio/music/polar_paradox.ogg",
+      "candidates": [
+        {
+          "id": "busy_cyberworld_ps",
+          "file": "assets/audio/candidates/regions/_shared/busy_cyberworld.ogg",
+          "title": "Scifi City - Ambient Loop (\"Busy Cyberworld\")",
+          "author": "Iwan Gabovitch (qubodup)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/scifi-city-ambient-loop"
+        },
+        {
+          "id": "out_there_ps",
+          "file": "assets/audio/candidates/regions/_shared2/out_there.ogg",
+          "title": "Space Music: Out There",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/space-music-out-there"
+        }
+      ]
+    },
+    {
+      "key": "paradox_engine_region",
+      "name": "Paradox Engine (region)",
+      "description": "Frantic, glitchy-fast, portal-warp texture \u2014 a machine hunts you through a maze.",
+      "liveTrack": "assets/audio/music/polar_paradox.ogg",
+      "candidates": [
+        {
+          "id": "busy_cyberworld_pe",
+          "file": "assets/audio/candidates/regions/_shared/busy_cyberworld.ogg",
+          "title": "Scifi City - Ambient Loop (\"Busy Cyberworld\")",
+          "author": "Iwan Gabovitch (qubodup)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/scifi-city-ambient-loop"
+        },
+        {
+          "id": "derelict_pe",
+          "file": "assets/audio/candidates/regions/_shared2/derelict.ogg",
+          "title": "Derelict (dark ambient)",
+          "author": "unattributed on OGA collection page (CC0 collection)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cc0-dark-music"
+        }
+      ]
+    },
+    {
+      "key": "chrono_space_rift",
+      "name": "Chrono-Space Rift",
+      "description": "Looping/temporal, bittersweet \u2014 anything that exits one side reappears on the other.",
+      "liveTrack": "assets/audio/music/chrono_fracture.ogg",
+      "candidates": [
+        {
+          "id": "dungeon_ambient_1_csr",
+          "file": "assets/audio/candidates/regions/_shared/dungeon_ambient_1.ogg",
+          "title": "Loopable Dungeon Ambience",
+          "author": "Fantozzi",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/loopable-dungeon-ambience"
+        },
+        {
+          "id": "observing_the_star_csr",
+          "file": "assets/audio/candidates/regions/_shared2/observing_the_star.ogg",
+          "title": "Observing the Star",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cc0-space-music"
+        }
+      ]
+    },
+    {
+      "key": "the_fracture",
+      "name": "The Fracture",
+      "description": "The tutorial/opening region, later tied to the game's own loop-reset ending \u2014 bittersweet.",
+      "liveTrack": "assets/audio/music/chrono_fracture.ogg",
+      "candidates": [
+        {
+          "id": "dungeon_ambient_1_tf",
+          "file": "assets/audio/candidates/regions/_shared/dungeon_ambient_1.ogg",
+          "title": "Loopable Dungeon Ambience",
+          "author": "Fantozzi",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/loopable-dungeon-ambience"
+        },
+        {
+          "id": "out_there_tf",
+          "file": "assets/audio/candidates/regions/_shared2/out_there.ogg",
+          "title": "Space Music: Out There",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/space-music-out-there"
+        }
+      ]
+    },
+    {
+      "key": "timeline_crossroads_region",
+      "name": "Timeline Crossroads (region)",
+      "description": "Past/present overlap, ghostly duality, bureaucratic control \u2014 trains and prisoners.",
+      "liveTrack": "assets/audio/music/timeline_crossroads.ogg",
+      "candidates": [
+        {
+          "id": "busy_cyberworld_tcr",
+          "file": "assets/audio/candidates/regions/_shared/busy_cyberworld.ogg",
+          "title": "Scifi City - Ambient Loop (\"Busy Cyberworld\")",
+          "author": "Iwan Gabovitch (qubodup)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/scifi-city-ambient-loop"
+        },
+        {
+          "id": "dungeon_ambient_1_tcr",
+          "file": "assets/audio/candidates/regions/_shared/dungeon_ambient_1.ogg",
+          "title": "Loopable Dungeon Ambience",
+          "author": "Fantozzi",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/loopable-dungeon-ambience"
+        }
+      ]
+    },
+    {
+      "key": "graviton_core",
+      "name": "Graviton Core",
+      "description": "Oppressive, mechanical \u2014 gravity-flipping levers, the Sovereign's elite guard.",
+      "liveTrack": "assets/audio/music/graviton_static.ogg",
+      "candidates": [
+        {
+          "id": "dungeon_ambient_1_gc",
+          "file": "assets/audio/candidates/regions/_shared/dungeon_ambient_1.ogg",
+          "title": "Loopable Dungeon Ambience",
+          "author": "Fantozzi",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/loopable-dungeon-ambience"
+        },
+        {
+          "id": "busy_cyberworld_gc",
+          "file": "assets/audio/candidates/regions/_shared/busy_cyberworld.ogg",
+          "title": "Scifi City - Ambient Loop (\"Busy Cyberworld\")",
+          "author": "Iwan Gabovitch (qubodup)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/scifi-city-ambient-loop"
+        },
+        {
+          "id": "horror_1_gc",
+          "file": "assets/audio/candidates/regions/_shared2/horror_1.ogg",
+          "title": "Oldschool Horror Theme",
+          "author": "EmoPreben",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oldschool-horror-theme"
+        }
+      ]
+    },
+    {
+      "key": "static_field",
+      "name": "Static Field",
+      "description": "Electromagnetic arcs, glitchy/corrupting \u2014 touching the floor zaps you airborne.",
+      "liveTrack": "assets/audio/music/graviton_static.ogg",
+      "candidates": [
+        {
+          "id": "busy_cyberworld_sf",
+          "file": "assets/audio/candidates/regions/_shared/busy_cyberworld.ogg",
+          "title": "Scifi City - Ambient Loop (\"Busy Cyberworld\")",
+          "author": "Iwan Gabovitch (qubodup)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/scifi-city-ambient-loop"
+        },
+        {
+          "id": "horror_1_sf",
+          "file": "assets/audio/candidates/regions/_shared2/horror_1.ogg",
+          "title": "Oldschool Horror Theme",
+          "author": "EmoPreben",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oldschool-horror-theme"
+        }
+      ]
+    },
+    {
+      "key": "crag",
+      "name": "Crag of the Colossus",
+      "description": "Rocky, primal, collapsing \u2014 a ruthless mining operation.",
+      "liveTrack": "assets/audio/music/crag.ogg",
+      "candidates": [
+        {
+          "id": "dungeon_ambient_1_crag",
+          "file": "assets/audio/candidates/regions/_shared/dungeon_ambient_1.ogg",
+          "title": "Loopable Dungeon Ambience",
+          "author": "Fantozzi",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/loopable-dungeon-ambience"
+        },
+        {
+          "id": "horror_1_crag",
+          "file": "assets/audio/candidates/regions/_shared2/horror_1.ogg",
+          "title": "Oldschool Horror Theme",
+          "author": "EmoPreben",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oldschool-horror-theme"
+        }
+      ]
+    },
+    {
+      "key": "vault_hollow_rift",
+      "name": "The Vault / Hollow Core / The Rift",
+      "description": "Heavy, isolating, sacred \u2014 the late-game vault cluster before the final approach.",
+      "liveTrack": "assets/audio/music/vault_void_expanse.ogg",
+      "candidates": [
+        {
+          "id": "dead_ship_vhr",
+          "file": "assets/audio/candidates/regions/_shared/dead_ship.ogg",
+          "title": "Background Space Track (\"MyVeryOwnDeadShip\")",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/background-space-track"
+        },
+        {
+          "id": "dungeon_ambient_1_vhr",
+          "file": "assets/audio/candidates/regions/_shared/dungeon_ambient_1.ogg",
+          "title": "Loopable Dungeon Ambience",
+          "author": "Fantozzi",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/loopable-dungeon-ambience"
+        },
+        {
+          "id": "derelict_vhr",
+          "file": "assets/audio/candidates/regions/_shared2/derelict.ogg",
+          "title": "Derelict (dark ambient)",
+          "author": "unattributed on OGA collection page (CC0 collection)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cc0-dark-music"
+        }
+      ]
+    },
+    {
+      "key": "void_expanse_region",
+      "name": "The Void Expanse",
+      "description": "No solid ground \u2014 drifting time-stopped debris, consuming darkness, theft/loss.",
+      "liveTrack": "assets/audio/music/vault_void_expanse.ogg",
+      "candidates": [
+        {
+          "id": "dead_ship_ve",
+          "file": "assets/audio/candidates/regions/_shared/dead_ship.ogg",
+          "title": "Background Space Track (\"MyVeryOwnDeadShip\")",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/background-space-track"
+        },
+        {
+          "id": "derelict_ve",
+          "file": "assets/audio/candidates/regions/_shared2/derelict.ogg",
+          "title": "Derelict (dark ambient)",
+          "author": "unattributed on OGA collection page (CC0 collection)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cc0-dark-music"
+        },
+        {
+          "id": "out_there_ve",
+          "file": "assets/audio/candidates/regions/_shared2/out_there.ogg",
+          "title": "Space Music: Out There",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/space-music-out-there"
+        }
+      ]
+    },
+    {
+      "key": "sovereign_approach",
+      "name": "Sovereign Approach Rooms",
+      "description": "Heavy, isolating, \"closing in on the end\" \u2014 the corridor before the final boss.",
+      "liveTrack": "assets/audio/music/vault_void_expanse.ogg",
+      "candidates": [
+        {
+          "id": "dead_ship_sap",
+          "file": "assets/audio/candidates/regions/_shared/dead_ship.ogg",
+          "title": "Background Space Track (\"MyVeryOwnDeadShip\")",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/background-space-track"
+        },
+        {
+          "id": "dungeon_ambient_1_sap",
+          "file": "assets/audio/candidates/regions/_shared/dungeon_ambient_1.ogg",
+          "title": "Loopable Dungeon Ambience",
+          "author": "Fantozzi",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/loopable-dungeon-ambience"
+        }
+      ]
+    },
+    {
+      "key": "echoing_abyss",
+      "name": "Echoing Abyss",
+      "description": "Haunting pursuit, soul-harvest horror \u2014 your own dashes/attacks leave lingering echoes.",
+      "liveTrack": "assets/audio/music/echoing_abyss.ogg",
+      "candidates": [
+        {
+          "id": "outer_space_1_ea",
+          "file": "assets/audio/candidates/regions/_shared/outer_space_1.ogg",
+          "title": "Outer Space Loop",
+          "author": "cynicmusic",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/outer-space-loop"
+        },
+        {
+          "id": "derelict_ea",
+          "file": "assets/audio/candidates/regions/_shared2/derelict.ogg",
+          "title": "Derelict (dark ambient)",
+          "author": "unattributed on OGA collection page (CC0 collection)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cc0-dark-music"
+        },
+        {
+          "id": "horror_1_ea",
+          "file": "assets/audio/candidates/regions/_shared2/horror_1.ogg",
+          "title": "Oldschool Horror Theme",
+          "author": "EmoPreben",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oldschool-horror-theme"
+        }
+      ]
+    },
+    {
+      "key": "antechamber_region",
+      "name": "The Antechamber (region)",
+      "description": "Intimate, sad \u2014 where the Child waits, if left behind during the prison break.",
+      "liveTrack": "assets/audio/music/echoing_abyss.ogg",
+      "candidates": [
+        {
+          "id": "observing_the_star_ac",
+          "file": "assets/audio/candidates/regions/_shared2/observing_the_star.ogg",
+          "title": "Observing the Star",
+          "author": "yd",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cc0-space-music"
+        },
+        {
+          "id": "derelict_ac",
+          "file": "assets/audio/candidates/regions/_shared2/derelict.ogg",
+          "title": "Derelict (dark ambient)",
+          "author": "unattributed on OGA collection page (CC0 collection)",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/cc0-dark-music"
+        }
+      ]
+    },
+    {
+      "key": "hub_living",
+      "name": "Hub / Living Areas",
+      "description": "Warm, calm, a \"home base\" feeling \u2014 meant to eventually feel alive (Spawn, Warp Gate Nexus, Sanctums, King Rooms).",
+      "liveTrack": "assets/audio/music/hub_living.ogg",
+      "candidates": []
+    },
+    {
+      "key": "sovereign_army_horde",
+      "name": "Sovereign's Army Reserve (horde)",
+      "description": "Martial, repetitive/looping clone motif \u2014 the same guard, cloned over and over.",
+      "liveTrack": "assets/audio/music/miniboss_a.ogg",
+      "candidates": [
+        {
+          "id": "urban_boss_battle_sah",
+          "file": "assets/audio/candidates/bosses/_shared/urban_boss_battle.ogg",
+          "title": "Urban Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/urban-boss-battle"
+        },
+        {
+          "id": "jrpg_battle_loop_sah",
+          "file": "assets/audio/candidates/bosses/_shared2/jrpg_battle_loop.ogg",
+          "title": "JRPG Epic Rock Battle Theme #1 (loop)",
+          "author": "HydroGene",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/jrpg-epic-rock-battle-theme-1"
+        }
+      ]
+    }
+  ],
+  "bosses": [
+    {
+      "key": "colossus_core",
+      "name": "Crag Warden",
+      "description": "Brutal, merciless, rock-heavy mining-operation menace, super-armored charge attacks.",
+      "liveTrack": "assets/audio/music/boss_crag_warden.ogg",
+      "candidates": [
+        {
+          "id": "heavy_boss_battle_1_cw",
+          "file": "assets/audio/candidates/bosses/_shared/heavy_boss_battle_1.ogg",
+          "title": "Heavy Boss Battle 1",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/heavy-boss-battle-1"
+        },
+        {
+          "id": "jrpg_battle_loop_cw",
+          "file": "assets/audio/candidates/bosses/_shared2/jrpg_battle_loop.ogg",
+          "title": "JRPG Epic Rock Battle Theme #1 (loop)",
+          "author": "HydroGene",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/jrpg-epic-rock-battle-theme-1"
+        },
+        {
+          "id": "cleytonrx_battle_theme_cw",
+          "file": "assets/audio/candidates/bosses/_shared2/cleytonrx_battle_theme.ogg",
+          "title": "Battle RPG Theme (Var)",
+          "author": "CleytonKauffman",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/boss-battle-theme"
+        }
+      ]
+    },
+    {
+      "key": "hollow_guardian",
+      "name": "The Mirror King",
+      "description": "Narcissistic, recursive, uncanny self-duplication, cold clinical superiority.",
+      "liveTrack": "assets/audio/music/boss_mirror_king.ogg",
+      "candidates": [
+        {
+          "id": "trance_boss_battle_mk",
+          "file": "assets/audio/candidates/bosses/_shared/trance_boss_battle.ogg",
+          "title": "Trance Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/trance-boss-battle"
+        },
+        {
+          "id": "oh_boss_mk",
+          "file": "assets/audio/candidates/bosses/_shared2/oh_boss.ogg",
+          "title": "Oh! boss!",
+          "author": "haruta",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oh-boss"
+        },
+        {
+          "id": "cleytonrx_battle_theme_mk",
+          "file": "assets/audio/candidates/bosses/_shared2/cleytonrx_battle_theme.ogg",
+          "title": "Battle RPG Theme (Var)",
+          "author": "CleytonKauffman",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/boss-battle-theme"
+        }
+      ]
+    },
+    {
+      "key": "horizon_core",
+      "name": "Gravity Collapse Core",
+      "description": "Industrial catastrophe, inexorable pull, mechanical dread, flying robot.",
+      "liveTrack": "assets/audio/music/boss_gravity_collapse_core.ogg",
+      "candidates": [
+        {
+          "id": "heavy_boss_battle_1_gcc",
+          "file": "assets/audio/candidates/bosses/_shared/heavy_boss_battle_1.ogg",
+          "title": "Heavy Boss Battle 1",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/heavy-boss-battle-1"
+        },
+        {
+          "id": "oh_boss_gcc",
+          "file": "assets/audio/candidates/bosses/_shared2/oh_boss.ogg",
+          "title": "Oh! boss!",
+          "author": "haruta",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oh-boss"
+        }
+      ]
+    },
+    {
+      "key": "chrono_ally",
+      "name": "Temporal Warden",
+      "description": "Melancholy, weary, powerful-but-guilty \u2014 a tragic reluctant mentor-fight, not purely hostile.",
+      "liveTrack": "assets/audio/music/boss_temporal_warden.ogg",
+      "candidates": [
+        {
+          "id": "trance_boss_battle_tw",
+          "file": "assets/audio/candidates/bosses/_shared/trance_boss_battle.ogg",
+          "title": "Trance Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/trance-boss-battle"
+        },
+        {
+          "id": "cleytonrx_battle_theme_tw",
+          "file": "assets/audio/candidates/bosses/_shared2/cleytonrx_battle_theme.ogg",
+          "title": "Battle RPG Theme (Var)",
+          "author": "CleytonKauffman",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/boss-battle-theme"
+        }
+      ]
+    },
+    {
+      "key": "graviton_sentinel",
+      "name": "Fractured Sovereign's Guard",
+      "description": "Hollow duty, martial, tragic loyal soldier, shield-clang.",
+      "liveTrack": "assets/audio/music/boss_graviton_guard.ogg",
+      "candidates": [
+        {
+          "id": "urban_boss_battle_fg",
+          "file": "assets/audio/candidates/bosses/_shared/urban_boss_battle.ogg",
+          "title": "Urban Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/urban-boss-battle"
+        },
+        {
+          "id": "jrpg_battle_loop_fg",
+          "file": "assets/audio/candidates/bosses/_shared2/jrpg_battle_loop.ogg",
+          "title": "JRPG Epic Rock Battle Theme #1 (loop)",
+          "author": "HydroGene",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/jrpg-epic-rock-battle-theme-1"
+        }
+      ]
+    },
+    {
+      "key": "polar_guardian",
+      "name": "Electromagnetic Golem",
+      "description": "Industrial magnetism, remote-controlled menace, push-pull tension.",
+      "liveTrack": "assets/audio/music/boss_electromagnetic_golem.ogg",
+      "candidates": [
+        {
+          "id": "heavy_boss_battle_1_eg",
+          "file": "assets/audio/candidates/bosses/_shared/heavy_boss_battle_1.ogg",
+          "title": "Heavy Boss Battle 1",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/heavy-boss-battle-1"
+        },
+        {
+          "id": "urban_boss_battle_eg",
+          "file": "assets/audio/candidates/bosses/_shared/urban_boss_battle.ogg",
+          "title": "Urban Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/urban-boss-battle"
+        }
+      ]
+    },
+    {
+      "key": "abyss_guardian",
+      "name": "Quantum Pursuer",
+      "description": "Haunting, exploitative soul-harvest horror, relentless pursuit.",
+      "liveTrack": "assets/audio/music/boss_quantum_pursuer.ogg",
+      "candidates": [
+        {
+          "id": "trance_boss_battle_qp",
+          "file": "assets/audio/candidates/bosses/_shared/trance_boss_battle.ogg",
+          "title": "Trance Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/trance-boss-battle"
+        },
+        {
+          "id": "oh_boss_qp",
+          "file": "assets/audio/candidates/bosses/_shared2/oh_boss.ogg",
+          "title": "Oh! boss!",
+          "author": "haruta",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oh-boss"
+        }
+      ]
+    },
+    {
+      "key": "warp_guardian",
+      "name": "Warden & Hollow (duo)",
+      "description": "Bureaucratic-eternal, procedural, two-voice call-and-response, gatekeeper tedium turned lethal.",
+      "liveTrack": "assets/audio/music/boss_warden_hollow.ogg",
+      "candidates": [
+        {
+          "id": "urban_boss_battle_wh",
+          "file": "assets/audio/candidates/bosses/_shared/urban_boss_battle.ogg",
+          "title": "Urban Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/urban-boss-battle"
+        },
+        {
+          "id": "cleytonrx_battle_theme_wh",
+          "file": "assets/audio/candidates/bosses/_shared2/cleytonrx_battle_theme.ogg",
+          "title": "Battle RPG Theme (Var)",
+          "author": "CleytonKauffman",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/boss-battle-theme"
+        }
+      ]
+    },
+    {
+      "key": "static_guardian",
+      "name": "The Conduit",
+      "description": "High-voltage, glitchy corruption, clinical engineer menace.",
+      "liveTrack": "assets/audio/music/boss_conduit.ogg",
+      "candidates": [
+        {
+          "id": "heavy_boss_battle_1_cn",
+          "file": "assets/audio/candidates/bosses/_shared/heavy_boss_battle_1.ogg",
+          "title": "Heavy Boss Battle 1",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/heavy-boss-battle-1"
+        },
+        {
+          "id": "jrpg_battle_loop_cn",
+          "file": "assets/audio/candidates/bosses/_shared2/jrpg_battle_loop.ogg",
+          "title": "JRPG Epic Rock Battle Theme #1 (loop)",
+          "author": "HydroGene",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/jrpg-epic-rock-battle-theme-1"
+        }
+      ]
+    },
+    {
+      "key": "paradox_engine",
+      "name": "The Assembler",
+      "description": "Frantic, glitchy-fast, portal-warp texture, mechanical precision.",
+      "liveTrack": "assets/audio/music/boss_assembler.ogg",
+      "candidates": [
+        {
+          "id": "trance_boss_battle_as",
+          "file": "assets/audio/candidates/bosses/_shared/trance_boss_battle.ogg",
+          "title": "Trance Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/trance-boss-battle"
+        },
+        {
+          "id": "jrpg_battle_loop_as",
+          "file": "assets/audio/candidates/bosses/_shared2/jrpg_battle_loop.ogg",
+          "title": "JRPG Epic Rock Battle Theme #1 (loop)",
+          "author": "HydroGene",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/jrpg-epic-rock-battle-theme-1"
+        }
+      ]
+    },
+    {
+      "key": "timeline_keeper",
+      "name": "Timeline Crossroads' scientist-boss",
+      "description": "Bureaucratic control, trains/industrial transit, morally compromised authority, cold calculation. (Supersedes the old \"Stationmaster\" name.)",
+      "liveTrack": "assets/audio/music/boss_timeline_crossroads.ogg",
+      "candidates": [
+        {
+          "id": "urban_boss_battle_tk",
+          "file": "assets/audio/candidates/bosses/_shared/urban_boss_battle.ogg",
+          "title": "Urban Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/urban-boss-battle"
+        },
+        {
+          "id": "oh_boss_tk",
+          "file": "assets/audio/candidates/bosses/_shared2/oh_boss.ogg",
+          "title": "Oh! boss!",
+          "author": "haruta",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oh-boss"
+        }
+      ]
+    },
+    {
+      "key": "sovereign",
+      "name": "The Sovereign (final boss)",
+      "description": "Mirror-of-the-player, inevitable, the most dramatic/final theme in the game \u2014 fighting your own future self.",
+      "liveTrack": "assets/audio/music/final_boss.ogg",
+      "candidates": [
+        {
+          "id": "heavy_boss_battle_1_sv",
+          "file": "assets/audio/candidates/bosses/_shared/heavy_boss_battle_1.ogg",
+          "title": "Heavy Boss Battle 1",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/heavy-boss-battle-1"
+        },
+        {
+          "id": "cleytonrx_battle_theme_sv",
+          "file": "assets/audio/candidates/bosses/_shared2/cleytonrx_battle_theme.ogg",
+          "title": "Battle RPG Theme (Var)",
+          "author": "CleytonKauffman",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/boss-battle-theme"
+        },
+        {
+          "id": "jrpg_battle_loop_sv",
+          "file": "assets/audio/candidates/bosses/_shared2/jrpg_battle_loop.ogg",
+          "title": "JRPG Epic Rock Battle Theme #1 (loop)",
+          "author": "HydroGene",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/jrpg-epic-rock-battle-theme-1"
+        }
+      ]
+    },
+    {
+      "key": "void_expanse_boss",
+      "name": "Void Expanse miniboss (new, unnamed)",
+      "description": "A scientist's child merged with darkness \u2014 steals what's held dear, teleports through the void. No live track yet \u2014 this fight has no code hook in game/boss.js/area.js.",
+      "liveTrack": null,
+      "candidates": [
+        {
+          "id": "veb_dark_ambience",
+          "file": "assets/audio/candidates/bosses/_shared3/dark_ambience_loop.ogg",
+          "title": "Dark Ambience Loop",
+          "author": "Iwan Gabovitch (qubodup)",
+          "license": "CC-BY 3.0 (attribution required)",
+          "sourceUrl": "https://opengameart.org/content/dark-ambience-loop"
+        },
+        {
+          "id": "veb_sinister",
+          "file": "assets/audio/candidates/bosses/_shared3/sinister_boss_appears.ogg",
+          "title": "Sinister Boss Appears!",
+          "author": "cynicmusic",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/sinister-boss-appears"
+        },
+        {
+          "id": "trance_boss_battle_veb",
+          "file": "assets/audio/candidates/bosses/_shared/trance_boss_battle.ogg",
+          "title": "Trance Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/trance-boss-battle"
+        },
+        {
+          "id": "oh_boss_veb",
+          "file": "assets/audio/candidates/bosses/_shared2/oh_boss.ogg",
+          "title": "Oh! boss!",
+          "author": "haruta",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/oh-boss"
+        },
+        {
+          "id": "heavy_boss_battle_1_veb",
+          "file": "assets/audio/candidates/bosses/_shared/heavy_boss_battle_1.ogg",
+          "title": "Heavy Boss Battle 1",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/heavy-boss-battle-1"
+        }
+      ]
+    },
+    {
+      "key": "antechamber_child",
+      "name": "The Child (Antechamber fight)",
+      "description": "Intimate, tragic, scrappy improvised weapons (tasers/flamethrowers/bombs/guns), escalating desperation across 3 phases. No live track yet \u2014 this fight has no code hook.",
+      "liveTrack": null,
+      "candidates": [
+        {
+          "id": "ach_piano_nostalgia",
+          "file": "assets/audio/candidates/bosses/_shared3/piano_nostalgia.ogg",
+          "title": "Regret - Short Emotional Piano",
+          "author": "Wolfgang_",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/regret-short-emotional-piano"
+        },
+        {
+          "id": "ach_emotional_piano",
+          "file": "assets/audio/candidates/bosses/_shared3/emotional_piano_loop.ogg",
+          "title": "Emotional Piano Loop",
+          "author": "extenz",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/emotional-piano-loop"
+        },
+        {
+          "id": "urban_boss_battle_ach",
+          "file": "assets/audio/candidates/bosses/_shared/urban_boss_battle.ogg",
+          "title": "Urban Boss Battle",
+          "author": "MintoDog",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/urban-boss-battle"
+        },
+        {
+          "id": "cleytonrx_battle_theme_ach",
+          "file": "assets/audio/candidates/bosses/_shared2/cleytonrx_battle_theme.ogg",
+          "title": "Battle RPG Theme (Var)",
+          "author": "CleytonKauffman",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/boss-battle-theme"
+        }
+      ]
+    }
+  ],
+  "enemy_sfx": [
+    {
+      "key": "attack",
+      "name": "Player Attack Hit",
+      "description": "The whoosh/thud when the player's basic swing connects.",
+      "liveTrack": "assets/audio/sfx/attack.ogg",
+      "candidates": [
+        {
+          "id": "rp_swing1",
+          "file": "assets/audio/candidates/enemy_sfx/attack/rpgpack_swing.ogg",
+          "title": "Sword Swing 1",
+          "author": "artisticdude (\"RPG Sound Pack\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/rpg-sound-pack"
+        },
+        {
+          "id": "rp_swing2",
+          "file": "assets/audio/candidates/enemy_sfx/attack/rpgpack_swing2.ogg",
+          "title": "Sword Swing 2",
+          "author": "artisticdude (\"RPG Sound Pack\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/rpg-sound-pack"
+        },
+        {
+          "id": "rp_swing3",
+          "file": "assets/audio/candidates/enemy_sfx/attack/rpgpack_swing3.ogg",
+          "title": "Sword Swing 3",
+          "author": "artisticdude (\"RPG Sound Pack\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/rpg-sound-pack"
+        },
+        {
+          "id": "kenney_000",
+          "file": "assets/audio/candidates/enemy_sfx/attack/impactPunch_medium_000.ogg",
+          "title": "impactPunch_medium_000 (currently live)",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_001",
+          "file": "assets/audio/candidates/enemy_sfx/attack/impactPunch_medium_001.ogg",
+          "title": "impactPunch_medium_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_002",
+          "file": "assets/audio/candidates/enemy_sfx/attack/impactPunch_medium_002.ogg",
+          "title": "impactPunch_medium_002",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_003",
+          "file": "assets/audio/candidates/enemy_sfx/attack/impactPunch_medium_003.ogg",
+          "title": "impactPunch_medium_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_004",
+          "file": "assets/audio/candidates/enemy_sfx/attack/impactPunch_medium_004.ogg",
+          "title": "impactPunch_medium_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        }
+      ]
+    },
+    {
+      "key": "attackHit",
+      "name": "Attack Connects (heavier)",
+      "description": "Metallic connect sound for weapon-on-enemy hits.",
+      "liveTrack": "assets/audio/sfx/attackHit.ogg",
+      "candidates": [
+        {
+          "id": "rp80_blade1",
+          "file": "assets/audio/candidates/enemy_sfx/attackHit/rpgsfx80_blade_01.ogg",
+          "title": "Blade Hit 1",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_blade2",
+          "file": "assets/audio/candidates/enemy_sfx/attackHit/rpgsfx80_blade_02.ogg",
+          "title": "Blade Hit 2",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_blade3",
+          "file": "assets/audio/candidates/enemy_sfx/attackHit/rpgsfx80_blade_03.ogg",
+          "title": "Blade Hit 3",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "kenney_000",
+          "file": "assets/audio/candidates/enemy_sfx/attackHit/impactMetal_medium_000.ogg",
+          "title": "impactMetal_medium_000 (currently live)",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_001",
+          "file": "assets/audio/candidates/enemy_sfx/attackHit/impactMetal_medium_001.ogg",
+          "title": "impactMetal_medium_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_002",
+          "file": "assets/audio/candidates/enemy_sfx/attackHit/impactMetal_medium_002.ogg",
+          "title": "impactMetal_medium_002",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_003",
+          "file": "assets/audio/candidates/enemy_sfx/attackHit/impactMetal_medium_003.ogg",
+          "title": "impactMetal_medium_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_004",
+          "file": "assets/audio/candidates/enemy_sfx/attackHit/impactMetal_medium_004.ogg",
+          "title": "impactMetal_medium_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        }
+      ]
+    },
+    {
+      "key": "heavyAttack",
+      "name": "Heavy Attack",
+      "description": "The player's charged/heavy swing landing.",
+      "liveTrack": "assets/audio/sfx/heavyAttack.ogg",
+      "candidates": [
+        {
+          "id": "rp80_metal1",
+          "file": "assets/audio/candidates/enemy_sfx/heavyAttack/rpgsfx80_metal_01.ogg",
+          "title": "Heavy Metal Hit 1",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_metal2",
+          "file": "assets/audio/candidates/enemy_sfx/heavyAttack/rpgsfx80_metal_02.ogg",
+          "title": "Heavy Metal Hit 2",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "kenney_000",
+          "file": "assets/audio/candidates/enemy_sfx/heavyAttack/impactMetal_heavy_000.ogg",
+          "title": "impactMetal_heavy_000 (currently live)",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_001",
+          "file": "assets/audio/candidates/enemy_sfx/heavyAttack/impactMetal_heavy_001.ogg",
+          "title": "impactMetal_heavy_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_002",
+          "file": "assets/audio/candidates/enemy_sfx/heavyAttack/impactMetal_heavy_002.ogg",
+          "title": "impactMetal_heavy_002",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_003",
+          "file": "assets/audio/candidates/enemy_sfx/heavyAttack/impactMetal_heavy_003.ogg",
+          "title": "impactMetal_heavy_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_004",
+          "file": "assets/audio/candidates/enemy_sfx/heavyAttack/impactMetal_heavy_004.ogg",
+          "title": "impactMetal_heavy_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        }
+      ]
+    },
+    {
+      "key": "bossHit",
+      "name": "Boss Hit",
+      "description": "A hit landing on a boss/miniboss.",
+      "liveTrack": "assets/audio/sfx/bossHit.ogg",
+      "candidates": [
+        {
+          "id": "rp80_metal3",
+          "file": "assets/audio/candidates/enemy_sfx/bossHit/rpgsfx80_metal_03.ogg",
+          "title": "Heavy Metal Hit 3",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_monster2",
+          "file": "assets/audio/candidates/enemy_sfx/bossHit/rpgsfx80_creature_monster_02.ogg",
+          "title": "Monster Impact 2",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_roar1",
+          "file": "assets/audio/candidates/enemy_sfx/bossHit/rpgsfx80_creature_roar_01.ogg",
+          "title": "Creature Roar 1",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "kenney_000",
+          "file": "assets/audio/candidates/enemy_sfx/bossHit/impactPlate_heavy_000.ogg",
+          "title": "impactPlate_heavy_000 (currently live)",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_001",
+          "file": "assets/audio/candidates/enemy_sfx/bossHit/impactPlate_heavy_001.ogg",
+          "title": "impactPlate_heavy_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_002",
+          "file": "assets/audio/candidates/enemy_sfx/bossHit/impactPlate_heavy_002.ogg",
+          "title": "impactPlate_heavy_002",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_003",
+          "file": "assets/audio/candidates/enemy_sfx/bossHit/impactPlate_heavy_003.ogg",
+          "title": "impactPlate_heavy_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_004",
+          "file": "assets/audio/candidates/enemy_sfx/bossHit/impactPlate_heavy_004.ogg",
+          "title": "impactPlate_heavy_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        }
+      ]
+    },
+    {
+      "key": "enemyDeath",
+      "name": "Enemy Death",
+      "description": "An enemy's final death-burst sound.",
+      "liveTrack": "assets/audio/sfx/enemyDeath.ogg",
+      "candidates": [
+        {
+          "id": "rp80_die1",
+          "file": "assets/audio/candidates/enemy_sfx/enemyDeath/rpgsfx80_creature_die_01.ogg",
+          "title": "Creature Die 1",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_monster1",
+          "file": "assets/audio/candidates/enemy_sfx/enemyDeath/rpgsfx80_creature_monster_01.ogg",
+          "title": "Monster Impact 1",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_roar2",
+          "file": "assets/audio/candidates/enemy_sfx/enemyDeath/rpgsfx80_creature_roar_02.ogg",
+          "title": "Creature Roar 2",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "kenney_000",
+          "file": "assets/audio/candidates/enemy_sfx/enemyDeath/impactSoft_heavy_000.ogg",
+          "title": "impactSoft_heavy_000 (currently live)",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_001",
+          "file": "assets/audio/candidates/enemy_sfx/enemyDeath/impactSoft_heavy_001.ogg",
+          "title": "impactSoft_heavy_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_002",
+          "file": "assets/audio/candidates/enemy_sfx/enemyDeath/impactSoft_heavy_002.ogg",
+          "title": "impactSoft_heavy_002",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_003",
+          "file": "assets/audio/candidates/enemy_sfx/enemyDeath/impactSoft_heavy_003.ogg",
+          "title": "impactSoft_heavy_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_004",
+          "file": "assets/audio/candidates/enemy_sfx/enemyDeath/impactSoft_heavy_004.ogg",
+          "title": "impactSoft_heavy_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        }
+      ]
+    },
+    {
+      "key": "playerHurt",
+      "name": "Player Hurt",
+      "description": "The player taking damage.",
+      "liveTrack": "assets/audio/sfx/playerHurt.ogg",
+      "candidates": [
+        {
+          "id": "rp80_hurt1",
+          "file": "assets/audio/candidates/enemy_sfx/playerHurt/rpgsfx80_creature_hurt_01.ogg",
+          "title": "Creature Hurt 1",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_hurt2",
+          "file": "assets/audio/candidates/enemy_sfx/playerHurt/rpgsfx80_creature_hurt_02.ogg",
+          "title": "Creature Hurt 2",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "kenney_000",
+          "file": "assets/audio/candidates/enemy_sfx/playerHurt/impactPunch_heavy_000.ogg",
+          "title": "impactPunch_heavy_000 (currently live)",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_001",
+          "file": "assets/audio/candidates/enemy_sfx/playerHurt/impactPunch_heavy_001.ogg",
+          "title": "impactPunch_heavy_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_002",
+          "file": "assets/audio/candidates/enemy_sfx/playerHurt/impactPunch_heavy_002.ogg",
+          "title": "impactPunch_heavy_002",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_003",
+          "file": "assets/audio/candidates/enemy_sfx/playerHurt/impactPunch_heavy_003.ogg",
+          "title": "impactPunch_heavy_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_004",
+          "file": "assets/audio/candidates/enemy_sfx/playerHurt/impactPunch_heavy_004.ogg",
+          "title": "impactPunch_heavy_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        }
+      ]
+    },
+    {
+      "key": "shardHit",
+      "name": "Shard Hit",
+      "description": "Crystal/glass shard impact (Shard Shot ability and Crystal Sentinel enemy).",
+      "liveTrack": "assets/audio/sfx/shardHit.ogg",
+      "candidates": [
+        {
+          "id": "rp80_stones1",
+          "file": "assets/audio/candidates/enemy_sfx/shardHit/rpgsfx80_stones_01.ogg",
+          "title": "Stones Impact 1",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_stones2",
+          "file": "assets/audio/candidates/enemy_sfx/shardHit/rpgsfx80_stones_02.ogg",
+          "title": "Stones Impact 2",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "kenney_000",
+          "file": "assets/audio/candidates/enemy_sfx/shardHit/impactGlass_light_000.ogg",
+          "title": "impactGlass_light_000 (currently live)",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_001",
+          "file": "assets/audio/candidates/enemy_sfx/shardHit/impactGlass_light_001.ogg",
+          "title": "impactGlass_light_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_002",
+          "file": "assets/audio/candidates/enemy_sfx/shardHit/impactGlass_light_002.ogg",
+          "title": "impactGlass_light_002",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_003",
+          "file": "assets/audio/candidates/enemy_sfx/shardHit/impactGlass_light_003.ogg",
+          "title": "impactGlass_light_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_004",
+          "file": "assets/audio/candidates/enemy_sfx/shardHit/impactGlass_light_004.ogg",
+          "title": "impactGlass_light_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        }
+      ]
+    },
+    {
+      "key": "parry",
+      "name": "Parry",
+      "description": "A successful parry's metallic clank/ring.",
+      "liveTrack": "assets/audio/sfx/parry.ogg",
+      "candidates": [
+        {
+          "id": "rp80_chain1",
+          "file": "assets/audio/candidates/enemy_sfx/parry/rpgsfx80_chain_01.ogg",
+          "title": "Chain Rattle 1",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "rp80_chain2",
+          "file": "assets/audio/candidates/enemy_sfx/parry/rpgsfx80_chain_02.ogg",
+          "title": "Chain Rattle 2",
+          "author": "Fupi (\"80 CC0 RPG SFX\")",
+          "license": "CC0",
+          "sourceUrl": "https://opengameart.org/content/80-cc0-rpg-sfx"
+        },
+        {
+          "id": "kenney_000",
+          "file": "assets/audio/candidates/enemy_sfx/parry/impactBell_heavy_000.ogg",
+          "title": "impactBell_heavy_000 (currently live)",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_001",
+          "file": "assets/audio/candidates/enemy_sfx/parry/impactBell_heavy_001.ogg",
+          "title": "impactBell_heavy_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_002",
+          "file": "assets/audio/candidates/enemy_sfx/parry/impactBell_heavy_002.ogg",
+          "title": "impactBell_heavy_002",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_003",
+          "file": "assets/audio/candidates/enemy_sfx/parry/impactBell_heavy_003.ogg",
+          "title": "impactBell_heavy_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "kenney_004",
+          "file": "assets/audio/candidates/enemy_sfx/parry/impactBell_heavy_004.ogg",
+          "title": "impactBell_heavy_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        }
+      ]
+    },
+    {
+      "key": "uiSelect",
+      "name": "UI Select",
+      "description": "Menu navigation click/confirm. (No non-Kenney alternative found yet \u2014 flagged for a follow-up search.)",
+      "liveTrack": "assets/audio/sfx/uiSelect.ogg",
+      "candidates": [
+        {
+          "id": "ui_click2",
+          "file": "assets/audio/candidates/enemy_sfx/uiSelect/click_002.ogg",
+          "title": "click_002 (currently live)",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        },
+        {
+          "id": "ui_click1",
+          "file": "assets/audio/candidates/enemy_sfx/uiSelect/click_001.ogg",
+          "title": "click_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        },
+        {
+          "id": "ui_click3",
+          "file": "assets/audio/candidates/enemy_sfx/uiSelect/click_003.ogg",
+          "title": "click_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        },
+        {
+          "id": "ui_click4",
+          "file": "assets/audio/candidates/enemy_sfx/uiSelect/click_004.ogg",
+          "title": "click_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        },
+        {
+          "id": "ui_click5",
+          "file": "assets/audio/candidates/enemy_sfx/uiSelect/click_005.ogg",
+          "title": "click_005",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        },
+        {
+          "id": "ui_select1",
+          "file": "assets/audio/candidates/enemy_sfx/uiSelect/select_001.ogg",
+          "title": "select_001",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        },
+        {
+          "id": "ui_select2",
+          "file": "assets/audio/candidates/enemy_sfx/uiSelect/select_002.ogg",
+          "title": "select_002",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        },
+        {
+          "id": "ui_select3",
+          "file": "assets/audio/candidates/enemy_sfx/uiSelect/select_003.ogg",
+          "title": "select_003",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        },
+        {
+          "id": "ui_select4",
+          "file": "assets/audio/candidates/enemy_sfx/uiSelect/select_004.ogg",
+          "title": "select_004",
+          "author": "Kenney",
+          "license": "CC0",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        }
+      ]
+    }
+  ]
+}

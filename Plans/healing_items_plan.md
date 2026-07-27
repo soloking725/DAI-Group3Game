@@ -1,8 +1,12 @@
-# Healing & Collectibles — Plan (not built)
+# Healing & Collectibles — Plan (built 2026-07-16, see roadmap Phase 19)
 
-Status: **planning only**, 2026-07-16. User question: healing currently
-comes only from Stillpoint, the Child (if kept — planned, unbuilt),
-anchors, and dying. Should health potions be lying around? What other
+Status: **built 2026-07-16** (roadmap.md Phase 19) — `game/healing.js`
+implements the recommendation below: vitality motes (combat-earned),
+max-health shards, and healing crystals, plus `maxHealthBonus`/
+`playerMaxHealth()`. The Child's touch-heal (if kept) also shipped
+alongside this, per `child_companion_system_plan.md`. Originally written
+2026-07-16 in response to: healing currently comes only from Stillpoint,
+anchors, and dying — should health potions be lying around? What other
 collectible types should exist?
 
 ## Recommendation: no consumable potions

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Dev Hub</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* TOP BAR */
+#topbar{display:flex;align-items:center;gap:14px;padding:10px 16px;background:#0e0e1e;border-bottom:1px solid #1e1e3e;flex-shrink:0}
+#topbar h1{font-size:14px;color:#e0d7ff;font-weight:normal}
+#status-banner{display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:3px;border:1px solid #2e2e5e}
+#status-banner.ok{color:#34d399;border-color:#1d5a45}
+#status-banner.bad{color:#f87171;border-color:#5a1d1d}
+#status-banner.idle{color:#5a5a8e}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+#runAllBtn{margin-left:auto;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:6px 12px;cursor:pointer}
+#runAllBtn:hover{background:#1e1e48}
+
+/* LAYOUT */
+#main{display:flex;flex:1;overflow:hidden}
+#sidebar{width:230px;background:#0a0a18;border-right:1px solid #1e1e3e;overflow-y:auto;flex-shrink:0;padding:10px 0;display:flex;flex-direction:column}
+#sidebar h3{font-size:9px;color:#4a4a7e;text-transform:uppercase;letter-spacing:1px;padding:10px 14px 4px}
+#tool-search-wrap{padding:0 14px 8px}
+#tool-search{width:100%;background:#0e0e1e;border:1px solid #1e1e3e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:6px 8px}
+#tool-search:focus{outline:none;border-color:#3e3e7e}
+.tool{display:block;padding:6px 14px;color:#a8a8d8;text-decoration:none;font-size:11px;border-left:2px solid transparent}
+.tool:hover{background:#12122a;color:#e0d7ff;border-left-color:#a78bfa}
+.tool.hidden{display:none}
+.tool .desc{display:block;color:#4a4a7e;font-size:9px;margin-top:1px}
+.tool .ctx{color:#2dd4bf;font-size:9px}
+.tool .health{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;background:#3a3a5e;vertical-align:middle}
+.tool .health.ok{background:#34d399}
+.tool .health.bad{background:#f87171}
+#recent-group{border-bottom:1px solid #1a1a2e;padding-bottom:6px;margin-bottom:2px}
+.group-hidden{display:none}
+
+#content{flex:1;overflow-y:auto;padding:16px}
+.section{margin-bottom:18px}
+.section h2{font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;border-bottom:1px solid #1a1a2e;padding-bottom:4px}
+
+/* QUICK STATS */
+#stats-row{display:flex;gap:10px;flex-wrap:wrap}
+.stat-card{background:#0e0e1e;border:1px solid #1e1e3e;padding:10px 16px;min-width:120px}
+.stat-card .n{font-size:20px;color:#e0d7ff}
+.stat-card .l{font-size:9px;color:#5a5a8e;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}
+
+/* VALIDATION OUTPUT */
+#validation-out{background:#04040a;border:1px solid #1e1e3e;padding:10px;font-size:10px;line-height:1.6;max-height:280px;overflow-y:auto}
+#validation-out .ok{color:#34d399}
+#validation-out .bad{color:#f87171;cursor:pointer}
+#validation-out .bad:hover{color:#fca5a5;text-decoration:underline}
+#validation-out .group-title{color:#8a8ac0;margin-top:8px}
+#validation-out .group-title:first-child{margin-top:0}
+#validation-out .hint{color:#3a3a5e}
+
+/* ACTIVITY FEED */
+#activity-list{background:#04040a;border:1px solid #1e1e3e;max-height:260px;overflow-y:auto}
+.act-row{display:flex;gap:8px;padding:6px 10px;border-bottom:1px solid #14142a;font-size:10px}
+.act-row:last-child{border-bottom:none}
+.act-tool{color:#a78bfa;flex-shrink:0;width:90px}
+.act-action{color:#c4b5fd;flex-shrink:0}
+.act-detail{color:#6a6a9e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act-time{color:#3a3a5e;margin-left:auto;flex-shrink:0}
+.empty{color:#3a3a5e;padding:10px;font-size:10px}
+
+/* LIVE OVERRIDES */
+#overrides-list{display:flex;flex-direction:column;gap:4px}
+.ovr-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#0e0e1e;border:1px solid #1e1e3e;font-size:10px}
+.ovr-row.active{border-color:#2a5a4a}
+.ovr-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ovr-row.active .ovr-dot{background:#34d399}
+.ovr-row:not(.active) .ovr-dot{background:#3a3a5e}
+.ovr-name{width:150px;color:#c4b5fd}
+.ovr-detail{flex:1;color:#5a5a8e}
+.ovr-clear{background:#141432;border:1px solid #3e3e7e;color:#8a8ac0;font-family:monospace;font-size:9px;padding:3px 8px;cursor:pointer}
+.ovr-clear:hover{background:#1e1e48;color:#f87171}
+.ovr-clear:disabled{opacity:0.3;cursor:default}
+#clear-all-overrides{margin-top:6px;background:#200e0e;border:1px solid #7f1d1d;color:#f87171;font-family:monospace;font-size:10px;padding:5px 10px;cursor:pointer}
+#clear-all-overrides:hover{background:#3a1a1a}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>◆ Stillpoint Dev Hub</h1>
+  <div id="status-banner" class="idle"><span class="dot"></span><span id="status-text">Not yet checked</span></div>
+  <button id="runAllBtn">▶ Run All Validations</button>
+</div>
+
+<div id="main">
+  <div id="sidebar"></div>
+  <div id="content">
+    <div class="section">
+      <h2>Quick Stats</h2>
+      <div id="stats-row"></div>
+    </div>
+    <div class="section">
+      <h2>CLI-Only Tools <span style="color:#3a3a5e;font-weight:normal">(no browser UI — run from a terminal in the repo root)</span></h2>
+      <div id="validation-out" style="max-height:none">
+        <div class="hint"><code>node Plans/room_progress.js --full</code> — per-room SHELL/started/designed status<br>
+        <code>node Plans/room_difficulty_calculator.js</code> — regenerates the Room Difficulty Calculator's snapshot<br>
+        <code>node Plans/analyze_floor_plan.js</code> — regenerates the Floor Plan Path Viewer / Playthrough Simulation snapshots<br>
+        <code>node Plans/parse_worldmap_svg.js</code> — SVG floor-plan parsing (feeds the above)<br>
+        <code>node Plans/rebuild_levels_from_svg.js</code> — ⚠ do NOT run once hand level-design starts, overwrites area.js wholesale</div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>Live Overrides <span style="color:#3a3a5e;font-weight:normal">(localStorage — picked up by index.html/enemy_test.html on next load)</span></h2>
+      <div id="overrides-list"></div>
+    </div>
+    <div class="section">
+      <h2>Validation Results</h2>
+      <div id="validation-out"><div class="hint">Click "Run All Validations" above — runs the room layout linter, the compass-graph validator, and the embedded-door geometry check against the real game data, all in one pass.</div></div>
+    </div>
+    <div class="section">
+      <h2>Recent Activity <span style="color:#3a3a5e;font-weight:normal">(across every tool, this browser)</span></h2>
+      <div id="activity-list"></div>
+    </div>
+  </div>
+</div>
+
+<script src="../game/physics.js"></script>
+<script src="../game/area.js"></script>
+<script src="../game/enemy.js"></script>
+<script src="../game/animdata.js"></script>
+<script src="../game/animImageStore.js"></script>
+<script src="../game/devContext.js"></script>
+<script>
+// ─── TOOL REGISTRY — grouped by workflow, not alphabetically, per the
+// "group tools by how you actually work" fix in the dev-hub critique ───────
+const TOOL_GROUPS = [
+  { label: 'Level Design', tools: [
+    { name: 'Level Editor', file: 'levelEditor.html', desc: 'Rooms, platforms, transitions, enemies', contextKey: 'currentRoomId', param: 'room' },
+    { name: 'World Graph Analyzer', file: 'graph_analyzer.html', desc: 'Critical-path & reachability' },
+  ]},
+  { label: 'Combat & Enemies', tools: [
+    { name: 'Enemy Editor', file: 'enemy_editor.html', desc: 'Quick stat tweaks on built-in enemies', contextKey: 'currentEnemyId', param: 'enemy' },
+    { name: 'Enemy Designer', file: 'enemy_designer.html', desc: 'Full ComposedEnemy attack/behavior authoring' },
+    { name: 'Enemy & Miniboss Test Bench', file: 'enemy_test.html', desc: 'Spawn and fight enemies in an arena' },
+    { name: 'Ability Tester', file: 'ability_tester.html', desc: 'Live-tune player ability constants' },
+    { name: 'Ability Utility Calculator', file: 'ability_utility_calculator.html', desc: 'Weighted damage/CC/mobility score per ability level' },
+    { name: 'Combo Chain Editor', file: 'combo_editor.html', desc: 'Author combo sequences & rewards' },
+    { name: 'Difficulty Bot', file: 'difficulty_bot.html', desc: 'Evolves a bot to fight a roster, scores difficulty' },
+  ]},
+  { label: 'Systems', tools: [
+    { name: 'Animation / Hitbox Editor', file: 'anim_editor.html', desc: 'ANIM_DEFS frames, hitboxes, onion skin', contextKey: 'currentAnimationKey', param: 'anim' },
+    { name: 'HUD Layout Editor', file: 'hud_editor.html', desc: 'Position/size HUD elements' },
+    { name: 'Companion Test Arena', file: 'companion_test.html', desc: 'Tune the Child companion' },
+  ]},
+  { label: 'QA & Debug', tools: [
+    { name: 'Debug Console v2 (full audit)', file: 'debug_v2.html', desc: '100+ frame-stepped checks across collision, abilities, AI, UI, audio, input, save/load, rooms, anim, perf' },
+    { name: 'Debug Console (R01–R11)', file: 'debug_v1.html', desc: 'Iframe-injected regression checks' },
+    { name: 'Debug Console (smoke test)', file: 'debug_new.html', desc: '8-point live sanity check' },
+  ]},
+  { label: 'Analysis & Reports (static snapshots)', tools: [
+    { name: 'Room Difficulty Calculator', file: '../Plans/room_difficulty_calculator.html', desc: 'Pathfind + time/difficulty cost per room' },
+    { name: 'Floor Plan Path Viewer', file: '../Plans/floor_plan_report.html', desc: 'Critical-path report over the floor plan' },
+    { name: 'Playthrough Simulation', file: '../Plans/floor_plan_simulation.html', desc: 'Simulated full-run walkthrough log' },
+  ]},
+];
+
+function toolHref(tool) {
+  const ctx = DevContext.get();
+  if (tool.contextKey && ctx[tool.contextKey]) {
+    return `${tool.file}?${tool.param}=${encodeURIComponent(ctx[tool.contextKey])}`;
+  }
+  return tool.file;
+}
+
+// ─── RECENTLY USED — golden-path principle: the tool you opened 2 minutes
+// ago should be one click away, not buried in a group you have to scan.
+const RECENT_TOOLS_KEY = 'stillpoint_recent_tools_v1';
+function recordToolOpen(file) {
+  let recent = [];
+  try { recent = JSON.parse(localStorage.getItem(RECENT_TOOLS_KEY) || '[]'); } catch (e) { recent = []; }
+  recent = recent.filter(f => f !== file);
+  recent.unshift(file);
+  recent.length = Math.min(recent.length, 4);
+  try { localStorage.setItem(RECENT_TOOLS_KEY, JSON.stringify(recent)); } catch (e) { /* ignore */ }
+}
+function getRecentTools() {
+  try { return JSON.parse(localStorage.getItem(RECENT_TOOLS_KEY) || '[]'); } catch (e) { return []; }
+}
+function findTool(file) {
+  for (const g of TOOL_GROUPS) for (const t of g.tools) if (t.file === file) return t;
+  return null;
+}
+
+// Per-tool health dots — filled in after "Run All Validations" runs, so the
+// sidebar itself shows problem areas instead of making you open Run All to
+// find out. Keyed by tool file name.
+const toolHealth = {};
+
+function renderToolLink(tool) {
+  const ctx = DevContext.get();
+  const hasCtx = tool.contextKey && ctx[tool.contextKey];
+  const ctxNote = hasCtx ? `<span class="ctx"> → resumes ${ctx[tool.contextKey]}</span>` : '';
+  const h = toolHealth[tool.file];
+  const dot = h ? `<span class="health ${h}"></span>` : '';
+  return `<a class="tool" data-file="${tool.file}" data-name="${tool.name.toLowerCase()}" href="${toolHref(tool)}" target="_blank">${dot}${tool.name}${ctxNote}<span class="desc">${tool.desc}</span></a>`;
+}
+
+function renderSidebar() {
+  const el = document.getElementById('sidebar');
+  const recentFiles = getRecentTools().map(findTool).filter(Boolean);
+  const recentHtml = recentFiles.length
+    ? `<div id="recent-group"><h3>Recently Used</h3>${recentFiles.map(renderToolLink).join('')}</div>`
+    : '';
+  const groupsHtml = TOOL_GROUPS.map(group => {
+    const items = group.tools.map(renderToolLink).join('');
+    return `<div class="tool-group" data-group="${group.label}"><h3>${group.label}</h3>${items}</div>`;
+  }).join('');
+  el.innerHTML = `<div id="tool-search-wrap"><input id="tool-search" type="text" placeholder="Filter tools…" autocomplete="off"></div>${recentHtml}${groupsHtml}`;
+
+  el.querySelectorAll('.tool').forEach(a => {
+    a.addEventListener('click', () => recordToolOpen(a.dataset.file));
+  });
+  el.querySelector('#tool-search').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    el.querySelectorAll('.tool').forEach(a => {
+      a.classList.toggle('hidden', !!q && !a.dataset.name.includes(q));
+    });
+    el.querySelectorAll('.tool-group').forEach(g => {
+      const anyVisible = [...g.querySelectorAll('.tool')].some(a => !a.classList.contains('hidden'));
+      g.classList.toggle('group-hidden', !anyVisible);
+    });
+  });
+}
+
+// ─── LIVE OVERRIDES — the localStorage keys game/*.js applies at load time
+// (applyAreaOverrides, applyAnimOverrides, applyComboOverrides,
+// applyHudLayoutOverrides). Surfaced here because they're easy to forget
+// about: leave a stale room override sitting around and index.html quietly
+// keeps showing old test data instead of what's actually in area.js. ──────
+const OVERRIDE_KEYS = [
+  { name: 'Room (Level Editor)', key: 'stillpoint_area_overrides_v1',
+    describe: (v) => { const o = JSON.parse(v); const ids = Object.keys(o); return `${ids.length} room(s): ${ids.join(', ')}`; } },
+  { name: 'Animations (Anim Editor)', key: 'stillpoint_anim_overrides_v1',
+    describe: (v) => { const o = JSON.parse(v); return `${Object.keys(o).length} animation(s) overridden`; } },
+  { name: 'Combos (Combo Editor)', key: 'stillpoint_combo_overrides_v1',
+    describe: (v) => { const o = JSON.parse(v); return Array.isArray(o) ? `${o.length} combo(s) — replaces the built-in set entirely` : 'malformed'; } },
+  { name: 'HUD Layout (HUD Editor)', key: 'stillpoint_hud_layout_v1',
+    describe: (v) => { const o = JSON.parse(v); return `${Object.keys(o).length} element(s) repositioned`; } },
+];
+
+function renderOverrides() {
+  const el = document.getElementById('overrides-list');
+  let anyActive = false;
+  const rows = OVERRIDE_KEYS.map(o => {
+    let raw = null;
+    try { raw = localStorage.getItem(o.key); } catch (e) { /* opaque origin (file://) — degrade to "not set" */ }
+    const active = !!raw;
+    if (active) anyActive = true;
+    let detail = 'not set — using the values baked into game/*.js';
+    if (active) {
+      try { detail = o.describe(raw); }
+      catch (e) { detail = 'set, but failed to parse — likely corrupt, safe to clear'; }
+    }
+    return `<div class="ovr-row${active ? ' active' : ''}">`
+      + `<span class="ovr-dot"></span>`
+      + `<span class="ovr-name">${o.name}</span>`
+      + `<span class="ovr-detail">${detail}</span>`
+      + `<button class="ovr-clear" data-key="${o.key}" ${active ? '' : 'disabled'}>Clear</button>`
+      + `</div>`;
+  }).join('');
+  el.innerHTML = rows + (anyActive ? `<button id="clear-all-overrides">🗑 Clear All Live Overrides</button>` : '');
+  el.querySelectorAll('.ovr-clear').forEach(btn => {
+    btn.addEventListener('click', () => {
+      localStorage.removeItem(btn.dataset.key);
+      DevContext.log('Dev Hub', 'Cleared live override', btn.dataset.key);
+      renderOverrides(); renderActivity();
+    });
+  });
+  const clearAllBtn = document.getElementById('clear-all-overrides');
+  if (clearAllBtn) clearAllBtn.addEventListener('click', () => {
+    for (const o of OVERRIDE_KEYS) localStorage.removeItem(o.key);
+    DevContext.log('Dev Hub', 'Cleared all live overrides', '');
+    renderOverrides(); renderActivity();
+  });
+}
+
+// ─── QUICK STATS ────────────────────────────────────────────────────────
+function renderStats() {
+  const roomCount = Object.keys(AREAS).length;
+  const enemyCount = typeof ENEMY_REGISTRY !== 'undefined' ? Object.keys(ENEMY_REGISTRY).length : 0;
+  const animCount = typeof ANIM_DEFS !== 'undefined' ? Object.keys(ANIM_DEFS).length : 0;
+  const cards = [
+    { n: roomCount, l: 'Rooms' },
+    { n: enemyCount, l: 'Enemies Built' },
+    { n: animCount, l: 'Animations Defined' },
+  ];
+  document.getElementById('stats-row').innerHTML = cards.map(c =>
+    `<div class="stat-card"><div class="n">${c.n}</div><div class="l">${c.l}</div></div>`
+  ).join('');
+}
+
+// ─── RUN ALL VALIDATIONS ────────────────────────────────────────────────
+// Three checks, all static (no game loop, no iframe) so they run instantly:
+//  1. validateRoomLayout() per room — the same linter levelEditor.html's
+//     "Check All Rooms" button uses.
+//  2. validateAreaGraph() — the same compass-graph validator debug_v1.html's
+//     R09 reuses. Called directly here rather than through
+//     graph_analyzer.html's own analyze(), which reads room.connections
+//     instead of room.transitions and can disagree with this one.
+//  3. The embedded-door geometry check, ported from debug_v1.html's R11 —
+//     it's a pure AABB check with no simulation dependency, so it runs
+//     directly against AREAS instead of needing a booted game iframe.
+function runAllValidations() {
+  const out = document.getElementById('validation-out');
+  const banner = document.getElementById('status-banner');
+  const statusText = document.getElementById('status-text');
+  out.innerHTML = '<div class="hint">Running…</div>';
+
+  // 1. Room layout linter
+  const roomIssues = [];
+  let roomsChecked = 0, roomsClean = 0;
+  for (const id in AREAS) {
+    const room = AREAS[id];
+    if (typeof room.col !== 'number') continue; // dev-only room, same skip rule as levelEditor
+    roomsChecked++;
+    let failures = [];
+    try { failures = validateRoomLayout(room).failures; }
+    catch (err) { failures = ['linter crashed: ' + err.message]; }
+    if (failures.length === 0) roomsClean++;
+    else roomIssues.push({ id, failures });
+  }
+
+  // 2. Compass graph — validateAreaGraph() reports via console.error, not a
+  // return value, so capture it the same way debug_v1.html's R09 treats it
+  // (reusing the function, not re-implementing its logic).
+  const graphErrors = [];
+  const origError = console.error;
+  console.error = (...args) => graphErrors.push(args.join(' '));
+  let graphOk = true;
+  try { graphOk = validateAreaGraph(); }
+  catch (e) { graphOk = false; graphErrors.push('validateAreaGraph() threw: ' + e.message); }
+  finally { console.error = origError; }
+
+  // 3. Embedded doors
+  const embeddedDoors = [];
+  for (const id in AREAS) {
+    const room = AREAS[id];
+    (room.transitions || []).forEach((t, i) => {
+      for (const p of room.platforms || []) {
+        if (p.destructible) continue;
+        const xOverlap = t.x < p.x + p.w && t.x + t.w > p.x;
+        if (!xOverlap) continue;
+        const yOverlap = t.y < p.y + p.h && (t.y + t.h) > p.y;
+        if (!yOverlap) continue;
+        if (t.y >= p.y - 2 && (t.y + t.h) > p.y + 5) {
+          embeddedDoors.push(`${id}.transitions[${i}] (to '${t.to}') inside platform at (${p.x},${p.y})`);
+        }
+      }
+    });
+  }
+
+  // ── Render ──
+  let html = '';
+  html += `<div class="group-title">Room Layout Linter — ${roomsClean}/${roomsChecked} clean</div>`;
+  html += roomIssues.length === 0
+    ? `<div class="ok">✓ all ${roomsChecked} rooms pass</div>`
+    : roomIssues.map(r => `<div class="bad" data-room="${r.id}">✗ ${r.id}: ${r.failures.length} issue(s)<br>&nbsp;&nbsp;${r.failures.join('<br>&nbsp;&nbsp;')}</div>`).join('');
+
+  html += `<div class="group-title">Compass Graph</div>`;
+  html += graphErrors.length === 0
+    ? `<div class="ok">✓ connections/transitions/adjacency all consistent</div>`
+    : graphErrors.map(e => `<div class="bad">✗ ${e}</div>`).join('');
+
+  html += `<div class="group-title">Embedded Doors</div>`;
+  html += embeddedDoors.length === 0
+    ? `<div class="ok">✓ no transition hitboxes embedded in solid geometry</div>`
+    : embeddedDoors.map(e => `<div class="bad">✗ ${e}</div>`).join('');
+
+  out.innerHTML = html;
+  out.querySelectorAll('.bad[data-room]').forEach(elm => {
+    elm.addEventListener('click', () => {
+      window.open(`levelEditor.html?room=${encodeURIComponent(elm.dataset.room)}`, '_blank');
+    });
+  });
+
+  const allClean = roomIssues.length === 0 && graphErrors.length === 0 && embeddedDoors.length === 0;
+  banner.className = allClean ? 'ok' : 'bad';
+  statusText.textContent = allClean
+    ? 'All Clear'
+    : `${roomIssues.length + (graphErrors.length ? 1 : 0) + (embeddedDoors.length ? 1 : 0)} issue group(s) found`;
+
+  // Push results into the sidebar's per-tool health dots — room linter +
+  // embedded doors both point at room geometry (Level Editor), graph errors
+  // point at the compass graph (World Graph Analyzer).
+  toolHealth['levelEditor.html'] = (roomIssues.length === 0 && embeddedDoors.length === 0) ? 'ok' : 'bad';
+  toolHealth['graph_analyzer.html'] = graphErrors.length === 0 ? 'ok' : 'bad';
+  renderSidebar();
+
+  DevContext.log('Dev Hub', 'Ran all validations', allClean ? 'all clear' : 'issues found');
+  renderActivity();
+}
+document.getElementById('runAllBtn').addEventListener('click', runAllValidations);
+
+// ─── RECENT ACTIVITY ────────────────────────────────────────────────────
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+function renderActivity() {
+  const items = DevContext.recent(20);
+  const el = document.getElementById('activity-list');
+  el.innerHTML = items.length === 0
+    ? '<div class="empty">No activity yet — changes made in any editor will show up here.</div>'
+    : items.map(a => `<div class="act-row"><span class="act-tool">${a.tool}</span><span class="act-action">${a.action}</span><span class="act-detail">${a.detail || ''}</span><span class="act-time">${timeAgo(a.ts)}</span></div>`).join('');
+}
+
+// Other tool tabs write to these localStorage keys — pick up their
+// activity/context/overrides live instead of only on next hub reload.
+const OVERRIDE_KEY_SET = new Set(OVERRIDE_KEYS.map(o => o.key));
+window.addEventListener('storage', (e) => {
+  if (e.key === 'stillpoint_dev_context') { renderSidebar(); renderActivity(); }
+  if (OVERRIDE_KEY_SET.has(e.key)) renderOverrides();
+});
+
+renderSidebar();
+renderStats();
+renderOverrides();
+renderActivity();
+</script>
+</body>
+</html>

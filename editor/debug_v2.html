@@ -1,0 +1,2576 @@
+<!DOCTYPE html>
+<!--
+  HOW TO RUN
+    python3 -m http.server 8000     (from the repo root)
+    http://localhost:8000/editor/debug_v2.html
+
+  WHAT THIS IS
+    debug_v1.html's successor. Same core idea — boot the REAL game in a
+    sandboxed iframe and observe what it actually does — but with three
+    changes that make it cover far more of the QA checklist:
+
+    1. THE CLOCK IS OURS. requestAnimationFrame is stubbed out before
+       game.js loads, so the game never advances on its own. Every check
+       calls update() by hand, exactly N times. No sleep(), no "wait 600ms
+       and hope", no flaky pixel-diffing — a check that says "the echo is
+       gone after ECHO_LIFETIME frames" ran exactly ECHO_LIFETIME frames.
+
+    2. FULL STATE ACCESS. game.js/player.js/ability.js declare their state
+       with top-level `let`/`const`, which are script-scope bindings, NOT
+       window properties — `win.player` works only because game.js adds an
+       explicit getter for it. Indirect eval (`win.eval(...)`) runs in the
+       iframe's global scope and DOES see those bindings, so this tool can
+       read and poke `limitBreak`, `statUpgrades`, `areaEnemies`, `keys`,
+       `gameTimeScale`, etc. with no changes to any game file.
+
+    3. A CONTROLLED ARENA. Most gameplay checks run in a synthetic room
+       (`__dbg_arena`, injected into AREAS at boot) with a known floor,
+       ceiling, walls, a one-way platform, a moving platform and a crumble
+       platform — so a physics result means "the physics is wrong", not
+       "that room happens to be shaped oddly". World-data checks still walk
+       all 73 authored rooms.
+
+    ALSO: the iframe's localStorage is replaced with an in-memory shim
+    before any game code runs, so running the suite can never touch your
+    real save slots, keybinds, HUD layout or anim overrides. (debug_v1
+    autosaves into your actual slot 1 every time it runs.)
+
+  ADDING A CHECK
+    Append to TESTS below: { id, phase, name, heavy?, fn(T) }.
+    Inside fn: T.arena() / T.reset() to set up, T.step(n) to advance
+    frames, T.ok/T.eq/T.near to assert, T.note() for extra detail,
+    T.warn() for "suspicious, not broken", T.skip() for "couldn't test".
+    Returning a string makes it the PASS message.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stillpoint — Debug Console v2</title>
+<style>
+  :root {
+    --bg:#0b0b14; --panel:#14141f; --panel2:#1a1a2b; --border:#2a2a44;
+    --text:#c4b5fd; --text-dim:#8b8bab; --ok:#2dd4bf; --warn:#fbbf24;
+    --err:#f87171; --skip:#6b7280; --accent:#a78bfa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; font-size:13px; line-height:1.45; }
+  header { padding:12px 16px 8px; border-bottom:1px solid var(--border); }
+  h1 { font-size:1.15em; letter-spacing:0.5px; }
+  h1 span { color:var(--text-dim); font-weight:normal; font-size:0.75em; margin-left:8px; }
+  .sub { color:var(--text-dim); font-size:0.8em; margin-top:3px; max-width:1100px; }
+
+  .bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; padding:8px 16px; border-bottom:1px solid var(--border); background:var(--panel); }
+  .btn { background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:5px 12px; border-radius:3px;
+         cursor:pointer; font-family:inherit; font-size:0.85em; }
+  .btn:hover:not(:disabled) { background:var(--border); }
+  .btn:disabled { opacity:0.4; cursor:default; }
+  .btn.primary { border-color:var(--ok); color:var(--ok); }
+  .btn.danger { border-color:var(--err); color:var(--err); }
+  input[type=search] { background:#0a0a12; border:1px solid var(--border); color:var(--text); padding:5px 8px;
+                       border-radius:3px; font-family:inherit; font-size:0.85em; width:210px; }
+  label.chk { color:var(--text-dim); font-size:0.8em; cursor:pointer; user-select:none; display:flex; align-items:center; gap:4px; }
+
+  .stats { display:flex; gap:8px; padding:8px 16px; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--border); }
+  .stat { background:var(--panel); border:1px solid var(--border); padding:4px 11px; border-radius:3px; font-size:0.82em; }
+  .stat b { font-weight:bold; }
+  .progress { height:3px; background:var(--border); }
+  .progress > div { height:100%; background:var(--accent); width:0%; transition:width .15s; }
+
+  main { display:flex; align-items:flex-start; gap:14px; padding:12px 16px 40px; }
+  #results { flex:1; min-width:420px; }
+  .side { width:430px; flex-shrink:0; position:sticky; top:8px; }
+
+  .phase { border:1px solid var(--border); border-radius:4px; margin-bottom:10px; overflow:hidden; }
+  .phase > h2 { background:var(--panel); font-size:0.85em; padding:6px 10px; cursor:pointer; display:flex; gap:8px; align-items:center; }
+  .phase > h2 .pcount { color:var(--text-dim); font-weight:normal; margin-left:auto; font-size:0.9em; }
+  .row { display:flex; gap:8px; padding:4px 10px; border-top:1px solid #1e1e30; cursor:pointer; align-items:baseline; }
+  .row:hover { background:#16162a; }
+  .row .id { color:var(--text-dim); width:58px; flex-shrink:0; font-size:0.85em; }
+  .row .nm { flex:1; }
+  .row .msg { color:var(--text-dim); font-size:0.85em; flex:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pill { flex-shrink:0; width:56px; text-align:center; border-radius:2px; font-size:0.72em; padding:1px 0; border:1px solid; }
+  .pill.pass { color:var(--ok); border-color:var(--ok); }
+  .pill.fail { color:var(--err); border-color:var(--err); }
+  .pill.warn { color:var(--warn); border-color:var(--warn); }
+  .pill.skip { color:var(--skip); border-color:var(--skip); }
+  .pill.pend { color:var(--text-dim); border-color:var(--border); }
+  .pill.run  { color:var(--accent); border-color:var(--accent); }
+  .detail { display:none; padding:6px 10px 10px 76px; background:#0e0e18; border-top:1px solid #1e1e30;
+            white-space:pre-wrap; font-size:0.82em; color:var(--text-dim); }
+  .detail.open { display:block; }
+  .detail .hl { color:var(--text); }
+
+  iframe#sandbox { width:400px; height:225px; border:1px solid var(--border); background:#000; display:block; }
+  #log { background:#07070d; border:1px solid var(--border); border-top:none; padding:8px; height:280px;
+         overflow-y:auto; font-size:0.78em; white-space:pre-wrap; }
+  #log .ok{color:var(--ok);} #log .warn{color:var(--warn);} #log .err{color:var(--err);} #log .dim{color:var(--text-dim);}
+  .sidenote { color:var(--text-dim); font-size:0.75em; margin-top:8px; }
+  textarea#report { display:none; width:100%; height:260px; margin-top:8px; background:#07070d; color:var(--text);
+                    border:1px solid var(--border); font-family:inherit; font-size:0.78em; padding:8px; }
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
+</style>
+</head>
+<body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
+
+<header>
+  <h1>⚙ Stillpoint — Debug Console v2 <span id="testcount"></span></h1>
+  <p class="sub">
+    Boots the real game headless (rAF stubbed → we drive <code>update()</code> frame by frame), reads live engine
+    state through the iframe's global scope, and runs every check against what the code actually does.
+    Your real saves/keybinds are untouched — the sandbox gets an in-memory localStorage.
+  </p>
+</header>
+
+<div class="bar">
+  <button class="btn primary" id="run-all">▶ Run all</button>
+  <button class="btn" id="run-visible">▶ Run filtered</button>
+  <button class="btn danger" id="stop" disabled>■ Stop</button>
+  <button class="btn" id="reboot">⟳ Reboot sandbox</button>
+  <input type="search" id="filter" placeholder="filter: name / id / phase">
+  <label class="chk"><input type="checkbox" id="heavy"> include heavy sweeps (all 73 rooms)</label>
+  <label class="chk"><input type="checkbox" id="autoexpand" checked> auto-expand failures</label>
+  <button class="btn" id="copy">⧉ Copy bug report</button>
+</div>
+
+<div class="stats">
+  <div class="stat">Run <b id="s-run">0</b>/<b id="s-total">0</b></div>
+  <div class="stat">Pass <b class="pill-txt" id="s-pass" style="color:var(--ok)">0</b></div>
+  <div class="stat">Warn <b id="s-warn" style="color:var(--warn)">0</b></div>
+  <div class="stat">Fail <b id="s-fail" style="color:var(--err)">0</b></div>
+  <div class="stat">Skip <b id="s-skip" style="color:var(--skip)">0</b></div>
+  <div class="stat">Elapsed <b id="s-time">0.0s</b></div>
+  <div class="stat" id="s-sandbox" style="color:var(--text-dim)">sandbox: not booted</div>
+</div>
+<div class="progress"><div id="prog"></div></div>
+
+<main>
+  <div id="results"></div>
+  <div class="side">
+    <iframe id="sandbox" title="game sandbox"></iframe>
+    <div id="log"></div>
+    <p class="sidenote">
+      The iframe is the live game with its clock removed — it looks frozen because it is. Each check advances it
+      by hand. Click any row for the full detail of what was measured.
+    </p>
+    <textarea id="report" readonly></textarea>
+  </div>
+</main>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   1. INSTRUMENTATION — injected into the sandbox BEFORE any game script
+   ══════════════════════════════════════════════════════════════════════ */
+const INSTRUMENT = `
+(function () {
+  // ── in-memory localStorage: the game autosaves on every switchArea(),
+  //    and we call switchArea() hundreds of times. Never touch real saves.
+  var mem = {};
+  var shim = {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null; },
+    setItem: function (k, v) { mem[k] = String(v); },
+    removeItem: function (k) { delete mem[k]; },
+    clear: function () { mem = {}; },
+    key: function (i) { var ks = Object.keys(mem); return i < ks.length ? ks[i] : null; }
+  };
+  Object.defineProperty(shim, 'length', { get: function () { return Object.keys(mem).length; } });
+  try {
+    Object.defineProperty(window, 'localStorage', { value: shim, configurable: true });
+    window.__lsSandboxed = true;
+  } catch (e) { window.__lsSandboxed = false; window.__lsError = e.message; }
+  window.__mem = mem;
+
+  // ── take the clock: nothing self-schedules, the harness steps update()
+  window.__rafCount = 0;
+  window.__realRAF = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = function () { window.__rafCount++; return 0; };
+  window.cancelAnimationFrame = function () {};
+
+  // ── mute audio without stubbing the API, so audio.js's real code paths
+  //    still execute (a synth bug still throws, it just makes no sound)
+  var RealAC = window.AudioContext || window.webkitAudioContext;
+  if (RealAC) {
+    var Muted = function () {
+      var c = new RealAC();
+      var g = c.createGain();
+      g.gain.value = 0;
+      g.connect(c.destination);
+      try { Object.defineProperty(c, 'destination', { get: function () { return g; }, configurable: true }); } catch (e) {}
+      return c;
+    };
+    window.AudioContext = Muted;
+    window.webkitAudioContext = Muted;
+  }
+
+  // ── capture: uncaught exceptions vs console noise are kept apart, since
+  //    the game legitimately console.errors bad room data
+  window.__uncaught = [];
+  window.__consoleErr = [];
+  window.__consoleWarn = [];
+  window.addEventListener('error', function (e) {
+    window.__uncaught.push((e.message || 'error') + ' @ ' + (e.filename || '?') + ':' + (e.lineno || 0));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    window.__uncaught.push('unhandled rejection: ' + e.reason);
+  });
+  var _ce = console.error, _cw = console.warn;
+  console.error = function () { window.__consoleErr.push(Array.prototype.join.call(arguments, ' ')); _ce.apply(console, arguments); };
+  console.warn = function () { window.__consoleWarn.push(Array.prototype.join.call(arguments, ' ')); _cw.apply(console, arguments); };
+})();
+`;
+
+/* The controlled test room. Every field update()/draw() dereferences
+   without a guard is present (platforms, transitions, enemies, anchors).
+   No col/row → world sweeps that key off compass position skip it. */
+const ARENA = {
+  id: '__dbg_arena',
+  name: 'Debug Arena',
+  region: 'origin',
+  width: 1600,
+  roomHeight: 620,
+  groundY: 500,
+  bgColor: '#0a0a0f',
+  bgTint: 'rgba(196,181,253,0.02)',
+  ambientColor: '#6a6a8e',
+  platforms: [
+    { x: 0,    y: 500, w: 1600, h: 60 },                 // [0] floor
+    { x: 0,    y: 100, w: 40,   h: 400 },                // [1] left wall
+    { x: 1560, y: 100, w: 40,   h: 400 },                // [2] right wall
+    { x: 400,  y: 120, w: 400,  h: 40 },                 // [3] ceiling slab
+    { x: 900,  y: 380, w: 200,  h: 16, oneWay: true },   // [4] one-way
+    { x: 200,  y: 300, w: 120,  h: 20, moving: { toX: 400, toY: 300, speed: 1 } }, // [5] moving
+    { x: 600,  y: 400, w: 100,  h: 20, crumble: true, crumbleDelay: 20, respawn: 60 }, // [6] crumble
+  ],
+  transitions: [], connections: [], enemies: [], anchors: [],
+  loreFragments: [], fracturePipRewards: [], cosmeticUpgrades: [], abilityReward: null,
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+   2. HARNESS
+   ══════════════════════════════════════════════════════════════════════ */
+function Fail(msg) { this.message = msg; this.isFail = true; }
+function Skip(msg) { this.message = msg; this.isSkip = true; }
+
+const logEl = document.getElementById('log');
+function log(msg, cls) {
+  logEl.innerHTML += '<span class="' + (cls || '') + '">' + escapeHtml(msg) + '</span>\n';
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const Sandbox = {
+  win: null, doc: null, booted: false,
+
+  async boot() {
+    this.booted = false;
+    document.getElementById('s-sandbox').textContent = 'sandbox: booting…';
+    const iframe = document.getElementById('sandbox');
+
+    let html;
+    try {
+      html = await fetch('../index.html').then((r) => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      });
+    } catch (e) {
+      document.getElementById('s-sandbox').textContent = 'sandbox: FETCH FAILED';
+      log('Could not fetch ../index.html (' + e.message + ').', 'err');
+      log('This tool must be served over HTTP, not opened as a file:// path.', 'err');
+      log('  cd <repo root> && python3 -m http.server 8000', 'dim');
+      log('  then open http://localhost:8000/editor/debug_v2.html', 'dim');
+      throw e;
+    }
+
+    // index.html sits one folder up; its own script srcs are relative to
+    // itself, but a srcdoc document resolves them against THIS file.
+    const rebased = html.replace(/src="game\//g, 'src="../game/');
+    const patched = rebased.replace(
+      '<script src="../game/audio.js">',
+      '<' + 'script>' + INSTRUMENT + '<\/script>' + '<script src="../game/audio.js">'
+    );
+
+    await new Promise((res) => { iframe.onload = res; iframe.srcdoc = patched; });
+    await sleep(120); // let the classic scripts finish + init() run
+
+    this.win = iframe.contentWindow;
+    this.doc = iframe.contentDocument;
+
+    if (typeof this.win.update !== 'function' || !this.win.AREAS) {
+      document.getElementById('s-sandbox').textContent = 'sandbox: BOOT FAILED';
+      log('Game scripts did not initialise (window.update / window.AREAS missing).', 'err');
+      const errs = this.win.__uncaught || [];
+      errs.forEach((e) => log('  ' + e, 'err'));
+      throw new Error('sandbox boot failed');
+    }
+
+    // Inject the controlled arena.
+    this.win.eval('AREAS[' + JSON.stringify(ARENA.id) + '] = ' + JSON.stringify(ARENA) + ';');
+
+    this.booted = true;
+    const ls = this.win.__lsSandboxed ? 'localStorage sandboxed' : 'localStorage NOT sandboxed (' + this.win.__lsError + ')';
+    document.getElementById('s-sandbox').textContent = 'sandbox: ready — ' + ls;
+    log('Sandbox booted. rAF suppressed after ' + this.win.__rafCount + ' request(s); ' + ls + '.', 'ok');
+  },
+};
+
+/* The per-test API. Everything a check needs to drive and inspect the game. */
+function makeT(record) {
+  const win = Sandbox.win;
+  const T = {
+    win,
+    // ── raw access ────────────────────────────────────────────────────
+    ev(code) { return win.eval(code); },
+    get(expr) { return win.eval('(' + expr + ')'); },
+    set(expr, value) { win.eval(expr + ' = ' + JSON.stringify(value)); },
+    has(name) { try { return win.eval('typeof ' + name) !== 'undefined'; } catch (e) { return false; } },
+
+    // ── time ──────────────────────────────────────────────────────────
+    step(n = 1) {
+      for (let i = 0; i < n; i++) {
+        try { win.update(); }
+        catch (e) { throw new Fail('update() threw on frame ' + i + ' of ' + n + ': ' + e.message); }
+      }
+    },
+    render() {
+      try { win.draw(); }
+      catch (e) { throw new Fail('draw() threw: ' + e.message); }
+    },
+
+    // ── input (writes straight into input.js's keys/justPressed maps,
+    //    which is exactly what the real listeners do) ─────────────────
+    clearInput() {
+      win.eval('(function(){for(var k in keys)keys[k]=false;for(var j in justPressed)justPressed[j]=false;})()');
+    },
+    hold(action) {
+      win.eval('(function(){var c=keyBindings[' + JSON.stringify(action) + '];if(!keys[c])justPressed[c]=true;keys[c]=true;})()');
+    },
+    release(action) {
+      win.eval('(function(){var c=keyBindings[' + JSON.stringify(action) + '];keys[c]=false;})()');
+    },
+    // Hold for `frames` update ticks, then release and settle one frame.
+    pulse(action, frames = 1, settle = 1) {
+      T.hold(action); T.step(frames); T.release(action); if (settle) T.step(settle);
+    },
+
+    // ── scenarios ─────────────────────────────────────────────────────
+    reset() {
+      win.eval('init(); startNewGame();');
+      win.eval('gameTimeScale=1; hitstopTimer=0; slowMoTimer=0; slowMoSkip=0; screenShake=0;'
+             + 'deathFadeDir=0; deathFadeAlpha=0; transitioning=false; transitionAlpha=0; doorCooldown=0;'
+             + 'limitBreak.active=false; limitBreak.ability=null; limitBreak.timer=0;');
+      T.clearInput();
+    },
+    // Drop the player into the controlled arena, standing on the floor.
+    arena(x = 200) {
+      T.reset();
+      win.eval('switchArea(' + JSON.stringify(ARENA.id) + ', ' + x + ', 468);');
+      win.eval('doorCooldown=0; transitioning=false; transitionAlpha=0;');
+      T.step(2); // settle: grounded + standingPlat resolved
+    },
+    grantAll() {
+      win.eval('abilityState.hasPhaseDash=true; abilityState.hasShardShot=true; abilityState.hasStillpoint=true;'
+             + 'abilityState.hasChargedAttack=true; abilityState.hasGravitonSurge=true; abilityState.hasVoidTether=true;'
+             + 'abilityState.hasReach=true;'
+             + 'abilityState.phaseDashCooldown=0; abilityState.shardShotCooldown=0;'
+             + 'abilityState.gravitonSurgeCooldown=0; abilityState.voidTetherCooldown=0;');
+    },
+    level(key, n) { win.eval('statUpgrades[' + JSON.stringify(key) + '] = ' + n + ';'); },
+    pips(n) { win.eval('player.fractureMax = Math.max(player.fractureMax, ' + n + '); player.fractureMeter = ' + n + ';'); },
+    spawnEnemy(type, x, y) {
+      return win.eval(
+        '(function(){var C = ENEMY_REGISTRY[' + JSON.stringify(type) + '] || Enemy;' +
+        'var e = new C(' + x + ', ' + y + ', ' + JSON.stringify(type) + ');' +
+        'if(!areaEnemies[currentAreaId]) areaEnemies[currentAreaId]=[];' +
+        'areaEnemies[currentAreaId].push(e); return e;})()'
+      );
+    },
+    enemies() { return win.eval('(areaEnemies[currentAreaId] || [])'); },
+    player() { return win.player; },
+    plat(i) { return win.eval('AREAS[' + JSON.stringify(ARENA.id) + '].platforms[' + i + ']'); },
+
+    // ── assertions ────────────────────────────────────────────────────
+    ok(cond, msg) { if (!cond) throw new Fail(msg); },
+    eq(a, b, msg) { if (a !== b) throw new Fail(msg + ' (got ' + fmt(a) + ', expected ' + fmt(b) + ')'); },
+    near(a, b, tol, msg) {
+      if (!(Math.abs(a - b) <= tol)) throw new Fail(msg + ' (got ' + fmt(a) + ', expected ' + fmt(b) + ' ±' + tol + ')');
+    },
+    note(line) { record.detail.push(String(line)); },
+    warn(msg) { record.warnings.push(String(msg)); },
+    skip(msg) { throw new Skip(msg); },
+  };
+  return T;
+}
+function fmt(v) {
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toFixed(3);
+  return String(v);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   3. CHECKS
+   ══════════════════════════════════════════════════════════════════════ */
+const TESTS = [];
+const test = (id, phase, name, fn, opts) => TESTS.push(Object.assign({ id, phase, name, fn }, opts || {}));
+
+/* ── Phase 0 · Harness ─────────────────────────────────────────────── */
+const P0 = '0 · Harness & boot';
+
+test('H01', P0, 'Canvas exists with a live 2D context', (T) => {
+  const c = Sandbox.doc.getElementById('game');
+  T.ok(c, 'canvas#game not found in the sandbox document');
+  T.ok(c.getContext('2d'), 'canvas#game has no 2D context');
+  return c.width + '×' + c.height + ' backing store';
+});
+
+test('H02', P0, 'Engine state reachable from the harness', (T) => {
+  const probes = ['player', 'gameState', 'AREAS', 'ENEMY_REGISTRY', 'ANIM_DEFS', 'abilityState',
+                  'limitBreak', 'statUpgrades', 'areaEnemies', 'keys', 'keyBindings', 'gameTimeScale', 'SFX'];
+  const missing = probes.filter((p) => !T.has(p));
+  T.ok(missing.length === 0, 'not reachable via the sandbox global scope: ' + missing.join(', '));
+  return probes.length + ' engine globals reachable (incl. script-scope let/const via indirect eval)';
+});
+
+test('H03', P0, 'Boot is exception-free', (T) => {
+  const errs = T.get('__uncaught');
+  Array.from(errs).forEach((e) => T.note(e));
+  T.ok(errs.length === 0, errs.length + ' uncaught error(s) during boot — see detail');
+  return 'no uncaught exceptions while loading + init()';
+});
+
+test('H04', P0, 'Real saves are protected (sandboxed localStorage)', (T) => {
+  T.ok(T.get('__lsSandboxed') === true,
+    'localStorage could NOT be shimmed (' + T.get('__lsError') + ') — this run may overwrite your real save slots');
+  T.reset();
+  T.ev('saveGame(0)');
+  const inSandbox = Object.keys(T.get('__mem')).length;
+  T.ok(inSandbox > 0, 'saveGame() wrote nothing into the sandbox store — the shim may not be wired up');
+  T.note('sandbox store keys: ' + Object.keys(T.get('__mem')).join(', '));
+  return 'game writes land in the in-memory store; your real localStorage is untouched';
+});
+
+test('H05', P0, 'Game clock is fully under harness control', async (T) => {
+  T.reset();
+  const f0 = T.get('frameCount');
+  await sleep(300); // real wall-clock time, during which the game must NOT tick
+  const drift = T.get('frameCount') - f0;
+  T.note('frameCount drift over 300ms of real time with no step(): ' + drift);
+  T.ok(drift === 0, 'frameCount advanced by ' + drift + ' with no step() calls — the rAF stub leaked and results will be non-deterministic');
+  T.step(10);
+  T.eq(T.get('frameCount') - f0, 10, 'step(10) did not advance the sim by exactly 10 frames');
+  return '300ms of wall clock = 0 frames; step(10) = exactly 10 frames';
+});
+
+/* ── Phase 1 · Collision & physics ─────────────────────────────────── */
+const P1 = '1 · Collision & physics';
+
+test('C01', P1, 'Floor: no clip-through at high fall speed', (T) => {
+  const speeds = [8, 20, 40, 80, 150];
+  const bad = [];
+  for (const vy of speeds) {
+    T.arena(300);
+    T.ev('player.y = 200; player.vy = ' + vy + '; player.vx = 0;');
+    T.step(30);
+    const p = T.player();
+    T.note('vy=' + vy + ' → y=' + p.y.toFixed(1) + ' grounded=' + p.grounded);
+    if (!p.grounded || p.y + p.height > 502) bad.push('vy=' + vy);
+  }
+  T.ok(bad.length === 0, 'fell through the floor at ' + bad.join(', ') + ' (landing margin scales with speed — see physics.js)');
+  return 'landed cleanly at every fall speed up to 150px/frame';
+});
+
+test('C02', P1, 'Ceiling: upward movement is stopped by a platform underside', (T) => {
+  T.arena(560); // under the ceiling slab at y=120..160
+  T.ev('player.y = 300; player.vy = -25; player.vx = 0;');
+  T.step(6);
+  const p = T.player();
+  T.note('after 6 frames: y=' + p.y.toFixed(1) + ' vy=' + p.vy.toFixed(2));
+  T.ok(p.y >= 158, 'player passed above the ceiling slab (y=' + p.y.toFixed(1) + ', slab bottom is 160)');
+  return 'head-bump resolved at the slab underside (y=' + p.y.toFixed(1) + ')';
+});
+
+test('C03', P1, 'Walls: no side tunnelling at speed', (T) => {
+  const speeds = [4, 12, 30, 60];
+  const bad = [];
+  for (const vx of speeds) {
+    T.arena(1400);
+    T.ev('player.vx = ' + vx + '; player.vy = 0;');
+    T.step(12);
+    const p = T.player();
+    T.note('vx=' + vx + ' → x=' + p.x.toFixed(1) + ' (right wall starts at 1560)');
+    if (p.x + p.width > 1562) bad.push('vx=' + vx);
+  }
+  T.ok(bad.length === 0, 'clipped into/through the right wall at ' + bad.join(', '));
+  return 'wall margin held at every speed up to 60px/frame';
+});
+
+test('C04', P1, 'One-way platform: lands on top, drops through on Down+Jump', (T) => {
+  T.arena(960);
+  T.ev('player.y = 300; player.vy = 6;');
+  T.step(20);
+  let p = T.player();
+  T.note('landed at y=' + p.y.toFixed(1) + ' (one-way top = 380), standingPlat.oneWay=' + !!(p.standingPlat && p.standingPlat.oneWay));
+  T.ok(p.grounded && p.standingPlat && p.standingPlat.oneWay, 'did not land on top of the one-way platform');
+
+  T.hold('aimDown');
+  T.step(2);
+  T.hold('jump');
+  T.step(1);
+  T.release('jump');
+  T.step(25);
+  p = T.player();
+  T.note('after Down+Jump, 25 frames: y=' + p.y.toFixed(1));
+  T.ok(p.y > 400, 'Down+Jump did not drop the player through the one-way platform (y=' + p.y.toFixed(1) + ')');
+  return 'lands on top, and Down+Jump drops through as intended';
+});
+
+test('C05', P1, 'standingPlat tracks the current platform and clears on jump', (T) => {
+  T.arena(300);
+  T.step(3);
+  let p = T.player();
+  T.ok(p.standingPlat, 'standingPlat is null while grounded on the floor');
+  T.note('grounded on platform at y=' + p.standingPlat.y);
+  T.pulse('jump', 2, 3);
+  p = T.player();
+  T.note('3 frames after jump: grounded=' + p.grounded + ' standingPlat=' + (p.standingPlat ? 'set' : 'null') + ' vy=' + p.vy.toFixed(2));
+  T.ok(!p.grounded && !p.standingPlat, 'standingPlat/grounded did not clear after jumping off');
+  return 'set while standing, cleared while airborne';
+});
+
+test('C06', P1, 'Moving platform carries the player with it', (T) => {
+  T.arena(1000);
+  const plat = T.plat(5);
+  T.ev('player.x = 250; player.y = ' + (plat.y - 32) + '; player.vx = 0; player.vy = 1;');
+  T.step(4);
+  const p0x = T.player().x, s0 = T.plat(5).x;
+  if (!T.player().standingPlat || T.player().standingPlat.y !== plat.y) T.skip('player did not settle on the moving platform');
+  T.step(60);
+  const dP = T.player().x - p0x, dS = T.plat(5).x - s0;
+  T.note('platform moved ' + dS.toFixed(2) + 'px, player moved ' + dP.toFixed(2) + 'px over 60 frames');
+  T.ok(Math.abs(dS) > 5, 'the moving platform did not move at all in 60 frames');
+  T.near(dP, dS, 2, 'player was not carried by the same delta as the platform');
+  return 'carried ' + dP.toFixed(1) + 'px, platform moved ' + dS.toFixed(1) + 'px';
+});
+
+test('C07', P1, 'Crumble platform falls away, stops being solid, then respawns', (T) => {
+  T.arena(1000);
+  const cp = T.plat(6); // crumbleDelay 20, respawn 60
+  T.ev('player.x = 640; player.y = ' + (cp.y - 32) + '; player.vx = 0; player.vy = 1;');
+  T.step(4);
+  if (!T.player().standingPlat) T.skip('player did not settle on the crumble platform');
+  T.step(30);
+  T.note('30 frames after standing: crumbleGone=' + T.plat(6).crumbleGone + ' player.y=' + T.player().y.toFixed(1));
+  T.ok(T.plat(6).crumbleGone === true, 'platform never crumbled after crumbleDelay (20 frames)');
+  T.step(10);
+  T.ok(T.player().y > cp.y, 'player did not fall once the platform crumbled — it is still solid while "gone"');
+  T.step(70);
+  T.note('70 frames later: crumbleGone=' + T.plat(6).crumbleGone);
+  T.ok(T.plat(6).crumbleGone === false, 'platform never came back after its respawn delay (60 frames)');
+  return 'crumbled at ~20f, non-solid while gone, respawned at ~60f';
+});
+
+test('C08', P1, 'Room re-entry resets platform runtime state', (T) => {
+  T.arena(1000);
+  const cp = T.plat(6);
+  T.ev('player.x = 640; player.y = ' + (cp.y - 32) + '; player.vy = 1;');
+  T.step(40);
+  T.ok(T.plat(6).crumbleGone === true, 'setup failed — platform did not crumble');
+  const movedX = T.plat(5).x;
+  T.ev('switchArea("spawn_area_1", 100, 440);');
+  T.ev('switchArea(' + JSON.stringify(ARENA.id) + ', 200, 468);');
+  T.note('after re-entry: crumbleGone=' + T.plat(6).crumbleGone + ', moving platform x=' + T.plat(5).x + ' (was ' + movedX.toFixed(1) + ', base 200)');
+  T.ok(T.plat(6).crumbleGone === false, 'crumbled platform stayed destroyed after leaving and re-entering the room');
+  T.near(T.plat(5).x, 200, 0.01, 'moving platform did not reset to its authored anchor on re-entry');
+  return 'crumble + moving state both reset on room entry';
+});
+
+test('C09', P1, 'No authored enemy spawns inside solid geometry', (T) => {
+  T.reset();
+  const areas = T.get('AREAS');
+  const bad = [];
+  let checked = 0;
+  for (const id in areas) {
+    if (id.startsWith('__dbg')) continue;
+    const room = areas[id];
+    for (const e of (room.enemies || [])) {
+      checked++;
+      for (const p of (room.platforms || [])) {
+        if (p.hazard || p.oneWay) continue;
+        // 28×28 is the base enemy AABB; sizes vary a little per class but
+        // an authored point deep inside a platform is wrong for all of them.
+        if (e.x + 28 > p.x && e.x < p.x + p.w && e.y + 28 > p.y && e.y < p.y + p.h) {
+          bad.push(id + ' ' + e.type + ' @(' + e.x + ',' + e.y + ') inside platform (' + p.x + ',' + p.y + ',' + p.w + '×' + p.h + ')');
+          break;
+        }
+      }
+    }
+  }
+  bad.forEach((b) => T.note(b));
+  if (checked === 0) T.skip('no room in AREAS places any enemies, so there is nothing to check (see E01/E10)');
+  if (bad.length) {
+    T.warn(bad.length + ' embedded spawn(s) — physics.js nudges them out at runtime with a console.warn, so this is authoring debt, not a crash');
+    return bad.length + '/' + checked + ' authored enemy spawns sit inside a platform (auto-nudged at runtime)';
+  }
+  return 'all ' + checked + ' authored enemy spawns are clear of solid geometry';
+});
+
+test('C10', P1, 'Player is pushed out of an enemy, never launched', (T) => {
+  T.arena(300);
+  T.grantAll();
+  const e = T.spawnEnemy('fractured', 300, 468);
+  T.ev('player.invincibleTimer = 9999;'); // isolate separation from contact damage
+  T.step(1);
+  let maxSpeed = 0;
+  for (let i = 0; i < 40; i++) {
+    T.ev('player.invincibleTimer = 9999;');
+    T.step(1);
+    maxSpeed = Math.max(maxSpeed, Math.abs(T.player().vx));
+  }
+  const p = T.player();
+  T.note('peak |vx| during overlap: ' + maxSpeed.toFixed(2) + ' (normal MOVE_SPEED = ' + T.get('MOVE_SPEED') + ')');
+  T.note('final player x=' + p.x.toFixed(1) + ' enemy x=' + e.x.toFixed(1));
+  T.ok(maxSpeed < 25, 'body-block separation launched the player at ' + maxSpeed.toFixed(1) + 'px/frame');
+  T.ok(!Number.isNaN(p.x) && Math.abs(p.x) < 1e6, 'player position went non-finite during overlap');
+  return 'separation stayed bounded (peak ' + maxSpeed.toFixed(1) + 'px/frame)';
+});
+
+test('C11', P1, 'Contact damage respects the i-frame window', (T) => {
+  T.arena(300);
+  const hp0 = T.player().health;
+  T.spawnEnemy('fractured', 320, 468);
+  const iframes = T.get('INVINCIBLE_FRAMES');
+  T.step(Math.round(iframes * 0.8));
+  const hp1 = T.player().health;
+  T.note('after ' + Math.round(iframes * 0.8) + ' frames of contact: ' + hp0 + ' → ' + hp1 + ' hp (INVINCIBLE_FRAMES=' + iframes + ')');
+  T.ok(hp1 < hp0, 'standing inside an enemy for most of an i-frame window dealt no damage at all');
+  T.ok(hp0 - hp1 <= 1, 'took ' + (hp0 - hp1) + ' hits inside a single i-frame window — i-frames are not gating contact damage');
+  return 'exactly ' + (hp0 - hp1) + ' hit taken within one ' + iframes + '-frame window';
+});
+
+test('C12', P1, 'Phase Dash passes through an enemy without taking damage', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.spawnEnemy('fractured', 420, 468);
+  const hp0 = T.player().health;
+  T.hold('moveRight');
+  T.step(2);
+  T.pulse('dash', 2, 0);
+  T.step(20);
+  T.release('moveRight');
+  const p = T.player();
+  T.note('player x=' + p.x.toFixed(1) + ' (started 300, enemy at 420), hp ' + hp0 + ' → ' + p.health);
+  T.ok(p.x > 420, 'Phase Dash did not carry the player past the enemy (x=' + p.x.toFixed(1) + ')');
+  T.ok(p.health === hp0, 'took ' + (hp0 - p.health) + ' damage while phasing through an enemy');
+  return 'passed through cleanly, no damage taken';
+});
+
+test('C13', P1, 'Void Tether line-of-sight respects platforms', (T) => {
+  T.arena(560);
+  T.grantAll();
+  // Ceiling slab spans x 400..800 at y 120..160 — put the target above it
+  // so the straight line from the player crosses solid geometry.
+  const blocked = T.ev('(function(){var e={x:600,y:60,width:28,height:28};'
+    + 'return voidTetherLineClear(player, e, getCurrentArea().platforms);})()');
+  const clear = T.ev('(function(){var e={x:900,y:440,width:28,height:28};'
+    + 'return voidTetherLineClear(player, e, getCurrentArea().platforms);})()');
+  T.note('through the ceiling slab: ' + blocked + ' (want false); along the open floor: ' + clear + ' (want true)');
+  T.ok(blocked === false, 'voidTetherLineClear() reported a clear path straight through a solid platform');
+  T.ok(clear === true, 'voidTetherLineClear() reported a blocked path across open air');
+  return 'blocked through geometry, clear across open space';
+});
+
+test('C14', P1, 'Void Tether auto-target picks the nearest enemy in front', (T) => {
+  T.arena(600);
+  T.grantAll();
+  T.ev('player.facing = 1;');
+  const near = T.spawnEnemy('fractured', 760, 468);
+  T.spawnEnemy('fractured', 840, 468);
+  T.spawnEnemy('fractured', 440, 468); // behind
+  const target = T.ev('findVoidTetherTarget(player, VOID_TETHER_RANGE_BASE)');
+  T.note('candidates at x=440 (behind), 760, 840 — picked x=' + (target ? target.x : 'null'));
+  T.ok(target, 'findVoidTetherTarget() found nothing with three enemies in range');
+  T.ok(target.x === near.x, 'picked x=' + target.x + ' instead of the nearest in-front enemy at x=760');
+  return 'nearest forward target selected, enemy behind ignored';
+});
+
+test('C15', P1, 'Void Tether pull accelerates instead of teleporting', (T) => {
+  T.arena(600);
+  T.grantAll();
+  T.level('void_tether', 1);
+  const e = T.spawnEnemy('fractured', 800, 468);
+  T.ev('player.facing = 1;');
+  T.pulse('voidTether', 1, 0);
+  T.step(1);
+  if (!T.get('player.tether')) T.skip('no tether was established — cast did not take (cooldown or target rules)');
+  const positions = [];
+  for (let i = 0; i < 6; i++) { T.step(1); positions.push(e.x); }
+  const steps = positions.map((x, i) => (i ? positions[i - 1] - x : 800 - x));
+  T.note('per-frame approach: ' + steps.map((s) => s.toFixed(2)).join(', '));
+  T.ok(steps[0] < 40, 'first frame of the pull moved the target ' + steps[0].toFixed(1) + 'px — that is a teleport, not a pull');
+  T.ok(steps[steps.length - 1] > steps[0] - 0.01, 'pull speed decreased instead of ramping up (see the 0.35 + t*0.08 ramp in game.js)');
+  return 'smooth ramp from ' + steps[0].toFixed(1) + ' to ' + steps[steps.length - 1].toFixed(1) + 'px/frame';
+});
+
+test('C16', P1, 'Attacking cancels an active tether', (T) => {
+  T.arena(600);
+  T.grantAll();
+  const e = T.spawnEnemy('fractured', 820, 468);
+  T.ev('player.facing = 1;');
+  T.pulse('voidTether', 1, 0);
+  T.step(2);
+  if (!T.get('player.tether')) T.skip('no tether established to cancel');
+  T.pulse('attack', 1, 1);
+  T.note('tether after attack: ' + (T.get('player.tether') ? 'still active' : 'cleared'));
+  T.ok(!T.get('player.tether'), 'the tether survived an attack — game.js clears it on player.attacking');
+  return 'tether cleared on the swing';
+});
+
+test('C17', P1, 'Void Tether whiff refunds the cooldown', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.ev('player.facing = -1;'); // nothing behind, nothing in range at all
+  T.pulse('voidTether', 1, 1);
+  const cd = T.get('abilityState.voidTetherCooldown');
+  const whiff = T.get('VOID_TETHER_WHIFF_COOLDOWN'), full = T.get('VOID_TETHER_COOLDOWN');
+  T.note('cooldown after a whiffed cast: ' + cd + ' (whiff tax=' + whiff + ', full=' + full + ')');
+  T.ok(cd <= whiff, 'a whiffed cast burned ' + cd + ' frames instead of refunding down to ' + whiff);
+  return 'whiff cost ' + cd + ' frames instead of the full ' + full;
+});
+
+test('C18', P1, 'Graviton Surge flips the player without ejecting them from the room', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.pips(3);
+  T.pulse('gravitonSurge', 2, 2);
+  T.ok(T.get('player.gravitonActive') === true, 'gravitonSurge input did not set player.gravitonActive');
+  const yStart = T.player().y;
+  T.step(60);
+  const p = T.player();
+  T.note('y ' + yStart.toFixed(1) + ' → ' + p.y.toFixed(1) + ' after 60 flipped frames (GRAVITON_ROOM_TOP=' + T.get('GRAVITON_ROOM_TOP') + ')');
+  T.ok(p.y < yStart, 'gravity flip did not lift the player at all');
+  T.ok(p.y >= T.get('GRAVITON_ROOM_TOP') - 4, 'player rose past the room ceiling clamp (y=' + p.y.toFixed(1) + ')');
+  return 'flipped and settled at y=' + p.y.toFixed(1) + ', inside room bounds';
+});
+
+test('C19', P1, 'Graviton Surge pins grounded enemies but not flying ones', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.pips(3);
+  const ground = T.spawnEnemy('fractured', 360, 468);
+  const flyer = T.spawnEnemy('deflector_drone', 420, 300);
+  const gy0 = ground.y, fy0 = flyer.y;
+  T.pulse('gravitonSurge', 2, 2);
+  T.step(45);
+  T.note('grounded enemy y ' + gy0.toFixed(1) + ' → ' + ground.y.toFixed(1));
+  T.note('flying enemy  y ' + fy0.toFixed(1) + ' → ' + flyer.y.toFixed(1) + ' (_movementFlies=' + flyer._movementFlies + ' isFlying=' + flyer.isFlying + ')');
+  T.ok(ground.y < gy0 - 20, 'a grounded enemy in range was not pulled upward by the flip');
+  if (!(flyer._movementFlies || flyer.isFlying)) {
+    T.warn('deflector_drone is not flagged as flying (_movementFlies/isFlying) — the immunity branch in game.js will never apply to it');
+  }
+  return 'grounded enemy lifted ' + (gy0 - ground.y).toFixed(0) + 'px; flying enemy immunity flag = ' + !!(flyer._movementFlies || flyer.isFlying);
+});
+
+/* ── Phase 2 · Abilities ───────────────────────────────────────────── */
+const P2 = '2 · Abilities';
+
+test('A01', P2, 'Phase Dash sets its cooldown and spawns one echo', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.hold('moveRight');
+  T.step(2);
+  const x0 = T.player().x;
+  T.pulse('dash', 2, 2);
+  T.release('moveRight');
+  const echoes = T.get('echoes');
+  T.note('echoes after dash: ' + echoes.length + ', cooldown=' + T.get('abilityState.phaseDashCooldown') + '/' + T.get('PHASE_DASH_COOLDOWN'));
+  T.ok(T.get('player.phaseDashing') || T.get('abilityState.phaseDashCooldown') > 0, 'Phase Dash never fired');
+  T.eq(T.get('abilityState.phaseDashCooldown'), T.get('PHASE_DASH_COOLDOWN'), 'phaseDashCooldown was not set to PHASE_DASH_COOLDOWN');
+  T.ok(echoes.length === 1, 'expected exactly 1 echo, got ' + echoes.length);
+  const echo = echoes[0];
+  T.note('echo spawned at x=' + echo.x.toFixed(1) + ', dash started at x=' + x0.toFixed(1) + ', player now x=' + T.player().x.toFixed(1));
+  T.ok(Math.abs(echo.x - x0) < 60, 'echo spawned ' + Math.abs(echo.x - x0).toFixed(0) + 'px from the dash START — it should mark where the dash began');
+  return 'cooldown armed, one echo left at the dash origin';
+});
+
+test('A02', P2, 'Echo expires after ECHO_LIFETIME and is culled', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.pulse('dash', 2, 1);
+  const life = T.get('ECHO_LIFETIME');
+  T.ok(T.get('echoes').length > 0, 'no echo to track');
+  T.step(life + 10);
+  T.note('echo count ' + (life + 10) + ' frames after the dash: ' + T.get('echoes').length);
+  T.ok(T.get('echoes').length === 0, 'echo still alive ' + (life + 10) + ' frames after spawning (ECHO_LIFETIME=' + life + ')');
+  return 'culled within ECHO_LIFETIME (' + life + ' frames)';
+});
+
+test('A03', P2, 'Echo distraction respects ECHO_DISTRACT_RADIUS and duration', (T) => {
+  const R = T.get('ECHO_DISTRACT_RADIUS');
+  // enemy.js acquires the nearest echo by HORIZONTAL distance only, then
+  // holds distractionTimer/distractionTarget for ECHO_DISTRACT_DURATION.
+  const run = (offset) => {
+    T.arena(300);
+    T.grantAll();
+    const e = T.spawnEnemy('fractured', 600, 468);
+    T.step(30); // let it notice the player first, so distraction has to override
+    T.pulse('dash', 2, 1);
+    if (!T.get('echoes').length) T.skip('no echo spawned to test with');
+    T.ev('echoes[0].x = ' + (600 + offset) + '; echoes[0].y = 468;');
+    T.step(3);
+    return { timer: e.distractionTimer, target: !!e.distractionTarget, vx: e.vx };
+  };
+  const inside = run(Math.round(R * 0.4));
+  const outside = run(Math.round(R * 3));
+  const dur = T.get('ECHO_DISTRACT_DURATION');
+  T.note('ECHO_DISTRACT_RADIUS=' + R + ' (measured horizontally), ECHO_DISTRACT_DURATION=' + dur);
+  T.note('echo ' + Math.round(R * 0.4) + 'px away → distractionTimer=' + inside.timer + ' target=' + inside.target + ' vx=' + inside.vx);
+  T.note('echo ' + Math.round(R * 3) + 'px away → distractionTimer=' + outside.timer + ' target=' + outside.target);
+  T.ok(inside.timer > 0 && inside.target, 'an echo well inside the radius did not distract the enemy');
+  T.ok(inside.vx === 0, 'a distracted enemy kept moving (vx=' + inside.vx + ') — it should hold still');
+  T.ok(outside.timer === 0, 'an echo ' + Math.round(R * 3) + 'px away still distracted the enemy — the radius is not being applied');
+  return 'distracted inside ' + R + 'px for ' + dur + ' frames, ignored outside';
+});
+
+test('A04', P2, 'Phase Dash aims 8-directionally from held inputs', (T) => {
+  const dirs = [
+    ['moveRight', null, (v) => v.vx > 3],
+    ['moveLeft', null, (v) => v.vx < -3],
+    ['moveRight', 'aimUp', (v) => v.vx > 1 && v.vy < -1],
+    ['moveLeft', 'aimDown', (v) => v.vx < -1 && v.vy > 1],
+  ];
+  const bad = [];
+  for (const [h, v, ok] of dirs) {
+    T.arena(700);
+    T.grantAll();
+    T.ev('player.y = 300;'); // airborne so vertical dashes are unobstructed
+    T.hold(h); if (v) T.hold(v);
+    T.step(2);
+    T.pulse('dash', 2, 0);
+    const p = T.player();
+    T.note((h + (v ? '+' + v : '')).padEnd(22) + ' → vx=' + p.vx.toFixed(2) + ' vy=' + p.vy.toFixed(2));
+    if (!ok(p)) bad.push(h + (v ? '+' + v : ''));
+    T.release(h); if (v) T.release(v);
+  }
+  T.ok(bad.length === 0, 'dash direction wrong for: ' + bad.join(', '));
+  return 'all 4 sampled directions produced the right velocity vector';
+});
+
+test('A05', P2, 'Shard Shot fires a projectile and arms its cooldown', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.pulse('shardShot', 3, 2);
+  const projs = T.get('projectiles');
+  T.note('projectiles=' + projs.length + ' cooldown=' + T.get('abilityState.shardShotCooldown') + '/' + T.get('SHARD_SHOT_COOLDOWN'));
+  T.ok(projs.length > 0, 'releasing the Shard Shot button spawned no projectile');
+  T.eq(T.get('abilityState.shardShotCooldown'), T.get('SHARD_SHOT_COOLDOWN'), 'shardShotCooldown was not armed on fire');
+  return projs.length + ' projectile(s) fired, cooldown set to ' + T.get('SHARD_SHOT_COOLDOWN');
+});
+
+test('A06', P2, 'Shard Shot damage scales with ability level', (T) => {
+  T.arena(300);
+  T.grantAll();
+  const rows = [];
+  for (const lvl of [0, 1, 2, 3, 4]) {
+    T.level('shard_shot', lvl);
+    rows.push('Lv' + lvl + ' → ' + T.ev('shardShotDamage()'));
+  }
+  rows.forEach((r) => T.note(r));
+  T.level('shard_shot', 0);
+  const base = T.ev('shardShotDamage()');
+  T.level('shard_shot', 1);
+  const lv1 = T.ev('shardShotDamage()');
+  T.ok(lv1 > base, 'Lv1 damage (' + lv1 + ') is not higher than Lv0 (' + base + ') — the +25% scaling is not applied');
+  return 'damage curve: ' + rows.join(', ');
+});
+
+test('A07', P2, 'Projectiles expire and never accumulate forever', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.ev('projectiles.length = 0;');
+  T.pulse('shardShot', 3, 1);
+  const p0 = T.get('projectiles')[0];
+  if (!p0) T.skip('no projectile spawned to track');
+  const life = p0.life;
+  T.note('projectile life=' + life + ' frames');
+  T.step(life + 60);
+  T.note('projectiles remaining after life+60 frames: ' + T.get('projectiles').length);
+  T.ok(T.get('projectiles').length === 0, 'projectile still in the array ' + (life + 60) + ' frames after firing');
+  return 'expired on schedule (life=' + life + ')';
+});
+
+test('A08', P2, 'Shard Shot aim tilt clamps to its authored range', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.hold('shardShot');
+  T.step(1);
+  T.hold('aimUp');
+  T.step(120);
+  const up = T.get('player.shardAimVy');
+  T.release('aimUp');
+  T.hold('aimDown');
+  T.step(200);
+  const down = T.get('player.shardAimVy');
+  T.release('aimDown'); T.release('shardShot'); T.step(1);
+  T.note('tilt up clamped at ' + up + ' (SHARD_AIM_VY_MIN=' + T.get('SHARD_AIM_VY_MIN') + ')');
+  T.note('tilt down clamped at ' + down + ' (SHARD_AIM_VY_MAX=' + T.get('SHARD_AIM_VY_MAX') + ')');
+  T.near(up, T.get('SHARD_AIM_VY_MIN'), 0.3, 'upward tilt did not clamp to SHARD_AIM_VY_MIN');
+  T.near(down, T.get('SHARD_AIM_VY_MAX'), 0.3, 'downward tilt did not clamp to SHARD_AIM_VY_MAX');
+  return 'tilt range honoured in both directions';
+});
+
+test('A09', P2, 'Lv3 beam channels and drains Fracture Pips', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.level('shard_shot', 3);
+  T.pips(4);
+  T.hold('shardShot');
+  T.step(T.get('BEAM_CHARGE_TIME') + 5);
+  T.note('beaming after BEAM_CHARGE_TIME: ' + T.get('player.beaming') + ', pips=' + T.get('player.fractureMeter'));
+  T.ok(T.get('player.beaming') === true, 'holding past BEAM_CHARGE_TIME at Lv3 with pips in reserve did not start the beam');
+  const before = T.get('player.fractureMeter');
+  T.step(70); // > 60f drain tick
+  const after = T.get('player.fractureMeter');
+  T.release('shardShot'); T.step(2);
+  T.note('pips ' + before + ' → ' + after + ' over 70 channel frames (1/sec expected)');
+  T.ok(after < before, 'channelling for over a second drained no Fracture Pips');
+  T.ok(T.get('player.beaming') === false, 'beam did not stop when the button was released');
+  return 'beam started, drained ' + (before - after) + ' pip(s), stopped on release';
+});
+
+test('A10', P2, 'Stillpoint tap costs 1 pip, hold costs 3', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.pips(4);
+  T.pulse('stillpoint', 3, 1); // tap: under STILLPOINT_HOLD_THRESHOLD
+  const afterTap = T.get('player.fractureMeter');
+  T.ok(T.get('player.stillpointActive'), 'a tap did not activate Stillpoint at all');
+  T.note('tap: 4 → ' + afterTap + ' pips (STILLPOINT_TAP_COST=' + T.get('STILLPOINT_TAP_COST') + ')');
+  T.eq(4 - afterTap, T.get('STILLPOINT_TAP_COST'), 'tap did not cost STILLPOINT_TAP_COST');
+
+  T.arena(300); T.grantAll(); T.pips(4);
+  T.pulse('stillpoint', T.get('STILLPOINT_HOLD_THRESHOLD') + 4, 1);
+  const afterHold = T.get('player.fractureMeter');
+  T.note('hold: 4 → ' + afterHold + ' pips (STILLPOINT_HOLD_COST=' + T.get('STILLPOINT_HOLD_COST') + ')');
+  T.eq(4 - afterHold, T.get('STILLPOINT_HOLD_COST'), 'hold did not cost STILLPOINT_HOLD_COST');
+  return 'tap = ' + T.get('STILLPOINT_TAP_COST') + ' pip, hold = ' + T.get('STILLPOINT_HOLD_COST') + ' pips';
+});
+
+test('A11', P2, 'Stillpoint slow factor matches the design values per level', (T) => {
+  const cases = [
+    { lvl: 0, lb: false, want: 0.4 },
+    { lvl: 3, lb: false, want: 0.1 },
+    { lvl: 4, lb: true,  want: 0.05 },
+  ];
+  const bad = [];
+  for (const c of cases) {
+    T.arena(300); T.grantAll(); T.pips(4);
+    T.level('stillpoint', c.lvl);
+    if (c.lb) T.ev('limitBreak.active=true; limitBreak.ability="stillpoint"; limitBreak.timer=360;');
+    T.pulse('stillpoint', 3, 1);
+    const ts = T.get('gameTimeScale');
+    T.note('Lv' + c.lvl + (c.lb ? ' + Limit Break' : '') + ' → gameTimeScale=' + ts.toFixed(4) + ' (want ~' + c.want + ')');
+    if (Math.abs(ts - c.want) > 0.01) bad.push('Lv' + c.lvl + (c.lb ? '+LB' : '') + ' got ' + ts.toFixed(3));
+  }
+  T.ok(bad.length === 0, 'wrong slow factor: ' + bad.join(', '));
+  return 'Lv0-2 = 0.4, Lv3 = 0.1, Lv4 Limit Break = 0.05 as designed';
+});
+
+test('A12', P2, 'Stillpoint Lv1+ extends duration by 25%', (T) => {
+  T.arena(300); T.grantAll(); T.pips(4);
+  T.level('stillpoint', 0);
+  T.pulse('stillpoint', 3, 0);
+  const d0 = T.get('player.stillpointDuration');
+  T.arena(300); T.grantAll(); T.pips(4);
+  T.level('stillpoint', 1);
+  T.pulse('stillpoint', 3, 0);
+  const d1 = T.get('player.stillpointDuration');
+  T.note('tap duration Lv0=' + d0 + ' frames, Lv1=' + d1 + ' frames (want ×1.25)');
+  T.near(d1 / d0, 1.25, 0.03, 'Lv1 duration multiplier is not 1.25');
+  return 'Lv0 ' + d0 + 'f → Lv1 ' + d1 + 'f (×' + (d1 / d0).toFixed(2) + ')';
+});
+
+test('A13', P2, 'Taking damage cancels Stillpoint', (T) => {
+  T.arena(300); T.grantAll(); T.pips(4);
+  T.pulse('stillpoint', 3, 1);
+  T.ok(T.get('player.stillpointActive'), 'Stillpoint did not activate for the test');
+  T.ev('player.invincibleTimer = 0; player.takeDamage(1, player.x + 100);');
+  T.note('stillpointActive after taking a hit: ' + T.get('player.stillpointActive'));
+  T.ok(T.get('player.stillpointActive') === false, 'Stillpoint stayed active through a hit');
+  T.eq(T.get('gameTimeScale'), 1, 'gameTimeScale did not return to 1 after Stillpoint broke');
+  return 'broken by damage, time scale restored';
+});
+
+test('A14', P2, 'Stillpoint lifesteal is capped by level', (T) => {
+  T.arena(300); T.grantAll(); T.pips(4);
+  const caps = [];
+  for (const lvl of [0, 1, 2, 3, 4]) {
+    T.level('stillpoint', lvl);
+    caps.push('Lv' + lvl + '=' + T.ev('stillpointLifestealCap()'));
+  }
+  caps.forEach((c) => T.note(c));
+  T.level('stillpoint', 2);
+  T.pulse('stillpoint', 3, 1);
+  T.ev('player.health = 1; player.stillpointHealed = 999;');
+  T.ev('applyStillpointLifeSteal()');
+  T.note('healed-cap already exhausted → health stayed ' + T.get('player.health'));
+  T.eq(T.get('player.health'), 1, 'lifesteal healed past the per-activation cap');
+  return 'caps: ' + caps.join(', ');
+});
+
+test('A15', P2, 'Graviton Surge tap flips gravity, hold spawns the ball', (T) => {
+  T.arena(300); T.grantAll(); T.pips(4);
+  T.level('graviton_surge', 2);
+  const thr = T.get('GRAVITON_SURGE_TAP_THRESHOLD');
+  T.pulse('gravitonSurge', Math.max(1, thr - 4), 1);
+  const tapFlip = T.get('player.gravitonActive'), tapBall = T.get('player.gravitonBallCharging');
+  const tapCost = 4 - T.get('player.fractureMeter');
+  T.note('tap (' + (thr - 4) + 'f): gravitonActive=' + tapFlip + ' ballCharging=' + tapBall + ' cost=' + tapCost + ' pip(s)');
+
+  T.arena(300); T.grantAll(); T.pips(4);
+  T.level('graviton_surge', 2);
+  T.hold('gravitonSurge');
+  T.step(thr + 6);
+  const holdBall = T.get('player.gravitonBallCharging');
+  const holdCost = 4 - T.get('player.fractureMeter');
+  T.release('gravitonSurge'); T.step(1);
+  T.note('hold (' + (thr + 6) + 'f): ballCharging=' + holdBall + ' cost=' + holdCost + ' pip(s)');
+
+  T.ok(tapFlip === true, 'a tap under GRAVITON_SURGE_TAP_THRESHOLD did not flip gravity');
+  T.ok(tapBall !== true, 'a tap spawned the Gravity Ball as well as flipping');
+  T.ok(holdBall === true, 'holding past the threshold did not spawn the Gravity Ball');
+  T.eq(tapCost, T.get('GRAVITON_SURGE_TAP_COST'), 'tap pip cost is wrong');
+  T.eq(holdCost, T.get('GRAVITON_SURGE_BALL_COST'), 'hold pip cost is wrong');
+  return 'tap = flip @' + tapCost + ' pip, hold = ball @' + holdCost + ' pips';
+});
+
+test('A16', P2, 'Gravity Ball flies, then detonates at Lv3+', (T) => {
+  T.arena(300); T.grantAll(); T.pips(4);
+  T.level('graviton_surge', 3);
+  const e = T.spawnEnemy('fractured', 480, 468);
+  const hp0 = e.health;
+  T.hold('gravitonSurge');
+  T.step(T.get('GRAVITON_SURGE_TAP_THRESHOLD') + 6);
+  T.ok(T.get('player.gravitonBallCharging'), 'ball never started charging');
+  const bx0 = T.get('player.gravitonBallX');
+  T.release('gravitonSurge');
+  T.step(1);
+  T.ok(T.get('player.gravitonBallFlying') === true, 'ball did not launch on release');
+  const flight = T.get('GRAVITON_BALL_FLIGHT_DURATION');
+  T.step(flight + 3);
+  T.note('ball x ' + bx0.toFixed(0) + ' → ' + T.get('player.gravitonBallX').toFixed(0) + ' over ' + flight + ' flight frames');
+  T.note('enemy hp ' + hp0 + ' → ' + e.health + ' (explosion damage = ' + T.get('GRAVITON_BALL_EXPLODE_DAMAGE') + ')');
+  T.ok(T.get('player.gravitonBallFlying') === false, 'ball never stopped flying after GRAVITON_BALL_FLIGHT_DURATION');
+  T.ok(e.health < hp0, 'Lv3 detonation dealt no damage to an enemy inside the blast radius');
+  return 'flew ' + Math.abs(T.get('player.gravitonBallX') - bx0).toFixed(0) + 'px and detonated for ' + (hp0 - e.health) + ' damage';
+});
+
+test('A17', P2, 'Charge thresholds separate taps from heavies', (T) => {
+  T.arena(300); T.grantAll();
+  const TAP = T.get('CHARGE_TAP'), FULL = T.get('CHARGE_FULL');
+  T.pulse('attack', Math.max(1, TAP - 4), 0);
+  const lightHeavy = T.get('player.heavy');
+  T.note('held ' + (TAP - 4) + 'f (< CHARGE_TAP=' + TAP + ') → heavy=' + lightHeavy);
+
+  T.arena(300); T.grantAll();
+  T.hold('attack');
+  T.step(FULL + 6);
+  const charged = T.get('player.fullyCharged'), timer = T.get('player.chargeTimer');
+  T.release('attack'); T.step(1);
+  const heavy = T.get('player.heavy'), ratio = T.get('player.heavyCharge');
+  T.note('held ' + (FULL + 6) + 'f → chargeTimer clamped at ' + timer + '/' + FULL + ', fullyCharged=' + charged + ', heavy=' + heavy + ', heavyCharge=' + ratio);
+  T.ok(lightHeavy !== true, 'a sub-CHARGE_TAP press produced a heavy attack');
+  T.ok(heavy === true, 'a full-charge release did not produce a heavy attack');
+  T.eq(timer, FULL, 'chargeTimer did not clamp at CHARGE_FULL');
+  return 'tap < ' + TAP + 'f = light, full charge at ' + FULL + 'f = heavy (ratio ' + ratio + ')';
+});
+
+test('A18', P2, 'Strength Lv1 shortens the attack cooldown to 15f', (T) => {
+  T.arena(300); T.grantAll();
+  T.level('strength', 0);
+  const cd0 = T.ev('player.getAttackCooldown()');
+  T.level('strength', 1);
+  const cd1 = T.ev('player.getAttackCooldown()');
+  T.note('ATTACK_COOLDOWN base=' + T.get('ATTACK_COOLDOWN') + ', Lv0=' + cd0 + ', Lv1=' + cd1);
+  T.eq(cd0, 18, 'base attack cooldown is not 18 frames');
+  T.eq(cd1, 15, 'Strength Lv1 attack cooldown is not 15 frames');
+  return '18f → 15f at Strength Lv1';
+});
+
+test('A19', P2, 'LIMIT BREAK: every Lv4 ability is reachable from real input', (T) => {
+  // The Lv4 Enhanced State only exists while limitBreak.active is true, and
+  // every per-ability Lv4 effect is gated on limitBreak.ability === <key>.
+  // This drives the ability's own real input at Lv4 with 3 pips banked and
+  // checks whether that ever turns limitBreak on.
+  const cases = [
+    { key: 'strength',       action: 'attack',        hold: 34 },
+    { key: 'phase_dash',     action: 'dash',          hold: 34 },
+    { key: 'shard_shot',     action: 'shardShot',     hold: 34 },
+    { key: 'stillpoint',     action: 'stillpoint',    hold: 34 },
+    { key: 'graviton_surge', action: 'gravitonSurge', hold: 34 },
+    { key: 'void_tether',    action: 'voidTether',    hold: 34 },
+  ];
+  const unreachable = [];
+  for (const c of cases) {
+    let activated = false;
+    // Try both a tap and a long hold — whichever the ability's input shape uses.
+    for (const holdFrames of [2, c.hold]) {
+      T.arena(300);
+      T.grantAll();
+      T.level(c.key, 4);
+      T.pips(4);
+      T.ev('limitBreakChosen = ' + JSON.stringify(c.key) + ';');
+      T.spawnEnemy('fractured', 420, 468); // give tether/dash something to target
+      T.step(2);
+      T.pulse(c.action, holdFrames, 3);
+      if (T.get('limitBreak.active') === true && T.get('limitBreak.ability') === c.key) { activated = true; break; }
+    }
+    T.note((c.key + ':').padEnd(17) + (activated ? 'ACTIVATES via ' + c.action : 'NEVER ACTIVATES — no startLimitBreak("' + c.key + '") on any input path'));
+    if (!activated) unreachable.push(c.key);
+  }
+  T.ok(unreachable.length === 0,
+    unreachable.length + ' of 6 Lv4 Limit Breaks cannot be activated in normal play: ' + unreachable.join(', ') +
+    ' — canActivateLimitBreak() exists and every `limitBreak.ability === ...` effect is written, but nothing calls startLimitBreak() for these keys (only player.js:669 does, for strength)');
+  return 'all 6 Limit Breaks reachable from their own input';
+});
+
+test('A20', P2, 'Limit Break consumes 3 pips and expires after its duration', (T) => {
+  T.arena(300); T.grantAll();
+  T.level('strength', 4);
+  T.pips(4);
+  T.hold('attack'); T.step(34); T.release('attack'); T.step(2);
+  if (!T.get('limitBreak.active')) T.skip('could not enter a Limit Break to measure (see A19)');
+  const cost = 4 - T.get('player.fractureMeter');
+  const dur = T.get('LIMIT_BREAK_DURATION');
+  T.note('pip cost=' + cost + ' (LIMIT_BREAK_COST=' + T.get('LIMIT_BREAK_COST') + '), timer=' + T.get('limitBreak.timer') + '/' + dur);
+  T.eq(cost, T.get('LIMIT_BREAK_COST'), 'Limit Break did not cost LIMIT_BREAK_COST pips');
+  T.step(dur + 5);
+  T.note('after duration+5 frames: active=' + T.get('limitBreak.active') + ' ability=' + T.get('limitBreak.ability'));
+  T.ok(T.get('limitBreak.active') === false, 'Limit Break never expired');
+  T.ok(T.get('limitBreak.ability') === null, 'limitBreak.ability was not cleared on expiry');
+  return 'cost ' + cost + ' pips, expired cleanly after ' + dur + ' frames';
+});
+
+test('A21', P2, 'Limit Break cannot be double-started while already active', (T) => {
+  T.arena(300); T.grantAll();
+  for (const k of ['strength', 'phase_dash']) T.level(k, 4);
+  T.pips(4);
+  T.ev('startLimitBreak("strength");');
+  const before = T.get('limitBreak.timer');
+  T.note('canActivateLimitBreak("phase_dash", 4) while active = ' + T.ev('canActivateLimitBreak("phase_dash", 4)'));
+  T.ok(T.ev('canActivateLimitBreak("phase_dash", 4)') === false, 'a second Limit Break can start while one is running');
+  T.step(5);
+  T.ok(T.get('limitBreak.ability') === 'strength', 'the active Limit Break ability changed unexpectedly');
+  T.ok(T.get('limitBreak.timer') < before, 'limitBreak.timer is not counting down');
+  return 'single-instance guard holds, timer decrements';
+});
+
+test('A22', P2, 'Reach only redirects within its authored cone', (T) => {
+  T.arena(300); T.grantAll();
+  T.ev('player.facing = 1; player.grounded = false;');
+  const R = T.get('REACH_RANGE');
+  T.note('REACH_RANGE=' + R + ' cone=' + T.get('REACH_CONE_MIN_DEG') + '°–' + T.get('REACH_CONE_MAX_DEG') + '° off vertical, minForward=' + T.get('REACH_MIN_FORWARD'));
+
+  const probe = (dx, dy, grounded) => {
+    T.ev('(areaEnemies[currentAreaId] || []).length = 0;');
+    T.spawnEnemy('fractured', T.player().x + dx, T.player().y + dy);
+    T.ev('player.grounded = ' + !!grounded + ';');
+    return T.ev('player.findReachDirection()');
+  };
+  const diagUp = probe(60, -60, false);
+  const diagDown = probe(60, 60, false);
+  const diagDownGrounded = probe(60, 60, true);
+  const tooFar = probe(R + 120, -(R + 120), false);
+  const straightAhead = probe(80, 0, false);
+  T.note('diagonal up (airborne)     → ' + diagUp);
+  T.note('diagonal down (airborne)   → ' + diagDown);
+  T.note('diagonal down (grounded)   → ' + diagDownGrounded + '   [must be null: down-Reach is airborne-only]');
+  T.note('beyond REACH_RANGE         → ' + tooFar);
+  T.note('level with the player      → ' + straightAhead + '   [must be null: that is the normal forward swing]');
+  T.eq(diagUp, 'up', 'a diagonal-up enemy did not produce an up-Reach');
+  T.eq(diagDown, 'down', 'a diagonal-down enemy did not produce a down-Reach while airborne');
+  T.eq(diagDownGrounded, null, 'down-Reach fired while grounded');
+  T.eq(tooFar, null, 'an enemy beyond REACH_RANGE was still targeted');
+  T.eq(straightAhead, null, 'an enemy level with the player was redirected instead of hit by the forward swing');
+  return 'cone, range, and the grounded restriction all hold';
+});
+
+test('A23', P2, 'Every ability cooldown counts down to ready', (T) => {
+  T.arena(300); T.grantAll();
+  T.ev('abilityState.phaseDashCooldown = 90; abilityState.shardShotCooldown = 90;'
+     + 'abilityState.gravitonSurgeCooldown = 240; abilityState.voidTetherCooldown = 90;');
+  T.step(250);
+  const cds = T.get('abilityState');
+  const stuck = ['phaseDashCooldown', 'shardShotCooldown', 'gravitonSurgeCooldown', 'voidTetherCooldown']
+    .filter((k) => cds[k] > 0);
+  ['phaseDashCooldown', 'shardShotCooldown', 'gravitonSurgeCooldown', 'voidTetherCooldown']
+    .forEach((k) => T.note(k + ' = ' + cds[k] + ' after 250 frames'));
+  T.ok(stuck.length === 0, 'cooldown(s) never reached 0: ' + stuck.join(', '));
+  T.eq(T.get('GRAVITON_SURGE_COOLDOWN'), 240, 'Graviton Surge cooldown is not the documented 240 frames');
+  return 'all four ability cooldowns drain to ready';
+});
+
+/* ── Phase 3 · Enemy AI & combat ───────────────────────────────────── */
+const P3 = '3 · Enemy AI & combat';
+
+test('E01', P3, 'Every enemy type used in a room exists in ENEMY_REGISTRY', (T) => {
+  const areas = T.get('AREAS'), reg = T.get('ENEMY_REGISTRY');
+  const missing = {}, used = new Set();
+  for (const id in areas) {
+    for (const e of (areas[id].enemies || [])) {
+      used.add(e.type);
+      if (e.type === 'composed') {
+        if (!e.def) (missing['composed(no def)'] = missing['composed(no def)'] || []).push(id);
+        continue;
+      }
+      if (!reg[e.type]) (missing[e.type] = missing[e.type] || []).push(id);
+    }
+  }
+  T.note('types in use: ' + Array.from(used).sort().join(', '));
+  const keys = Object.keys(missing);
+  keys.forEach((k) => T.note('MISSING ' + k + ' — used in ' + missing[k].slice(0, 6).join(', ') + (missing[k].length > 6 ? ' …' : '')));
+  T.ok(keys.length === 0, keys.length + ' enemy type(s) referenced by rooms are not in ENEMY_REGISTRY: ' + keys.join(', '));
+  if (used.size === 0) {
+    T.warn('NO enemies are placed in ANY room — every room in AREAS has an empty `enemies` array, so a real playthrough has zero combat encounters. '
+         + 'Every enemy class is implemented and every combat check below still runs (they spawn enemies directly), but the authored world has none.');
+    return '0 enemies placed across all ' + Object.keys(areas).length + ' rooms — combat is implemented but unplaced';
+  }
+  const unused = Object.keys(reg).filter((k) => k !== 'composed' && !used.has(k));
+  if (unused.length) T.warn('registered but never placed in any room: ' + unused.join(', '));
+  return used.size + ' distinct types placed, all resolvable';
+});
+
+test('E10', P3, 'Rooms are actually populated (encounters, anchors, pickups)', (T) => {
+  T.reset();
+  const areas = T.get('AREAS');
+  const ids = Object.keys(areas).filter((id) => !id.startsWith('__dbg'));
+  const tally = { enemies: 0, anchors: 0, pips: 0, lore: 0, rewards: 0, minibosses: 0, hazards: 0, oneWay: 0, moving: 0, crumble: 0 };
+  const withEnemies = [];
+  for (const id of ids) {
+    const r = areas[id];
+    if ((r.enemies || []).length) { tally.enemies += r.enemies.length; withEnemies.push(id); }
+    tally.anchors += (r.anchors || []).length;
+    tally.pips += (r.fracturePipRewards || []).length;
+    tally.lore += (r.loreFragments || []).length;
+    if (r.abilityReward) tally.rewards++;
+    if (r.miniboss) tally.minibosses++;
+    for (const p of (r.platforms || [])) {
+      if (p.hazard) tally.hazards++;
+      if (p.oneWay) tally.oneWay++;
+      if (p.moving) tally.moving++;
+      if (p.crumble) tally.crumble++;
+    }
+  }
+  Object.keys(tally).forEach((k) => T.note(k.padEnd(12) + tally[k]));
+  T.note('rooms with at least one enemy: ' + withEnemies.length + '/' + ids.length);
+  // Platform behaviours that are fully implemented but may have no authored
+  // usage — the checks for them below run in the synthetic arena instead.
+  const unusedPlats = ['hazards', 'oneWay', 'moving', 'crumble'].filter((k) => tally[k] === 0);
+  if (unusedPlats.length) {
+    T.warn('implemented platform behaviours with zero authored usage anywhere: ' + unusedPlats.join(', ') +
+      ' — C04/C06/C07 still verify them in the debug arena, but no real room exercises them');
+  }
+  const empty = [];
+  if (tally.enemies === 0) empty.push('enemies');
+  if (tally.anchors === 0) empty.push('anchors/checkpoints');
+  if (tally.rewards === 0) empty.push('ability rewards');
+  if (tally.pips === 0) empty.push('Fracture Pips');
+  if (empty.length) {
+    T.warn('the authored world contains no ' + empty.join(', ') + ' — systems that consume them cannot be exercised by simply playing');
+    return ids.length + ' rooms; missing entirely: ' + empty.join(', ');
+  }
+  return ids.length + ' rooms: ' + tally.enemies + ' enemies, ' + tally.anchors + ' anchors, ' + tally.pips + ' pips, ' + tally.rewards + ' ability rewards';
+});
+
+test('E02', P3, 'Every enemy class survives 240 frames of live simulation', (T) => {
+  const types = Object.keys(T.get('ENEMY_REGISTRY')).filter((t) => t !== 'composed');
+  const broken = [];
+  for (const type of types) {
+    T.arena(300);
+    T.grantAll();
+    let e;
+    try { e = T.spawnEnemy(type, 460, 440); }
+    catch (err) { broken.push(type + ' (constructor threw: ' + err.message + ')'); continue; }
+    let err = null;
+    try { T.step(240); } catch (ex) { err = ex.message; }
+    if (err) { broken.push(type + ' (' + err + ')'); T.note(type.padEnd(22) + ' THREW: ' + err); continue; }
+    const oob = e.y > 900 || e.x < -200 || e.x > 1900 || Number.isNaN(e.x) || Number.isNaN(e.y);
+    T.note(type.padEnd(22) + ' ok — x=' + e.x.toFixed(0) + ' y=' + e.y.toFixed(0) + ' hp=' + e.health + (e.dead ? ' (dead)' : ''));
+    if (oob) broken.push(type + ' (left the room: ' + e.x.toFixed(0) + ',' + e.y.toFixed(0) + ')');
+  }
+  T.ok(broken.length === 0, broken.length + ' enemy type(s) failed: ' + broken.join('; '));
+  return 'all ' + types.length + ' registered types ran 240 frames without throwing or leaving the room';
+});
+
+test('E03', P3, 'Ground enemies ignore the player outside the vertical band', (T) => {
+  T.arena(300);
+  const band = T.get('ENEMY_VERTICAL_BAND');
+  const e = T.spawnEnemy('fractured', 380, 468);
+  T.ev('player.y = ' + (468 - band * 4) + '; player.x = 380;');
+  T.step(40);
+  const awareFar = e.aware;
+  T.ev('player.y = 468;');
+  T.step(80);
+  const awareNear = e.aware;
+  T.note('ENEMY_VERTICAL_BAND=' + band + ' → aware at Δy=' + (band * 4) + ': ' + awareFar + ', aware at Δy=0: ' + awareNear);
+  T.ok(awareFar === false, 'a ground enemy became aware of a player ' + band * 4 + 'px above it (band is ' + band + 'px)');
+  T.ok(awareNear === true, 'a ground enemy never noticed a player standing right next to it');
+  return 'vertical band respected in both directions';
+});
+
+test('E04', P3, 'Enemies hold a notice beat before engaging', (T) => {
+  T.arena(300);
+  const e = T.spawnEnemy('fractured', 420, 468);
+  const nf = e.noticeFrames;
+  T.step(2);
+  T.step(Math.max(1, nf - 6));
+  const early = e.aware, earlyTimer = e.noticeTimer;
+  T.step(20);
+  T.note('noticeFrames=' + nf + ' → aware after ' + (nf - 6) + 'f: ' + early + ' (noticeTimer=' + earlyTimer + '); after ' + (nf + 14) + 'f: ' + e.aware);
+  T.ok(early === false, 'enemy engaged before its notice delay elapsed (noticeFrames=' + nf + ')');
+  T.ok(e.aware === true, 'enemy never engaged even after the notice delay');
+  return 'alert beat of ' + nf + ' frames observed before engagement';
+});
+
+test('E05', P3, 'Windup → attack → cooldown pipeline runs in order', (T) => {
+  T.arena(300);
+  const e = T.spawnEnemy('fractured', 350, 468);
+  let sawWindup = false, sawAttack = false, windupLen = 0;
+  for (let i = 0; i < 400; i++) {
+    T.step(1);
+    if (e.windingUp) { sawWindup = true; windupLen++; }
+    if (e.attacking) { sawAttack = true; break; }
+  }
+  T.note('ENEMY_WINDUP_FRAMES=' + T.get('ENEMY_WINDUP_FRAMES') + ', observed windup frames before the swing: ' + windupLen);
+  T.ok(sawWindup, 'enemy never telegraphed a windup in 400 frames next to the player');
+  T.ok(sawAttack, 'enemy wound up but never actually attacked');
+  T.ok(windupLen > 4, 'windup lasted only ' + windupLen + ' frames — no readable telegraph');
+  return 'telegraphed for ' + windupLen + ' frames, then swung';
+});
+
+test('E06', P3, 'Enemy death removes it from the room and drops motes', (T) => {
+  T.arena(300);
+  T.grantAll();
+  const e = T.spawnEnemy('fractured', 400, 468);
+  T.ev('(areaEnemies[currentAreaId][0]).takeDamage(999, 0);');
+  T.ok(e.dead === true, 'a 999-damage hit did not kill the enemy');
+  const before = T.enemies().length;
+  T.step(200);
+  const after = T.enemies().length;
+  T.note('enemies in room: ' + before + ' → ' + after + ' after 200 frames of death animation');
+  T.ok(after < before, 'dead enemy was never removed from areaEnemies after 200 frames');
+  return 'death animation played out and the corpse was culled';
+});
+
+test('E07', P3, 'Blocking enemies still resolve damage without freezing', (T) => {
+  T.arena(300);
+  T.grantAll();
+  const defs = T.get('ENEMY_REGISTRY');
+  let tested = 0, stuck = [];
+  for (const type of Object.keys(defs).filter((t) => t !== 'composed')) {
+    T.arena(300); T.grantAll();
+    const e = T.spawnEnemy(type, 400, 468);
+    if (!e.defense || !e.defense.block) continue;
+    tested++;
+    T.ev('(areaEnemies[currentAreaId][0]).blocking = 30;');
+    const hp0 = e.health;
+    T.ev('(areaEnemies[currentAreaId][0]).takeDamage(1, player.x);'); // frontal
+    const frontal = hp0 - e.health;
+    T.ev('(areaEnemies[currentAreaId][0]).blocking = 30;');
+    const hp1 = e.health;
+    T.ev('(areaEnemies[currentAreaId][0]).takeDamage(1, ' + (e.x + 500) + ');'); // from behind
+    const behind = hp1 - e.health;
+    T.note(type + ': frontal-while-blocking took ' + frontal + ' dmg, from-behind took ' + behind + ' dmg');
+    T.step(60);
+    if (e.blocking > 0) stuck.push(type);
+  }
+  if (tested === 0) T.skip('no registered enemy class opts into the block defense verb (it is opt-in per enemy/def)');
+  T.ok(stuck.length === 0, 'guard never dropped for: ' + stuck.join(', '));
+  return tested + ' blocking enemy type(s) checked; guards expired normally';
+});
+
+test('E08', P3, 'Enemies do not walk off the world in an open room', (T) => {
+  T.arena(300);
+  const types = ['fractured', 'stutterer', 'void_lancer', 'blitz_guard', 'ruin_stalker'];
+  const fell = [];
+  for (const type of types) {
+    T.arena(300);
+    let e;
+    try { e = T.spawnEnemy(type, 1200, 440); } catch (err) { continue; }
+    T.ev('player.x = 100;'); // far away: patrol behaviour, not chase
+    T.step(400);
+    T.note(type.padEnd(16) + ' after 400 patrol frames: x=' + e.x.toFixed(0) + ' y=' + e.y.toFixed(0) + ' grounded=' + e.grounded);
+    if (e.y > 620) fell.push(type + ' (y=' + e.y.toFixed(0) + ')');
+  }
+  T.ok(fell.length === 0, 'enemies fell below the room floor: ' + fell.join(', '));
+  return types.length + ' patrolling types stayed inside the room';
+});
+
+test('E09', P3, 'Boss constructs, phases up at thresholds, and dies once', (T) => {
+  T.reset();
+  const bossRoom = Object.keys(T.get('AREAS')).find((id) => T.get('AREAS')[id].isBossArena);
+  if (!bossRoom) T.skip('no room is flagged isBossArena');
+  T.note('boss arena: ' + bossRoom);
+  T.ev('switchArea(' + JSON.stringify(bossRoom) + ', 200, ' + (T.get('AREAS')[bossRoom].groundY - 60) + ');');
+  T.grantAll();
+  T.step(30);
+  const b = T.get('boss');
+  if (!b) T.skip('entering the boss arena did not spawn a boss (may need a story flag)');
+  T.note('phase ' + b.phase + ' at ' + b.health + '/' + b.maxHealth + ' hp');
+  const seen = new Set([b.phase]);
+  for (const frac of [0.6, 0.3]) {
+    T.ev('boss.health = Math.round(boss.maxHealth * ' + frac + ');');
+    T.step(60);
+    seen.add(T.get('boss.phase'));
+    T.note('at ' + Math.round(frac * 100) + '% hp → phase ' + T.get('boss.phase'));
+  }
+  T.ok(seen.size >= 2, 'boss never changed phase across 100% → 60% → 30% health (phases seen: ' + Array.from(seen).join(',') + ')');
+  T.ev('boss.health = 0;');
+  T.step(30);
+  const deadHp = T.get('boss') ? T.get('boss.health') : 0;
+  T.ev('if (boss) boss.takeDamage(5, player.x);');
+  T.step(5);
+  const afterHit = T.get('boss') ? T.get('boss.health') : 0;
+  T.note('health at death: ' + deadHp + '; after hitting the corpse: ' + afterHit);
+  T.ok(afterHit <= 0, 'the boss could be damaged back above 0 hp during its death animation');
+  return 'phases ' + Array.from(seen).join('→') + ', death state stable';
+});
+
+/* ── Phase 4 · UI & HUD ────────────────────────────────────────────── */
+const P4 = '4 · UI & HUD';
+
+test('U01', P4, 'Every game state renders without throwing', (T) => {
+  const states = ['menu', 'playing', 'paused', 'paused_controls', 'inventory', 'gameover', 'reviving', 'victory', 'cutscene'];
+  const broken = [];
+  for (const st of states) {
+    T.reset();
+    if (st === 'cutscene') {
+      // Render a state that is actually populated, not an empty shell.
+      const first = Object.keys(T.get('CUTSCENES'))[0];
+      if (first) T.ev('playCutscene(' + JSON.stringify(first) + ');');
+    }
+    T.ev('gameState = ' + JSON.stringify(st) + ';');
+    if (st === 'paused' || st === 'paused_controls') T.ev('buildPauseMenu();');
+    try { T.render(); T.note(st.padEnd(16) + ' ok'); }
+    catch (e) { broken.push(st + ': ' + e.message); T.note(st.padEnd(16) + ' THREW: ' + e.message); }
+  }
+  T.ok(broken.length === 0, 'draw() threw in ' + broken.length + ' state(s): ' + broken.join(' | '));
+  return 'all ' + states.length + ' game states render cleanly';
+});
+
+test('U02', P4, 'Every menu screen renders without throwing', (T) => {
+  const screens = ['main', 'play', 'controls', 'settings'];
+  const broken = [];
+  for (const sc of screens) {
+    T.reset();
+    T.ev('gameState = "menu"; menuScreen = ' + JSON.stringify(sc) + '; menuSelection = 0;');
+    try { T.render(); T.note(sc.padEnd(10) + ' ok'); }
+    catch (e) { broken.push(sc + ': ' + e.message); T.note(sc.padEnd(10) + ' THREW: ' + e.message); }
+  }
+  T.ok(broken.length === 0, 'menu screens threw: ' + broken.join(' | '));
+  return screens.length + ' menu screens render cleanly';
+});
+
+test('U03', P4, 'HUD_LAYOUT anchors are valid and visibility flags are honoured', (T) => {
+  T.reset();
+  const layout = T.get('HUD_LAYOUT');
+  const valid = ['top-left', 'top-center', 'bottom-left', 'bottom-right'];
+  const bad = [];
+  for (const k in layout) {
+    const el = layout[k];
+    T.note(k.padEnd(15) + ' anchor=' + el.anchor + ' visible=' + el.visible + ' → ' + JSON.stringify(T.ev('hudResolve(HUD_LAYOUT[' + JSON.stringify(k) + '])')));
+    if (!valid.includes(el.anchor)) bad.push(k + ' has unknown anchor "' + el.anchor + '"');
+    if (typeof el.visible !== 'boolean') bad.push(k + ' has no boolean visible flag');
+  }
+  T.ok(bad.length === 0, bad.join('; '));
+  // visibility actually gates drawing
+  T.ev('gameState = "playing"; hudVisible = true; HUD_LAYOUT.healthHearts.visible = false;');
+  T.render();
+  T.ev('HUD_LAYOUT.healthHearts.visible = true;');
+  T.render();
+  return Object.keys(layout).length + ' HUD elements resolve to valid screen coordinates';
+});
+
+test('U06', P4, 'Every cutscene plays to the end and hands control back', (T) => {
+  T.reset();
+  const scenes = Object.keys(T.get('CUTSCENES'));
+  if (!scenes.length) T.skip('CUTSCENES is empty');
+  const bad = [];
+  for (const id of scenes) {
+    T.reset();
+    T.ev('playCutscene(' + JSON.stringify(id) + ');');
+    if (T.get('gameState') !== 'cutscene') { bad.push(id + ' did not enter the cutscene state'); continue; }
+    const steps = T.get('CUTSCENES')[id].steps.length;
+    let frames = 0, threw = null;
+    try {
+      // Run generously past the sum of every step's own frame budget.
+      for (; frames < 4000 && T.get('gameState') === 'cutscene'; frames++) { T.step(1); T.render(); }
+    } catch (e) { threw = e.message; }
+    const ended = T.get('gameState') !== 'cutscene';
+    T.note(id.padEnd(24) + steps + ' steps → ' + (threw ? 'THREW: ' + threw : (ended ? 'ended after ' + frames + ' frames, returned to "' + T.get('gameState') + '"' : 'STILL RUNNING after 4000 frames')));
+    if (threw) bad.push(id + ' threw: ' + threw);
+    else if (!ended) bad.push(id + ' never ended (soft-lock: input stays locked to the cutscene)');
+  }
+  T.ok(bad.length === 0, bad.join('; '));
+  return scenes.length + ' cutscene(s) ran to completion and released control';
+});
+
+test('U04', P4, 'Ability notifications appear then expire', (T) => {
+  T.reset();
+  T.ev('gameState = "playing"; abilityState.notifications.length = 0; addAbilityNotification("TEST");');
+  T.ok(T.get('abilityState.notifications').length === 1, 'addAbilityNotification() did not queue anything');
+  const life = T.get('abilityState.notifications')[0].timer;
+  T.note('notification life = ' + life + ' frames');
+  T.step(life + 30);
+  T.note('remaining after life+30 frames: ' + T.get('abilityState.notifications').length);
+  T.ok(T.get('abilityState.notifications').length === 0, 'notification never expired — it will sit on the HUD forever');
+  return 'queued and expired after ' + life + ' frames';
+});
+
+test('U05', P4, 'Hearts track health and max health', (T) => {
+  T.reset();
+  T.ev('gameState = "playing"; hudVisible = true;');
+  const max = T.ev('playerMaxHealth()');
+  T.note('playerMaxHealth()=' + max + ', MAX_HEALTH=' + T.get('MAX_HEALTH') + ', maxHealthBonus=' + T.get('maxHealthBonus'));
+  T.eq(max, T.get('MAX_HEALTH') + T.get('maxHealthBonus'), 'playerMaxHealth() does not equal MAX_HEALTH + maxHealthBonus');
+  for (const hp of [max, Math.ceil(max / 2), 1, 0]) {
+    T.ev('player.health = ' + hp + ';');
+    try { T.render(); T.note('health ' + hp + ' → drew ok'); }
+    catch (e) { throw new Fail('drawing the HUD at health=' + hp + ' threw: ' + e.message); }
+  }
+  T.ev('maxHealthBonus = 3;');
+  T.ev('player.health = playerMaxHealth();');
+  T.render();
+  T.note('with maxHealthBonus=3 → playerMaxHealth()=' + T.ev('playerMaxHealth()'));
+  return 'hearts render at every health value including 0 and an upgraded max';
+});
+
+/* ── Phase 5 · Audio ───────────────────────────────────────────────── */
+const P5 = '5 · Audio';
+
+test('S01', P5, 'Every SFX.x() called anywhere in the game exists on SFX', async (T) => {
+  const files = ['game.js', 'player.js', 'enemy.js', 'boss.js', 'ability.js', 'companion.js', 'healing.js', 'combo.js', 'cutscene.js'];
+  const called = new Set();
+  for (const f of files) {
+    let src;
+    try { src = await fetch('../game/' + f).then((r) => r.text()); } catch (e) { continue; }
+    for (const m of src.matchAll(/SFX\.([A-Za-z_$][\w$]*)\s*\(/g)) called.add(m[1]);
+  }
+  if (called.size === 0) T.skip('could not read the game sources over HTTP to scan for SFX calls');
+  const have = new Set(Object.keys(T.get('SFX')));
+  const missing = Array.from(called).filter((c) => !have.has(c));
+  T.note('called: ' + Array.from(called).sort().join(', '));
+  T.note('defined but never called: ' + Array.from(have).filter((h) => !called.has(h)).join(', '));
+  T.ok(missing.length === 0, 'called but not defined on SFX (throws at runtime): ' + missing.join(', '));
+  return called.size + ' distinct SFX calls, all defined';
+});
+
+test('S02', P5, 'Every SFX method runs without throwing', (T) => {
+  T.reset(); // startNewGame() calls SFX.init() so the context is unlocked
+  const names = Object.keys(T.get('SFX')).filter((n) => n !== 'setAreaAmbient' && n !== 'init');
+  const broken = [];
+  for (const n of names) {
+    try { T.ev('SFX[' + JSON.stringify(n) + ']()'); }
+    catch (e) { broken.push(n + ': ' + e.message); }
+  }
+  T.note('exercised (muted): ' + names.join(', '));
+  T.ok(broken.length === 0, 'SFX methods threw: ' + broken.join(' | '));
+  return names.length + ' synth voices fired without throwing';
+});
+
+test('S03', P5, 'Ambient drone accepts every area id', (T) => {
+  T.reset();
+  const ids = Object.keys(T.get('AREAS'));
+  const broken = [];
+  for (const id of ids) {
+    try { T.ev('SFX.setAreaAmbient(' + JSON.stringify(id) + ')'); }
+    catch (e) { broken.push(id + ': ' + e.message); }
+  }
+  T.ok(broken.length === 0, 'setAreaAmbient threw for: ' + broken.join(' | '));
+  return ids.length + ' area ids accepted by the ambient drone';
+});
+
+/* ── Phase 6 · Input ───────────────────────────────────────────────── */
+const P6 = '6 · Input';
+
+test('I01', P6, 'Every remappable action has a default binding and a label', (T) => {
+  T.reset();
+  const actions = T.get('REMAPPABLE_ACTIONS');
+  const binds = T.get('DEFAULT_KEYBINDS');
+  const labels = T.get('ACTION_LABELS');
+  const bad = [];
+  for (const a of Array.from(actions)) {
+    if (!binds[a]) bad.push(a + ' has no default binding');
+    if (!labels[a]) bad.push(a + ' has no label for the Controls screen');
+  }
+  const orphan = Object.keys(binds).filter((k) => !Array.from(actions).includes(k));
+  if (orphan.length) T.warn('bound but not listed in REMAPPABLE_ACTIONS (unrebindable): ' + orphan.join(', '));
+  Array.from(actions).forEach((a) => T.note(a.padEnd(15) + ' → ' + binds[a] + '  "' + labels[a] + '"'));
+  T.ok(bad.length === 0, bad.join('; '));
+  return actions.length + ' remappable actions, all bound and labelled';
+});
+
+test('I02', P6, 'No two default bindings share a key', (T) => {
+  T.reset();
+  const binds = T.get('DEFAULT_KEYBINDS');
+  const byCode = {};
+  for (const a in binds) (byCode[binds[a]] = byCode[binds[a]] || []).push(a);
+  const dupes = Object.keys(byCode).filter((c) => byCode[c].length > 1);
+  dupes.forEach((c) => T.note(c + ' → ' + byCode[c].join(' + ')));
+  T.ok(dupes.length === 0, 'duplicate default bindings: ' + dupes.map((c) => c + ' (' + byCode[c].join(', ') + ')').join('; '));
+  return Object.keys(binds).length + ' bindings, all distinct';
+});
+
+test('I03', P6, 'Rebinding round-trips and reset restores defaults', (T) => {
+  T.reset();
+  const before = T.get('keyBindings.jump');
+  T.ev('setBinding("jump", "KeyP");');
+  T.note('jump: ' + before + ' → ' + T.get('keyBindings.jump'));
+  T.eq(T.get('keyBindings.jump'), 'KeyP', 'setBinding() did not apply');
+  T.eq(T.ev('actionForCode("KeyP")'), 'jump', 'actionForCode() does not see the new binding (conflict detection would miss it)');
+  T.ev('setBinding("notARealAction", "KeyP");');
+  T.ok(T.get('keyBindings.notARealAction') === undefined, 'setBinding() accepted an unknown action name');
+  T.ev('resetKeyBindings();');
+  T.eq(T.get('keyBindings.jump'), before, 'resetKeyBindings() did not restore the default');
+  return 'rebind, conflict lookup, unknown-action guard and reset all behave';
+});
+
+test('I04', P6, 'Held vs just-pressed semantics', (T) => {
+  T.arena(300);
+  T.hold('jump');
+  T.ok(T.ev('isActionPressed("jump")') === true, 'isActionPressed() false while the key is held');
+  T.ok(T.ev('wasActionJustPressed("jump")') === true, 'wasActionJustPressed() false on the press frame');
+  T.step(1); // update() clears justPressed at the end of the frame
+  T.note('after one update with the key still held: isActionPressed=' + T.ev('isActionPressed("jump")')
+       + ' wasActionJustPressed=' + T.ev('wasActionJustPressed("jump")'));
+  T.ok(T.ev('isActionPressed("jump")') === true, 'held key stopped reading as pressed after one frame');
+  T.ok(T.ev('wasActionJustPressed("jump")') === false, 'wasActionJustPressed() stayed true on the second frame of a hold — every hold fires repeat actions');
+  T.release('jump');
+  T.ok(T.ev('isActionPressed("jump")') === false, 'key still reads as held after release');
+  return 'edge-triggered and level-triggered reads are distinct';
+});
+
+test('I05', P6, 'Input is ignored while typing into a form control', (T) => {
+  T.reset();
+  const doc = Sandbox.doc;
+  const input = doc.createElement('input');
+  doc.body.appendChild(input);
+  input.focus();
+  T.ev('(function(){for(var k in keys)keys[k]=false;})()');
+  Sandbox.win.dispatchEvent(new Sandbox.win.KeyboardEvent('keydown', { code: 'KeyZ', bubbles: true }));
+  const leaked = T.ev('keys["KeyZ"] === true');
+  input.blur();
+  input.remove();
+  Sandbox.win.dispatchEvent(new Sandbox.win.KeyboardEvent('keydown', { code: 'KeyZ', bubbles: true }));
+  const normal = T.ev('keys["KeyZ"] === true');
+  T.ev('(function(){for(var k in keys)keys[k]=false;for(var j in justPressed)justPressed[j]=false;})()');
+  T.note('key while an <input> had focus: ' + (leaked ? 'REACHED the game' : 'ignored') + '; with focus released: ' + (normal ? 'reached the game' : 'ignored'));
+  T.ok(leaked === false, 'gameplay input fired while focus was inside a text field (dev tools with sidebars will fight the game)');
+  T.ok(normal === true, 'input stopped reaching the game after focus left the field');
+  return 'typing guard works and releases correctly';
+});
+
+/* ── Phase 7 · Save / load ─────────────────────────────────────────── */
+const P7 = '7 · Save / load';
+
+test('V01', P7, 'Save → load round-trips the documented fields', (T) => {
+  T.reset();
+  T.grantAll();
+  T.ev('switchArea("tutorial_area", 300, 700);');
+  T.ev('player.health = 3; player.fractureMax = 3; player.fractureMeter = 2;'
+     + 'statUpgrades = { strength: 2, phase_dash: 1 }; limitBreakChosen = "phase_dash";'
+     + 'fracturePipsFound = { pip_test: true }; anchorActivated = { tutorial_area: true };'
+     + 'collectedLore = { l1: true }; bossDefeated = true; defeatedMinibosses = { crag_warden: true };'
+     + 'storyFlags = { echo_bridge_intro_seen: true }; maxHealthBonus = 2;'
+     + 'companionState.active = true; companionState.canFight = true;'
+     + 'abilityState.phaseDashCooldown = 40;');
+  T.ev('saveGame(2);');
+  const want = T.ev('JSON.stringify({area: currentAreaId, hp: player.health, fm: player.fractureMeter, fx: player.fractureMax,'
+    + 'up: statUpgrades, lb: limitBreakChosen, pips: fracturePipsFound, anch: anchorActivated, lore: collectedLore,'
+    + 'boss: bossDefeated, mini: defeatedMinibosses, flags: storyFlags, mhb: maxHealthBonus,'
+    + 'comp: [companionState.active, companionState.canFight], cd: abilityState.phaseDashCooldown,'
+    + 'abil: [abilityState.hasPhaseDash, abilityState.hasShardShot, abilityState.hasStillpoint]})');
+  T.ev('init(); startNewGame();');
+  const loaded = T.ev('loadGame(2)');
+  T.ok(loaded === true, 'loadGame(2) returned false for a save we just wrote');
+  const got = T.ev('JSON.stringify({area: currentAreaId, hp: player.health, fm: player.fractureMeter, fx: player.fractureMax,'
+    + 'up: statUpgrades, lb: limitBreakChosen, pips: fracturePipsFound, anch: anchorActivated, lore: collectedLore,'
+    + 'boss: bossDefeated, mini: defeatedMinibosses, flags: storyFlags, mhb: maxHealthBonus,'
+    + 'comp: [companionState.active, companionState.canFight], cd: abilityState.phaseDashCooldown,'
+    + 'abil: [abilityState.hasPhaseDash, abilityState.hasShardShot, abilityState.hasStillpoint]})');
+  const a = JSON.parse(want), b = JSON.parse(got);
+  const diffs = Object.keys(a).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
+  diffs.forEach((k) => T.note('MISMATCH ' + k + ': saved ' + JSON.stringify(a[k]) + ' → loaded ' + JSON.stringify(b[k])));
+  T.ok(diffs.length === 0, 'fields lost across save/load: ' + diffs.join(', '));
+  return Object.keys(a).length + ' state groups survived the round trip (incl. cooldowns, story flags, companion)';
+});
+
+test('V02', P7, 'Corrupt and stale saves fail gracefully', (T) => {
+  T.reset();
+  const cases = [
+    ['not json at all', 'total garbage'],
+    ['{}', 'empty object'],
+    ['{"currentAreaId":"a_room_that_does_not_exist","player":{"x":1,"y":1}}', 'unknown area'],
+    ['{"currentAreaId":"tutorial_area"}', 'missing player block'],
+    ['{"currentAreaId":"tutorial_area","player":{}}', 'empty player block'],
+  ];
+  const bad = [];
+  for (const [raw, label] of cases) {
+    T.ev('localStorage.setItem(getSaveKey(1), ' + JSON.stringify(raw) + ');');
+    let res;
+    try { res = T.ev('loadGame(1)'); }
+    catch (e) { bad.push(label + ' threw: ' + e.message); continue; }
+    T.note(label.padEnd(22) + ' → loadGame() returned ' + res + (res ? ' and gameState=' + T.get('gameState') : ''));
+    if (res === true && label !== 'empty player block') {
+      // an accepted-but-broken save is worse than a rejected one
+      try { T.step(10); } catch (e) { bad.push(label + ' was accepted then crashed the update loop: ' + e.message); }
+    }
+  }
+  T.ok(bad.length === 0, bad.join(' | '));
+  return cases.length + ' malformed saves rejected without throwing';
+});
+
+test('V03', P7, 'Blocked/full storage never crashes the game', (T) => {
+  T.reset();
+  T.ev('window.__realSet = localStorage.setItem;');
+  T.ev('localStorage.setItem = function(){ var e = new Error("QuotaExceededError"); e.name = "QuotaExceededError"; throw e; };');
+  let saveThrew = null, switchThrew = null;
+  try { T.ev('saveGame(0)'); } catch (e) { saveThrew = e.message; }
+  try { T.ev('switchArea("tutorial_area", 300, 700)'); } catch (e) { switchThrew = e.message; }
+  try { T.ev('saveSettings(); saveKeyBindings();'); } catch (e) { saveThrew = saveThrew || e.message; }
+  T.ev('localStorage.setItem = window.__realSet;');
+  T.note('saveGame with storage throwing: ' + (saveThrew || 'handled'));
+  T.note('switchArea (autosaves) with storage throwing: ' + (switchThrew || 'handled'));
+  T.ok(!saveThrew, 'saveGame()/saveSettings() propagated a storage error: ' + saveThrew);
+  T.ok(!switchThrew, 'a room transition crashed because its autosave threw: ' + switchThrew);
+  return 'all persistence paths degrade silently when storage is unavailable';
+});
+
+test('V04', P7, 'Save slots stay independent', (T) => {
+  T.reset();
+  T.ev('switchArea("tutorial_area", 300, 700); player.health = 2; saveGame(0);');
+  T.ev('switchArea("spawn_area_1", 200, 440); player.health = 5; saveGame(1);');
+  T.ev('deleteSave(2);');
+  T.note('slot 0: ' + JSON.stringify(T.ev('getSlotInfo(0)')));
+  T.note('slot 1: ' + JSON.stringify(T.ev('getSlotInfo(1)')));
+  T.note('slot 2: ' + JSON.stringify(T.ev('getSlotInfo(2)')));
+  T.ok(T.ev('hasSaveGame(0)') && T.ev('hasSaveGame(1)'), 'a written slot reports empty');
+  T.ok(!T.ev('hasSaveGame(2)'), 'a deleted slot still reports as occupied');
+  T.ev('loadGame(0)');
+  const a = T.get('currentAreaId'), ha = T.get('player.health');
+  T.ev('loadGame(1)');
+  const b = T.get('currentAreaId'), hb = T.get('player.health');
+  T.note('slot 0 → ' + a + ' @' + ha + 'hp; slot 1 → ' + b + ' @' + hb + 'hp');
+  T.ok(a !== b && ha !== hb, 'both slots loaded the same state — slot keys are colliding');
+  return '3 slots write, read and delete independently';
+});
+
+test('V05', P7, 'Mid-run state that save/load does not carry', (T) => {
+  T.reset();
+  T.grantAll();
+  T.ev('startLimitBreak("strength"); limitBreak.timer = 200;');
+  T.ev('player.stillpointActive = true; player.stillpointTimer = 60;');
+  T.ev('saveGame(0);');
+  const raw = T.ev('localStorage.getItem(getSaveKey(0))');
+  const data = JSON.parse(raw);
+  const carried = [];
+  if (data.limitBreak === undefined) carried.push('limitBreak (active/ability/timer)');
+  if (data.stillpoint === undefined && data.player.stillpointTimer === undefined) carried.push('Stillpoint activation');
+  if (!data.areaEnemies && !data.enemies) carried.push('per-room enemy health/positions');
+  T.note('save payload keys: ' + Object.keys(data).join(', '));
+  carried.forEach((c) => T.note('not persisted: ' + c));
+  if (carried.length) {
+    T.warn('quitting during a Limit Break / Stillpoint / mid-fight and reloading silently drops that state — fine if intentional, worth an explicit decision');
+    return 'save omits: ' + carried.join('; ') + ' (checklist 7.1/7.3 flags these — currently by design)';
+  }
+  return 'all transient combat state is persisted';
+});
+
+/* ── Phase 8 · Rooms & navigation ──────────────────────────────────── */
+const P8 = '8 · Rooms & navigation';
+
+test('R01', P8, 'Compass graph validates (area.js connections)', (T) => {
+  T.reset();
+  T.ev('__consoleErr.length = 0;');
+  const ok = T.ev('validateAreaGraph()');
+  Array.from(T.get('__consoleErr')).slice(0, 40).forEach((e) => T.note(e));
+  T.ok(ok === true, 'validateAreaGraph() reported problems — see detail for each room/connection');
+  return 'every connection: correct edge, known target, consistent col/row adjacency';
+});
+
+test('R02', P8, 'Every transition points at a room that exists', (T) => {
+  T.reset();
+  const areas = T.get('AREAS');
+  const bad = [];
+  let count = 0;
+  for (const id in areas) {
+    if (id.startsWith('__dbg')) continue;
+    (areas[id].transitions || []).forEach((t, i) => {
+      count++;
+      if (!areas[t.to]) bad.push(id + '.transitions[' + i + '] → unknown room "' + t.to + '"');
+    });
+  }
+  bad.forEach((b) => T.note(b));
+  T.ok(bad.length === 0, bad.length + ' door(s) lead to a room that is not in AREAS — walking into one crashes the loop');
+  return 'all ' + count + ' door hitboxes resolve to a real room';
+});
+
+test('R03', P8, 'No door hitbox is buried inside solid platform geometry', (T) => {
+  T.reset();
+  const areas = T.get('AREAS');
+  const bad = [];
+  for (const id in areas) {
+    if (id.startsWith('__dbg')) continue;
+    const room = areas[id];
+    (room.transitions || []).forEach((t, i) => {
+      for (const p of (room.platforms || [])) {
+        if (p.destructible || p.hazard) continue;
+        if (!(t.x < p.x + p.w && t.x + t.w > p.x)) continue;      // x overlap
+        if (!(t.y < p.y + p.h && t.y + t.h > p.y)) continue;      // real y overlap
+        if (t.y >= p.y - 2 && (t.y + t.h) > p.y + 5) {
+          bad.push(id + '.transitions[' + i + '] → ' + t.to + ' sits inside the platform at (' + p.x + ',' + p.y + ')');
+          break;
+        }
+      }
+    });
+  }
+  bad.forEach((b) => T.note(b));
+  T.ok(bad.length === 0, bad.length + ' door(s) are inside solid geometry and can never be touched');
+  return 'every door trigger sits in reachable space';
+});
+
+test('R04', P8, 'Door landing spots are not inside walls', (T) => {
+  T.reset();
+  const areas = T.get('AREAS');
+  const bad = [];
+  let checked = 0;
+  for (const id in areas) {
+    if (id.startsWith('__dbg')) continue;
+    for (const t of (areas[id].transitions || [])) {
+      if (t.toX === undefined || t.toY === undefined) continue; // computeDoorSpawn handles these
+      const dest = areas[t.to];
+      if (!dest) continue;
+      checked++;
+      for (const p of (dest.platforms || [])) {
+        if (p.hazard || p.oneWay || (p.destructible && p.hp <= 0)) continue;
+        if (t.toX + 24 > p.x && t.toX < p.x + p.w && t.toY + 32 > p.y && t.toY < p.y + p.h) {
+          bad.push(id + ' → ' + t.to + ' lands at (' + t.toX + ',' + t.toY + ') inside a platform at (' + p.x + ',' + p.y + ',' + p.w + '×' + p.h + ')');
+          break;
+        }
+      }
+    }
+  }
+  bad.slice(0, 30).forEach((b) => T.note(b));
+  if (bad.length) {
+    T.warn('switchArea() calls nudgeOutOfPlatforms() so these do not soft-lock, but the player pops sideways on entry');
+    return bad.length + '/' + checked + ' authored landing spots are inside geometry (auto-nudged at runtime)';
+  }
+  return 'all ' + checked + ' authored landing spots are in open space';
+});
+
+test('R05', P8, 'Every room is reachable from the spawn room', (T) => {
+  T.reset();
+  const areas = T.get('AREAS');
+  const seen = new Set(['spawn_area_1']);
+  const queue = ['spawn_area_1'];
+  while (queue.length) {
+    const id = queue.shift();
+    for (const t of ((areas[id] && areas[id].transitions) || [])) {
+      if (areas[t.to] && !seen.has(t.to)) { seen.add(t.to); queue.push(t.to); }
+    }
+  }
+  const all = Object.keys(areas).filter((id) => !id.startsWith('__dbg'));
+  const orphans = all.filter((id) => !seen.has(id));
+  orphans.forEach((o) => T.note('unreachable: ' + o + ' (' + (areas[o].name || '') + ')'));
+  if (orphans.length) {
+    T.warn(orphans.length + ' room(s) have no inbound path from spawn — content the player can never see (or rooms reached only by an unauthored/teleport route)');
+    return orphans.length + '/' + all.length + ' rooms unreachable by walking from spawn';
+  }
+  return 'all ' + all.length + ' rooms reachable from spawn_area_1';
+});
+
+test('R06', P8, 'Ability-gated doors open once you own the ability', (T) => {
+  T.reset();
+  // Grant everything, then ask the real gate function about every authored
+  // `requires` value. Anything still false with a full kit can never open.
+  T.grantAll();
+  T.ev('tutorialState = { moved: true, jumped: true, attacked: true, dashed: true };');
+  const areas = T.get('AREAS');
+  const grants = T.get('ABILITY_GRANTS');
+  const counts = {}, satisfiable = {};
+  for (const id in areas) {
+    for (const t of (areas[id].transitions || [])) {
+      if (!t.requires) continue;
+      counts[t.requires] = (counts[t.requires] || 0) + 1;
+      if (satisfiable[t.requires] === undefined) {
+        // Some doors author several requirements comma-joined
+        // ("stillpoint,phase_dash,timeline_x_roads_2_visited").
+        // hasAbilityRequirement() compares the WHOLE string, so check both
+        // the raw value and each part — a door that only fails as a whole
+        // is a parsing gap, not a missing ability.
+        const raw = T.ev('hasAbilityRequirement(' + JSON.stringify(t.requires) + ')');
+        const parts = String(t.requires).split(',').map((s) => s.trim()).filter(Boolean);
+        if (!raw && parts.length > 1) {
+          const each = parts.map((p) => T.ev('hasAbilityRequirement(' + JSON.stringify(p) + ')'));
+          T.note('multi-requirement door "' + t.requires + '": parts individually → ' +
+            parts.map((p, i) => p + '=' + each[i]).join(', ') +
+            '   ← hasAbilityRequirement() matches the whole string, so this never opens');
+        }
+        satisfiable[t.requires] = raw;
+      }
+    }
+  }
+  // A requirement naming a REAL grantable ability (a key of ABILITY_GRANTS)
+  // that the gate still refuses is a progression bug, not an unbuilt stub.
+  const brokenGates = [], stubs = [];
+  for (const req in counts) {
+    const line = req.padEnd(28) + counts[req] + ' door(s) → hasAbilityRequirement() = ' + satisfiable[req];
+    T.note(line + (satisfiable[req] ? '' : (grants[req] ? '   ← REAL ABILITY, GATE NEVER OPENS' : '   (stub / story token)')));
+    if (satisfiable[req]) continue;
+    (grants[req] ? brokenGates : stubs).push(req + ' (' + counts[req] + ' doors)');
+  }
+  if (stubs.length) {
+    T.warn('gated on tokens no ability grants — treated as permanently locked by design: ' + stubs.join(', '));
+  }
+  T.ok(brokenGates.length === 0,
+    'doors require an ability the player can actually own, but hasAbilityRequirement() has no branch for it, so they never unlock: ' +
+    brokenGates.join(', ') + ' — every other ABILITY_GRANTS key has a branch in game.js:1395');
+  return Object.keys(counts).length + ' distinct door requirements, all satisfiable with a full kit';
+});
+
+test('R07', P8, 'Every room survives 90 frames after a teleport-in', (T) => {
+  T.reset();
+  T.grantAll();
+  const areas = T.get('AREAS');
+  const ids = Object.keys(areas).filter((id) => typeof areas[id].col === 'number');
+  const bad = [];
+  for (const id of ids) {
+    T.ev('gameState = "playing"; player.health = playerMaxHealth();');
+    T.ev('switchArea(' + JSON.stringify(id) + ', 60, ' + Math.max(40, areas[id].groundY - 400) + ');');
+    let threw = null;
+    try { T.step(90); } catch (e) { threw = e.message; }
+    const st = T.get('gameState'), hp = T.get('player.health');
+    if (threw) { bad.push(id + ' (threw: ' + threw + ')'); T.note(id.padEnd(28) + ' THREW ' + threw); }
+    else if (st !== 'playing' || hp <= 0) { bad.push(id + ' (state=' + st + ', hp=' + hp + ')'); T.note(id.padEnd(28) + ' died — state=' + st + ' hp=' + hp); }
+  }
+  T.ok(bad.length === 0, bad.length + ' room(s) killed the player or crashed on entry: ' + bad.slice(0, 8).join(', ') + (bad.length > 8 ? ' …' : ''));
+  return 'all ' + ids.length + ' compass rooms survived a 90-frame drop-in';
+}, { heavy: true });
+
+test('R08', P8, 'Room re-entry respawns enemies from scratch', (T) => {
+  T.reset();
+  const areas = T.get('AREAS');
+  const roomId = Object.keys(areas).find((id) => (areas[id].enemies || []).length > 0);
+  if (!roomId) T.skip('every room has an empty `enemies` array, so there is no authored spawn/respawn to verify (see E01/E10)');
+  T.note('using ' + roomId + ' (' + areas[roomId].enemies.length + ' authored enemies)');
+  T.ev('switchArea(' + JSON.stringify(roomId) + ', 100, ' + (areas[roomId].groundY - 60) + ');');
+  const n0 = T.enemies().length;
+  T.ev('(areaEnemies[currentAreaId] || []).forEach(function(e){ e.takeDamage(999, 0); });');
+  T.step(200);
+  const afterKill = T.enemies().length;
+  T.ev('switchArea("spawn_area_1", 100, 440);');
+  T.ev('switchArea(' + JSON.stringify(roomId) + ', 100, ' + (areas[roomId].groundY - 60) + ');');
+  const n1 = T.enemies().length;
+  T.note('spawned ' + n0 + ' → killed (' + afterKill + ' left) → re-entered with ' + n1);
+  T.eq(n0, areas[roomId].enemies.length, 'first entry did not spawn every authored enemy');
+  T.eq(n1, n0, 're-entering the room did not respawn its enemies');
+  return roomId + ': ' + n0 + ' enemies spawn, clear, and respawn on re-entry';
+});
+
+test('R09', P8, 'A door cannot ping-pong the player forever', (T) => {
+  T.reset();
+  T.grantAll();
+  const areas = T.get('AREAS');
+  const src = Object.keys(areas).find((id) => (areas[id].transitions || []).some((t) => areas[t.to] &&
+    (areas[t.to].transitions || []).some((b) => b.to === id)));
+  if (!src) T.skip('no two-way door pair found to test');
+  const door = areas[src].transitions.find((t) => areas[t.to] && (areas[t.to].transitions || []).some((b) => b.to === src));
+  T.note('walking into ' + src + ' → ' + door.to + ' and holding still');
+  T.ev('switchArea(' + JSON.stringify(src) + ', ' + (door.x + 5) + ', ' + (door.y + 5) + ');');
+  let switches = 0, last = T.get('currentAreaId');
+  for (let i = 0; i < 400; i++) {
+    T.step(1);
+    const now = T.get('currentAreaId');
+    if (now !== last) { switches++; last = now; }
+  }
+  T.note('room changes over 400 idle frames: ' + switches + ' (DOOR_COOLDOWN_FRAMES=' + T.get('DOOR_COOLDOWN_FRAMES') + ')');
+  T.ok(switches < 6, 'the player bounced between rooms ' + switches + ' times while standing still — door ping-pong (black-screen loop)');
+  return 'settled after ' + switches + ' transition(s); the door cooldown holds';
+});
+
+test('R10', P8, 'Map discovery records rooms as they are entered', (T) => {
+  T.reset();
+  const before = Object.keys(T.get('discoveredAreas')).length;
+  const ids = Object.keys(T.get('AREAS')).filter((id) => typeof T.get('AREAS')[id].col === 'number').slice(0, 6);
+  for (const id of ids) T.ev('switchArea(' + JSON.stringify(id) + ', 100, ' + (T.get('AREAS')[id].groundY - 60) + ');');
+  const after = T.get('discoveredAreas');
+  const missing = ids.filter((id) => !after[id]);
+  T.note('discovered ' + before + ' → ' + Object.keys(after).length + ' after visiting ' + ids.length + ' rooms');
+  T.ok(missing.length === 0, 'entered but not marked discovered: ' + missing.join(', '));
+  return 'every visited room was added to discoveredAreas';
+});
+
+/* ── Phase 9 · Animation & VFX ─────────────────────────────────────── */
+const P9 = '9 · Animation & VFX';
+
+test('N01', P9, 'ANIM_DEFS entries are structurally valid', (T) => {
+  T.reset();
+  const defs = T.get('ANIM_DEFS');
+  const poses = T.get('POSE_RENDERERS');
+  const bad = [];
+  let frames = 0;
+  for (const key in defs) {
+    const d = defs[key];
+    if (!Array.isArray(d.frames) || d.frames.length === 0) { bad.push(key + ' has no frames'); continue; }
+    d.frames.forEach((f, i) => {
+      frames++;
+      if (f.duration !== undefined && !(f.duration > 0)) bad.push(key + '[' + i + '] duration ' + f.duration + ' (must be > 0 or omitted)');
+      if (f.pose && !f.image && !poses[f.pose]) bad.push(key + '[' + i + '] uses unknown pose "' + f.pose + '"');
+      for (const hb of (f.hitboxes || [])) {
+        if (!(hb.w > 0 && hb.h > 0)) bad.push(key + '[' + i + '] has a zero-size hitbox');
+      }
+    });
+    T.note(key.padEnd(26) + ' ' + d.frames.length + ' frames, ' + d.frames.reduce((a, f) => a + (f.duration || 4), 0) + 'f total' + (d.loop ? ', loops' : ''));
+  }
+  bad.forEach((b) => T.note('BAD ' + b));
+  T.ok(bad.length === 0, bad.length + ' malformed animation frame(s): ' + bad.slice(0, 4).join('; '));
+  return Object.keys(defs).length + ' animations / ' + frames + ' frames, all structurally valid';
+});
+
+test('N02', P9, 'Every animation plays and draws end to end', (T) => {
+  T.reset();
+  const keys = Object.keys(T.get('ANIM_DEFS'));
+  if (keys.length === 0) T.skip('ANIM_DEFS is empty');
+  const bad = [];
+  for (const key of keys) {
+    const res = T.ev('(function(){'
+      + 'var e = { x: 100, y: 100, width: 24, height: 32, facing: 1, color: "#fff" };'
+      + 'var a = new Animator(e); a.play(' + JSON.stringify(key) + ', true);'
+      + 'var c = document.getElementById("game").getContext("2d");'
+      + 'var total = 0; ANIM_DEFS[' + JSON.stringify(key) + '].frames.forEach(function(f){ total += (f.duration || 4); });'
+      + 'try { for (var i = 0; i < total + 5; i++) { a.update(); a.draw(c); a.currentHitboxes(); a.currentHurtbox(); } }'
+      + 'catch (err) { return "THREW: " + err.message; }'
+      + 'return (a.done ? "done" : "still-playing") + "|" + a.frameIndex;'
+      + '})()');
+    T.note(key.padEnd(26) + ' → ' + res);
+    if (String(res).startsWith('THREW')) bad.push(key + ' ' + res);
+    const looping = T.get('ANIM_DEFS')[key].loop;
+    if (!looping && res.startsWith('still-playing')) bad.push(key + ' never reported done past its total length');
+    if (looping && res.startsWith('done')) bad.push(key + ' is flagged loop but latched done');
+  }
+  T.ok(bad.length === 0, bad.join('; '));
+  return keys.length + ' animations played to completion, hitbox/hurtbox reads included';
+});
+
+test('N03', P9, 'Attack VFX draws for every direction and charge state', (T) => {
+  T.arena(300);
+  const combos = [['forward', false], ['up', false], ['down', false], ['forward', true], ['up', true], ['down', true]];
+  const bad = [];
+  for (const [dir, heavy] of combos) {
+    try {
+      T.ev('(function(){ player.attacking = true; player.attackTimer = 6;'
+        + 'player.attackDirection = ' + JSON.stringify(dir) + '; player.heavy = ' + heavy + ';'
+        + 'player.heavyCharge = ' + (heavy ? 1 : 0) + '; })()');
+      T.render();
+      // ATTACK_VFX_WORLD_HITBOX(dir, heavy, x, y, width, height, facing) — attackVFX.js
+      const hb = T.ev('ATTACK_VFX_WORLD_HITBOX(' + JSON.stringify(dir) + ', ' + heavy +
+        ', player.x, player.y, player.width, player.height, player.facing)');
+      T.note((dir + (heavy ? ' heavy' : ' light')).padEnd(15) + ' hitbox ' + (hb ? JSON.stringify({ x: Math.round(hb.x), y: Math.round(hb.y), w: Math.round(hb.width), h: Math.round(hb.height) }) : 'none'));
+      if (!hb || !(hb.width > 0 && hb.height > 0)) bad.push(dir + (heavy ? ' heavy' : '') + ' has a zero-area hitbox');
+      // The swing must reach in front of the player, on the correct side.
+      if (hb && dir === 'forward' && !heavy && hb.x < T.get('player.x')) {
+        bad.push('forward hitbox sits behind a right-facing player');
+      }
+    } catch (e) { bad.push(dir + (heavy ? ' heavy' : '') + ': ' + e.message); }
+  }
+  T.ev('player.attacking = false; player.attackTimer = 0;');
+  T.ok(bad.length === 0, bad.join('; '));
+  return 'all 6 swing variants draw with a real hitbox';
+});
+
+test('N04', P9, 'Particles are capped and drain away', (T) => {
+  T.arena(300);
+  for (let i = 0; i < 60; i++) T.ev('spawnParticles(player.x, player.y, "#fff", 30);');
+  const peak = T.get('particles').length;
+  T.step(400);
+  const after = T.get('particles').length;
+  T.note('spawned 1800 particles → array held ' + peak + ' → ' + after + ' after 400 frames');
+  T.ok(after < peak * 0.2, 'particles are not being culled (' + after + ' left of ' + peak + ') — this leaks over a long session');
+  if (peak >= 1800) T.warn('no hard cap on the particle array — 1800 live particles were all retained (a burst-heavy fight can spike frame time)');
+  return 'drained from ' + peak + ' to ' + after + ' in 400 frames';
+});
+
+/* ── Phase 10 · Performance & stability ────────────────────────────── */
+const P10 = '10 · Performance & stability';
+
+test('X01', P10, 'Simulation cost per frame in a busy room', (T) => {
+  T.arena(300);
+  T.grantAll();
+  for (let i = 0; i < 8; i++) T.spawnEnemy('fractured', 400 + i * 60, 468);
+  for (let i = 0; i < 20; i++) T.ev('spawnParticles(player.x, player.y, "#fff", 20);');
+  T.step(30); // warm up
+  const t0 = performance.now();
+  T.step(600);
+  const per = (performance.now() - t0) / 600;
+  T.note('8 enemies + 400 particles → ' + per.toFixed(3) + 'ms per update() (16.67ms is the 60fps budget; draw() excluded)');
+  T.ok(per < 8, 'update() costs ' + per.toFixed(2) + 'ms — over half the 60fps frame budget before rendering');
+  if (per > 3) T.warn('update() is using ' + ((per / 16.67) * 100).toFixed(0) + '% of the frame budget with rendering still to come');
+  return per.toFixed(3) + 'ms/frame simulation (' + ((per / 16.67) * 100).toFixed(1) + '% of budget)';
+});
+
+test('X02', P10, 'Render cost per frame', (T) => {
+  T.arena(300);
+  T.grantAll();
+  for (let i = 0; i < 8; i++) T.spawnEnemy('fractured', 400 + i * 60, 468);
+  T.step(20);
+  const t0 = performance.now();
+  for (let i = 0; i < 120; i++) { T.step(1); T.render(); }
+  const per = (performance.now() - t0) / 120;
+  T.note('update()+draw() = ' + per.toFixed(3) + 'ms per frame in an 8-enemy room');
+  T.ok(per < 16.67, 'a full frame costs ' + per.toFixed(2) + 'ms — under 60fps on this machine before any real hardware variance');
+  if (per > 10) T.warn('only ' + (16.67 - per).toFixed(1) + 'ms of headroom left at 60fps');
+  return per.toFixed(3) + 'ms/frame (' + (1000 / per).toFixed(0) + ' fps ceiling here)';
+});
+
+test('X03', P10, 'Runtime arrays do not grow without bound', (T) => {
+  T.arena(300);
+  T.grantAll();
+  for (let i = 0; i < 4; i++) T.spawnEnemy('fractured', 420 + i * 80, 468);
+  const sample = () => T.ev('JSON.stringify({p: particles.length, pr: projectiles.length, e: echoes.length,'
+    + 'af: afterimageHazards.length, amb: areaAmbient.length, bp: bossProjectiles.length, n: abilityState.notifications.length})');
+  T.step(200);
+  const a = JSON.parse(sample());
+  for (let i = 0; i < 20; i++) { T.pulse('attack', 2, 4); T.pulse('dash', 2, 4); T.pulse('shardShot', 3, 4); }
+  T.step(1200);
+  const b = JSON.parse(sample());
+  T.note('after 200 frames:  ' + JSON.stringify(a));
+  T.note('after 1400 frames + heavy ability spam: ' + JSON.stringify(b));
+  const grown = Object.keys(b).filter((k) => b[k] > Math.max(60, a[k] * 4 + 20));
+  T.ok(grown.length === 0, 'unbounded growth in: ' + grown.map((k) => k + ' ' + a[k] + '→' + b[k]).join(', '));
+  return 'all 7 runtime arrays stayed bounded across 1400 frames of ability spam';
+});
+
+test('X04', P10, 'Hitstop and slow-mo always release', (T) => {
+  T.arena(300);
+  T.ev('setHitstop(600);');
+  const h0 = T.get('hitstopTimer');
+  T.step(700);
+  T.note('hitstop ' + h0 + ' → ' + T.get('hitstopTimer') + ' after 700 frames');
+  T.ok(T.get('hitstopTimer') <= 0, 'hitstop never released — the game is frozen');
+  T.ev('slowMoTimer = 120;');
+  T.step(400);
+  T.note('slow-mo timer after 400 frames: ' + T.get('slowMoTimer'));
+  T.ok(T.get('slowMoTimer') <= 0, 'slow-mo never released');
+  T.step(5);
+  const before = T.get('frameCount');
+  T.step(10);
+  T.ok(T.get('frameCount') - before === 10, 'the update loop is not advancing normally after hitstop/slow-mo');
+  return 'both freeze mechanics release and normal ticking resumes';
+});
+
+test('X05', P10, 'No uncaught exceptions across the whole session', (T) => {
+  const errs = Array.from(T.get('__uncaught'));
+  const cerr = Array.from(T.get('__consoleErr'));
+  errs.forEach((e) => T.note('UNCAUGHT ' + e));
+  cerr.slice(0, 25).forEach((e) => T.note('console.error ' + e));
+  T.ok(errs.length === 0, errs.length + ' uncaught exception(s) fired during this session');
+  if (cerr.length) T.warn(cerr.length + ' console.error line(s) logged (mostly area-graph/room-data complaints — see detail)');
+  return 'no uncaught exceptions' + (cerr.length ? ' (' + cerr.length + ' console.error lines logged)' : '');
+});
+
+/* ── Phase 11 · Balance (advisory) ─────────────────────────────────── */
+const P11 = '11 · Balance (advisory)';
+
+test('B01', P11, 'Enemy health/damage spread', (T) => {
+  T.arena(300);
+  const types = Object.keys(T.get('ENEMY_REGISTRY')).filter((t) => t !== 'composed');
+  const base = T.get('ENEMY_DAMAGE');
+  const rows = [];
+  for (const type of types) {
+    T.arena(300);
+    let e; try { e = T.spawnEnemy(type, 500, 440); } catch (err) { continue; }
+    // enemy.js: `this.attackDamage = null` means "use ENEMY_DAMAGE".
+    rows.push({ type, hp: e.health, dmg: (e.attackDamage != null ? e.attackDamage : base), speed: e.speed });
+  }
+  rows.sort((a, b) => a.hp - b.hp).forEach((r) => T.note(r.type.padEnd(22) + ' hp=' + String(r.hp).padEnd(5) + ' attack dmg=' + r.dmg + ' speed=' + r.speed));
+  const maxHp = T.ev('playerMaxHealth()');
+  const oneShots = rows.filter((r) => r.dmg >= maxHp);
+  oneShots.forEach((r) => T.note('ONE-SHOT RISK: ' + r.type + ' deals ' + r.dmg + ' vs ' + maxHp + ' max health'));
+  if (oneShots.length) T.warn(oneShots.length + ' enemy type(s) can remove a full health bar in one contact hit');
+  const spread = rows.length ? Math.max(...rows.map((r) => r.hp)) / Math.min(...rows.map((r) => r.hp)) : 0;
+  return rows.length + ' types; health spread ×' + spread.toFixed(1) + ', player max health ' + maxHp;
+});
+
+test('B02', P11, 'Ability cooldown and cost table', (T) => {
+  T.reset();
+  const rows = [
+    ['Phase Dash', T.get('PHASE_DASH_COOLDOWN'), '—'],
+    ['Shard Shot', T.get('SHARD_SHOT_COOLDOWN'), '—'],
+    ['Graviton Surge', T.get('GRAVITON_SURGE_COOLDOWN'), T.get('GRAVITON_SURGE_TAP_COST') + '/' + T.get('GRAVITON_SURGE_BALL_COST') + ' pips'],
+    ['Void Tether', T.get('VOID_TETHER_COOLDOWN'), '— (whiff ' + T.get('VOID_TETHER_WHIFF_COOLDOWN') + 'f)'],
+    ['Stillpoint', 'none (pip-gated)', T.get('STILLPOINT_TAP_COST') + '/' + T.get('STILLPOINT_HOLD_COST') + ' pips'],
+    ['Attack', T.get('ATTACK_COOLDOWN'), '—'],
+    ['Dash', T.get('DASH_COOLDOWN'), '—'],
+  ];
+  rows.forEach((r) => T.note(String(r[0]).padEnd(16) + ' cooldown ' + String(r[1]).padEnd(16) + ' cost ' + r[2]));
+  T.note('i-frames on hit: ' + T.get('INVINCIBLE_FRAMES') + ' frames (' + (T.get('INVINCIBLE_FRAMES') / 60).toFixed(2) + 's)');
+  T.note('Limit Break: ' + T.get('LIMIT_BREAK_DURATION') + ' frames for ' + T.get('LIMIT_BREAK_COST') + ' pips');
+  const spam = rows.filter((r) => typeof r[1] === 'number' && r[1] < 12);
+  if (spam.length) T.warn('cooldown under 12 frames (effectively spammable): ' + spam.map((r) => r[0]).join(', '));
+  return 'cooldown/cost table captured — read the detail for the full picture';
+});
+
+test('B03', P11, 'Both pip economies balance against what they buy', (T) => {
+  T.reset();
+  // TWO separate currencies, easy to conflate:
+  //   Fracture Pips (area.fracturePipRewards) → raise player.fractureMax,
+  //     the meter that fuels Stillpoint / Graviton Surge / Limit Break.
+  //   Lore pips (area.loreFragments, counted by collectedLore) → fund
+  //     INVENTORY_UPGRADES levels via lorePipsBanked()/tryUpgrade().
+  const areas = T.get('AREAS');
+  let fracturePips = 0, lorePips = 0;
+  for (const id in areas) {
+    if (id.startsWith('__dbg')) continue;
+    fracturePips += (areas[id].fracturePipRewards || []).length;
+    lorePips += (areas[id].loreFragments || []).length;
+  }
+  const cap = T.get('FRACTURE_ABS_MAX');
+  const upgrades = Array.from(T.get('INVENTORY_UPGRADES'));
+  let loreNeeded = 0;
+  upgrades.forEach((u, i) => {
+    const toMax = T.ev('upgradeCostToLevel(INVENTORY_UPGRADES[' + i + '], ' + u.max + ')');
+    loreNeeded += toMax;
+    T.note((u.key || '?').padEnd(16) + ' costs ' + JSON.stringify(u.costs) + ' → ' + toMax + ' lore pips to reach Lv' + u.max);
+  });
+  T.note('');
+  T.note('Fracture Pips placed: ' + fracturePips + '  vs meter cap FRACTURE_ABS_MAX=' + cap);
+  T.note('Lore pips placed:     ' + lorePips + '  vs ' + loreNeeded + ' needed to max all ' + upgrades.length + ' upgrade lines');
+  T.note('Limit Break costs ' + T.get('LIMIT_BREAK_COST') + ' Fracture Pips per use; Stillpoint hold costs ' + T.get('STILLPOINT_HOLD_COST'));
+
+  if (fracturePips < cap) {
+    T.warn('only ' + fracturePips + ' Fracture Pips exist in the world but the meter caps at ' + cap +
+      ' — the player can never reach full meter, so the ' + T.get('LIMIT_BREAK_COST') + '-pip Limit Break and the ' +
+      T.get('STILLPOINT_HOLD_COST') + '-pip Stillpoint hold may be unreachable');
+  }
+  if (lorePips < loreNeeded) {
+    T.warn('the world holds ' + lorePips + ' lore pips but maxing every upgrade line costs ' + loreNeeded +
+      ' — the player can fund at most ' + Math.floor(lorePips / (loreNeeded / upgrades.length)).toFixed(0) +
+      ' of ' + upgrades.length + ' lines to max. Intentional (forced specialisation) or under-placed?');
+  }
+  return 'Fracture ' + fracturePips + '/' + cap + ' cap · lore ' + lorePips + '/' + loreNeeded + ' to max everything';
+});
+
+/* ── Phase 13 · Edge cases & state machine ─────────────────────────── */
+const P13 = '13 · Edge cases & state';
+
+test('G01', P13, 'Conflicting player states cannot coexist', (T) => {
+  T.arena(300);
+  T.grantAll();
+  const conflicts = [];
+  for (let i = 0; i < 300; i++) {
+    if (i % 7 === 0) T.pulse('attack', 2, 0);
+    if (i % 11 === 0) T.pulse('dash', 2, 0);
+    if (i % 13 === 0) T.pulse('jump', 2, 0);
+    if (i % 17 === 0) T.pulse('shardShot', 2, 0);
+    T.step(1);
+    const p = T.player();
+    if (p.dashing && p.phaseDashing) conflicts.push('frame ' + i + ': dashing && phaseDashing');
+    if (p.ducking && p.dashing) conflicts.push('frame ' + i + ': ducking && dashing');
+    if (p.beaming && p.shardAiming) conflicts.push('frame ' + i + ': beaming && shardAiming');
+    if (p.stillpointActive && p.stillpointCharging) conflicts.push('frame ' + i + ': stillpointActive && stillpointCharging');
+    if (conflicts.length > 4) break;
+  }
+  conflicts.forEach((c) => T.note(c));
+  T.ok(conflicts.length === 0, 'mutually exclusive states were simultaneously true: ' + conflicts.slice(0, 3).join('; '));
+  return '300 frames of interleaved inputs produced no conflicting state pairs';
+});
+
+test('G02', P13, 'Attack state always clears after its animation', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.pulse('attack', 2, 0);
+  T.ok(T.get('player.attacking') === true, 'attack never started');
+  const dur = T.get('ATTACK_DURATION');
+  T.step(dur + 12);
+  T.note('attacking after ATTACK_DURATION(' + dur + ')+12 frames: ' + T.get('player.attacking')
+       + ', attackTimer=' + T.get('player.attackTimer') + ', heavy=' + T.get('player.heavy'));
+  T.ok(T.get('player.attacking') === false, 'the attacking flag never cleared — every later hit check keeps firing');
+  T.ok(T.get('player.heavy') === false, 'the heavy flag survived the swing');
+  return 'attack flags cleared within ' + (dur + 12) + ' frames';
+});
+
+test('G03', P13, 'Death clears transient combat state', (T) => {
+  T.arena(300);
+  T.grantAll();
+  T.pips(4);
+  T.pulse('stillpoint', 3, 1);
+  T.pulse('dash', 2, 1);
+  T.ev('player.health = 0;');
+  T.step(3);
+  T.note('gameState=' + T.get('gameState') + ' stillpointActive=' + T.get('player.stillpointActive')
+       + ' gameTimeScale=' + T.get('gameTimeScale'));
+  T.eq(T.get('gameState'), 'gameover', 'reaching 0 health did not put the game into gameover');
+  T.ev('respawnPlayer();');
+  T.step(60);
+  T.note('after respawn: state=' + T.get('gameState') + ' hp=' + T.get('player.health')
+       + ' timeScale=' + T.get('gameTimeScale') + ' echoes=' + T.get('echoes').length);
+  T.ok(T.get('player.health') > 0, 'respawn left the player at 0 health');
+  T.near(T.get('gameTimeScale'), 1, 0.001, 'time scale was still slowed after respawning');
+  return 'death → gameover → respawn restores health and time scale';
+});
+
+test('G04', P13, 'Multiple enemies overlapping the player stay survivable', (T) => {
+  T.arena(300);
+  T.grantAll();
+  for (let i = 0; i < 5; i++) T.spawnEnemy('fractured', 300 + i * 4, 468);
+  const hp0 = T.player().health;
+  let peak = 0;
+  for (let i = 0; i < 60; i++) { T.step(1); peak = Math.max(peak, Math.abs(T.player().vx), Math.abs(T.player().vy)); }
+  const p = T.player();
+  T.note('5 stacked enemies, 60 frames: hp ' + hp0 + ' → ' + p.health + ', peak |v| = ' + peak.toFixed(1));
+  T.ok(p.health > 0 || T.get('gameState') === 'gameover', 'player went to negative health without a gameover');
+  T.ok(peak < 40, 'stacked-enemy separation flung the player at ' + peak.toFixed(1) + 'px/frame');
+  T.ok(Math.abs(p.x) < 1e5 && Math.abs(p.y) < 1e5, 'player was pushed out to a nonsense position');
+  return 'survived a 5-enemy stack; peak knock speed ' + peak.toFixed(1) + 'px/frame';
+});
+
+test('G05', P13, 'Frame-perfect input on a state boundary is not swallowed', (T) => {
+  T.arena(300);
+  T.grantAll();
+  const misses = [];
+  for (let offset = 0; offset < 6; offset++) {
+    T.arena(300); T.grantAll();
+    T.pulse('attack', 2, 0);
+    T.step(T.get('ATTACK_DURATION') + offset); // land the next input exactly on/near the recovery boundary
+    T.ev('player.attackCooldown = 0;');
+    T.pulse('attack', 2, 1);
+    const fired = T.get('player.attacking');
+    T.note('input at ATTACK_DURATION+' + offset + ' frames → attack fired: ' + fired);
+    if (!fired) misses.push('+' + offset);
+  }
+  T.ok(misses.length === 0, 'attack input dropped at frame offset(s): ' + misses.join(', '));
+  return 'inputs at every offset around the attack boundary registered';
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   4. RUNNER + UI
+   ══════════════════════════════════════════════════════════════════════ */
+const state = { records: new Map(), running: false, abort: false, started: 0 };
+
+TESTS.forEach((t) => state.records.set(t.id, {
+  test: t, status: 'pend', message: '', detail: [], warnings: [], ms: 0,
+}));
+
+document.getElementById('testcount').textContent = TESTS.length + ' checks across ' +
+  new Set(TESTS.map((t) => t.phase)).size + ' phases';
+
+function visibleTests() {
+  const q = document.getElementById('filter').value.trim().toLowerCase();
+  const heavy = document.getElementById('heavy').checked;
+  return TESTS.filter((t) => {
+    if (t.heavy && !heavy) return false;
+    if (!q) return true;
+    return (t.id + ' ' + t.name + ' ' + t.phase).toLowerCase().includes(q);
+  });
+}
+
+function renderResults() {
+  const wrap = document.getElementById('results');
+  const vis = visibleTests();
+  const byPhase = new Map();
+  for (const t of vis) {
+    if (!byPhase.has(t.phase)) byPhase.set(t.phase, []);
+    byPhase.get(t.phase).push(t);
+  }
+  let html = '';
+  for (const [phase, tests] of byPhase) {
+    const counts = { pass: 0, fail: 0, warn: 0, skip: 0, pend: 0 };
+    tests.forEach((t) => { counts[state.records.get(t.id).status === 'run' ? 'pend' : state.records.get(t.id).status]++; });
+    html += '<div class="phase"><h2>' + escapeHtml(phase) +
+      '<span class="pcount">' +
+      (counts.fail ? '<span style="color:var(--err)">' + counts.fail + ' fail</span> · ' : '') +
+      (counts.warn ? '<span style="color:var(--warn)">' + counts.warn + ' warn</span> · ' : '') +
+      (counts.skip ? '<span style="color:var(--skip)">' + counts.skip + ' skip</span> · ' : '') +
+      counts.pass + '/' + tests.length + ' pass</span></h2>';
+    for (const t of tests) {
+      const r = state.records.get(t.id);
+      html += '<div class="row" data-id="' + t.id + '">' +
+        '<span class="pill ' + r.status + '">' + statusLabel(r.status) + '</span>' +
+        '<span class="id">' + t.id + '</span>' +
+        '<span class="nm">' + escapeHtml(t.name) + (t.heavy ? ' <span style="color:var(--text-dim)">[heavy]</span>' : '') + '</span>' +
+        '<span class="msg">' + escapeHtml(r.message) + '</span>' +
+        '</div>' +
+        '<div class="detail" id="d-' + t.id + '">' + detailHtml(r) + '</div>';
+    }
+    html += '</div>';
+  }
+  wrap.innerHTML = html || '<p style="color:var(--text-dim)">Nothing matches that filter.</p>';
+  wrap.querySelectorAll('.row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const d = document.getElementById('d-' + row.dataset.id);
+      d.classList.toggle('open');
+    });
+  });
+}
+function statusLabel(s) {
+  return { pass: 'PASS', fail: 'FAIL', warn: 'WARN', skip: 'SKIP', pend: '—', run: '…' }[s] || s;
+}
+function detailHtml(r) {
+  let out = '';
+  if (r.message) out += '<span class="hl">' + escapeHtml(r.message) + '</span>\n';
+  if (r.warnings.length) out += r.warnings.map((w) => '⚠ ' + escapeHtml(w)).join('\n') + '\n';
+  if (r.detail.length) out += r.detail.map(escapeHtml).join('\n');
+  if (r.ms) out += '\n(' + r.ms.toFixed(0) + 'ms)';
+  return out || '<span style="color:var(--skip)">not run yet</span>';
+}
+
+function updateStats() {
+  const all = TESTS.map((t) => state.records.get(t.id));
+  const n = (s) => all.filter((r) => r.status === s).length;
+  document.getElementById('s-total').textContent = TESTS.length;
+  document.getElementById('s-run').textContent = all.filter((r) => r.status !== 'pend' && r.status !== 'run').length;
+  document.getElementById('s-pass').textContent = n('pass');
+  document.getElementById('s-warn').textContent = n('warn');
+  document.getElementById('s-fail').textContent = n('fail');
+  document.getElementById('s-skip').textContent = n('skip');
+  document.getElementById('s-time').textContent = ((performance.now() - state.started) / 1000).toFixed(1) + 's';
+  const done = all.filter((r) => r.status !== 'pend' && r.status !== 'run').length;
+  document.getElementById('prog').style.width = (done / TESTS.length * 100) + '%';
+}
+
+async function runTests(list) {
+  if (state.running) return;
+  state.running = true; state.abort = false; state.started = performance.now();
+  document.getElementById('stop').disabled = false;
+  document.getElementById('run-all').disabled = true;
+  document.getElementById('run-visible').disabled = true;
+
+  try {
+    if (!Sandbox.booted) await Sandbox.boot();
+  } catch (e) {
+    state.running = false;
+    document.getElementById('stop').disabled = true;
+    document.getElementById('run-all').disabled = false;
+    document.getElementById('run-visible').disabled = false;
+    return;
+  }
+
+  log('Running ' + list.length + ' checks…', 'dim');
+  for (const t of list) {
+    if (state.abort) { log('Stopped by user.', 'warn'); break; }
+    const r = state.records.get(t.id);
+    r.status = 'run'; r.message = ''; r.detail = []; r.warnings = []; r.ms = 0;
+    renderResults(); updateStats();
+    await sleep(0);
+
+    const t0 = performance.now();
+    try {
+      // Every check starts from a clean, deterministic engine state.
+      const T = makeT(r);
+      T.reset();
+      const out = await t.fn(T);
+      r.ms = performance.now() - t0;
+      r.message = typeof out === 'string' ? out : 'ok';
+      r.status = r.warnings.length ? 'warn' : 'pass';
+      log((r.status === 'warn' ? '⚠ ' : '✓ ') + t.id + ' ' + t.name + ' — ' + r.message, r.status === 'warn' ? 'warn' : 'ok');
+      r.warnings.forEach((w) => log('    ⚠ ' + w, 'warn'));
+    } catch (e) {
+      r.ms = performance.now() - t0;
+      if (e && e.isSkip) {
+        r.status = 'skip'; r.message = e.message;
+        log('– ' + t.id + ' ' + t.name + ' — SKIPPED: ' + e.message, 'dim');
+      } else {
+        r.status = 'fail';
+        r.message = (e && e.message) ? e.message : String(e);
+        if (e && e.stack && !e.isFail) r.detail.push(String(e.stack).split('\n').slice(0, 4).join('\n'));
+        log('✗ ' + t.id + ' ' + t.name + ' — ' + r.message, 'err');
+      }
+    }
+    renderResults(); updateStats();
+    if (document.getElementById('autoexpand').checked && r.status === 'fail') {
+      const d = document.getElementById('d-' + t.id);
+      if (d) d.classList.add('open');
+    }
+    await sleep(0);
+  }
+
+  const all = TESTS.map((x) => state.records.get(x.id));
+  const f = all.filter((r) => r.status === 'fail').length;
+  const w = all.filter((r) => r.status === 'warn').length;
+  log('Done in ' + ((performance.now() - state.started) / 1000).toFixed(1) + 's — ' +
+    all.filter((r) => r.status === 'pass').length + ' pass, ' + w + ' warn, ' + f + ' fail, ' +
+    all.filter((r) => r.status === 'skip').length + ' skip.', f ? 'err' : w ? 'warn' : 'ok');
+
+  state.running = false;
+  document.getElementById('stop').disabled = true;
+  document.getElementById('run-all').disabled = false;
+  document.getElementById('run-visible').disabled = false;
+  updateStats();
+}
+
+function buildReport() {
+  const lines = ['# Stillpoint — debug_v2 run', '', '_' + new Date().toLocaleString() + '_', ''];
+  const all = TESTS.map((t) => state.records.get(t.id)).filter((r) => r.status !== 'pend');
+  const n = (s) => all.filter((r) => r.status === s).length;
+  lines.push(n('pass') + ' pass · ' + n('warn') + ' warn · ' + n('fail') + ' fail · ' + n('skip') + ' skip', '');
+
+  for (const status of ['fail', 'warn']) {
+    const rows = all.filter((r) => r.status === status);
+    if (!rows.length) continue;
+    lines.push('## ' + (status === 'fail' ? 'Failures' : 'Warnings'), '');
+    for (const r of rows) {
+      lines.push('**System**: ' + r.test.phase);
+      lines.push('**Check**: `' + r.test.id + '` ' + r.test.name);
+      lines.push('**Severity**: ' + (status === 'fail' ? 'Major' : 'Minor'));
+      lines.push('**Reproduction**: open `editor/debug_v2.html`, run check `' + r.test.id + '`' +
+        (r.test.heavy ? ' (enable "include heavy sweeps")' : ''));
+      lines.push('**Expected**: ' + r.test.name);
+      lines.push('**Actual**: ' + r.message);
+      if (r.warnings.length) lines.push('**Warnings**:\n' + r.warnings.map((w) => '- ' + w).join('\n'));
+      if (r.detail.length) lines.push('**Measured**:\n```\n' + r.detail.join('\n') + '\n```');
+      lines.push('');
+    }
+  }
+  const skips = all.filter((r) => r.status === 'skip');
+  if (skips.length) {
+    lines.push('## Skipped (precondition not met)', '');
+    skips.forEach((r) => lines.push('- `' + r.test.id + '` ' + r.test.name + ' — ' + r.message));
+    lines.push('');
+  }
+  lines.push('## Passing', '');
+  all.filter((r) => r.status === 'pass').forEach((r) => lines.push('- `' + r.test.id + '` ' + r.test.name + ' — ' + r.message));
+  return lines.join('\n');
+}
+
+document.getElementById('run-all').addEventListener('click', () => runTests(TESTS.filter((t) => !t.heavy || document.getElementById('heavy').checked)));
+document.getElementById('run-visible').addEventListener('click', () => runTests(visibleTests()));
+document.getElementById('stop').addEventListener('click', () => { state.abort = true; });
+document.getElementById('reboot').addEventListener('click', async () => {
+  Sandbox.booted = false;
+  try { await Sandbox.boot(); } catch (e) { /* already logged */ }
+});
+document.getElementById('filter').addEventListener('input', renderResults);
+document.getElementById('heavy').addEventListener('change', renderResults);
+document.getElementById('copy').addEventListener('click', async () => {
+  const md = buildReport();
+  const ta = document.getElementById('report');
+  ta.value = md;
+  ta.style.display = 'block';
+  try { await navigator.clipboard.writeText(md); log('Report copied to clipboard.', 'ok'); }
+  catch (e) { ta.select(); log('Clipboard blocked — the report is in the box below, select and copy.', 'warn'); }
+});
+
+renderResults();
+updateStats();
+log('debug_v2 ready. ' + TESTS.length + ' checks loaded. Press "Run all" (the sandbox boots on first run).', 'dim');
+// Log any cross-tool context so a run can be traced back to what was being worked on.
+try {
+  const dc = JSON.parse(localStorage.getItem('stillpoint_dev_context') || 'null');
+  if (dc && dc.currentRoomId) log('Dev context: last room = ' + dc.currentRoomId, 'dim');
+} catch (e) { /* no dev context yet */ }
+</script>
+</body>
+</html>

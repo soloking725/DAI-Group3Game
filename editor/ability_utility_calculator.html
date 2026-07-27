@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Ability Utility Calculator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-size:12px;padding:16px 20px 60px;line-height:1.5}
+h1{font-size:15px;color:#e0d7ff;font-weight:normal;margin-bottom:4px}
+.sub{color:#5a5a8e;font-size:11px;margin-bottom:16px;max-width:900px}
+.sub b{color:#8a8ac0}
+h2{font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin:20px 0 8px;border-bottom:1px solid #1a1a2e;padding-bottom:4px}
+
+/* WEIGHTS PANEL */
+#weights{display:flex;gap:22px;flex-wrap:wrap;background:#0e0e1e;border:1px solid #1e1e3e;padding:12px 16px}
+.weight{display:flex;flex-direction:column;gap:4px;min-width:150px}
+.weight label{font-size:10px;color:#a8a8d8;display:flex;justify-content:space-between}
+.weight label span{color:#2dd4bf}
+.weight input[type=range]{width:100%;accent-color:#a78bfa}
+.weight .hint{color:#3a3a5e;font-size:9px}
+#formula{margin-top:10px;color:#6a6a9e;font-size:10px;background:#04040a;border:1px solid #1e1e3e;padding:8px 10px}
+#formula code{color:#c4b5fd}
+
+/* ABILITY BLOCKS */
+.ability-block{background:#0e0e1e;border:1px solid #1e1e3e;margin-bottom:14px}
+.ability-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #1e1e3e;background:#12122a}
+.ability-head .name{color:#e0d7ff;font-size:12px}
+.ability-head .note{color:#4a4a7e;font-size:9px;flex:1}
+.ability-head .flag{color:#f472b6;font-size:9px;border:1px solid #5a1d45;padding:2px 6px;border-radius:2px}
+
+table{width:100%;border-collapse:collapse;font-size:10.5px}
+th,td{padding:5px 8px;text-align:right;border-bottom:1px solid #14142a}
+th{color:#5a5a8e;font-weight:normal;text-align:right;font-size:9px;text-transform:uppercase;letter-spacing:0.5px}
+td:first-child,th:first-child{text-align:left}
+tr.lvrow:hover td{background:#141428}
+input.cell{width:52px;background:#141428;border:1px solid #2a2a4e;color:#c4b5fd;font-family:monospace;font-size:10.5px;padding:3px 4px;text-align:right}
+input.cell:focus{outline:none;border-color:#a78bfa}
+.score{color:#2dd4bf;font-weight:bold}
+.bar-wrap{width:120px}
+.bar-track{background:#1a1a2e;height:8px;position:relative}
+.bar-fill{background:linear-gradient(90deg,#7c3aed,#2dd4bf);height:100%}
+.marginal{font-size:9px}
+.marginal.good{color:#34d399}
+.marginal.bad{color:#f87171}
+.marginal.flat{color:#5a5a8e}
+
+/* CROSS-ABILITY COMPARISON */
+#compare-wrap{background:#0e0e1e;border:1px solid #1e1e3e;padding:10px 14px}
+.cmp-row{display:flex;align-items:center;gap:10px;padding:4px 0}
+.cmp-name{width:150px;color:#a8a8d8;flex-shrink:0}
+.cmp-lvl{width:26px;color:#4a4a7e;flex-shrink:0;text-align:right}
+.cmp-track{flex:1;background:#1a1a2e;height:12px;position:relative}
+.cmp-fill{background:linear-gradient(90deg,#7c3aed,#2dd4bf);height:100%}
+.cmp-val{width:46px;color:#2dd4bf;font-size:10px;text-align:right;flex-shrink:0}
+#level-select{background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:4px 8px;margin-left:8px}
+
+#reset-btn{background:#200e0e;border:1px solid #7f1d1d;color:#f87171;font-family:monospace;font-size:10px;padding:5px 10px;cursor:pointer;margin-top:4px}
+#reset-btn:hover{background:#3a1a1a}
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
+</style>
+</head>
+<body>
+
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<h1>◆ Ability Utility Calculator</h1>
+<div class="sub">
+  Rough, tunable "how strong is this level" score per ability. There's no single objective
+  definition of "utility" — damage, crowd control, and mobility aren't the same currency — so
+  every number below is <b>editable</b>: the raw per-level stats (sourced from
+  <code>game/ability.js</code> / <code>player.js</code> / <code>game.js</code>, with a few
+  judgment-call fields like Mobility/Utility flagged) and the weights that combine them into one
+  score. Use it to spot outliers (a level that costs the same lore pips as every other ability's
+  same level but adds far less), not as a final verdict. All 6 abilities cost the identical
+  <b>2 / 3 / 4 lore pips</b> for Lv1/2/3 (game.js's <code>INVENTORY_UPGRADES</code>), so the
+  "value per pip" column is directly comparable across abilities.
+</div>
+
+<h2>Weights</h2>
+<div id="weights"></div>
+<div id="formula">score = <code>(damage&times;wD + ccFrames/10&times;wC + mobility&times;wM) / (1 + cooldownFrames/60 + pipCost&times;wP)</code></div>
+
+<h2>Per-ability breakdown</h2>
+<div id="abilities"></div>
+
+<h2>Cross-ability comparison <span style="font-weight:normal;color:#4a4a7e;font-size:9px">at a chosen level</span></h2>
+<div id="compare-wrap">
+  <div style="margin-bottom:10px">Compare all 6 abilities at Level
+    <select id="level-select">
+      <option value="0">0</option><option value="1">1</option><option value="2">2</option>
+      <option value="3" selected>3</option><option value="4">4 (Limit Break)</option>
+    </select>
+  </div>
+  <div id="compare-rows"></div>
+</div>
+
+<button id="reset-btn">↺ Reset all values to defaults</button>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────
+// One row per level (0-4). Fields:
+//   damage    — best-case damage dealt per activation (direct hit; DoT/beam
+//               folded into an average where noted in the tooltip)
+//   ccFrames  — crowd-control frames imposed on an enemy per use (hitstun,
+//               forced-airborne pin, slow*duration, distraction, etc.)
+//   cooldown  — frames between uses (0 = purely resource-gated, not cooldown-gated)
+//   pipCost   — Fracture Pips consumed per use
+//   mobility  — 0-10 judgment-call rating for traversal/positioning/buff
+//               value NOT already captured by damage or ccFrames (i-frames,
+//               range, melee dmg multiplier, lifesteal, flight, etc.)
+// Sourced from game/ability.js, game/player.js, game/game.js (2026-07-24 read).
+const DEFAULT_DATA = {
+  phase_dash: {
+    label: 'Phase Dash', note: 'i-frame dash + Echo (distraction/counter). No direct offense until Lv3.',
+    levels: [
+      { damage: 0,    ccFrames: 30, cooldown: 90, pipCost: 0, mobility: 6 },
+      { damage: 0,    ccFrames: 30, cooldown: 90, pipCost: 0, mobility: 8 },   // Lv1: 8-directional aim
+      { damage: 0,    ccFrames: 39, cooldown: 90, pipCost: 0, mobility: 8.5 }, // Lv2: distract 30f->39f
+      { damage: 0.5,  ccFrames: 39, cooldown: 90, pipCost: 0, mobility: 8.5 }, // Lv3: echo counter-attack, 50% melee dmg
+      { damage: 1,    ccFrames: 39, cooldown: 90, pipCost: 0, mobility: 10 },  // Lv4: persistent Stand echo, 100% dmg, never fades
+    ]
+  },
+  shard_shot: {
+    label: 'Shard Shot', note: 'Ranged poke; Lv3 unlocks an optional beam channel (pip-drain, not modeled as its own row).',
+    levels: [
+      { damage: 1,     ccFrames: 0, cooldown: 35, pipCost: 0, mobility: 0 },
+      { damage: 1.25,  ccFrames: 0, cooldown: 35, pipCost: 0, mobility: 0 },   // Lv1: dmg x1.25
+      { damage: 2.5,   ccFrames: 0, cooldown: 35, pipCost: 0, mobility: 0 },   // Lv2: fires 2 shards
+      { damage: 2.5,   ccFrames: 0, cooldown: 35, pipCost: 1, mobility: 2 },   // Lv3: + optional beam (2 dps, 1 pip/s to sustain)
+      { damage: 1.875, ccFrames: 0, cooldown: 35, pipCost: 0, mobility: 3 },   // Lv4: shots replace melee at x1.5 dmg, beam dps 2->3
+    ]
+  },
+  stillpoint: {
+    label: 'Stillpoint', note: 'Pure buff/CC — melee dmg x1.5 while active (not counted in "damage" here) + world-slow + lifesteal. Modeled as the Tap variant (1 pip, ~0.4s base) since it never goes away at any level (player.js STILLPOINT_TAP_COST); Hold (3 pips, ~1.5s base, same slow/lifesteal tiers) is a pricier alternative not modeled as its own row.',
+    levels: [
+      { damage: 0, ccFrames: 15,   cooldown: 0, pipCost: 1, mobility: 3 },    // tap: 25f * 0.6 slow
+      { damage: 0, ccFrames: 18.6, cooldown: 0, pipCost: 1, mobility: 3.5 },  // Lv1: duration x1.25 (31f) * 0.6
+      { damage: 0, ccFrames: 18.6, cooldown: 0, pipCost: 1, mobility: 4.5 },  // Lv2: + lifesteal cap 2
+      { damage: 0, ccFrames: 27.9, cooldown: 0, pipCost: 1, mobility: 5.5 },  // Lv3: slow 0.6->0.9 (31f*0.9) + lifesteal cap 3
+      { damage: 0, ccFrames: 29.45,cooldown: 0, pipCost: 1, mobility: 6.5 },  // Lv4: slow 0.95 (31f*0.95) + lifesteal cap 4
+    ]
+  },
+  graviton_surge: {
+    label: 'Graviton Surge', note: 'Gravity-flip CC (forces enemy airborne for the flip duration) + Lv2+ Gravity Ball AoE. Flying enemies are immune to the flip entirely. Pip cost modeled as the Tap-flip\'s floor cost (1 pip, GRAVITON_SURGE_TAP_COST) since it stays available at every level; Lv2+ additionally unlocks a 2-pip Gravity Ball (hold instead of tap) as an optional pricier alternative, not modeled as its own row.',
+    levels: [
+      { damage: 0, ccFrames: 180, cooldown: 240, pipCost: 1, mobility: 2 },
+      { damage: 1, ccFrames: 240, cooldown: 240, pipCost: 1, mobility: 2 },    // Lv1: flip now deals 1 dmg, duration 180->240f
+      { damage: 1, ccFrames: 240, cooldown: 240, pipCost: 1, mobility: 4 },    // Lv2: Gravity Ball unlocked (pull utility), tap-flip still 1 pip
+      { damage: 4, ccFrames: 240, cooldown: 240, pipCost: 1, mobility: 4 },    // Lv3: Ball explodes for 4 dmg
+      { damage: 6, ccFrames: 240, cooldown: 240, pipCost: 1, mobility: 8 },    // Lv4: 6 dmg / 2x kb / 1.5x pull / true flight
+    ]
+  },
+  reach: {
+    label: 'Reach', note: 'Flat pickup, no levels — auto-redirects an airborne tap-attack diagonally. Shown as a single reference row.',
+    levels: [
+      { damage: 0, ccFrames: 0, cooldown: 0, pipCost: 0, mobility: 5 },
+      { damage: 0, ccFrames: 0, cooldown: 0, pipCost: 0, mobility: 5 },
+      { damage: 0, ccFrames: 0, cooldown: 0, pipCost: 0, mobility: 5 },
+      { damage: 0, ccFrames: 0, cooldown: 0, pipCost: 0, mobility: 5 },
+      { damage: 0, ccFrames: 0, cooldown: 0, pipCost: 0, mobility: 5 },
+    ]
+  },
+  void_tether: {
+    label: 'Void Tether', note: 'Free (no pip cost), cooldown-gated pull. Lv4 burn total folded into "damage" as an average.',
+    levels: [
+      { damage: 0, ccFrames: 0,  cooldown: 90, pipCost: 0, mobility: 4 },
+      { damage: 0, ccFrames: 0,  cooldown: 90, pipCost: 0, mobility: 5 },    // Lv1: range x1.3
+      { damage: 1, ccFrames: 15, cooldown: 90, pipCost: 0, mobility: 5 },    // Lv2: +1 dmg, 15f stun on arrival
+      { damage: 2, ccFrames: 30, cooldown: 90, pipCost: 0, mobility: 6 },    // Lv3: + arc-stuns a 2nd target (15f), pull speed x1.5
+      { damage: 7, ccFrames: 30, cooldown: 90, pipCost: 0, mobility: 6 },    // Lv4: + burning DoT (~6 dmg over 3s)
+    ]
+  },
+};
+
+const WEIGHTS_DEF = [
+  { key: 'wD', label: 'Damage weight',   min: 0, max: 5, step: 0.1, def: 1, hint: 'per point of damage' },
+  { key: 'wC', label: 'CC weight',       min: 0, max: 5, step: 0.1, def: 1, hint: 'per 10 frames of CC' },
+  { key: 'wM', label: 'Mobility/Utility weight', min: 0, max: 5, step: 0.1, def: 1, hint: 'per point (judgment-call scale)' },
+  { key: 'wP', label: 'Pip-cost penalty', min: 0, max: 3, step: 0.1, def: 1, hint: 'per Fracture Pip spent per use' },
+];
+
+let data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+let weights = {};
+WEIGHTS_DEF.forEach(w => weights[w.key] = w.def);
+
+function score(row) {
+  const num = row.damage * weights.wD + (row.ccFrames / 10) * weights.wC + row.mobility * weights.wM;
+  const den = 1 + row.cooldown / 60 + row.pipCost * weights.wP;
+  return num / den;
+}
+
+function renderWeights() {
+  const el = document.getElementById('weights');
+  el.innerHTML = WEIGHTS_DEF.map(w => `
+    <div class="weight">
+      <label>${w.label} <span id="val-${w.key}">${weights[w.key].toFixed(1)}</span></label>
+      <input type="range" id="wt-${w.key}" min="${w.min}" max="${w.max}" step="${w.step}" value="${weights[w.key]}">
+      <span class="hint">${w.hint}</span>
+    </div>
+  `).join('');
+  WEIGHTS_DEF.forEach(w => {
+    document.getElementById(`wt-${w.key}`).addEventListener('input', (e) => {
+      weights[w.key] = parseFloat(e.target.value);
+      document.getElementById(`val-${w.key}`).textContent = weights[w.key].toFixed(1);
+      renderAll();
+    });
+  });
+}
+
+const FIELDS = ['damage', 'ccFrames', 'cooldown', 'pipCost', 'mobility'];
+const FIELD_LABELS = { damage: 'Dmg', ccFrames: 'CC (f)', cooldown: 'CD (f)', pipCost: 'Pips', mobility: 'Mobility' };
+
+function maxScoreAcrossAll() {
+  let m = 0.0001;
+  for (const key in data) for (const row of data[key].levels) m = Math.max(m, score(row));
+  return m;
+}
+
+function renderAbilities() {
+  const el = document.getElementById('abilities');
+  const maxS = maxScoreAcrossAll();
+  el.innerHTML = Object.keys(data).map(key => {
+    const ab = data[key];
+    const rows = ab.levels.map((row, lvl) => {
+      const s = score(row);
+      const prevS = lvl > 0 ? score(ab.levels[lvl - 1]) : null;
+      const marginalPips = lvl > 0 ? (ab.levels[lvl].pipCost >= 0 ? [2, 3, 4][lvl - 1] : 0) : 0;
+      let marginalHtml = '<span class="marginal flat">—</span>';
+      if (prevS !== null) {
+        const delta = s - prevS;
+        const perPip = marginalPips > 0 ? delta / marginalPips : delta;
+        const cls = perPip > 0.15 ? 'good' : perPip < -0.05 ? 'bad' : 'flat';
+        marginalHtml = `<span class="marginal ${cls}">${delta >= 0 ? '+' : ''}${delta.toFixed(2)} (${perPip >= 0 ? '+' : ''}${perPip.toFixed(2)}/pip)</span>`;
+      }
+      const barPct = Math.min(100, (s / maxS) * 100);
+      const cells = FIELDS.map(f =>
+        `<td><input class="cell" type="number" step="0.1" data-key="${key}" data-lvl="${lvl}" data-field="${f}" value="${row[f]}"></td>`
+      ).join('');
+      return `<tr class="lvrow">
+        <td>Lv${lvl}${lvl === 4 ? ' (LB)' : ''}</td>
+        ${cells}
+        <td class="score">${s.toFixed(2)}</td>
+        <td>${marginalHtml}</td>
+        <td class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:${barPct}%"></div></div></td>
+      </tr>`;
+    }).join('');
+    return `<div class="ability-block">
+      <div class="ability-head"><span class="name">${ab.label}</span><span class="note">${ab.note}</span></div>
+      <table>
+        <thead><tr><th>Level</th>${FIELDS.map(f => `<th>${FIELD_LABELS[f]}</th>`).join('')}<th>Score</th><th>Δ vs prev level</th><th>Relative</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('input.cell').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const { key, lvl, field } = e.target.dataset;
+      const v = parseFloat(e.target.value);
+      data[key].levels[lvl][field] = isNaN(v) ? 0 : v;
+      renderAll();
+    });
+  });
+}
+
+function renderCompare() {
+  const lvl = parseInt(document.getElementById('level-select').value, 10);
+  const el = document.getElementById('compare-rows');
+  const rows = Object.keys(data).map(key => ({ key, label: data[key].label, s: score(data[key].levels[lvl]) }));
+  const maxS = Math.max(0.0001, ...rows.map(r => r.s));
+  rows.sort((a, b) => b.s - a.s);
+  el.innerHTML = rows.map(r => `
+    <div class="cmp-row">
+      <span class="cmp-name">${r.label}</span>
+      <span class="cmp-lvl">Lv${lvl}</span>
+      <div class="cmp-track"><div class="cmp-fill" style="width:${(r.s / maxS) * 100}%"></div></div>
+      <span class="cmp-val">${r.s.toFixed(2)}</span>
+    </div>
+  `).join('');
+}
+
+function renderAll() {
+  renderAbilities();
+  renderCompare();
+}
+
+document.getElementById('level-select').addEventListener('change', renderCompare);
+document.getElementById('reset-btn').addEventListener('click', () => {
+  data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  weights = {}; WEIGHTS_DEF.forEach(w => weights[w.key] = w.def);
+  renderWeights();
+  renderAll();
+});
+
+renderWeights();
+renderAll();
+</script>
+</body>
+</html>

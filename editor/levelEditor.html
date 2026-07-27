@@ -5,68 +5,80 @@
 <title>Stillpoint — Level Editor</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
+body{background:radial-gradient(ellipse at 50% -10%,#0b0b1c 0%,#06060e 55%);color:#c4b5fd;font-family:'Courier New',monospace;font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
 
 /* TOP BAR */
-#bar{display:flex;gap:6px;align-items:center;padding:6px 10px;background:#0e0e1e;border-bottom:1px solid #1e1e3e;flex-shrink:0;flex-wrap:wrap}
-#bar select,#bar button,#bar input{background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:3px 7px;cursor:pointer}
-#bar button:hover{background:#1e1e3e;border-color:#6a6a9e}
-#bar button.on{background:#2a2a50;border-color:#a78bfa;color:#e0d7ff}
-#bar button:disabled{opacity:0.35;cursor:default}
-#bar label{color:#5a5a8e;font-size:10px}
-#coord{color:#3e3e6e;font-size:10px;margin-left:auto;min-width:90px;text-align:right}
-.sep{width:1px;height:18px;background:#1e1e3e;flex-shrink:0}
+#bar{display:flex;gap:6px;align-items:center;padding:7px 10px;background:linear-gradient(#12122400,#0e0e1e);background-color:#0e0e1e;border-bottom:1px solid #22224a;box-shadow:0 2px 10px rgba(0,0,0,0.35);flex-shrink:0;flex-wrap:wrap;position:relative;z-index:2}
+#bar select,#bar button,#bar input{background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:4px 8px;border-radius:4px;cursor:pointer;transition:background .12s ease,border-color .12s ease,transform .08s ease}
+#bar button:hover{background:#1e1e3e;border-color:#7a7ab0}
+#bar button:active{transform:translateY(1px)}
+#bar button.on{background:#332a66;border-color:#a78bfa;color:#f1eaff;box-shadow:0 0 0 1px #a78bfa50,0 0 10px #a78bfa30}
+#bar button:disabled{opacity:0.35;cursor:default;transform:none}
+#bar label{color:#6a6aa0;font-size:10px}
+#coord{color:#4a4a7e;font-size:10px;margin-left:auto;min-width:90px;text-align:right;font-variant-numeric:tabular-nums}
+#zoom-pct{color:#6a6aa0;font-size:10px;min-width:34px;text-align:center;user-select:none;font-variant-numeric:tabular-nums}
+.sep{width:1px;height:20px;background:linear-gradient(#1e1e3e00,#2e2e5e,#1e1e3e00);flex-shrink:0}
 
 /* LAYOUT */
 #main{display:flex;flex:1;overflow:hidden}
-#wrap{flex:1;overflow:auto;position:relative;background:#04040a;cursor:crosshair}
+#wrap{flex:1;overflow:auto;position:relative;background:radial-gradient(ellipse at 50% 30%,#060612 0%,#030308 70%);cursor:crosshair}
 #wrap.panning{cursor:grabbing}
 #wrap.space-held{cursor:grab}
-canvas{display:block}
+canvas{display:block;box-shadow:0 0 40px rgba(120,100,220,0.06)}
 
 /* SIDEBAR */
-#side{width:250px;background:#0a0a18;border-left:1px solid #1e1e3e;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
-#side h3{font-size:10px;color:#5a5a8e;padding:8px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1a1a2e}
-#props{flex:1;overflow-y:auto;padding:8px}
-.row{display:flex;align-items:center;gap:4px;margin-bottom:4px}
-.row label{color:#5a5a8e;font-size:10px;width:50px;flex-shrink:0}
-.row input,.row select,.row textarea{flex:1;background:#06060e;border:1px solid #1e1e3e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:2px 4px;min-width:0}
+#side{width:260px;background:#0a0a18;border-left:1px solid #22224a;box-shadow:-6px 0 16px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative;z-index:1}
+#side h3{font-size:10px;color:#7a7ab8;padding:9px 8px;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #1a1a2e;background:#0d0d20}
+#props{flex:1;overflow-y:auto;padding:9px}
+.row{display:flex;align-items:center;gap:4px;margin-bottom:5px}
+.row label{color:#6a6aa0;font-size:10px;width:50px;flex-shrink:0}
+.row input,.row select,.row textarea{flex:1;background:#06060e;border:1px solid #22224a;color:#c4b5fd;font-family:monospace;font-size:11px;padding:3px 5px;border-radius:3px;min-width:0;transition:border-color .12s ease}
+.row input:focus,.row select:focus,.row textarea:focus{outline:none;border-color:#8b7ae0}
 .row input[type=checkbox]{width:auto;flex:none;cursor:pointer}
 .row textarea{height:52px;resize:none;font-size:10px}
-.row button{flex:1;padding:3px;cursor:pointer;font-family:monospace;font-size:10px;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd}
-.row button:hover{background:#1e1e48}
+.row button{flex:1;padding:4px;cursor:pointer;font-family:monospace;font-size:10px;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;border-radius:4px;transition:background .12s ease}
+.row button:hover{background:#20204c}
 .del{background:#200e0e;border:1px solid #7f1d1d;color:#f87171}
 .del:hover{background:#3a1a1a}
-.hint{color:#3a3a5e;font-size:10px;padding:6px;line-height:1.5}
-.section-title{color:#4a4a7e;font-size:9px;text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px;border-bottom:1px solid #1a1a2e;padding-bottom:2px}
+.hint{color:#4a4a78;font-size:10px;padding:7px;line-height:1.6}
+.section-title{color:#8b8ad0;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:10px 0 5px;padding-bottom:3px;border-bottom:1px solid #23234a;position:relative}
+.section-title::before{content:'';display:inline-block;width:5px;height:5px;background:#a78bfa;border-radius:50%;margin-right:6px;box-shadow:0 0 6px #a78bfa}
 
 /* SEARCH */
-#search-wrap{padding:8px;border-bottom:1px solid #1a1a2e}
-#search-wrap input{width:100%;background:#06060e;border:1px solid #1e1e3e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:3px 5px}
-#search-results{max-height:120px;overflow-y:auto;margin-top:4px}
-.sr-item{padding:3px 5px;font-size:10px;color:#8a8ac0;cursor:pointer;border-bottom:1px solid #14142a}
-.sr-item:hover{background:#161632;color:#e0d7ff}
+#search-wrap{padding:9px;border-bottom:1px solid #1a1a2e;background:#0d0d20}
+#search-wrap input{width:100%;background:#06060e;border:1px solid #22224a;color:#c4b5fd;font-family:monospace;font-size:11px;padding:4px 6px;border-radius:3px}
+#search-wrap input:focus{outline:none;border-color:#8b7ae0}
+#search-results{max-height:120px;overflow-y:auto;margin-top:4px;border-radius:3px;overflow-x:hidden}
+.sr-item{padding:4px 6px;font-size:10px;color:#8a8ac0;cursor:pointer;border-bottom:1px solid #14142a;transition:background .1s ease}
+.sr-item:hover{background:#1a1a3a;color:#e0d7ff}
 
 /* EXPORT */
-#exp{border-top:1px solid #1e1e3e;padding:8px}
-#exp-btn,#check-btn{width:100%;padding:5px;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;cursor:pointer;font-family:monospace;font-size:11px;margin-bottom:5px}
-#exp-btn:hover,#check-btn:hover{background:#1e1e48}
-#exp-out{width:100%;height:72px;background:#04040a;border:1px solid #1e1e3e;color:#67e8f9;font-size:9px;resize:none;font-family:monospace;margin-bottom:5px}
-#check-out{width:100%;max-height:110px;overflow-y:auto;background:#04040a;border:1px solid #1e1e3e;color:#8a8ac0;font-size:9px;padding:4px;line-height:1.5}
+#exp{border-top:1px solid #22224a;padding:9px;background:#08081a}
+#exp-btn,#check-btn,#save-live-btn{width:100%;padding:6px;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;cursor:pointer;font-family:monospace;font-size:11px;margin-bottom:6px;border-radius:4px;transition:background .12s ease}
+#save-live-out{margin-bottom:8px}
+#exp-btn:hover,#check-btn:hover,#save-live-btn:hover{background:#1e1e48}
+#exp-out{width:100%;height:72px;background:#04040a;border:1px solid #22224a;color:#67e8f9;font-size:9px;resize:none;font-family:monospace;margin-bottom:5px;border-radius:3px}
+#check-out{width:100%;max-height:110px;overflow-y:auto;background:#04040a;border:1px solid #22224a;color:#8a8ac0;font-size:9px;padding:5px;line-height:1.6;border-radius:3px}
 #check-out .ok{color:#34d399}
 #check-out .bad{color:#f87171;cursor:pointer}
 #check-out .bad:hover{color:#fca5a5;text-decoration:underline}
-#diff-out,#validate-out{width:100%;max-height:110px;overflow-y:auto;background:#04040a;border:1px solid #1e1e3e;color:#8a8ac0;font-size:9px;padding:4px;line-height:1.5;margin-bottom:5px}
+#diff-out,#validate-out{width:100%;max-height:110px;overflow-y:auto;background:#04040a;border:1px solid #22224a;color:#8a8ac0;font-size:9px;padding:5px;line-height:1.6;margin-bottom:5px;border-radius:3px}
 #diff-out .ok,#validate-out .ok{color:#34d399}
 #diff-out .bad,#validate-out .bad{color:#f87171}
+#save-live-out .ok{color:#34d399}
+#save-live-out .bad{color:#f87171}
 
 /* LEGEND */
-#legend{display:flex;gap:8px;padding:4px 10px;background:#08081a;border-top:1px solid #1a1a2e;flex-shrink:0;flex-wrap:wrap}
-.leg{display:flex;align-items:center;gap:3px;font-size:9px;color:#5a5a8e}
-.lc{width:10px;height:10px;border:1px solid}
+#legend{display:flex;gap:10px;padding:6px 10px;background:#08081a;border-top:1px solid #22224a;flex-shrink:0;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:4px;font-size:9px;color:#6a6aa0;padding:2px 6px;border-radius:10px;background:#0e0e22}
+.lc{width:10px;height:10px;border:1px solid;border-radius:2px}
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px;transition:color .12s ease}
+#back:hover{color:#e0d7ff}
 </style>
 </head>
 <body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
 
 <div id="bar">
   <label>Area:</label>
@@ -84,7 +96,10 @@ canvas{display:block}
   <button data-tool="sp" title="T">◆ Anchor</button>
   <button data-tool="ab" title="A">★ Ability</button>
   <button data-tool="trans" title="X">→ Transition</button>
-  <button data-tool="lore" title="L">💬 Lore</button>
+  <button data-tool="lore" title="L — Lore Pip (loreFragments: collectible that banks toward Inventory upgrades)">💬 Lore Pip</button>
+  <button data-tool="pip" title="F — Fracture Pip (raises max Fracture meter)">✦ Fracture Pip</button>
+  <button data-tool="heal" title="H — Healing Crystal (strike to full-heal)">✚ Heal Crystal</button>
+  <button data-tool="cos" title="K — Cosmetic Upgrade (placeholder collectible, no effect yet)">✿ Cosmetic</button>
   <button data-tool="bossspawn" title="B">☠ Boss Spawn</button>
   <button data-tool="testspawn" title="R — click to test a jump/dash from here">🧪 Test Spawn</button>
   <div class="sep"></div>
@@ -93,8 +108,10 @@ canvas{display:block}
   <div class="sep"></div>
   <button id="stitch-btn" title="Snap dragged platform edges flush against neighbors">🧲 Stitch</button>
   <div class="sep"></div>
-  <button id="zoom-">−</button>
-  <button id="zoom+">+</button>
+  <button id="zoom-" title="Scroll wheel also zooms, centered on the cursor">−</button>
+  <span id="zoom-pct" title="Current zoom level">100%</span>
+  <button id="zoom+" title="Scroll wheel also zooms, centered on the cursor">+</button>
+  <button id="center-btn" title="Home — fit the whole room in view and center it">⊙ Center</button>
   <label>Grid:</label>
   <select id="grid-size">
     <option value="0">Off</option>
@@ -131,11 +148,13 @@ canvas{display:block}
       </div>
       <div class="row" id="a-miniboss-row" style="display:none"><label>miniboss</label><input id="a-minibossid" type="text" placeholder="e.g. colossus_core"></div>
       <div class="row"><label>no pit</label><input id="a-nopit" type="checkbox"><span style="color:#5a5a8e;font-size:10px"> No Pit Death (pitDeathY = ∞)</span></div>
-      <div id="sel-props"><div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll wheel to zoom.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div></div>
+      <div id="sel-props"><div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll wheel to zoom (centered on cursor).<br>Home key — fit &amp; center room.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div></div>
     </div>
     <div id="exp">
       <button id="exp-btn">⬇ Export JavaScript</button>
       <textarea id="exp-out" readonly placeholder="Press Export to generate area JS..."></textarea>
+      <button id="save-live-btn">💾 Save to Browser (Live)</button>
+      <div id="save-live-out" class="hint">Saves this room to a live override — index.html, enemy_test.html, etc. pick it up on next load, no copy-paste. "Export JavaScript" above is still what actually ships (paste it into area.js when the room is done).</div>
       <button id="validate-btn">▲ Validate This Room</button>
       <div id="validate-out"></div>
       <button id="diff-btn">⇄ Diff vs Saved</button>
@@ -157,12 +176,14 @@ canvas{display:block}
   <div class="leg"><div class="lc" style="background:#34d39920;border-color:#34d399"></div> Transition</div>
   <div class="leg"><div class="lc" style="background:#fbbf2440;border-color:#fbbf24"></div> Lore</div>
   <div class="leg"><div class="lc" style="background:#f8717125;border-color:#f87171"></div> Boss Spawn</div>
-  <span style="color:#3a3a5e;font-size:9px;margin-left:auto">Keys: V P W E T A X L B R — tools | G — cycle grid | Del — remove | Arrows — nudge | Ctrl+Z/Y — undo/redo | Ctrl+C/V — copy/paste</span>
+  <span style="color:#3a3a5e;font-size:9px;margin-left:auto">Keys: V P W E T A X L B R — tools | G — cycle grid | Home — fit &amp; center | Del — remove | Arrows — nudge | Ctrl+Z/Y — undo/redo | Ctrl+C/V — copy/paste</span>
 </div>
 
 <script src="../game/physics.js"></script>
 <script src="../game/area.js"></script>
 <script src="../game/enemy.js"></script>
+<script src="../game/devContext.js"></script>
+<script src="../game/unsavedGuard.js"></script>
 <script>
 // ─── ENEMY ROSTER (auto-derived from enemy.js's ENEMY_REGISTRY — see the
 // comment above that registry for why this is the single source of truth) ──
@@ -179,6 +200,7 @@ let sel = null, selType = null;      // primary selection (mirrors selList[0] wh
 let selList = [];                     // [{obj,type}] — multi-select set
 let tool = 'select';
 let SCALE = 0.62;
+const ZOOM_MIN = 0.1, ZOOM_MAX = 3, ZOOM_STEP = 0.08;
 let SNAP = 10; // 0 = off
 let dragging = false, dox = 0, doy = 0;
 let dragStarts = null; // for multi-drag: [{obj,sx,sy}]
@@ -234,6 +256,21 @@ const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 const wrapEl = document.getElementById('wrap');
 
+// Fit the whole room in the viewport and center it — replaces always
+// opening at scroll (0,0), i.e. the room's top-left corner, which is what
+// made framing a room (especially a large one) fiddly.
+function frameRoom(){
+  const availW = Math.max(100, wrapEl.clientWidth-40);
+  const availH = Math.max(100, wrapEl.clientHeight-40);
+  const roomH = effectiveRoomHeight();
+  const fitScale = Math.min(availW/area.width, availH/roomH);
+  SCALE = Math.max(ZOOM_MIN, Math.min(1, fitScale));
+  resizeCV();
+  render();
+  wrapEl.scrollLeft = Math.max(0,(cv.width-wrapEl.clientWidth)/2);
+  wrapEl.scrollTop = Math.max(0,(cv.height-wrapEl.clientHeight)/2);
+}
+
 function resizeCV(){
   const W = wrapEl.clientWidth;
   const visH = Math.max(effectiveRoomHeight(), 500);
@@ -253,6 +290,7 @@ function isSelObj(o){ return selList.some(s=>s.obj===o); }
 
 function render(){
   resizeCV();
+  const zp=document.getElementById('zoom-pct'); if(zp)zp.textContent=Math.round(SCALE*100)+'%';
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.fillStyle='#04040a';ctx.fillRect(0,0,cv.width,cv.height);
 
@@ -305,20 +343,27 @@ function render(){
     ctx.fillStyle=col;ctx.font='8px monospace';
     ctx.fillText('→'+(tr.to||'?'),cx+2,cy+9);
     if(tr.requires)ctx.fillText('['+tr.requires+']',cx+2,cy+18);
-    if(tr.toX!==undefined){ctx.fillStyle='rgba(52,211,153,0.4)';ctx.font='8px monospace';ctx.fillText('toX:'+tr.toX+' toY:'+tr.toY,cx+2,cy+ch-3);}
+    ctx.fillStyle='rgba(52,211,153,0.4)';ctx.font='8px monospace';
+    ctx.fillText(tr.toX!==undefined?('toX:'+tr.toX+' toY:'+tr.toY):'auto-spawn',cx+2,cy+ch-3);
   }
 
   // Platforms
   for(const p of area.platforms){
     const isSel=isSelObj(p);
     const cx=aC(p.x),cy=aC(p.y),cw=aC(p.w),ch=aC(p.h);
-    if(p.destructible){ctx.fillStyle='rgba(45,212,191,0.15)';ctx.strokeStyle=isSel?'#fbbf24':'#2dd4bf';ctx.setLineDash([3,3]);}
+    if(p.hazard){ctx.fillStyle='rgba(248,113,113,0.18)';ctx.strokeStyle=isSel?'#fbbf24':'#f87171';ctx.setLineDash([2,2]);}
+    else if(p.destructible){ctx.fillStyle='rgba(45,212,191,0.15)';ctx.strokeStyle=isSel?'#fbbf24':'#2dd4bf';ctx.setLineDash([3,3]);}
     else if(p.ceiling){ctx.fillStyle='rgba(217,119,87,0.18)';ctx.strokeStyle=isSel?'#fbbf24':'#d97757';ctx.setLineDash([2,2]);}
     else if(p.wall){ctx.fillStyle='rgba(148,96,96,0.18)';ctx.strokeStyle=isSel?'#fbbf24':'#946060';ctx.setLineDash([]);}
+    else if(p.crumble){ctx.fillStyle='rgba(180,120,60,0.22)';ctx.strokeStyle=isSel?'#fbbf24':'#c88a3c';ctx.setLineDash([4,2]);}
+    else if(p.moving){ctx.fillStyle='rgba(70,110,160,0.35)';ctx.strokeStyle=isSel?'#fbbf24':'#5a9bd4';ctx.setLineDash([]);}
     else{ctx.fillStyle='rgba(70,70,108,0.8)';ctx.strokeStyle=isSel?'#fbbf24':'#6a6a9e';ctx.setLineDash([]);}
     ctx.lineWidth=isSel?2:1;ctx.fillRect(cx,cy,cw,ch);ctx.strokeRect(cx,cy,cw,ch);ctx.setLineDash([]);
+    if(p.oneWay){ctx.strokeStyle=isSel?'#fbbf24':'#8b9dc3';ctx.setLineDash([5,4]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx,cy+1);ctx.lineTo(cx+cw,cy+1);ctx.stroke();ctx.setLineDash([]);}
+    // moving platform: draw a ghost of its far position + a path line
+    if(p.moving){const tx=aC(p.moving.toX!==undefined?p.moving.toX:p.x),ty=aC(p.moving.toY!==undefined?p.moving.toY:p.y);ctx.setLineDash([2,3]);ctx.strokeStyle='rgba(90,155,212,0.5)';ctx.lineWidth=1;ctx.strokeRect(tx,ty,cw,ch);ctx.beginPath();ctx.moveTo(cx+cw/2,cy+ch/2);ctx.lineTo(tx+cw/2,ty+ch/2);ctx.stroke();ctx.setLineDash([]);}
     ctx.fillStyle='rgba(140,140,180,0.5)';ctx.font='8px monospace';
-    if(cw>24)ctx.fillText((p.ceiling?'▽ ':p.wall?'▮ ':'')+p.w+'×'+p.h,cx+2,cy+Math.min(ch/2+3,9));
+    if(cw>24)ctx.fillText((p.hazard?'⚠ ':p.oneWay?'⤒ ':p.moving?'↔ ':p.crumble?'⌇ ':p.ceiling?'▽ ':p.wall?'▮ ':'')+p.w+'×'+p.h,cx+2,cy+Math.min(ch/2+3,9));
   }
 
   // Enemies
@@ -350,6 +395,25 @@ function render(){
     const ab=area.abilityReward,isSel=isSelObj(ab);
     diamond(aC(ab.x),aC(ab.y),aC(12),'rgba(196,181,253,0.3)',isSel?'#fbbf24':'#c4b5fd',isSel?2:1.5);
     ctx.fillStyle='#c4b5fd';ctx.font='8px monospace';ctx.fillText(ab.name||ab.id,aC(ab.x)+14,aC(ab.y)+3);
+  }
+
+  // Fracture pips ✦
+  for(const fp of (area.fracturePipRewards||[])){
+    const isSel=isSelObj(fp);
+    diamond(aC(fp.x),aC(fp.y),aC(9),'rgba(52,211,153,0.3)',isSel?'#fbbf24':'#34d399',isSel?2:1.5);
+    ctx.fillStyle='#34d399';ctx.font='8px monospace';ctx.fillText('✦',aC(fp.x)-3,aC(fp.y)+3);
+  }
+  // Healing crystals ✚
+  for(const hc of (area.healingCrystals||[])){
+    const isSel=isSelObj(hc);
+    diamond(aC(hc.x),aC(hc.y),aC(9),'rgba(74,222,128,0.3)',isSel?'#fbbf24':'#4ade80',isSel?2:1.5);
+    ctx.fillStyle='#4ade80';ctx.font='8px monospace';ctx.fillText('✚',aC(hc.x)-3,aC(hc.y)+3);
+  }
+  // Cosmetic upgrades ✿
+  for(const cu of (area.cosmeticUpgrades||[])){
+    const isSel=isSelObj(cu);
+    diamond(aC(cu.x),aC(cu.y),aC(9),'rgba(244,114,182,0.3)',isSel?'#fbbf24':'#f472b6',isSel?2:1.5);
+    ctx.fillStyle='#f472b6';ctx.font='8px monospace';ctx.fillText('✿',aC(cu.x)-3,aC(cu.y)+3);
   }
 
   // Boss spawn
@@ -424,6 +488,9 @@ function findAt(ax,ay){
   if(area.bossSpawn&&hitRect(ax,ay,area.bossSpawn.x,area.bossSpawn.y,48,56))return{obj:area.bossSpawn,type:'bossspawn'};
   if(area.abilityReward&&hitPt(ax,ay,area.abilityReward.x,area.abilityReward.y,16))return{obj:area.abilityReward,type:'ab'};
   for(let i=(area.loreFragments||[]).length-1;i>=0;i--)if(hitPt(ax,ay,area.loreFragments[i].x,area.loreFragments[i].y,12))return{obj:area.loreFragments[i],type:'lore'};
+  for(let i=(area.fracturePipRewards||[]).length-1;i>=0;i--)if(hitPt(ax,ay,area.fracturePipRewards[i].x,area.fracturePipRewards[i].y,12))return{obj:area.fracturePipRewards[i],type:'pip'};
+  for(let i=(area.healingCrystals||[]).length-1;i>=0;i--)if(hitPt(ax,ay,area.healingCrystals[i].x,area.healingCrystals[i].y,12))return{obj:area.healingCrystals[i],type:'heal'};
+  for(let i=(area.cosmeticUpgrades||[]).length-1;i>=0;i--)if(hitPt(ax,ay,area.cosmeticUpgrades[i].x,area.cosmeticUpgrades[i].y,12))return{obj:area.cosmeticUpgrades[i],type:'cos'};
   for(let i=area.anchors.length-1;i>=0;i--)if(hitPt(ax,ay,area.anchors[i].x,area.anchors[i].y,14))return{obj:area.anchors[i],type:'sp'};
   for(let i=area.transitions.length-1;i>=0;i--){const t=area.transitions[i];if(hitRect(ax,ay,t.x,t.y,t.w,t.h))return{obj:t,type:'trans'};}
   for(let i=area.enemies.length-1;i>=0;i--){const e=area.enemies[i];if(hitRect(ax,ay,e.x-14,e.y,28,28))return{obj:e,type:'enemy'};}
@@ -521,6 +588,9 @@ cv.addEventListener('mousedown',e=>{
     else if(tool==='sp'){const spn={x:sx,y:sy,index:area.anchors.length};area.anchors.push(spn);setSingleSel(spn,'sp');}
     else if(tool==='ab'){area.abilityReward={id:'new_ability',x:sx,y:sy,name:'New Ability',desc:''};setSingleSel(area.abilityReward,'ab');}
     else if(tool==='lore'){if(!area.loreFragments)area.loreFragments=[];const lf={id:'lore_'+Date.now(),x:sx,y:sy,text:'"..."'};area.loreFragments.push(lf);setSingleSel(lf,'lore');}
+    else if(tool==='pip'){if(!area.fracturePipRewards)area.fracturePipRewards=[];const o={id:'fp_'+Date.now(),x:sx,y:sy};area.fracturePipRewards.push(o);setSingleSel(o,'pip');}
+    else if(tool==='heal'){if(!area.healingCrystals)area.healingCrystals=[];const o={id:'hc_'+Date.now(),x:sx,y:sy};area.healingCrystals.push(o);setSingleSel(o,'heal');}
+    else if(tool==='cos'){if(!area.cosmeticUpgrades)area.cosmeticUpgrades=[];const o={id:'cu_'+Date.now(),x:sx,y:sy,name:'Cosmetic Upgrade'};area.cosmeticUpgrades.push(o);setSingleSel(o,'cos');}
     else if(tool==='bossspawn'){area.bossSpawn={x:sx,y:sy};setSingleSel(area.bossSpawn,'bossspawn');}
     else if(tool==='testspawn'){testSpawn={x:sx,y:sy};render();return;} // no history entry — it's a scratch marker, not room data
     updateSideProps();
@@ -614,7 +684,10 @@ cv.addEventListener('mouseup',e=>{
         else if(tool==='ceilingtool'){p.ceiling=true;}
         area.platforms.push(p);setSingleSel(p,'plat');
       }else if(tool==='trans'){
-        const t={x:x1,y:y1,w:Math.max(20,w),h:Math.max(20,h),to:ALL_ROOM_IDS[0],toX:60,toY:348};
+        // No toX/toY — new doors default to auto (Hollow Knight-style) spawn.
+        // See computeDoorSpawn() in game.js; tick "manual spawn" in the
+        // property panel if a door needs a hand-placed landing point.
+        const t={x:x1,y:y1,w:Math.max(20,w),h:Math.max(20,h),to:ALL_ROOM_IDS[0]};
         area.transitions.push(t);setSingleSel(t,'trans');
       }
       pushHistory();
@@ -626,11 +699,27 @@ cv.addEventListener('mouseup',e=>{
   dragging=false;creating=false;cs=null;dragStarts=null;dragMoved=false;render();
 });
 
+// Zoom-to-cursor: keep the world point under the mouse fixed on screen
+// while SCALE changes, instead of always rescaling from the top-left
+// corner (which "runs away" from whatever you were looking at — the exact
+// complaint zoom needs fixing for on larger rooms).
+function zoomBy(delta, clientX, clientY){
+  const rect = cv.getBoundingClientRect();
+  const px = clientX-rect.left, py = clientY-rect.top;
+  const ax = px/SCALE, ay = py/SCALE; // world coords under the cursor, pre-zoom
+  const oldScale = SCALE;
+  const newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, SCALE+delta));
+  if(newScale===oldScale) return;
+  SCALE = newScale;
+  resizeCV();
+  wrapEl.scrollLeft += ax*(SCALE-oldScale);
+  wrapEl.scrollTop += ay*(SCALE-oldScale);
+  render();
+}
 cv.addEventListener('wheel',e=>{
   e.preventDefault();
-  const delta = e.deltaY<0?0.08:-0.08;
-  SCALE=Math.max(0.2,Math.min(2.5,SCALE+delta));
-  render();
+  const delta = e.deltaY<0?ZOOM_STEP:-ZOOM_STEP;
+  zoomBy(delta, e.clientX, e.clientY);
 },{passive:false});
 
 cv.addEventListener('contextmenu',e=>{ if(spaceHeld||panning) e.preventDefault(); });
@@ -657,6 +746,7 @@ document.addEventListener('keydown',e=>{
   }
   if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();deleteSel();return;}
   if(e.key==='Escape'){setSingleSel(null,null);updateSideProps();render();return;}
+  if(e.key==='Home'){e.preventDefault();frameRoom();return;}
   const MOVE=e.shiftKey?50:10;
   if(selList.length&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
     e.preventDefault();
@@ -669,7 +759,7 @@ document.addEventListener('keydown',e=>{
     window._nudgeHistTimer=setTimeout(pushHistory,300);
     return;
   }
-  const km={v:'select',p:'plat',w:'wall',c:'ceilingtool',e:'enemy',t:'sp',a:'ab',x:'trans',l:'lore',b:'bossspawn',r:'testspawn',g:null};
+  const km={v:'select',p:'plat',w:'wall',c:'ceilingtool',e:'enemy',t:'sp',a:'ab',x:'trans',l:'lore',f:'pip',h:'heal',k:'cos',b:'bossspawn',r:'testspawn',g:null};
   const k=e.key.toLowerCase();
   if(km[k]!==undefined){
     if(k==='g'){ cycleGrid(); }
@@ -707,6 +797,9 @@ function deleteSel(){
   area.anchors = area.anchors.filter(o=>!toDelete.has(o));
   area.transitions = area.transitions.filter(o=>!toDelete.has(o));
   if(area.loreFragments) area.loreFragments = area.loreFragments.filter(o=>!toDelete.has(o));
+  if(area.fracturePipRewards) area.fracturePipRewards = area.fracturePipRewards.filter(o=>!toDelete.has(o));
+  if(area.healingCrystals) area.healingCrystals = area.healingCrystals.filter(o=>!toDelete.has(o));
+  if(area.cosmeticUpgrades) area.cosmeticUpgrades = area.cosmeticUpgrades.filter(o=>!toDelete.has(o));
   if(area.abilityReward && toDelete.has(area.abilityReward)) area.abilityReward=null;
   if(area.bossSpawn && toDelete.has(area.bossSpawn)) area.bossSpawn=null;
   setSingleSel(null,null);
@@ -721,6 +814,9 @@ function arrayFor(type){
   if(type==='trans')return area.transitions;
   if(type==='lore')return area.loreFragments;
   if(type==='sp')return area.anchors;
+  if(type==='pip')return area.fracturePipRewards;
+  if(type==='heal')return area.healingCrystals;
+  if(type==='cos')return area.cosmeticUpgrades;
   return null;
 }
 function reorderSel(dir){
@@ -739,8 +835,13 @@ function setTool(t){
   cv.style.cursor=t==='select'?'default':'crosshair';
 }
 document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
-document.getElementById('zoom+').onclick=()=>{SCALE=Math.min(2.5,SCALE+0.08);render();};
-document.getElementById('zoom-').onclick=()=>{SCALE=Math.max(0.2,SCALE-0.08);render();};
+function zoomAtViewCenter(delta){
+  const r=wrapEl.getBoundingClientRect();
+  zoomBy(delta, r.left+r.width/2, r.top+r.height/2);
+}
+document.getElementById('zoom+').onclick=()=>zoomAtViewCenter(ZOOM_STEP);
+document.getElementById('zoom-').onclick=()=>zoomAtViewCenter(-ZOOM_STEP);
+document.getElementById('center-btn').onclick=frameRoom;
 document.getElementById('undo-btn').onclick=undo;
 document.getElementById('redo-btn').onclick=redo;
 
@@ -768,7 +869,7 @@ document.getElementById('new-room-btn').addEventListener('click',()=>{
     presetSel.prepend(opt);
   }
   presetSel.value='__new__';
-  updateAreaFields(); updateSideProps(); render(); resetHistory();
+  updateAreaFields(); updateSideProps(); frameRoom(); resetHistory();
   document.getElementById('validate-out').innerHTML='';
   document.getElementById('diff-out').innerHTML='';
 });
@@ -796,12 +897,17 @@ document.getElementById('preset').addEventListener('change',e=>{
   area=clone(AREAS[v]);
   currentLoadedId=v; testSpawn=null; validationFailures=[];
   setSingleSel(null,null);
-  updateAreaFields();updateSideProps();render();
+  updateAreaFields();updateSideProps();frameRoom();
   resetHistory();
   document.getElementById('validate-out').innerHTML='';
   document.getElementById('diff-out').innerHTML='';
   const staleOpt=document.querySelector('#preset option[value="__new__"]');
   if(staleOpt)staleOpt.remove();
+  if(typeof DevContext!=='undefined'){
+    DevContext.set({currentRoomId:v});
+    DevContext.log('Level Editor','Opened room',AREAS[v].name||v);
+  }
+  if(unsavedGuard)unsavedGuard.checkpoint();
 });
 
 function populateEnemyTypeSelect(){
@@ -878,6 +984,16 @@ function layerButtons(type){
   return `<div class="row"><button onclick="reorderSel('back')">⬇ Send Back</button><button onclick="reorderSel('front')">⬆ Bring Front</button></div>`;
 }
 
+// An edge exit only sells the "walk off the edge of the screen" illusion if
+// it actually sits flush against the room's own boundary (x=0 or
+// x=roomWidth-w) — the camera clamp holds exactly there, nowhere else.
+// Small tolerance for rooms whose author left a hairline gap on purpose.
+function edgeExitIsFlush(trans){
+  const w = area.width || 1000;
+  const tol = 4;
+  return Math.abs(trans.x) <= tol || Math.abs((trans.x + trans.w) - w) <= tol;
+}
+
 function updateSideProps(){
   const el=document.getElementById('sel-props');
   if(selList.length>1){
@@ -886,7 +1002,7 @@ function updateSideProps(){
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete All</button></div>`;
     return;
   }
-  if(!sel){el.innerHTML='<div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll wheel to zoom.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div>';return;}
+  if(!sel){el.innerHTML='<div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll wheel to zoom (centered on cursor).<br>Home key — fit &amp; center room.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div>';return;}
   let h='';
   const pi=(id,lbl,val,step=1)=>`<div class="row"><label>${lbl}</label><input type="number" id="${id}" value="${val}" step="${step}"></div>`;
   const pt=(id,lbl,val)=>`<div class="row"><label>${lbl}</label><input type="text" id="${id}" value="${String(val).replace(/"/g,'&quot;')}"></div>`;
@@ -898,6 +1014,13 @@ function updateSideProps(){
     ${sel.destructible?pi('p-hp','hp',sel.hp||2,1):''}
     <div class="row"><label>wall</label><input type="checkbox" id="p-wall" ${sel.wall?'checked':''}><span style="color:#5a5a8e;font-size:10px"> Side wall: can't be stood on; player wall-slides on it; knocked-back enemies bounce off it</span></div>
     <div class="row"><label>ceiling</label><input type="checkbox" id="p-ceiling" ${sel.ceiling?'checked':''}><span style="color:#5a5a8e;font-size:10px"> Ceiling: full collision for player AND enemies (physics.js); only exempt from the room linter's reachability check</span></div>
+    <div class="row"><label>oneWay</label><input type="checkbox" id="p-plat-oneway" ${sel.oneWay?'checked':''}><span style="color:#8b9dc3;font-size:10px"> Jump up through, land on top; down+jump drops through</span></div>
+    <div class="row"><label>hazard</label><input type="checkbox" id="p-hazard" ${sel.hazard?'checked':''}><span style="color:#f87171;font-size:10px"> Damage on contact, never solid (put on top of a floor)</span></div>
+    ${sel.hazard?pi('p-damage','dmg',sel.damage||1,1):''}
+    <div class="row"><label>crumble</label><input type="checkbox" id="p-crumble" ${sel.crumble?'checked':''}><span style="color:#c88a3c;font-size:10px"> Falls away after being stood on</span></div>
+    ${sel.crumble?pi('p-crumbledelay','delay(f)',sel.crumbleDelay!==undefined?sel.crumbleDelay:30,1)+pi('p-respawn','respawn(f)',sel.respawn!==undefined?sel.respawn:120,1):''}
+    <div class="row"><label>moving</label><input type="checkbox" id="p-moving" ${sel.moving?'checked':''}><span style="color:#5a9bd4;font-size:10px"> Oscillates to (toX,toY), carries the player</span></div>
+    ${sel.moving?pi('p-mvx','toX',sel.moving.toX!==undefined?sel.moving.toX:sel.x,10)+pi('p-mvy','toY',sel.moving.toY!==undefined?sel.moving.toY:sel.y,10)+pi('p-mvspeed','speed',sel.moving.speed||1,1):''}
     ${layerButtons('plat')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='enemy'){
@@ -912,10 +1035,15 @@ function updateSideProps(){
   }else if(selType==='trans'){
     const aOpts=ALL_ROOM_IDS.map(k=>`<option ${sel.to===k?'selected':''}>${k}</option>`).join('');
     const rOpts=['','phase_dash','shard_shot','stillpoint','charged_attack'].map(v=>`<option value="${v}" ${sel.requires===v?'selected':''}>${v||'none'}</option>`).join('');
+    const hasManualSpawn=sel.toX!==undefined&&sel.toY!==undefined;
     h=`<div class="section-title">Transition →</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pi('p-w','w',sel.w,5)}${pi('p-h','h',sel.h,5)}
-    <div class="row"><label>to</label><select id="p-to">${aOpts}</select></div>${pi('p-tox','toX',sel.toX||60,10)}${pi('p-toy','toY',sel.toY||348,10)}
+    <div class="row"><label>to</label><select id="p-to">${aOpts}</select></div>
+    <div class="row"><label>manual spawn</label><input type="checkbox" id="p-manualspawn" ${hasManualSpawn?'checked':''}><span style="color:#5a9bd4;font-size:10px"> off = auto (Hollow Knight-style — lands next to the door back to this room)</span></div>
+    ${hasManualSpawn?pi('p-tox','toX',sel.toX,10)+pi('p-toy','toY',sel.toY,10):'<div class="hint">No return door in the target room? Auto falls back to its first anchor.</div>'}
     <div class="row"><label>req</label><select id="p-req">${rOpts}</select></div>
     <div class="row"><label>oneWay</label><input type="checkbox" id="p-oneway" ${sel.oneWay?'checked':''}></div>
+    <div class="row"><label>edge exit</label><input type="checkbox" id="p-edgeexit" ${sel.edgeExit?'checked':''}><span style="color:#5a9bd4;font-size:10px"> Hollow Knight-style — no door art, camera holds at the room edge instead</span></div>
+    ${sel.edgeExit && !edgeExitIsFlush(sel) ? '<div class="hint" style="color:#e0a458">Not flush against a room edge (x=0 or x=roomWidth-w) — an edge exit needs to sit at the literal boundary or the camera-hold illusion breaks.</div>' : ''}
     ${layerButtons('trans')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='lore'){
@@ -925,6 +1053,21 @@ function updateSideProps(){
   }else if(selType==='ab'){
     h=`<div class="section-title">Ability ★</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pt('p-name','name',sel.name||'')}${pp('p-desc','desc',sel.desc||'')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
+  }else if(selType==='pip'){
+    h=`<div class="section-title">Fracture Pip ✦</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}
+    <div class="hint">Raises the player's max Fracture meter when collected. ids must be unique across all rooms.</div>
+    ${layerButtons('pip')}
+    <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
+  }else if(selType==='heal'){
+    h=`<div class="section-title">Healing Crystal ✚</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}
+    <div class="hint">Strike to full-heal; regrows on anchor rest or death.</div>
+    ${layerButtons('heal')}
+    <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
+  }else if(selType==='cos'){
+    h=`<div class="section-title">Cosmetic Upgrade ✿</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pt('p-name','name',sel.name||'')}
+    <div class="hint">Placeholder collectible — no runtime effect yet (data only).</div>
+    ${layerButtons('cos')}
+    <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='bossspawn'){
     h=`<div class="section-title">Boss Spawn ☠</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}
     <div class="hint">Spawn point for the room's boss/miniboss (area.bossSpawn). Used when roomType is Boss or Miniboss Arena.</div>
@@ -933,11 +1076,25 @@ function updateSideProps(){
   el.innerHTML=h;
 
   // Wire inputs
-  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-wall p-ceiling p-to p-req p-oneway p-type p-id p-name p-txt p-desc'.split(' ').forEach(id=>{
+  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-wall p-ceiling p-to p-req p-oneway p-edgeexit p-manualspawn p-type p-id p-name p-txt p-desc p-plat-oneway p-hazard p-damage p-crumble p-crumbledelay p-respawn p-moving p-mvx p-mvy p-mvspeed'.split(' ').forEach(id=>{
     const e=document.getElementById(id);if(!e)return;
     e.addEventListener('input',applyProps);
     e.addEventListener('change',()=>{applyProps();pushHistory();});
   });
+  // Flag checkboxes reveal/hide sub-fields (dmg, delay, toX...) — re-render
+  // the panel so those inputs appear immediately, not on next reselect.
+  'p-hazard p-crumble p-moving p-dest p-manualspawn p-edgeexit'.split(' ').forEach(id=>{
+    const e=document.getElementById(id);if(!e)return;
+    e.addEventListener('change',updateSideProps);
+  });
+  // Transition x/w also feed the edge-exit flush warning above — refresh it
+  // live while dragging the number inputs, not just on next reselect.
+  if(selType==='trans' && sel.edgeExit){
+    ['p-x','p-w'].forEach(id=>{
+      const e=document.getElementById(id);if(!e)return;
+      e.addEventListener('change',updateSideProps);
+    });
+  }
 }
 
 function applyProps(){
@@ -951,6 +1108,10 @@ function applyProps(){
     sel.destructible=gb('p-dest');if(sel.destructible)sel.hp=gi('p-hp')||2;else delete sel.hp;
     if(gb('p-wall'))sel.wall=true;else delete sel.wall;
     if(gb('p-ceiling'))sel.ceiling=true;else delete sel.ceiling;
+    if(gb('p-plat-oneway'))sel.oneWay=true;else delete sel.oneWay;
+    if(gb('p-hazard')){sel.hazard=true;sel.damage=gi('p-damage')||1;}else{delete sel.hazard;delete sel.damage;}
+    if(gb('p-crumble')){sel.crumble=true;const d=gi('p-crumbledelay');sel.crumbleDelay=d!==null?d:30;const r=gi('p-respawn');sel.respawn=r!==null?r:120;}else{delete sel.crumble;delete sel.crumbleDelay;delete sel.respawn;}
+    if(gb('p-moving')){const tx=gi('p-mvx'),ty=gi('p-mvy'),sp=gi('p-mvspeed');sel.moving={toX:tx!==null?tx:sel.x,toY:ty!==null?ty:sel.y,speed:sp||1};}else delete sel.moving;
   }else if(selType==='enemy'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const t=gs('p-type');if(t)sel.type=t;
@@ -961,9 +1122,10 @@ function applyProps(){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     if(gi('p-w')!==null)sel.w=gi('p-w');if(gi('p-h')!==null)sel.h=gi('p-h');
     const to=gs('p-to');if(to)sel.to=to;
-    if(gi('p-tox')!==null)sel.toX=gi('p-tox');if(gi('p-toy')!==null)sel.toY=gi('p-toy');
+    if(gb('p-manualspawn')){if(gi('p-tox')!==null)sel.toX=gi('p-tox');if(gi('p-toy')!==null)sel.toY=gi('p-toy');}else{delete sel.toX;delete sel.toY;}
     const req=gs('p-req');if(req!==null){if(req)sel.requires=req;else delete sel.requires;}
     if(gb('p-oneway'))sel.oneWay=true;else delete sel.oneWay;
+    if(gb('p-edgeexit'))sel.edgeExit=true;else delete sel.edgeExit;
   }else if(selType==='lore'){
     const id=gs('p-id');if(id!==null)sel.id=id;
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
@@ -973,6 +1135,10 @@ function applyProps(){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const n=gs('p-name');if(n!==null)sel.name=n;
     const d=gs('p-desc');if(d!==null)sel.desc=d;
+  }else if(selType==='pip'||selType==='heal'||selType==='cos'){
+    const id=gs('p-id');if(id!==null)sel.id=id;
+    if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
+    if(selType==='cos'){const n=gs('p-name');if(n!==null)sel.name=n;}
   }else if(selType==='bossspawn'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
   }
@@ -985,8 +1151,11 @@ function buildSearchIndex(){
   area.platforms.forEach(p=>items.push({obj:p,type:'plat',label:`Platform ${p.w}×${p.h} @(${p.x},${p.y})${p.destructible?' [destructible]':''}`}));
   area.enemies.forEach(e=>items.push({obj:e,type:'enemy',label:`Enemy: ${e.type} @(${e.x},${e.y})`}));
   area.anchors.forEach(a=>items.push({obj:a,type:'sp',label:`Anchor #${a.index||0} @(${a.x},${a.y})`}));
-  area.transitions.forEach(t=>items.push({obj:t,type:'trans',label:`Door → ${t.to} @(${t.x},${t.y})${t.requires?' ['+t.requires+']':''}`}));
-  (area.loreFragments||[]).forEach(l=>items.push({obj:l,type:'lore',label:`Lore: ${l.id}`}));
+  area.transitions.forEach(t=>items.push({obj:t,type:'trans',label:`Door → ${t.to} @(${t.x},${t.y})${t.requires?' ['+t.requires+']':''}${t.edgeExit?' [edge]':''}`}));
+  (area.loreFragments||[]).forEach(l=>items.push({obj:l,type:'lore',label:`Lore Pip: ${l.id}`}));
+  (area.fracturePipRewards||[]).forEach(o=>items.push({obj:o,type:'pip',label:`Fracture Pip: ${o.id}`}));
+  (area.healingCrystals||[]).forEach(o=>items.push({obj:o,type:'heal',label:`Heal Crystal: ${o.id}`}));
+  (area.cosmeticUpgrades||[]).forEach(o=>items.push({obj:o,type:'cos',label:`Cosmetic: ${o.id}`}));
   if(area.abilityReward)items.push({obj:area.abilityReward,type:'ab',label:`Ability: ${area.abilityReward.name||area.abilityReward.id}`});
   if(area.bossSpawn)items.push({obj:area.bossSpawn,type:'bossspawn',label:`Boss Spawn @(${area.bossSpawn.x},${area.bossSpawn.y})`});
   return items;
@@ -1037,6 +1206,30 @@ function jsLit(val,indent){
 document.getElementById('exp-btn').addEventListener('click',()=>{
   const out = `  ${area.id}: ${jsLit(area,'  ')},`;
   document.getElementById('exp-out').value=out;
+  if(typeof DevContext!=='undefined') DevContext.log('Level Editor','Exported room',area.name||area.id);
+});
+
+// ─── SAVE TO BROWSER (LIVE) — writes into AREA_OVERRIDES_KEY (area.js),
+// the same live-override pattern anim/combo/HUD already have. index.html,
+// enemy_test.html, dev_hub.html, etc. all pick it up on next load — no
+// copy-paste, no reload dance. Does NOT replace "Export JavaScript": this
+// is scratch/live-test state, not what ships. ────────────────────────────
+document.getElementById('save-live-btn').addEventListener('click',()=>{
+  const statusEl=document.getElementById('save-live-out');
+  let overrides={};
+  try{ overrides=JSON.parse(localStorage.getItem('stillpoint_area_overrides_v1')||'{}'); }catch(e){ overrides={}; }
+  overrides[area.id]=clone(area);
+  try{
+    localStorage.setItem('stillpoint_area_overrides_v1',JSON.stringify(overrides));
+    statusEl.innerHTML=`<span class="ok">✓ saved live override for "${area.id}" — reload index.html/enemy_test.html to see it</span>`;
+    if(typeof DevContext!=='undefined'){
+      DevContext.set({currentRoomId:area.id});
+      DevContext.log('Level Editor','Saved live override',area.name||area.id);
+    }
+    if(unsavedGuard)unsavedGuard.checkpoint();
+  }catch(e){
+    statusEl.innerHTML=`<span class="bad">✗ save failed: ${e.message} (localStorage full? clear old overrides)</span>`;
+  }
 });
 
 // ─── CHECK ALL ROOMS (uses the real validateRoomLayout() from area.js) ────
@@ -1128,11 +1321,25 @@ document.getElementById('diff-btn').addEventListener('click',()=>{
 populatePresetSelect();
 populateEnemyTypeSelect();
 populateRegionDatalist();
-updateAreaFields();
-updateSideProps();
+
+// Deep link from dev_hub.html (?room=<id>) — jump straight to that room
+// instead of always opening whichever one is first alphabetically.
+const deepLinkRoom = new URLSearchParams(location.search).get('room');
+if (deepLinkRoom && AREAS[deepLinkRoom]) {
+  document.getElementById('preset').value = deepLinkRoom;
+  document.getElementById('preset').dispatchEvent(new Event('change'));
+} else {
+  updateAreaFields();
+  updateSideProps();
+}
 updateUndoRedoButtons();
-render();
+frameRoom();
 window.addEventListener('resize',render);
+
+// ─── UNSAVED-CHANGES GUARD — warns before closing/navigating away with an
+// edited room that was never pushed to the live override or exported.
+// Baseline resets whenever a room is (re)loaded or successfully saved live.
+const unsavedGuard = (typeof UnsavedGuard !== 'undefined') ? UnsavedGuard.watch(() => area) : null;
 </script>
 </body>
 </html>

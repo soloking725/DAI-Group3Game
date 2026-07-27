@@ -137,9 +137,13 @@
       font-size: 13px;
       width: 160px;
     }
-  </style>
+  #back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
+</style>
 </head>
 <body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
 
   <h1>🗺️ Stillpoint — Graph Analyzer</h1>
   <p class="sub">
@@ -204,7 +208,11 @@
     }
 
     function analyze(AREAS, startId, endId) {
-      // Build adjacency list – only rooms with col/row (real map rooms)
+      // Build adjacency list – only rooms with col/row (real map rooms).
+      // Built from `transitions` (the actual door hitboxes the game walks
+      // through), not `connections` (compass/map metadata only — it can
+      // drift from the real doors and previously made this tool report a
+      // critical path that doesn't match what a player can actually walk).
       const graph = {};
       const allIds = [];
       for (const id in AREAS) {
@@ -212,10 +220,10 @@
         if (typeof room.col !== 'number') continue; // skip dev-only rooms
         allIds.push(id);
         graph[id] = [];
-        if (room.connections) {
-          for (const conn of room.connections) {
-            if (AREAS[conn.to] && typeof AREAS[conn.to].col === 'number') {
-              graph[id].push(conn.to);
+        if (room.transitions) {
+          for (const t of room.transitions) {
+            if (t.to && AREAS[t.to] && typeof AREAS[t.to].col === 'number') {
+              graph[id].push(t.to);
             }
           }
         }

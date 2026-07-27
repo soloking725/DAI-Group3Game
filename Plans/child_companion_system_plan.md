@@ -1,16 +1,17 @@
-# Child Companion System — Plan (not built)
+# Child Companion System — Plan (Phase 1 built, see 2026-07-16 update)
 
-Status: **planning only.** Revised 2026-07-16 (same day as v1) per user
-direction: the Child follows you **like Neva** — a real, physically present
-companion you grow attached to, not a leash-teleporting ghost (v1 of this
-doc recommended no real locomotion; that recommendation is **overruled and
-withdrawn**). Combat is part of her kit: she either fights alongside you or
-hides and heals you.
+Status: **Phase 1 built 2026-07-16** — `game/companion.js` +
+`editor/companion_test.html` (roadmap.md Phase 19): real locomotion (like
+**Neva** — a physically present companion, not a leash-teleporting ghost;
+v1 of this doc's "no real locomotion" recommendation was overruled and
+withdrawn before build), follow/hide/heal modes, combat auto-switching
+(hides while any enemy is `aware`). Fighting-alongside-you mode (this
+doc's Phase 2 combat kit) is still open — see roadmap.md's "Not done this
+pass" notes for Phase 19.
 
-Cross-check against `story.md` (narrative source of truth for the Child)
-and `CLAUDE.md`'s confirmation that no companion code exists yet (only an
-unrelated `child`/`childDef` var in `enemy.js`'s `ComposedEnemy`
-split-on-death logic — do not confuse the two).
+Cross-check against `story.md` (narrative source of truth for the Child).
+Note there's an unrelated `child`/`childDef` var in `enemy.js`'s
+`ComposedEnemy` split-on-death logic — do not confuse the two.
 
 ## Why this is the highest-priority structural gap
 

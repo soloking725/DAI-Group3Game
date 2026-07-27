@@ -29,9 +29,13 @@
   .frame-wrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
   iframe#sandbox { width: 800px; height: 450px; border: 1px solid var(--border); background: #000; }
   .note { color: var(--dim); font-size: 0.75em; max-width: 900px; margin-top: 4px; }
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
 </style>
 </head>
 <body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
 <h1>⚙ Stillpoint — Live Debug Console</h1>
 <p class="subtitle">
   This actually runs the real game in a sandboxed iframe, simulates input, and checks the canvas
@@ -188,17 +192,26 @@ async function runChecks() {
 
   // ── Check 5: THE FREEZE-BUG CHECK — does movement actually move anything? ──
   // This is the one that would have caught the missing-brace bug: if update()
-  // silently stops running once gameState leaves 'menu', the canvas will be
-  // byte-identical before/after even though we're holding a movement key.
-  const beforeMove = snap(doc);
+  // silently stops running once gameState leaves 'menu', player.x won't
+  // change even though we're holding a movement key.
+  // Reads win.player.x directly rather than diffing canvas.toDataURL() —
+  // the pixel-diff version was a false-positive/false-negative generator:
+  // it passed if a background particle moved while the player stayed frozen,
+  // and could fail if the player moved but nothing else on screen changed.
+  // Needs game.js's `window.player` getter (added alongside this fix) since
+  // `let player` in game.js is a script-scope binding, not a window property.
+  const beforeX = win.player ? win.player.x : null;
   win.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight', bubbles: true }));
   await sleep(600);
   win.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowRight', bubbles: true }));
-  const afterMove = snap(doc);
-  report('R05', afterMove !== beforeMove ? 'ok' : 'err',
-    afterMove !== beforeMove
-      ? 'player actually moved when ArrowRight was held'
-      : 'canvas IDENTICAL after holding ArrowRight for 600ms — the game is frozen (update() likely not running for this game state)');
+  const afterX = win.player ? win.player.x : null;
+  const moved = beforeX !== null && afterX !== null && Math.abs(afterX - beforeX) > 10;
+  report('R05', moved ? 'ok' : 'err',
+    beforeX === null
+      ? 'win.player is undefined — game never reached a playable state to check'
+      : moved
+        ? `player.x moved ${(afterX - beforeX).toFixed(1)}px while ArrowRight was held for 600ms`
+        : `player.x barely moved (${beforeX.toFixed(1)} → ${afterX.toFixed(1)}) after 600ms of ArrowRight — the game is frozen (update() likely not running for this game state)`);
 
   // ── Check 6: save → quit to menu → load doesn't freeze (the exact bug you hit) ──
   await pressKey(win, 'Escape'); await sleep(400); // skip tutorial -> autosave

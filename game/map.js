@@ -102,13 +102,22 @@ function buildMapGraph() {
 // no crash, and the door just stays a visible "locked" hint until then.
 function isRequirementMet(requires) {
   if (!requires) return true;
+  if (requires.indexOf(',') !== -1) {
+    return requires.split(',').every(part => isRequirementMet(part));
+  }
   if (requires === 'phase_dash') return !!abilityState.hasPhaseDash;
   if (requires === 'shard_shot') return !!abilityState.hasShardShot;
   if (requires === 'stillpoint') return !!abilityState.hasStillpoint;
   if (requires === 'charged_attack') return !!abilityState.hasChargedAttack;
+  if (requires === 'void_tether') return !!abilityState.hasVoidTether;
   if (requires === 'graviton_surge') return !!abilityState.hasGravitonSurge; // future ability
   if (requires === 'boss_gate') return !!(abilityState.hasPhaseDash && abilityState.hasShardShot && abilityState.hasStillpoint);
   if (requires === 'tutorial_complete') return typeof isTutorialComplete === 'function' ? isTutorialComplete() : true;
+  if (requires === 'post_game') return typeof bossDefeated !== 'undefined' && bossDefeated;
+  if (requires === 'timeline_x_roads_2_visited') return typeof discoveredAreas !== 'undefined' && !!discoveredAreas['timeline_x_roads_room2'];
+  if (requires === 'prison_sequence_finished') return typeof discoveredAreas !== 'undefined' && !!discoveredAreas['void_expanse_room1'];
+  if (requires === 'four_fracture_pips') return typeof player !== 'undefined' && player.fractureMax >= 4;
+  if (requires === 'ten_lore_pips') return typeof lorePipsCollectedTotal === 'function' && lorePipsCollectedTotal() >= 10;
   return false; // unknown requirement string — treat as locked, not silently open
 }
 

@@ -16,20 +16,84 @@ of it was assigned to a real region) and folded in the col/row/cluster data
 that used to live only in `worldmap.html`'s `PLANNED_REGIONS` array, so this
 is now the one place to look, not two.
 
+**`worldmap.html` removed 2026-07-26**: its col/row grid never actually held
+a one-room-per-cell invariant (region-chain helper/cutscene/corridor
+sub-rooms routinely share a cell with an unrelated region's room — verified
+live: 22 of 35 occupied cells had 2+ real rooms stacked together), making
+the rendered map unreadable well beyond the one overlap fix noted at line
+~100 below. A real fix meant redesigning the renderer to cluster overlapping
+rooms instead of a flat grid — judged not worth it. Every mention of that
+file below is now historical only; `CROSS_LINKS`/`PLANNED_REGIONS` data it
+used to hold either duplicates what this doc already has (cluster/col/row)
+or is gone with the file (the cross-link edge list — not reconstructed here,
+see git history if it's ever needed again).
+
+---
+
+## World-map connectivity & the war-bunker reframe (confirmed 2026-07-21)
+
+**Scope for the new social/"life" content (hospitals, living quarters, slums, a rich
+district, the pacifist wing — see `story.md` §10, `lore.md`'s reframe)**: no new whole
+regions. Reskin/redesign existing planned regions that currently have the loosest
+identity and no assigned miniboss (Timeline Crossroads, The Observatory, The Void Expanse
+are the candidates — see "no miniboss" list below) plus a handful of new small side rooms
+off already-planned regions, rather than expanding the region count.
+
+**Correction to an earlier "tree, not web" critique**: `roadmap.md` Phase 7 flags the
+built `area.js` compass graph as closer to a tree (one parent edge, at most one shortcut
+back per region) than a web. Checked directly against `Plans/floor_plan_mermaid.txt`
+(generated from `svg.txt`, the actual source-of-truth board) — **the original design is
+not a tree.** Real hub rooms carry 4-6 outgoing connections each (Timeline Crossroads Room
+1, The Vault Room 1, The Rift, Graviton Core Room 3), plus a real mesh of one-way teleport
+shortcuts cross-linking distant regions (Void Expanse ↔ Paradox Engine, Warp Gate Nexus ↔
+Inverted Spire, Static Field ↔ Graviton Core, Chrono-Space Rift ↔ Echoing Abyss). The
+"tree" read is almost certainly `area.js` (the auto-generated implementation) having lost
+edges during the SVG rebuild — an engineering gap to check against the mermaid, not a plan
+flaw. Not yet verified whether `area.js` actually dropped these edges; flagging as a
+concrete follow-up check, not confirmed as a bug yet.
+
+**The web/leaf pattern this suggests (proposed direction, matches data already in the
+mermaid)**: miniboss rooms in the source graph are mostly near-leaves — one way in, one
+way out (Mirror Veil Hollow, Crag Warden, Event Horizon Core, Warp Gate Nexus Room 2) —
+while the hub rooms doing the actual interconnecting work are civilian/traversal spaces.
+This matches a deliberate split worth designing around: **a web for the living spaces**
+(the shelter's population actually moves between home, work, and each other) **and
+miniboss labs as intentional spurs off it** — they were never built for people to walk
+between, only for cargo to. Concretely: an environmental supply-chain economy (tanky
+supply robots, power routed from Static Field, ore refined at Colossus Core) gives the
+labs' isolation an in-fiction reason instead of it reading as a design gap, and hands the
+existing "ability-gated backtracking" goal (roadmap 6.2 — region A gates region B's reward
+behind an ability found elsewhere) a mechanical lever: disrupting a supply line in one
+region could plausibly change something in another. **Not yet decided**: whether the
+economy stays pure environmental flavor or becomes an actual sabotage-able mechanic —
+good either way, but the choice changes how much needs to be built.
+
 ---
 
 ## Built (3 anchor regions — see roadmap.md Phase 9)
 
-All three are currently empty skeletons (flat floor + doors only) — no
-special effect is implemented yet. Task 4 (cave-aesthetic pass) gave them a
-first visual identity; none of them have their *mechanical* effect (the
-thing that makes traversal feel different, not just look different) built.
+**Correction, 2026-07-21**: this "Built" vs "Planned" split describes which
+regions have their *mechanical effect* (inverted background, gravity pull,
+loop wrap-around) implemented — only these 3 still qualify on that axis.
+It no longer describes which regions exist as real `AREAS{}` entries: the
+2026-07-17 SVG rebuild (roadmap.md Phase 20) scaffolded **all 13 regions**
+(71 rooms total, confirmed via `Plans/room_progress.js --full`) as flat
+SHELL rooms — geometry/doors only, same state the 3 anchor regions were in
+before Task 4. So every region below listed as "Planned" already exists in
+code as an empty shell; "planned" now means "not yet mechanically/visually
+designed," not "doesn't exist." Cross-check `Plans/room_progress.js --todo`
+for the current per-room state before assuming a region is unbuilt.
+
+All three of these specific regions are otherwise still empty skeletons
+(flat floor + doors only) beyond Task 4's visual pass — none of them have
+their *mechanical* effect (the thing that makes traversal feel different,
+not just look different) built.
 
 | Region | Rooms | Miniboss | Mechanical effect (not yet built) |
 |---|---|---|---|
-| Mirror Veil | 4 (gate, reflection, hollow, sanctum) | The Mirror King (4.2) | Background is inverted; secret paths exist only in the reflected version of the room, not the "real" one — per expansion.md §3.2. |
-| Event Horizon | 4 (gate, pull, drift, core) | Gravity Collapse Core (4.3) | Constant gravitational pull toward one side of the room (leftward per §3.1) — platforming against a steady lateral force, not just gaps. |
-| Chrono-Space Rift | 4 (gate, loop, echo, sanctum) | Temporal Warden (4.6) — also the opening cinematic's ally, see story.md §0 | Looping room — anything (player, projectile, enemy) that exits one side reappears on the other (wrap-around), per §3.6. |
+| Mirror Veil | 4 (gate, reflection, hollow, sanctum) | The Mirror King (4.1) | Background is inverted; secret paths exist only in the reflected version of the room, not the "real" one — per expansion.md §3.2. |
+| Event Horizon | 4 (gate, pull, drift, core) | Gravity Collapse Core (4.2) | Constant gravitational pull toward one side of the room (leftward per §3.1) — platforming against a steady lateral force, not just gaps. |
+| Chrono-Space Rift | 4 (gate, loop, echo, sanctum) | Temporal Warden (4.3) — also the opening cinematic's ally, see story.md §0 | Looping room — anything (player, projectile, enemy) that exits one side reappears on the other (wrap-around), per §3.6. |
 
 ---
 
@@ -53,27 +117,31 @@ updated to match — verified live, no more overlap.
 
 | Region | Cluster | Col, Row | Est. rooms | Miniboss | Special effect |
 |---|---|---|---|---|---|
-| Graviton Core | Gravity (col 7) | 7, -1 | 4-6 | Fractured Sovereign's Guard (4.1) — the one miniboss directly tied to the Sovereign herself | Levers that flip gravity for the room; grants Graviton Surge. |
+| Graviton Core | Gravity (col 7) | 7, -1 | 4-6 | Fractured Sovereign's Guard (4.4) — the one miniboss directly tied to the Sovereign herself | Levers that flip gravity for the room; grants Graviton Surge. |
 | The Inverted Spire | Gravity (col 7) | 7, -3 | 4-6 | — | Gravity permanently inverted — "up" and "down" are swapped from the moment you enter. |
 | The Observatory | Void/Sky (col 3) | 3, -1 | 4-6 | — | Low gravity — floaty jumps, long hang time, heavy verticality. Its capstone room IS "Sovereign's Observatory" — see Reward Placement below. |
-| The Void Expanse | Void/Sky (col 3) | 3, -2 | 5-7 | — | No solid ground at all — every platform is a moving "time-stopped debris" chunk; timing, not positioning, is the whole puzzle. |
-| Warp Gate Nexus | Void/Sky (col 3) | 3, -3 | 5-7 (hub + 3-4 vaults) | Warden & Hollow (4.8) | Teleporter hub — a central room branching into 3-4 small self-contained challenge vaults. |
-| The Polar Shift | Magnetic (col 6) | 6, -1 | 4-6 | Electromagnetic Golem (4.4) | Blue walls push, red walls pull — traversal is bouncing between magnetic surfaces like a pinball, not jumping. |
-| Paradox Engine | Magnetic (col 6) | 6, -2 | 5-7 | The Assembler (4.7) | Chase zone — a giant machine actively hunts the player through a maze while normal enemies still need fighting. |
+| The Void Expanse | Void/Sky (col 3) | 3, -2 | 5-7 | **The Undertow** (4.12, proposed name — added 2026-07-21/22, see `lore.md`) | No solid ground at all — every platform is a moving "time-stopped debris" chunk; timing, not positioning, is the whole puzzle. |
+| Warp Gate Nexus | Void/Sky (col 3) | 3, -3 | 5-7 (hub + 3-4 vaults) | Warden & Hollow (4.9) | Teleporter hub — a central room branching into 3-4 small self-contained challenge vaults. |
+| The Polar Shift | Magnetic (col 6) | 6, -1 | 4-6 | Electromagnetic Golem (4.5) | Blue walls push, red walls pull — traversal is bouncing between magnetic surfaces like a pinball, not jumping. |
+| Paradox Engine | Magnetic (col 6) | 6, -2 | 5-7 | The Assembler (4.8) | Chase zone — a giant machine actively hunts the player through a maze while normal enemies still need fighting. |
 | Static Field | Magnetic (col 6) | 6, -3 | 4-6 | The Conduit (added 2026-07-13 by `floor_plan.md`, see `lore.md`) — guards this region's Fracture Pip at Room 2, no ability attached | Electromagnetic arcs chain across the room; touching the floor zaps you upward (must stay airborne). Also corrupts the map overlay while inside (and briefly after) — a presentational glitch only, `discoveredAreas` is never actually altered. |
-| Timeline Crossroads | Time/Mirror (col 5, south) | 5, 2 | 4-6 | The Crystalline Warden (story.md §4, Void Tether fight) — moved here 2026-07-13, see resolution note below | Two overlapping time states, Past (crumbling) and Present (safe); enemies phase in/out, only vulnerable when "Present" (gold tint). Home of the Companion's Memory beat (roadmap 6.6) AND — moved here 2026-07-13 — Puppet Strings/Tether Region, branching directly off this region rather than Warp Gate Nexus, so the ability's showcase area sits right where it's earned instead of across the map. |
-| Echoing Abyss | Time/Mirror (col 5, south) | 5, 4 | 4-6 | Quantum Pursuer (4.5) — canonically catches up to and overtakes the player, the game's one deliberately-faster-than-you enemy | Your own dashes/attacks leave lingering echoes (2s) that double as real platforms — you can jump on your own echo. |
+| Timeline Crossroads | Time/Mirror (col 5, south) | 5, 2 | 4-6 | **The Stationmaster** (story.md §4, Void Tether fight — proposed name, replaces the earlier Crystalline Warden assignment, see resolution note below) | Two overlapping time states, Past (crumbling) and Present (safe); enemies phase in/out, only vulnerable when "Present" (gold tint). Home of the Companion's Memory beat (roadmap 6.6) AND — moved here 2026-07-13 — Puppet Strings/Tether Region, branching directly off this region rather than Warp Gate Nexus, so the ability's showcase area sits right where it's earned instead of across the map. |
+| Echoing Abyss | Time/Mirror (col 5, south) | 5, 4 | 4-6 | Quantum Pursuer (4.6) — canonically catches up to and overtakes the player, the game's one deliberately-faster-than-you enemy | Your own dashes/attacks leave lingering echoes (2s) that double as real platforms — you can jump on your own echo. |
 
-3 regions carry no miniboss (Inverted Spire, Observatory, Void Expanse) —
-intentional, not every region needs one; see roadmap.md's Phase 2/4
-discussion if that changes. **Static Field moved out of this list
-2026-07-13**: `floor_plan.md` gives it a new miniboss (The Conduit),
-superseding the earlier "no miniboss" call — this makes 9 minibosses total
-across the 13 regions (the original 8 in `expansion.md`/`lore.md`, plus this
-one), not yet named or given lore (see `lore.md`'s "Minibosses & their
-regions" section, which still only covers the original 8).
+2 regions carry no miniboss (Inverted Spire, Observatory) — intentional, not
+every region needs one; see roadmap.md's Phase 2/4 discussion if that
+changes. **Void Expanse moved out of this list 2026-07-21/22**: it now has
+its own miniboss, The Undertow (proposed name — see `lore.md`), resolving
+what used to be a deliberate "no miniboss" call. **Static Field moved out
+of this list 2026-07-13**: `floor_plan.md` gives it a new miniboss (The
+Conduit), superseding the earlier "no miniboss" call. Combined, that's
+**12 named minibosses across the 13 regions**, plus two non-individual
+encounters (Sovereign's Army Reserve's horde, and a conflicted/unresolved
+Antechamber "grown Child" fight) — see `lore.md`'s "Minibosses & their
+regions" section and `expansion.md`'s Phase 4 table for the full,
+up-to-date roster; this doc only tracks region assignment.
 
-**Reconciliation resolved 2026-07-13**: expansion.md's miniboss table
+**Reconciliation resolved 2026-07-13, superseded 2026-07-22**: expansion.md's miniboss table
 assigned Electromagnetic Golem to the Magnetic cluster (The Polar Shift),
 while story.md §4 separately placed the Crystalline Warden (Void Tether's
 gatekeeper) in "The Polar Shift" by name — a collision from two docs'
@@ -82,7 +150,12 @@ the Crystalline Warden to **Timeline Crossroads**: Electromagnetic Golem is
 the better mechanical fit for Polar Shift's push/pull magnetism, and the
 Warden's "freezes in terror, encases itself in crystal" imagery fits
 Timeline Crossroads' Past (frozen)/Present (safe) mechanic better anyway —
-a net improvement, not just a fix. `story.md` §4 updated to match.
+a net improvement, not just a fix. **2026-07-22: Crystalline Warden itself
+is now replaced** at Timeline Crossroads by a new figure (proposed name
+"The Stationmaster") tied to the child's origin and a prison at Echo
+Bridge — a full identity/moveset swap, not just a rename; see `lore.md` and
+`story.md` §4 for the new figure's story and the corrected (immediate,
+functional) Void Tether grant.
 
 ---
 
@@ -106,7 +179,7 @@ final lock.
 | Stillpoint | Chrono-Space Rift Sanctum | Built (Phase 9) |
 | Charged Attack | Crag Altar (Crag of the Colossus, narratively side region — but this ability is intended to be MANDATORY, not skippable, see the Side-branches section below) | Built (Phase 7), but the enforcement that makes it actually unskippable is `roadmap.md`'s still-unbuilt wall-gate item |
 | Graviton Surge | Graviton Core | Planned, region not built yet |
-| Void Tether | Timeline Crossroads (Crystalline Warden fight, conditional on leaving the child) — moved from The Polar Shift 2026-07-13 | Planned, region not built yet |
+| Void Tether | **Two-stage, corrected 2026-07-22**: Timeline Crossroads (The Stationmaster fight, conditional on leaving the child) grants a real, working but limited version immediately — the permanent-sacrifice choice is rewarded on the spot, not gated further. The Void Expanse (The Undertow fight) later completes it (full range, no charge limit) as an optional upgrade, not a prerequisite. Moved from The Polar Shift 2026-07-13. | Planned, region not built yet |
 | Mirror Step (new 2026-07-13, expansion.md 1B.1) | Mirror Veil | Planned — region exists as a built skeleton (Phase 9), ability itself not built |
 | Blink (new 2026-07-13, expansion.md 1B.2) | Warp Gate Nexus | Planned, region not built yet |
 | Overcharge (new 2026-07-13, expansion.md 1B.3) | Static Field | Planned, region not built yet |

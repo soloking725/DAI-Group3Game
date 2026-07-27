@@ -1,12 +1,34 @@
-// Final Boss: The Fractured King
-// A corrupted Stillpoint entity — 3-phase arena fight
-
+// Final Boss: The Sovereign (still `class Boss` / `King`-prefixed
+// identifiers internally — the King→Sovereign rename is docs-only so far,
+// see Plans/CLAUDE.md's lore.md note; not renaming JS identifiers here,
+// that's a separate, unrequested refactor).
+//
+// Moveset rebuilt 2026-07-26 (~/.claude/plans/distributed-gliding-forest.md)
+// for full parity with the player's own ability kit — she is explicitly
+// "the player in the future" (lore.md's Final fight structure section,
+// expansion.md §2): same kit minus Graviton Surge (never collected it in
+// her own timeline), a corrupted Void Tether that pulls HER to the player
+// instead of the reverse. Phase 1 (>60% HP): heavy precognition, reads and
+// counters the player's next move, restrained real offense. Phase 2 (<=60%):
+// full kit except Stillpoint. Phase 3 (<=30%): adds Stillpoint itself
+// (literal, not a reskin), full immunity to the player's own Stillpoint
+// (pre-existing `myTimeScale` exemption below, confirmed still correct).
 const BOSS_MAX_HEALTH = 80;
-const BOSS_DAMAGE = 1;
+const BOSS_DAMAGE = 1; // fallback only now — see getAttackDamageAndKnockback()/attackDefs below for real per-attack numbers
 const BOSS_WIDTH = 48;
 const BOSS_HEIGHT = 56;
 const BOSS_X = 426;  // centered in 900px arena
 const BOSS_Y = 334;  // groundY (390) - BOSS_HEIGHT (56)
+
+// Phase 3 Stillpoint — deliberately steeper than the player's own max
+// (STILLPOINT_SLOW_LV3=0.9, 0.95 under Limit Break, player.js) — "stronger
+// than you" reads as raw power here, not a wider kit. Read by game.js's
+// gameTimeScale assignment and by the new player.timeScale mechanism.
+const BOSS_STILLPOINT_SLOW = 0.97;
+// Precognition: how many frames of lead time in a player "tell" (charge/
+// stillpoint-hold/shard-aim/attack-startup) count as caught early enough to
+// react to. See readPlayerTell()/precogCounter() below.
+const PRECOG_MIN_LEAD = 12;
 
 class Boss {
   constructor(x, y) {
@@ -40,6 +62,16 @@ class Boss {
     this.consecutiveHits = 0;
     this.lastHitTimer = 0;
 
+    // Post-attack stagger delay (see executeAttack()/update()) — frame
+    // counter, not setTimeout.
+    this._staggerDelayTimer = 0;
+    this._heavyDipTimer = 0;
+
+    // Idle spacing jitter — re-rolled occasionally (see the 'idle' case in
+    // update()) so her preferred distance isn't a perfectly fixed 220px
+    // leash every single fight; keeps the drift from reading as robotic.
+    this._preferredDistJitter = 0;
+
     // Teleport
     this.teleportTarget = { x: 0, y: 0 };
     this.teleportFlash = 0;
@@ -53,14 +85,11 @@ class Boss {
     // Parry stun
     this.stunTimer = 0;
 
+    // Visual bridge to game/animdata.js — see update()'s hook comment.
+    this.animator = new Animator(this);
+
     // Summon timer (phase 2+)
     this.summonCooldown = 0;
-
-    // Ultimate (phase 3)
-    this.ultimateCharge = 0;
-    this.ultimateActive = false;
-    this.ultimateTimer = 0;
-    this.ultimateDir = 1;
 
     // ── Adaptation system ─────────────────────────────────────────────────
     // Silently tracks how the player fights and biases attack selection.
@@ -72,12 +101,81 @@ class Boss {
       adaptNotified: false, // whether we've shown the first adaptation cue
     };
 
-    // Phase 3 Stillpoint counter-lunge
+    // Phase 3 Stillpoint counter-lunge — generalized (2026-07-26) into the
+    // shared landing motion for BOTH the predictive precognition system
+    // (any phase) and the Reversed Void Tether's arrival (Phase 2+), not
+    // just a reactive Phase-3-only counter anymore. Existing visual tells
+    // (white eyes, motion-blur trail) kept as-is.
     this.lunging = false;
     this.lungeVx = 0;
     this.lungeTimer = 0;
     this.stillpointWasActive = false; // tracks previous frame for edge detection
     this.surgeCooldown = 0; // prevent lunge spam
+
+    // ── Damage plumbing fix (2026-07-26) ────────────────────────────────
+    // Mirrors ComposedEnemy's `_activeAttack`/`attacks[]` shape (enemy.js)
+    // so game.js's existing miniboss-attack consumer pattern
+    // (getAttackHitbox()/getAttackDamageAndKnockback(), game.js:3919-3937)
+    // can drive real per-attack damage/knockback for Boss too, instead of
+    // one flat BOSS_DAMAGE for every contact regardless of attack. Boss is
+    // a fully separate class/code path from ComposedEnemy, so this is a
+    // parallel implementation of the same shape, not literal reuse.
+    this._activeAttack = null;     // string key while an attack's hitbox is live, else null
+    this._activeAttackTimer = 0;   // frames left in the active window for timer-cleared attacks (melee/heavy) — dash_chain/tether_arrival clear explicitly instead, see their state-exit points
+    this.attackDefs = {
+      melee_forward: { damage: 1, knockback: { vx: 7, vy: -4, hitStun: 10 } },
+      melee_up:      { damage: 1, knockback: { vx: 5, vy: -8, hitStun: 10 } },
+      melee_down:    { damage: 1, knockback: { vx: 5, vy: 4, hitStun: 10 } },
+      // Charged Heavy — tuned for real, dramatic knockback per explicit user
+      // direction ("enough to send the player flying into the arena wall"):
+      // roughly 2x the vx of this session's other "hard hit" reference
+      // points (Warden & Hollow's dash_charge: knockbackX 10-11;
+      // Electromagnetic Golem's: 9-10), plus a longer hitStun so the launch
+      // reads before recovery. Arena is ~860px playable width, boss
+      // centered — should carry the player from mid-arena into a wall on a
+      // clean hit; exact numbers need a playtest pass to confirm.
+      heavy:          { damage: 2, knockback: { vx: 18, vy: -9, hitStun: 22 } },
+      // Dash-Chain — a real hit, not wall-launching-tier (that's Heavy's
+      // job, so the two read as different weight classes).
+      dash_chain:     { damage: 1, knockback: { vx: 10, vy: -5, hitStun: 12 } },
+      // Reversed Void Tether arrival — a second heavy hit, matching
+      // "corrupted" reading as genuinely dangerous, not a gentle pull.
+      tether_arrival: { damage: 2, knockback: { vx: 14, vy: -8, hitStun: 18 } },
+    };
+
+    // Melee combo
+    this.meleeDir = 'forward';
+
+    // Dash-Chain (offensive) — repurposes the old Charge Rush's slide/bounce
+    // state machinery ('charging' state below), generalized from a single
+    // "double charge" boolean to N chainable legs.
+    this.chargeVx = 0;
+    this._chainLegsRemaining = 0;
+
+    // Phase-Dash (defensive reposition) / Wall-Burst (edge-triggered
+    // reposition) — both grant brief i-frames via this shared field, same
+    // shape as the player's own invincibleTimer.
+    this.phaseDashInvuln = 0;
+    this.wallBurstArcTimer = 0;
+
+    // Reversed Void Tether (Phase 2+)
+    this._tetherPullTimer = 0;
+
+    // Shard Shot / Beam channel
+    this.beamTick = 0;
+    this._beamRect = null; // read by draw()/drawTelegraphs() for the channel's visual
+
+    // ── Precognition (all phases) ───────────────────────────────────────
+    // Watches the player's own real, already-public "committing to a move"
+    // fields — no new player.js fields needed. See readPlayerTell()/
+    // precogCounter() below.
+    this.precogCooldown = 0;
+    this._precogReacted = { heavy: false, stillpoint: false, shard: false, attack: false };
+
+    // ── Phase 3 Stillpoint (literal, not a reskin) ──────────────────────
+    this.bossStillpointActive = false;
+    this.bossStillpointTimer = 0;
+    this.bossStillpointCooldown = 0;
   }
 
   getBounds() {
@@ -96,12 +194,14 @@ class Boss {
       this.hitEffects.push({ x: this.x + this.width / 2, y: this.y - 30,
         text: '— ADAPTING —', life: 80, color: '#c4b5fd' });
     }
-    // 5 consecutive hits in Phase 2+: boss retaliates immediately
+    // 5 consecutive hits in Phase 2+: boss retaliates immediately with real
+    // offense (Charged Heavy) — Phase 1 keeps it to a Melee Swing, matching
+    // "restrained" real offense in Phase 1 generally.
     if (this.consecutiveHits >= 5 && this.phase >= 2 && this.state === 'idle') {
       this.hitEffects.push({ x: this.x + this.width / 2, y: this.y - 22,
         text: 'ENOUGH', life: 50, color: '#fde68a' });
       this.consecutiveHits = 0;
-      this.startProjectileBarrage();
+      this.startChargedHeavy(); // this.phase >= 2 is already guaranteed by the outer condition above
     }
   }
 
@@ -116,8 +216,112 @@ class Boss {
     }
   }
 
+  // New in the moveset rebuild — mirrors ComposedEnemy.getAttackHitbox()
+  // (enemy.js:2868-2872) so game.js's existing consumer pattern can drive
+  // Boss identically. Melee/Heavy return a real rect; Dash-Chain/Reversed
+  // Void Tether use her own body as the hitbox while active (same "body IS
+  // the hazard" shape the old Charge Rush already used implicitly via body
+  // contact). Shard Shot/Beam channel are NOT here — Shard Shot sets damage
+  // directly on the pushed projectile object, Beam channel is a self-
+  // contained boss.js-local overlap check (see the 'beam_channel' state) —
+  // neither goes through the generic melee-hitbox consumer.
+  getAttackHitbox() {
+    if (!this._activeAttack) return null;
+    switch (this._activeAttack) {
+      case 'melee_forward': {
+        const w = 86, h = 50;
+        const x = this.facing === 1 ? this.x + this.width : this.x - w;
+        return { x, y: this.y + 3, width: w, height: h };
+      }
+      case 'melee_up':
+        return { x: this.x - 10, y: this.y - 60, width: this.width + 20, height: 64 };
+      case 'melee_down':
+        return { x: this.x - 10, y: this.y + this.height - 8, width: this.width + 20, height: 64 };
+      case 'heavy': {
+        const w = 120, h = this.height + 20;
+        const x = this.facing === 1 ? this.x + this.width - 10 : this.x - w + 10;
+        return { x, y: this.y - 10, width: w, height: h };
+      }
+      case 'dash_chain':
+      case 'tether_arrival':
+        return this.getBounds();
+      default:
+        return null;
+    }
+  }
+
+  // Custom knockback for whichever attack is currently active — read by
+  // game.js's generic boss-attack-hits-player loop instead of the flat
+  // BOSS_DAMAGE every contact used before this pass.
+  getAttackDamageAndKnockback() {
+    if (!this._activeAttack) return null;
+    const def = this.attackDefs[this._activeAttack];
+    return def ? { damage: def.damage, knockback: def.knockback } : null;
+  }
+
+  // ── Precognition ─────────────────────────────────────────────────────
+  // Called every frame before the state machine switch. Watches the
+  // player's own real fields for "committing to a move" tells — no new
+  // player.js fields needed. Only reacts while she's free to act (idle/
+  // recovering), so a read never interrupts an attack already in flight.
+  readPlayerTell(player) {
+    if (this.dead || this.state === 'entering' || this.precogCooldown > 0) return;
+    if (this.state !== 'idle' && this.state !== 'recovering') return;
+
+    // Reset each tell's "already reacted" flag once the player lets go of it.
+    if (!player.charging) this._precogReacted.heavy = false;
+    if (!player.stillpointCharging) this._precogReacted.stillpoint = false;
+    if (!player.shardAiming) this._precogReacted.shard = false;
+    if (!player.attacking) this._precogReacted.attack = false;
+
+    if (player.charging && player.chargeTimer >= PRECOG_MIN_LEAD && !this._precogReacted.heavy) {
+      this._precogReacted.heavy = true;
+      this.precogCounter(player, 'heavy');
+    } else if (player.stillpointCharging && player.stillpointHoldTimer >= PRECOG_MIN_LEAD && !this._precogReacted.stillpoint) {
+      this._precogReacted.stillpoint = true;
+      this.precogCounter(player, 'stillpoint');
+    } else if (player.shardAiming && player.shardAimTimer >= PRECOG_MIN_LEAD && !this._precogReacted.shard) {
+      this._precogReacted.shard = true;
+      this.precogCounter(player, 'shard');
+    } else if (player.attacking && player.attackTimer >= 8 && !this._precogReacted.attack) {
+      // Early frames of even a quick tap still give a few frames of lead
+      // (attackTimer counts down from ATTACK_DURATION, so a high remaining
+      // value means the swing just started).
+      this._precogReacted.attack = true;
+      this.precogCounter(player, 'attack');
+    }
+  }
+
+  // A visible "read" cue, then a phase-appropriate response. Phase 1:
+  // reposition-only, restrained/no real offense yet (matching the design
+  // doc — precog carries Phase 1's threat, not raw damage). Phase 2+: the
+  // same reads now feed real counter-attacks. Phase 3: keeps running
+  // underneath Stillpoint on a longer cooldown so it doesn't compete with
+  // the Stillpoint centerpiece.
+  precogCounter(player, tellType) {
+    this.hitEffects.push({
+      x: this.x + this.width / 2, y: this.y - 30,
+      text: this.phase === 1 ? 'I SEE IT COMING' : 'READ.',
+      life: 50, color: '#93c5fd',
+    });
+    this.precogCooldown = this.phase === 3 ? 220 : 140;
+    if (typeof SFX !== 'undefined' && SFX.bossTelegraph) SFX.bossTelegraph();
+
+    if (this.phase === 1) {
+      if (tellType === 'stillpoint') this._startLunge(player);
+      else this.startPhaseDash();
+      return;
+    }
+
+    // Phase 2+ (including Phase 3, on the longer cooldown above).
+    if (tellType === 'heavy') this.startDashChain();
+    else if (tellType === 'stillpoint') this._startLunge(player);
+    else if (tellType === 'shard') this.startPhaseDash();
+    else this.startMeleeSwing();
+  }
+
   takeDamage(amount, fromX, sourceType) {
-    if (this.dead || this.invulnerable) return;
+    if (this.dead || this.invulnerable || this.phaseDashInvuln > 0) return;
     // Track adaptation
     if (sourceType) this.notifyHit(sourceType);
     // Shield blocks frontal damage
@@ -155,6 +359,11 @@ class Boss {
     this.arenaWidth = arenaWidth;
     if (this.dead) {
       this.deathTimer++;
+      this._animKey = this.bossAnimStateKey();
+      if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+        this.animator.play(this._animKey);
+        this.animator.update();
+      }
       return;
     }
 
@@ -169,8 +378,22 @@ class Boss {
 
     // ── Boss is ALWAYS immune to player Stillpoint in Phase 3 ────────────
     // In Phases 1-2 the boss IS slowed (gives player a good tool).
-    // In Phase 3 the King "sees through" Stillpoint and responds with a lunge.
+    // In Phase 3 she "sees through" Stillpoint — this exemption already
+    // generalizes correctly to "immune to her OWN Phase 3 Stillpoint cast
+    // too" for free (confirmed, no change needed for that half).
     const myTimeScale = (this.phase >= 3) ? 1.0 : _globalTS;
+
+    // ── Phase 3 Stillpoint bookkeeping — ticks in real/global time (not
+    // her own possibly-1.0 myTimeScale), since it's the source of the slow,
+    // not a thing being slowed. ──────────────────────────────────────────
+    if (this.bossStillpointActive) {
+      this.bossStillpointTimer -= _globalTS;
+      if (this.bossStillpointTimer <= 0) {
+        this.bossStillpointActive = false;
+        if (typeof SFX !== 'undefined' && SFX.bossStillpointEnd) SFX.bossStillpointEnd();
+      }
+    }
+    if (this.bossStillpointCooldown > 0) this.bossStillpointCooldown -= _globalTS;
 
     // ── Detect player activating Stillpoint — trigger lunge in Phase 3 ────
     const spNow = (typeof player !== 'undefined') && player.stillpointActive;
@@ -183,6 +406,10 @@ class Boss {
     this.stillpointWasActive = spNow;
     if (this.surgeCooldown > 0) this.surgeCooldown--;
 
+    // ── Precognition — checked before the state machine, any phase ───────
+    this.readPlayerTell(player);
+    if (this.precogCooldown > 0) this.precogCooldown -= myTimeScale;
+
     // Phase detection
     const healthPct = this.health / this.maxHealth;
     const newPhase = healthPct > 0.6 ? 1 : healthPct > 0.3 ? 2 : 3;
@@ -194,8 +421,7 @@ class Boss {
       this.stateTimer = 90;
       this.telegraph = null;
       this.currentAttack = null;
-      this.ultimateActive = false;
-      this.ultimateCharge = 0;
+      this._activeAttack = null;
       this.hitEffects.push({
         x: this.x + this.width / 2,
         y: this.y - 20,
@@ -232,19 +458,50 @@ class Boss {
     if (this.telegraph) {
       this.telegraph.timer -= myTimeScale;
       if (this.telegraph.timer <= 0) {
-        this.executeAttack();
+        this.executeAttack(player, bossProjectiles);
         this.telegraph = null;
       }
     }
 
-    // Boss projectiles — slowed by player Stillpoint even in Phase 3
-    // (dodging his shots is still useful, only the KING himself is immune)
+    // Active-attack window for timer-cleared attacks (melee/heavy) —
+    // dash_chain/tether_arrival clear `_activeAttack` explicitly at their
+    // own state-exit points instead of using this timer.
+    if (this._activeAttack === 'melee_forward' || this._activeAttack === 'melee_up' ||
+        this._activeAttack === 'melee_down' || this._activeAttack === 'heavy') {
+      this._activeAttackTimer -= myTimeScale;
+      if (this._activeAttackTimer <= 0) this._activeAttack = null;
+    }
+    if (this._heavyDipTimer > 0) {
+      this._heavyDipTimer -= myTimeScale;
+      if (this._heavyDipTimer <= 0) this.y = BOSS_Y;
+    }
+
+    // Post-melee/heavy/shard stagger delay — a frame counter (not
+    // setTimeout, which fires on wall-clock time regardless of pause/
+    // hitstop/tab-visibility and could desync the boss's state from the
+    // game loop). Set by executeAttack() below.
+    if (this._staggerDelayTimer > 0) {
+      this._staggerDelayTimer -= myTimeScale;
+      if (this._staggerDelayTimer <= 0 && this.state === 'attacking') {
+        this.state = 'staggered';
+        this.stateTimer = 28;
+      }
+    }
+
+    // Boss projectiles — normally slowed by player Stillpoint even in
+    // Phase 3 (dodging her shots is still useful, only SHE is immune to
+    // that one), but her own Phase 3 Stillpoint cast exempts her own
+    // projectiles/beam from the slow it causes (mirrors how the player's
+    // own projectiles already ignore gameTimeScale entirely) — narrower
+    // than it sounds: only her own-cast case is newly exempted, the
+    // player-cast asymmetry above is untouched.
+    const projScale = this.bossStillpointActive ? 1.0 : _globalTS;
     for (let i = bossProjectiles.length - 1; i >= 0; i--) {
       const p = bossProjectiles[i];
-      p.x += p.vx * _globalTS;
-      p.y += p.vy * _globalTS;
-      if (p.gravity) p.vy += 0.15 * _globalTS;
-      p.life -= _globalTS;
+      p.x += p.vx * projScale;
+      p.y += p.vy * projScale;
+      if (p.gravity) p.vy += 0.15 * projScale;
+      p.life -= projScale;
       if (p.life <= 0 || p.x < -50 || p.x > arenaWidth + 50 || p.y > H + 50) {
         bossProjectiles.splice(i, 1);
       }
@@ -265,7 +522,7 @@ class Boss {
         break;
 
       case 'lunging':
-        // Phase 3 counter-Stillpoint lunge — boss surges at player position
+        // Counter-Stillpoint / precognition lunge — surges at player position.
         this.x += this.lungeVx * myTimeScale;
         this.x = Math.max(20, Math.min(this.x, (arenaWidth || 900) - this.width - 20));
         this.lungeTimer -= myTimeScale;
@@ -282,7 +539,8 @@ class Boss {
 
         // ── Continuous drift — boss always moves toward preferred distance ────
         {
-          const preferredDist = 220;
+          if (Math.random() < 0.01) this._preferredDistJitter = (Math.random() - 0.5) * 120;
+          const preferredDist = 220 + this._preferredDistJitter;
           const bossCX = this.x + this.width / 2;
           const playerCX = player.x + player.width / 2;
           const dx = playerCX - bossCX;
@@ -325,8 +583,10 @@ class Boss {
 
       case 'teleporting':
         if (this.stateTimer === 10) {
-          // Arrival flash
+          // Arrival flash — also where she actually reappears
           this.teleportFlash = 15;
+          this.x = this.teleportTarget.x;
+          this.y = this.teleportTarget.y;
         }
         if (this.teleportFlash > 0) this.teleportFlash--;
         if (this.stateTimer <= 0) {
@@ -335,25 +595,28 @@ class Boss {
         }
         break;
 
-      // Charge Rush — boss slides across arena, contact damages player
+      // Dash-Chain — repurposed from the old Charge Rush: boss slides
+      // across arena, her body is the hitbox, bounces off a wall into up
+      // to 2 more legs (3 total) before staggering.
       case 'charging':
         this.x += this.chargeVx * myTimeScale;
         this.x = Math.max(20, Math.min(this.x, (this.arenaWidth || 900) - this.width - 20));
         if (this.x <= 20 || this.x >= (this.arenaWidth || 900) - this.width - 20) {
-          if (this._pendingDoubleCharge) {
-            // Phase 2+ double charge — reverse and charge back once
-            this._pendingDoubleCharge = false;
+          if (this._chainLegsRemaining > 0) {
+            this._chainLegsRemaining--;
             this.chargeVx = -this.chargeVx;
-            this.stateTimer = 28; // shorter second charge
+            this.stateTimer = 24; // shorter for chained legs — snappier than a single Charge Rush
           } else {
             this.chargeVx = 0;
+            this._activeAttack = null;
             this.state = 'staggered';
             this.stateTimer = 35;
           }
         }
         if (this.stateTimer <= 0) {
-          this._pendingDoubleCharge = false;
+          this._chainLegsRemaining = 0;
           this.chargeVx = 0;
+          this._activeAttack = null;
           this.state = 'staggered';
           this.stateTimer = 35;
         }
@@ -390,6 +653,89 @@ class Boss {
         }
         break;
 
+      // Phase-Dash / Wall-Burst — defensive reposition tools, no stagger
+      // after (an escape, not an attack).
+      case 'phase_dash':
+        this.x += this.vx * myTimeScale;
+        this.x = Math.max(20, Math.min(this.x, (this.arenaWidth || 900) - this.width - 20));
+        if (this.phaseDashInvuln > 0) this.phaseDashInvuln -= myTimeScale;
+        if (this.stateTimer <= 0) {
+          this.vx *= 0.3;
+          this.state = 'idle';
+          this.stateTimer = 25;
+        }
+        break;
+
+      case 'wall_burst':
+        this.x += this.vx * myTimeScale;
+        this.x = Math.max(20, Math.min(this.x, (this.arenaWidth || 900) - this.width - 20));
+        if (this.wallBurstArcTimer > 0) {
+          this.y = BOSS_Y - Math.sin(Math.max(0, (20 - this.wallBurstArcTimer) / 20) * Math.PI) * 30;
+          this.wallBurstArcTimer -= myTimeScale;
+        } else {
+          this.y = BOSS_Y;
+        }
+        if (this.phaseDashInvuln > 0) this.phaseDashInvuln -= myTimeScale;
+        if (this.stateTimer <= 0) {
+          this.vx *= 0.3;
+          this.y = BOSS_Y;
+          this.state = 'idle';
+          this.stateTimer = 25;
+        }
+        break;
+
+      // Reversed Void Tether arrival — accelerates toward the player using
+      // the same ramp formula the player's own tether-arrival uses
+      // (game.js), lands via the generalized lunge-style motion (just a
+      // direct arrival here, not a separate lunge call), then a brief
+      // self-stagger so a whiff is punishable.
+      case 'tether_arrival': {
+        const bossCX = this.x + this.width / 2, bossCY = this.y + this.height / 2;
+        const playerCX = player.x + player.width / 2, playerCY = player.y + player.height / 2;
+        const dx = playerCX - bossCX, dy = playerCY - bossCY;
+        const dist = Math.hypot(dx, dy) || 1;
+        this._tetherPullTimer += myTimeScale;
+        const rampedSpeed = 9 * Math.min(1, 0.35 + this._tetherPullTimer * 0.08);
+        if (dist <= rampedSpeed + this.width / 2 || this.stateTimer <= 0) {
+          this.x = Math.max(20, Math.min(playerCX - this.width / 2, (this.arenaWidth || 900) - this.width - 20));
+          this.y = playerCY - this.height / 2;
+          this._activeAttack = null;
+          this.state = 'staggered';
+          this.stateTimer = 30;
+        } else {
+          this.x += (dx / dist) * rampedSpeed * myTimeScale;
+          this.y += (dy / dist) * rampedSpeed * myTimeScale;
+        }
+        break;
+      }
+
+      // Beam channel — continuous line-segment toward the player, tick
+      // damage every ~6 frames, implemented as a boss.js-local per-frame
+      // overlap check (not reusing the player's own beam function) —
+      // self-contained, same shape as the Phase 3 aura below.
+      case 'beam_channel': {
+        this.y = BOSS_Y;
+        this.facing = player.x > this.x ? 1 : -1;
+        const beamW = 700;
+        const beamRect = {
+          x: this.facing === 1 ? this.x + this.width : this.x - beamW,
+          y: this.y - 4, width: beamW, height: this.height + 8,
+        };
+        this._beamRect = beamRect;
+        this.beamTick -= myTimeScale;
+        if (this.beamTick <= 0 && typeof rectsOverlap === 'function' && rectsOverlap(beamRect, player) &&
+            player.invincibleTimer <= 0 && !player.phaseDashing) {
+          player.takeDamage(1);
+          this.beamTick = 6;
+        }
+        if (this.stateTimer <= 0) {
+          this._beamRect = null;
+          this.state = 'staggered';
+          this.stateTimer = 32;
+        }
+        break;
+      }
+
       case 'dead':
         break;
     }
@@ -413,23 +759,37 @@ class Boss {
         this.auraTick = 0;
       }
     }
+
+    // Visual bridge to game/animdata.js (2026-07-20, enemy_attack_
+    // vocabulary_plan.md's anim_editor bridging) — additive, same
+    // fallback rule as the player/ComposedEnemy: an ANIM_DEFS key drawn in
+    // editor/anim_editor.html under `boss_<state>` (see bossAnimStateKey()
+    // below) overrides the procedural draw() below it; nothing authored
+    // means zero behavior change. Guarded exactly like ComposedEnemy's own
+    // hook so an unauthored boss costs nothing and never spams Animator's
+    // no-animation-named console.warn.
+    this._animKey = this.bossAnimStateKey();
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      this.animator.play(this._animKey);
+      this.animator.update(_globalTS);
+    }
   }
 
-  startCharge() {
-    // Telegraph: crouch for 40 frames, then rush
-    const dir = (player.x > this.x + this.width / 2) ? 1 : -1;
-    this.chargeVx = dir * 10;
-    this.telegraph = {
-      type: 'charge',
-      dir,
-      timer: 40,
-      duration: 40,
-    };
-    this.state = 'attacking';
-    this.stateTimer = 45;
-    this.attackCooldown = this.phase === 3 ? 20 : 35;
+  // `boss_<attack-or-state>` convention — this.telegraph.type is the real
+  // per-attack identifier, falling back to this.state when no attack is
+  // telegraphed.
+  bossAnimStateKey() {
+    if (this.dead) return 'boss_dead';
+    if (this.telegraph) return `boss_${this.telegraph.type}`;
+    return `boss_${this.state}`;
   }
 
+  // ── Attack selection ─────────────────────────────────────────────────
+  // Phase 1: restrained kit — precognition (readPlayerTell/precogCounter)
+  // carries most of the real threat; this roll is baseline pressure between
+  // reads. Phase 2+: full kit except Stillpoint (Phase 3 reserves its own
+  // high-priority slot below). Adaptation bias (existing system) nudges the
+  // roll toward whichever approach the player under-uses.
   pickAttack() {
     if (this.attackCooldown > 0) {
       this.attackCooldown--;
@@ -438,47 +798,59 @@ class Boss {
       return;
     }
 
-    // ── Adaptation bias ──────────────────────────────────────────────────
-    const prefersRange = this.adapt.rangedHits > this.adapt.meleeHits + 4;
-    const prefersMelee = this.adapt.meleeHits > this.adapt.rangedHits + 4;
-
-    let wCharge  = 0.18;
-    let wSlam    = 0.38;
-    let wBarrage = 0.60;
-    let wNova    = 0.78;
-
-    if (prefersRange)  { wCharge += 0.10; wSlam += 0.06; }
-    if (prefersMelee)  { wCharge -= 0.06; wSlam -= 0.06; wBarrage -= 0.06; }
-    if (this.phase === 3) { wCharge += 0.06; wBarrage -= 0.06; }
-
-    const roll = Math.random();
-
-    if (this.phase === 3 && roll < 0.13 && !this.ultimateActive) {
-      this.startUltimate();
+    // Phase 3: Stillpoint gets a reserved high-priority slot, checked
+    // first, on its own long cooldown — a centerpiece move, not just
+    // another roll in the table.
+    if (this.phase === 3 && !this.bossStillpointActive && this.bossStillpointCooldown <= 0 && Math.random() < 0.4) {
+      this.startBossStillpoint();
       return;
     }
 
-    const teleportThresh = (prefersRange || this.adapt.dashCount > 8) ? 0.26 : 0.18;
-    if (this.phase >= 2 && roll < teleportThresh) {
+    const prefersRange = this.adapt.rangedHits > this.adapt.meleeHits + 4;
+    const prefersMelee = this.adapt.meleeHits > this.adapt.rangedHits + 4;
+
+    // Current spacing to the player, on top of the style-adaptation above —
+    // she reads the fight moment-to-moment as well as the long-run pattern.
+    // Positive bias pushes the roll toward the ranged end of each table
+    // (she's far, no reason to walk into melee range this cycle); negative
+    // pushes toward the close end (she's already on top of the player).
+    const bossCX = this.x + this.width / 2;
+    const distNow = Math.abs((player.x + player.width / 2) - bossCX);
+    const distBias = distNow > 320 ? 0.14 : distNow < 150 ? -0.14 : 0;
+
+    if (this.phase >= 2 && Math.random() < 0.12) {
       this.startTeleport(this.arenaWidth);
       return;
     }
 
-    if (roll < wCharge) {
-      this.startCharge();
-    } else if (roll < wSlam) {
-      this.startGroundSlam();
-    } else if (roll < wBarrage) {
-      this.startProjectileBarrage();
-    } else if (roll < wNova && this.phase >= 2) {
-      this.startNova();
-    } else {
-      this.startTripleShot();
+    if (this.phase === 1) {
+      let r = Math.random();
+      if (prefersRange) r -= 0.15;
+      r += distBias;
+      if (r < 0.35) this.startMeleeSwing();
+      else if (r < 0.75) this.startShardShot();
+      else this.startPhaseDash();
+      return;
     }
+
+    // Phase 2+ — full kit (Stillpoint itself is Phase 3-only, above).
+    let r = Math.random();
+    if (prefersMelee) r += 0.08;
+    if (prefersRange) r -= 0.08;
+    r += distBias;
+    if (r < 0.18) this.startMeleeSwing();
+    else if (r < 0.36) this.startChargedHeavy();
+    else if (r < 0.50) this.startDashChain();
+    else if (r < 0.64) this.startReversedVoidTether();
+    else if (r < 0.82) this.startShardShot();
+    else if (r < 0.92) this.startBeamChannel();
+    else this.startWallBurst();
   }
 
+  // Generalized landing motion — short telegraph then a fast surge. Reused
+  // by the counter-Stillpoint response (any phase, via precogCounter) and
+  // by the old Phase-3-only reactive trigger above (update()'s spNow check).
   _startLunge(player) {
-    // Short telegraph then a fast surge — occurs in Phase 3 when player uses Stillpoint
     this.teleportFlash = 12;
     const dir = player.x > this.x ? 1 : -1;
     this.lungeVx = dir * 11;
@@ -488,61 +860,125 @@ class Boss {
     this.surgeCooldown = 180;
   }
 
-  // NOTE: pickAttack() is defined above (line ~394) and must NOT be redefined here.
-  // The version above includes: charge rush, Stillpoint surge tracking, adaptation
-  // weighting, and Phase 3 escalation. This comment replaces the old duplicate
-  // that was accidentally shadowing it.
-
-  startGroundSlam() {
-    const slamX = player.x + player.width / 2 - 60;
-    this.telegraph = {
-      type: 'slam',
-      x: Math.max(20, Math.min(slamX, 760)),
-      y: 370,
-      w: 120,
-      h: 20,
-      timer: 45,
-      duration: 45
-    };
+  // ── Melee combo — short telegraph (~14f, an arrogant flourish, not
+  // silence), directional hitbox (forward/up/down) scaled ~1.8x off the
+  // player's own attackVFX boxes for her size. ─────────────────────────
+  startMeleeSwing() {
+    const cy = this.y + this.height / 2;
+    const above = player.y + player.height / 2 < cy - 40;
+    const below = player.y + player.height / 2 > cy + 40;
+    this.meleeDir = above ? 'up' : below ? 'down' : 'forward';
+    this.facing = player.x > this.x ? 1 : -1;
+    this.telegraph = { type: 'melee', dir: this.meleeDir, timer: 14, duration: 14 };
     this.state = 'attacking';
-    this.stateTimer = 50;
-    this.attackCooldown = this.phase === 3 ? 25 : 40;
+    this.stateTimer = 20;
+    this.attackCooldown = this.phase === 1 ? 55 : 30;
+    if (typeof SFX !== 'undefined') SFX.bossTelegraph();
   }
 
-  startProjectileBarrage() {
-    const count = this.phase === 3 ? 6 : this.phase === 2 ? 5 : 4;
-    this.telegraph = {
-      type: 'barrage',
-      targets: [],
-      timer: 50,
-      duration: 50
-    };
-    // Aim projectiles at player position with spread
-    for (let i = 0; i < count; i++) {
-      const angle = (i / (count - 1)) * Math.PI - Math.PI / 2;
-      const tx = this.x + this.width / 2 + Math.cos(angle) * 100 - 10;
-      const ty = this.y + this.height / 2 + Math.sin(angle) * 80 - 10;
-      this.telegraph.targets.push({ x: tx, y: ty, w: 20, h: 20 });
+  // ── Charged Heavy — long telegraph (~40f, escalating glow), big hitbox
+  // on release. See attackDefs.heavy for the tuned knockback. ──────────
+  startChargedHeavy() {
+    this.facing = player.x > this.x ? 1 : -1;
+    this.telegraph = { type: 'heavy', timer: 40, duration: 40 };
+    this.state = 'attacking';
+    this.stateTimer = 46;
+    this.attackCooldown = this.phase === 3 ? 55 : 80;
+    if (typeof SFX !== 'undefined') SFX.bossTelegraphSlam();
+  }
+
+  // ── Dash-Chain (offensive) — burst velocity, chainable up to 3 legs,
+  // ends in the existing punishable staggered state. ───────────────────
+  startDashChain() {
+    const dir = (player.x > this.x + this.width / 2) ? 1 : -1;
+    this.chargeVx = dir * 11;
+    this.telegraph = { type: 'dash_chain', dir, timer: 26, duration: 26 };
+    this.state = 'attacking';
+    this.stateTimer = 32;
+    this.attackCooldown = this.phase === 3 ? 20 : 40;
+    this._chainLegsRemaining = 2; // up to 2 more legs after this one = 3 total
+    if (typeof SFX !== 'undefined') SFX.bossTelegraphCharge();
+  }
+
+  // ── Phase-Dash (defensive) — short burst + brief invincibility, no
+  // stagger after. Dashes AWAY from the player (reposition/escape, unlike
+  // Dash-Chain's toward-player aggression). ────────────────────────────
+  startPhaseDash() {
+    const dir = (player.x > this.x + this.width / 2) ? -1 : 1;
+    this.phaseDashInvuln = 13;
+    this.vx = dir * 13;
+    this.state = 'phase_dash';
+    this.stateTimer = 16;
+    this.attackCooldown = 20; // short — an escape tool, shouldn't lock her out of acting
+    this._activeAttack = null;
+    if (typeof SFX !== 'undefined' && SFX.bossTeleportOut) SFX.bossTeleportOut();
+  }
+
+  // ── Wall-Burst — edge-triggered reposition with a vertical arc, only
+  // fires when actually near an arena wall (retreat-driven); silently
+  // falls back to idle otherwise so pickAttack() never wastes the roll on
+  // an impossible activation. ───────────────────────────────────────────
+  startWallBurst() {
+    const nearLeftWall = this.x <= 60;
+    const nearRightWall = this.x >= (this.arenaWidth || 900) - this.width - 60;
+    if (!nearLeftWall && !nearRightWall) {
+      this.state = 'idle';
+      this.stateTimer = 20;
+      return;
     }
-    this.state = 'attacking';
-    this.stateTimer = 60;
-    this.attackCooldown = this.phase === 3 ? 35 : 50;
+    const dir = nearLeftWall ? 1 : -1;
+    this.vx = dir * 11;
+    this.wallBurstArcTimer = 20;
+    this.phaseDashInvuln = 10;
+    this.state = 'wall_burst';
+    this.stateTimer = 26;
+    this.attackCooldown = 40;
+    if (typeof SFX !== 'undefined' && SFX.wallJump) SFX.wallJump();
   }
 
-  startTripleShot() {
-    this.telegraph = {
-      type: 'triple',
-      targets: [
-        { x: this.x + this.width / 2 - 80, y: this.y + 20, w: 50, h: 20 },
-        { x: this.x + this.width / 2 - 10, y: this.y, w: 50, h: 20 },
-        { x: this.x + this.width / 2 + 30, y: this.y + 20, w: 50, h: 20 }
-      ],
-      timer: 40,
-      duration: 40
-    };
+  // ── Reversed Void Tether (Phase 2+) — visible corrupted-tether telegraph
+  // (reddish, not the player's teal) for a fair warning window, then
+  // accelerates toward the player (see 'tether_arrival' state above).
+  startReversedVoidTether() {
+    this.telegraph = { type: 'tether', timer: 35, duration: 35 };
+    this.state = 'attacking';
+    this.stateTimer = 40;
+    this.attackCooldown = this.phase === 3 ? 70 : 100;
+    if (typeof SFX !== 'undefined') SFX.bossTelegraphCharge();
+  }
+
+  // ── Shard Shot — short aim-beat telegraph, one aimed projectile.
+  // damage/knockback set directly on the pushed object — the concrete case
+  // the damage-plumbing fix exists for on the projectile side. ─────────
+  startShardShot() {
+    this.telegraph = { type: 'shard', timer: 22, duration: 22 };
+    this.state = 'attacking';
+    this.stateTimer = 30;
+    this.attackCooldown = this.phase === 1 ? 90 : 55; // restrained cadence Phase 1, full cadence Phase 2+
+    if (typeof SFX !== 'undefined') SFX.bossTelegraphTriple();
+  }
+
+  // ── Beam channel (Phase 2+) — repurposes the old Ultimate beam's
+  // telegraph shape; the actual channel is the 'beam_channel' state above.
+  startBeamChannel() {
+    this.telegraph = { type: 'beam_telegraph', timer: 45, duration: 45 };
     this.state = 'attacking';
     this.stateTimer = 50;
-    this.attackCooldown = 35;
+    this.attackCooldown = this.phase === 3 ? 90 : 130;
+    if (typeof SFX !== 'undefined') SFX.bossTelegraphUltimate();
+  }
+
+  // ── Phase 3 Stillpoint — the real centerpiece. Nova's old radial-burst
+  // VFX becomes the activation burst (cosmetic particles only now, not a
+  // damaging attack roll); the actual slow is driven by
+  // bossStillpointActive/Timer, read by game.js's gameTimeScale assignment
+  // and by player.timeScale. ────────────────────────────────────────────
+  startBossStillpoint() {
+    this.telegraph = { type: 'stillpoint_burst', timer: 55, duration: 55 };
+    this.state = 'attacking';
+    this.stateTimer = 65;
+    this.attackCooldown = 40; // her own post-burst acting cooldown — the slow itself runs on bossStillpointTimer/Cooldown separately
+    if (typeof SFX !== 'undefined' && SFX.bossTelegraphNova) SFX.bossTelegraphNova();
   }
 
   startTeleport(arenaWidth) {
@@ -553,156 +989,9 @@ class Boss {
     this.state = 'teleporting';
     this.stateTimer = 25;
     this.attackCooldown = 40;
+    if (typeof SFX !== 'undefined') SFX.bossTeleportOut();
     // Vanish
     this.x = -200;
-  }
-
-  startNova() {
-    this.telegraph = {
-      type: 'nova',
-      x: this.x + this.width / 2,
-      y: this.y + this.height / 2,
-      radius: 120,
-      timer: 55,
-      duration: 55
-    };
-    this.state = 'attacking';
-    this.stateTimer = 65;
-    this.attackCooldown = this.phase === 3 ? 50 : 70;
-  }
-
-  startUltimate() {
-    this.ultimateActive = true;
-    this.ultimateCharge = 60;
-    this.ultimateDir = this.facing;
-    this.telegraph = {
-      type: 'ultimate_charge',
-      x: this.x,
-      y: this.y - 10,
-      w: this.width,
-      h: this.height + 20,
-      timer: 60,
-      duration: 60
-    };
-    this.state = 'attacking';
-    this.stateTimer = 130;
-    this.attackCooldown = 120;
-  }
-
-  executeAttack() {
-    if (!this.telegraph) return;
-    const t = this.telegraph;
-
-    if (t.type === 'slam') {
-      // Fire a wide projectile that hits the slam zone
-      bossProjectiles.push({
-        x: t.x, y: t.y,
-        vx: 0, vy: 0,
-        width: t.w, height: t.h,
-        life: 20, gravity: false,
-        type: 'slam'
-      });
-      // Bounce effect
-      this.y = BOSS_Y - 15;
-      setTimeout(() => { this.y = BOSS_Y; }, 100);
-    }
-
-    if (t.type === 'barrage') {
-      for (const target of t.targets) {
-        const dx = target.x + 10 - (this.x + this.width / 2);
-        const dy = target.y + 10 - (this.y + this.height / 2);
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        bossProjectiles.push({
-          x: this.x + this.width / 2 - 6,
-          y: this.y + this.height / 2 - 6,
-          vx: (dx / dist) * 4,
-          vy: (dy / dist) * 4,
-          width: 12, height: 12,
-          life: 180, gravity: false,
-          type: 'orb'
-        });
-      }
-    }
-
-    if (t.type === 'triple') {
-      for (const target of t.targets) {
-        const dx = target.x + 25 - (this.x + this.width / 2);
-        const dy = target.y + 10 - (this.y + this.height / 2);
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        bossProjectiles.push({
-          x: this.x + this.width / 2 - 5,
-          y: this.y + this.height / 2 - 5,
-          vx: (dx / dist) * 3.5,
-          vy: (dy / dist) * 3.5,
-          width: 10, height: 10,
-          life: 150, gravity: false,
-          type: 'orb'
-        });
-      }
-    }
-
-    if (t.type === 'nova') {
-      const count = 12;
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        bossProjectiles.push({
-          x: this.x + this.width / 2 - 6,
-          y: this.y + this.height / 2 - 6,
-          vx: Math.cos(angle) * 3,
-          vy: Math.sin(angle) * 3,
-          width: 12, height: 12,
-          life: 150, gravity: false,
-          type: 'nova'
-        });
-      }
-    }
-
-    if (t.type === 'ultimate_charge') {
-      // Transition to firing
-      this.ultimateCharge = 0;
-      // Fire the beam as a wide projectile
-      const beamX = this.ultimateDir === 1 ? this.x + this.width : this.x - 200;
-      bossProjectiles.push({
-        x: beamX,
-        y: this.y - 5,
-        vx: this.ultimateDir * 5,
-        vy: 0,
-        width: 200,
-        height: this.height + 10,
-        life: 100,
-        gravity: false,
-        type: 'beam'
-      });
-    }
-
-    if (t.type === 'charge') {
-      // Launch the charge — boss slides into 'charging' state
-      this.state = 'charging';
-      this.stateTimer = 38; // max frames for charge (stops at wall edge automatically)
-      this.vx = this.chargeVx;
-      // Double charge in Phase 2+
-      if (this.phase >= 2) {
-        this._pendingDoubleCharge = true;
-      }
-      if (typeof SFX !== 'undefined') SFX.bossHit();
-      return; // state already set, don't fall through to idle below
-    }
-
-    // After non-charge attacks, enter a short stagger (vulnerable window)
-    if (t.type === 'slam' || t.type === 'barrage' || t.type === 'nova') {
-      setTimeout(() => {
-        if (!this.dead && this.state === 'attacking') {
-          this.state = 'staggered';
-          this.stateTimer = 28;
-        }
-      }, 200);
-    }
-
-    // Teleport arrival
-    if (this.state === 'teleporting') {
-      this.x = this.teleportTarget.x;
-      this.y = this.teleportTarget.y;
-    }
   }
 
   doSummon() {
@@ -713,6 +1002,97 @@ class Boss {
     };
   }
 
+  executeAttack(player, bossProjectiles) {
+    if (!this.telegraph) return;
+    const t = this.telegraph;
+
+    if (t.type === 'melee') {
+      this._activeAttack = 'melee_' + t.dir;
+      this._activeAttackTimer = 10;
+      if (typeof SFX !== 'undefined') SFX.bossHit();
+    }
+
+    if (t.type === 'heavy') {
+      this._activeAttack = 'heavy';
+      this._activeAttackTimer = 14;
+      this.y = BOSS_Y - 15;
+      this._heavyDipTimer = 7; // ~120ms at 60fps — frame counter, not setTimeout (see update())
+      if (typeof screenShake !== 'undefined') {
+        screenShake = Math.max(screenShake, 16);
+        screenShakeIntensity = Math.max(screenShakeIntensity, 8);
+      }
+      if (typeof SFX !== 'undefined') SFX.bossHit();
+    }
+
+    if (t.type === 'shard') {
+      const dx = (player.x + player.width / 2) - (this.x + this.width / 2);
+      const dy = (player.y + player.height / 2) - (this.y + this.height / 2);
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      bossProjectiles.push({
+        x: this.x + this.width / 2 - 6,
+        y: this.y + this.height / 2 - 6,
+        vx: (dx / dist) * 5,
+        vy: (dy / dist) * 5,
+        width: 12, height: 12,
+        life: 160, gravity: false,
+        type: 'orb',
+        damage: 1,
+        knockback: { vx: 4, vy: -3, hitStun: 10 },
+      });
+    }
+
+    if (t.type === 'stillpoint_burst') {
+      if (typeof spawnParticles !== 'undefined') {
+        spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#f87171', 18);
+        spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#fde68a', 12);
+      }
+      if (typeof screenShake !== 'undefined') {
+        screenShake = Math.max(screenShake, 30);
+        screenShakeIntensity = Math.max(screenShakeIntensity, 8);
+      }
+      this.bossStillpointActive = true;
+      this.bossStillpointTimer = 150; // ~2.5s — a real centerpiece window
+      this.bossStillpointCooldown = 420;
+      this.hitEffects.push({
+        x: this.x + this.width / 2, y: this.y - 40,
+        text: '"You think stillness belongs to you?"',
+        life: 140, color: '#fde68a',
+      });
+      if (typeof SFX !== 'undefined' && SFX.bossStillpointStart) SFX.bossStillpointStart();
+    }
+
+    if (t.type === 'dash_chain') {
+      this.state = 'charging';
+      this.stateTimer = 34;
+      this.vx = this.chargeVx;
+      this._activeAttack = 'dash_chain';
+      if (typeof SFX !== 'undefined') SFX.bossHit();
+      return; // state already set, don't fall through to idle below
+    }
+
+    if (t.type === 'tether') {
+      this.state = 'tether_arrival';
+      this.stateTimer = 90; // safety cap — normal arrival resolves well before this via distance check
+      this._tetherPullTimer = 0;
+      this._activeAttack = 'tether_arrival';
+      return;
+    }
+
+    if (t.type === 'beam_telegraph') {
+      this.state = 'beam_channel';
+      this.stateTimer = 90; // ~1.5s channel
+      this.beamTick = 0;
+      return;
+    }
+
+    // After melee/heavy/shard, enter a short stagger (vulnerable window) —
+    // ~200ms at 60fps, driven by the frame counter in update() above.
+    if (t.type === 'melee' || t.type === 'heavy' || t.type === 'shard') {
+      this._staggerDelayTimer = 12;
+    }
+
+  }
+
   draw(ctx) {
     if (this.dead && this.deathTimer > 60) return;
 
@@ -720,7 +1100,7 @@ class Boss {
     if (this.dead) {
       const deathProgress = this.deathTimer / 60;
       ctx.globalAlpha = Math.max(0, 1 - deathProgress);
-      
+
       // Fragment body on death - draw scattered pieces
       if (this.deathTimer > 0) {
         const fragmentCount = Math.min(12, Math.floor(this.deathTimer / 3));
@@ -749,8 +1129,9 @@ class Boss {
       ctx.globalAlpha *= 0.5;
     }
 
-    // Invulnerability flash
-    if (this.invulnerable) {
+    // Invulnerability flash (parry-stun invuln + the new Phase-Dash/
+    // Wall-Burst i-frames both read as the same visual tell)
+    if (this.invulnerable || this.phaseDashInvuln > 0) {
       ctx.globalAlpha *= (Math.sin(frameCount * 0.4) * 0.4 + 0.5);
     }
 
@@ -780,33 +1161,55 @@ class Boss {
       ctx.fill();
     }
 
-    // Ultimate charge glow
-    if (this.ultimateActive && this.ultimateCharge > 0) {
-      const chargePulse = Math.sin(frameCount * 0.2) * 0.3 + 0.5;
-      ctx.fillStyle = `rgba(255, 50, 50, ${chargePulse})`;
+    // Phase 3 Stillpoint activation — escalated presentation, a harsher/
+    // bigger pulse than the ordinary phase-3 aura above.
+    if (this.bossStillpointActive) {
+      const pulse = Math.sin(frameCount * 0.25) * 0.2 + 0.35;
+      ctx.strokeStyle = `rgba(248, 113, 113, ${pulse})`;
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(cx, cy, 40 + Math.sin(frameCount * 0.15) * 15, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.arc(cx, cy, 140 + Math.sin(frameCount * 0.12) * 16, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+
+    // Beam channel — continuous line-segment visual
+    if (this.state === 'beam_channel' && this._beamRect) {
+      const b = this._beamRect;
+      ctx.fillStyle = 'rgba(255, 40, 40, 0.75)';
+      ctx.fillRect(b.x, b.y, b.width, b.height);
+      ctx.fillStyle = 'rgba(255, 200, 200, 0.85)';
+      ctx.fillRect(b.x, b.y + b.height * 0.3, b.width, b.height * 0.4);
     }
 
     // Idle bob animation
     const idleBob = this.state === 'idle' ? Math.sin(frameCount * 0.04) * 2 : 0;
 
-    // Body
-    const bodyColor = this.phase === 3 ? '#f87171' : this.phase === 2 ? '#c084fc' : '#8b5cf6';
-    ctx.fillStyle = bodyColor;
-    ctx.fillRect(this.x + 4, this.y + 4 + idleBob, this.width - 8, this.height - 8);
+    // Body/Core/Eyes — visual bridge to game/animdata.js (see update()'s
+    // hook comment). Additive: falls back to the original procedural
+    // body/core/eyes draw exactly as before when no `boss_<state>` key is
+    // authored. Every overlay above and below this block (aura, teleport
+    // vortex, phase shimmer, lunge trail) still draws regardless — same
+    // "overlays are separate from body art" rule the player/ComposedEnemy
+    // bridges already use.
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      this.animator.draw(ctx);
+    } else {
+      const bodyColor = this.phase === 3 ? '#f87171' : this.phase === 2 ? '#c084fc' : '#8b5cf6';
+      ctx.fillStyle = bodyColor;
+      ctx.fillRect(this.x + 4, this.y + 4 + idleBob, this.width - 8, this.height - 8);
 
-    // Core
-    ctx.fillStyle = '#e0d4ff';
-    ctx.fillRect(this.x + 12, this.y + 12 + idleBob, this.width - 24, this.height - 24);
+      // Core
+      ctx.fillStyle = '#e0d4ff';
+      ctx.fillRect(this.x + 12, this.y + 12 + idleBob, this.width - 24, this.height - 24);
 
-    // Eyes — white during lunge (Stillpoint counter-lunge tell), red otherwise
-    const eyeIsWhite = this.state === 'lunging' || this.teleportFlash > 0;
-    ctx.fillStyle = eyeIsWhite ? '#ffffff' : '#ff3333';
-    const eyeY = this.y + 18 + idleBob;
-    ctx.fillRect(this.x + 14, eyeY, 6, 4);
-    ctx.fillRect(this.x + this.width - 20, eyeY, 6, 4);
+      // Eyes — white during lunge (Stillpoint counter-lunge tell), red otherwise
+      const eyeIsWhite = this.state === 'lunging' || this.teleportFlash > 0;
+      ctx.fillStyle = eyeIsWhite ? '#ffffff' : '#ff3333';
+      const eyeY = this.y + 18 + idleBob;
+      ctx.fillRect(this.x + 14, eyeY, 6, 4);
+      ctx.fillRect(this.x + this.width - 20, eyeY, 6, 4);
+    }
 
     // Phase 3: faint shimmer outline showing Stillpoint immunity
     if (this.phase >= 3) {
@@ -859,50 +1262,84 @@ class Boss {
     const t = this.telegraph;
     const progress = 1 - t.timer / t.duration;
 
-    if (t.type === 'slam') {
-      const alpha = progress < 0.7 ? 0.3 : 0.6;
-      const flash = progress >= 0.7 ? (Math.sin(frameCount * 0.5) * 0.3 + 0.3) : 0;
-      ctx.fillStyle = `rgba(248, 113, 113, ${alpha + flash})`;
-      ctx.fillRect(t.x, t.y, t.w, t.h);
-      // Warning symbol
-      if (progress >= 0.7) {
-        ctx.fillStyle = '#ff6b6b';
-        ctx.font = 'bold 16px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('!', t.x + t.w / 2, t.y - 5);
-      }
-    }
-
-    if (t.type === 'barrage' || t.type === 'triple') {
-      for (const target of t.targets) {
-        const alpha = progress < 0.7 ? 0.2 : 0.5;
-        ctx.fillStyle = `rgba(251, 191, 36, ${alpha})`;
-        ctx.beginPath();
-        ctx.arc(target.x + target.w / 2, target.y + target.h / 2, target.w / 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    if (t.type === 'nova') {
-      const alpha = progress < 0.7 ? 0.15 : 0.4;
-      ctx.strokeStyle = `rgba(251, 191, 36, ${alpha})`;
-      ctx.lineWidth = 2;
+    if (t.type === 'melee') {
+      const alpha = 0.2 + progress * 0.4;
+      ctx.fillStyle = `rgba(196, 181, 253, ${alpha})`;
+      const cx = this.x + this.width / 2, cy = this.y + this.height / 2;
+      const r = 14 + progress * 24;
+      const ox = t.dir === 'up' ? 0 : t.dir === 'down' ? 0 : this.facing * 40;
+      const oy = t.dir === 'up' ? -40 : t.dir === 'down' ? 40 : 0;
       ctx.beginPath();
-      ctx.arc(t.x, t.y, t.radius * progress, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.lineWidth = 1;
+      ctx.arc(cx + ox, cy + oy, r, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    if (t.type === 'charge') {
-      // Red horizontal arrow showing the charge direction, growing as timer runs
+    if (t.type === 'heavy') {
+      // Escalating glow — grows and brightens across the full 40f windup.
+      const cx = this.x + this.width / 2, cy = this.y + this.height / 2;
+      const pulse = Math.sin(frameCount * 0.3) * 0.15 + 0.25;
+      ctx.fillStyle = `rgba(255, 80, 80, ${pulse + progress * 0.4})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 20 + progress * 60, 0, Math.PI * 2);
+      ctx.fill();
+      if (progress > 0.75) {
+        ctx.fillStyle = `rgba(255, 80, 80, ${(progress - 0.75) * 4})`;
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('HEAVY', cx, this.y - 14);
+      }
+    }
+
+    if (t.type === 'shard') {
+      const alpha = progress < 0.6 ? 0.2 : 0.5;
+      ctx.fillStyle = `rgba(103, 232, 249, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 8 + progress * 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (t.type === 'tether') {
+      // Corrupted (reddish, not the player's teal) tether warning line.
+      const cx = this.x + this.width / 2, cy = this.y + this.height / 2;
+      const pcx = player.x + player.width / 2, pcy = player.y + player.height / 2;
+      const alpha = 0.15 + progress * 0.35;
+      ctx.strokeStyle = `rgba(248, 113, 113, ${alpha})`;
+      ctx.lineWidth = 2 + progress * 2;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(pcx, pcy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1;
+      if (progress > 0.7) {
+        ctx.fillStyle = `rgba(248, 113, 113, ${(progress - 0.7) * 3})`;
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('TETHER', cx, this.y - 14);
+      }
+    }
+
+    if (t.type === 'beam_telegraph') {
+      const alpha = 0.3 + Math.sin(frameCount * 0.3) * 0.15;
+      const w = 60 + progress * 100;
+      const x = this.facing === 1 ? this.x + this.width : this.x - w;
+      ctx.fillStyle = `rgba(255, 30, 30, ${alpha})`;
+      ctx.fillRect(x, this.y - 6, w, this.height + 12);
+      ctx.fillStyle = '#ff4040';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('BEAM', this.x + this.width / 2, this.y - 14);
+    }
+
+    if (t.type === 'dash_chain') {
+      // Red horizontal arrow showing the dash direction, growing as timer runs.
       const arrowLen = 80 + progress * 120;
       const arrowX = t.dir === 1 ? this.x + this.width + 8 : this.x - 8 - arrowLen;
       const arrowY = this.y + this.height / 2;
       const alpha = 0.3 + progress * 0.6;
       ctx.fillStyle = `rgba(248, 50, 50, ${alpha})`;
-      // Arrow body
       ctx.fillRect(arrowX, arrowY - 5, arrowLen, 10);
-      // Arrowhead
       ctx.beginPath();
       if (t.dir === 1) {
         ctx.moveTo(arrowX + arrowLen,     arrowY);
@@ -914,28 +1351,22 @@ class Boss {
         ctx.lineTo(arrowX + 14, arrowY + 12);
       }
       ctx.fill();
-      // Warning text on final frames
       if (progress > 0.75) {
         ctx.fillStyle = `rgba(255, 80, 80, ${(progress - 0.75) * 4})`;
         ctx.font = 'bold 11px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('CHARGE', this.x + this.width / 2, this.y - 12);
+        ctx.fillText('DASH', this.x + this.width / 2, this.y - 12);
       }
     }
 
-    if (t.type === 'ultimate_charge') {
-      const alpha = 0.4 + Math.sin(frameCount * 0.3) * 0.2;
-      ctx.fillStyle = `rgba(255, 30, 30, ${alpha})`;
-      ctx.fillRect(t.x - 10, t.y, t.w + 20, t.h);
-      // Charge bar
-      const chargePct = 1 - this.ultimateCharge / 60;
-      ctx.fillStyle = '#ff2020';
-      ctx.fillRect(t.x, t.y - 8, t.w * chargePct, 4);
-      // Arrow
-      ctx.fillStyle = '#ff4040';
-      ctx.font = 'bold 14px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(this.ultimateDir === 1 ? '>>> DANGER <<<' : '<<< DANGER >>>', t.x + t.w / 2, t.y - 14);
+    if (t.type === 'stillpoint_burst') {
+      const alpha = 0.15 + Math.sin(frameCount * 0.3) * 0.1;
+      ctx.strokeStyle = `rgba(251, 191, 36, ${alpha + progress * 0.3})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 120 * progress, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
     }
 
     ctx.textAlign = 'left';

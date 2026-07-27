@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Audio A/B Tester</title>
+<style>
+  :root {
+    --bg1: #1a0b2e;
+    --bg2: #16213e;
+    --accent-region: #4cc9f0;
+    --accent-boss: #f72585;
+    --accent-sfx: #ffb703;
+    --text: #f1f1f6;
+    --muted: #b8b8d0;
+    --card-bg: rgba(255,255,255,0.06);
+    --card-border: rgba(255,255,255,0.12);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    background: radial-gradient(circle at 10% 0%, #2d1b4e 0%, var(--bg1) 45%, var(--bg2) 100%);
+    background-attachment: fixed;
+  }
+  header {
+    padding: 28px 32px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(180deg, rgba(26,11,46,0.97) 60%, rgba(26,11,46,0.85));
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--card-border);
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 26px;
+    background: linear-gradient(90deg, var(--accent-region), var(--accent-boss), var(--accent-sfx));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .tabs { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .tab-btn {
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 9px 18px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .tab-btn:hover { transform: translateY(-1px); }
+  .tab-btn.active[data-tab="regions"] { background: var(--accent-region); color: #06202b; box-shadow: 0 4px 18px rgba(76,201,240,0.4); }
+  .tab-btn.active[data-tab="bosses"] { background: var(--accent-boss); color: #2b0616; box-shadow: 0 4px 18px rgba(247,37,133,0.4); }
+  .tab-btn.active[data-tab="enemy_sfx"] { background: var(--accent-sfx); color: #2b1c00; box-shadow: 0 4px 18px rgba(255,183,3,0.4); }
+  .toolbar { display: flex; gap: 12px; margin-top: 14px; align-items: center; flex-wrap: wrap; }
+  .toolbar button {
+    border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+    cursor: pointer; background: var(--card-bg); color: var(--text); border: 1px solid var(--card-border);
+    transition: background 0.15s;
+  }
+  .toolbar button:hover { background: rgba(255,255,255,0.15); }
+  .toolbar .stat { font-size: 12px; color: var(--muted); }
+
+  main { padding: 24px 32px 80px; max-width: 1400px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+  .entity-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 18px 20px;
+    animation: fadeIn 0.35s ease both;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .entity-card h2 { margin: 0 0 4px; font-size: 17px; }
+  .entity-card .desc { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; line-height: 1.4; }
+  .region .entity-card { border-left: 4px solid var(--accent-region); }
+  .boss .entity-card { border-left: 4px solid var(--accent-boss); }
+  .enemy_sfx .entity-card { border-left: 4px solid var(--accent-sfx); }
+
+  .candidate {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    transition: background 0.15s;
+  }
+  .candidate:hover { background: rgba(0,0,0,0.32); }
+  .candidate audio { flex: 1; height: 32px; }
+  .candidate .meta { font-size: 11px; color: var(--muted); min-width: 90px; max-width: 130px; }
+  .candidate .meta a { color: var(--muted); text-decoration: none; border-bottom: 1px dotted var(--muted); }
+  .star-btn {
+    border: none; background: transparent; font-size: 20px; cursor: pointer; line-height: 1;
+    filter: grayscale(1) opacity(0.5);
+    transition: transform 0.15s, filter 0.15s;
+  }
+  .star-btn:hover { transform: scale(1.2); }
+  .star-btn.picked { filter: none; transform: scale(1.1); }
+  .empty-note { color: var(--muted); font-size: 12px; font-style: italic; padding: 6px 0; }
+  .no-candidates { opacity: 0.6; }
+
+  footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(10,5,20,0.9);
+    border-top: 1px solid var(--card-border);
+    padding: 10px 32px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--muted);
+    backdrop-filter: blur(6px);
+  }
+  footer button {
+    background: linear-gradient(90deg, var(--accent-region), var(--accent-boss));
+    border: none; color: #06060c; font-weight: 700; padding: 9px 20px;
+    border-radius: 999px; cursor: pointer; font-size: 13px;
+  }
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
+</style>
+</head>
+<body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
+<header>
+  <h1>Audio A/B Tester</h1>
+  <p>Every region, boss, and enemy hit-sound in the game — with its mood/description — plus new candidates to audition against the current pick. Click a star to shortlist a favorite. Nothing here changes the live game.</p>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="regions">Regions</button>
+    <button class="tab-btn" data-tab="bosses">Bosses</button>
+    <button class="tab-btn" data-tab="enemy_sfx">Enemy Hit Sounds</button>
+  </div>
+  <div class="toolbar">
+    <button id="exportBtn">⭳ Export picks.json</button>
+    <button id="clearBtn">Clear all picks</button>
+    <span class="stat" id="pickCount">0 picks saved</span>
+  </div>
+</header>
+<main id="main"></main>
+<footer>
+  <span id="footerHint">Picks are saved automatically in this browser (localStorage) as you go — export any time.</span>
+</footer>
+
+<script>
+let manifest = null;
+let picks = {}; // entityKey -> { candidateId: true }
+let currentTab = 'regions';
+let currentAudio = null;
+
+const STORAGE_KEY = 'audio_ab_tester_picks_v1';
+
+function loadPicks() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    picks = raw ? JSON.parse(raw) : {};
+  } catch (e) { picks = {}; }
+}
+function savePicks() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(picks));
+  updatePickCount();
+}
+function updatePickCount() {
+  let n = 0;
+  for (const k in picks) n += Object.keys(picks[k]).length;
+  document.getElementById('pickCount').textContent = n + ' pick' + (n === 1 ? '' : 's') + ' saved';
+}
+function isPicked(entityKey, candId) {
+  return !!(picks[entityKey] && picks[entityKey][candId]);
+}
+function togglePick(entityKey, candId) {
+  if (!picks[entityKey]) picks[entityKey] = {};
+  if (picks[entityKey][candId]) delete picks[entityKey][candId];
+  else picks[entityKey][candId] = true;
+  savePicks();
+}
+
+function entityCard(entity, groupClass) {
+  const card = document.createElement('div');
+  card.className = 'entity-card';
+
+  const h2 = document.createElement('h2');
+  h2.textContent = entity.name;
+  card.appendChild(h2);
+
+  const desc = document.createElement('p');
+  desc.className = 'desc';
+  desc.textContent = entity.description || '';
+  card.appendChild(desc);
+
+  // Current live track first, as a reference point — but still pickable (id "__live__")
+  // so "keep what's already there" is a real choice, not just the unlabeled default.
+  if (entity.liveTrack) {
+    const liveRow = document.createElement('div');
+    liveRow.className = 'candidate';
+
+    const star = document.createElement('button');
+    star.className = 'star-btn' + (isPicked(entity.key, '__live__') ? ' picked' : '');
+    star.textContent = '★';
+    star.title = 'Mark as favorite (keep the current live track)';
+    star.onclick = () => {
+      togglePick(entity.key, '__live__');
+      star.classList.toggle('picked');
+    };
+    liveRow.appendChild(star);
+
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.preload = 'none';
+    audio.src = '../' + entity.liveTrack;
+    audio.addEventListener('play', () => {
+      if (currentAudio && currentAudio !== audio) currentAudio.pause();
+      currentAudio = audio;
+    });
+    liveRow.appendChild(audio);
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = '🎧 Current live';
+    liveRow.appendChild(meta);
+
+    card.appendChild(liveRow);
+  } else {
+    const note = document.createElement('div');
+    note.className = 'empty-note';
+    note.textContent = 'No live track yet — this fight/room has no code hook in the game.';
+    card.appendChild(note);
+  }
+
+  if (!entity.candidates || entity.candidates.length === 0) {
+    const note = document.createElement('div');
+    note.className = 'empty-note';
+    note.textContent = 'No new candidates yet for this one — flag it for a deeper research pass.';
+    card.appendChild(note);
+    card.classList.add('no-candidates');
+  } else {
+    entity.candidates.forEach((cand) => {
+      const row = document.createElement('div');
+      row.className = 'candidate';
+
+      const star = document.createElement('button');
+      star.className = 'star-btn' + (isPicked(entity.key, cand.id) ? ' picked' : '');
+      star.textContent = '★';
+      star.title = 'Mark as favorite';
+      star.onclick = () => {
+        togglePick(entity.key, cand.id);
+        star.classList.toggle('picked');
+      };
+      row.appendChild(star);
+
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      audio.preload = 'none';
+      audio.src = '../' + cand.file;
+      audio.addEventListener('play', () => {
+        if (currentAudio && currentAudio !== audio) currentAudio.pause();
+        currentAudio = audio;
+      });
+      row.appendChild(audio);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = (cand.title || '') + '<br>' +
+        (cand.author ? cand.author + ' · ' : '') + (cand.license || '') +
+        (cand.sourceUrl ? ' · <a href="' + cand.sourceUrl + '" target="_blank" rel="noopener">src</a>' : '');
+      row.appendChild(meta);
+
+      card.appendChild(row);
+    });
+  }
+
+  return card;
+}
+
+function render() {
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'grid ' + (currentTab === 'regions' ? 'region' : currentTab === 'bosses' ? 'boss' : 'enemy_sfx');
+  const list = manifest[currentTab] || [];
+  list.forEach((entity) => grid.appendChild(entityCard(entity, currentTab)));
+  main.appendChild(grid);
+}
+
+function setTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  render();
+}
+
+document.querySelectorAll('.tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => setTab(btn.dataset.tab));
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(picks, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'picks.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!confirm('Clear all saved picks? This cannot be undone.')) return;
+  picks = {};
+  savePicks();
+  render();
+});
+
+fetch('../assets/audio/candidates/manifest.json')
+  .then((res) => res.json())
+  .then((data) => {
+    manifest = data;
+    loadPicks();
+    updatePickCount();
+    render();
+  })
+  .catch((err) => {
+    document.getElementById('main').innerHTML =
+      '<p style="color:#f72585">Failed to load manifest.json — ' + err + '. Serve this folder over HTTP (not file://) so fetch() can load it.</p>';
+  });
+</script>
+</body>
+</html>

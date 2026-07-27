@@ -339,7 +339,11 @@ PHASE 1 — Movement & Combat Overhaul
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 2 — Enemies & Smarter AI
 ─────────────────────────────────────────────────────────────────────────────
-[ ] 2.1 Pit Avoidance (extend to all enemy types)
+[~] 2.1 Pit Avoidance — LARGELY DONE (corrected 2026-07-17, was [ ]).
+      `hasFootingAhead()` (enemy.js:57) is used by the base Enemy patrol/
+      chase, BlitzGuard, and the composed-enemy system, so grounded enemies
+      already stop at ledges. Verify coverage for any bespoke class that
+      hand-rolls movement before calling this fully closed.
 [x] 2.2 New Enemy: Lancer — built as **Void Lancer** per the expansion.md
       roster note above. `VoidLancer` class in enemy.js (6 HP, slow approach,
       34f glowing-spear-tip telegraph → 10px/f charging thrust, 2 dmg).
@@ -399,10 +403,16 @@ PHASE 2 — Enemies & Smarter AI
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 3 — Final Boss Overhaul
 ─────────────────────────────────────────────────────────────────────────────
-[ ] 3.1 Parry Mechanic (Boss)
+[~] 3.1 Parry Mechanic (Boss) — PARTIAL (corrected 2026-07-17, was [ ]).
+      The boss already has a parry-stun state (boss.js:164 "Stunned by parry
+      — skip all actions"). What's missing is the fuller mechanic/telegraphs
+      described below.
 [ ] 3.2 Repulsion Field
 [ ] 3.3 Double Stillpoint Lunge
-[ ] 3.4 Phase 3 — Desperation Mode
+[~] 3.4 Phase 3 — Desperation Mode — PARTIAL (corrected 2026-07-17, was
+      [ ]). A real phase 3 exists (boss.js: ultimate, faster attack/summon
+      cooldowns, red tint). The "desperation" escalation beat specifically is
+      what's still open.
 [ ] 3.5 Telegraph Clarity (Visual + Audio)
 [ ] 3.6 Anti-Facetank Pass (fixes current "just walk up and mash Z" problem)
       - PROBLEM (verified in boss.js/player.js): player ATTACK_COOLDOWN is 18
@@ -479,7 +489,10 @@ PHASE 4 — World Restructure: Non-Linear Map
 ─────────────────────────────────────────────────────────────────────────────
 PHASE 5 — Extra Depth & Polish
 ─────────────────────────────────────────────────────────────────────────────
-[ ] 5.1 Input Remapping Menu
+[x] 5.1 Input Remapping Menu — DONE (corrected 2026-07-17, was [ ]).
+      `keyBindings` + localStorage persistence in input.js, and a real
+      Controls screen in game.js (~line 2033): navigate rows, Enter/click to
+      rebind, last row resets to defaults.
       - NOTE (honest read on current controls, verified in input.js/player.js):
         controls are NOT currently remappable — everything is hardcoded
         e.model.code checks. Also, Z alone currently has to carry tap-attack,
@@ -1020,7 +1033,9 @@ PHASE 8 — Core Ability Reworks (expansion.md §0) — first 2 items
         doc's spec exactly (1.5x / +1 hp per hit) but haven't been felt out
         in a real fight against the King or a miniboss.
 
-NEXT SESSION SHOULD:
+NEXT SESSION SHOULD [HISTORICAL — written after Phase 8; superseded by
+"WHAT'S ACTUALLY NEXT" at the end of this file. Kept for the reasoning,
+not as a task list.]:
   - Doors still render as a floating trigger box, not a natural cave-mouth
     passage — the "invisible door" visual request from this session's
     feedback is not done, only the fall-death/gap-closing part is. That's a
@@ -1036,10 +1051,9 @@ NEXT SESSION SHOULD:
     (unlike `var`/function declarations) never becomes a `window` property,
     so `win.AREAS` from the parent frame is undefined. R09 works because it
     calls `win.validateAreaGraph()`, a function declaration, which does
-    attach to `window`. Fix would be adding `window.AREAS = AREAS;` (or
-    similar) at the bottom of area.js, or having debug_v1.html read AREAS
-    some other way — not done this session since it's a debug-tool-only
-    issue, not a gameplay bug.
+    attach to `window`. [RESOLVED — `window.AREAS = AREAS` is now at the
+    bottom of area.js. The related `win.abilityState is undefined` gap is
+    still open; see CLAUDE.md's known debug-tool issues.]
     before the next region ships — it would have caught 3 of the 4 bugs
     found this session automatically instead of by hand.
   - ~~Decide whether to fix the King's stuck-deathTimer/victory bug~~ —
@@ -1248,7 +1262,9 @@ PHASE 9 — Debug Tool Fix + Map Skeleton: 3 Anchor Regions (2026-07-12)
         the user to confirm scope before starting since it's a second tool
         comparable in size to levelEditor.html itself, not a quick add-on.
 
-NEXT SESSION SHOULD (updated after Phase 10 — see that section for detail):
+NEXT SESSION SHOULD [HISTORICAL — written after Phase 10; superseded by
+"WHAT'S ACTUALLY NEXT" at the end of this file. Several items here are now
+done (Void Tether shipped in Phase 16/19). Kept for the reasoning.]:
   - **Highest priority — two flagged balance issues need a deliberate pass
     before more content is built on top of them**: BUG-013 (Stillpoint
     blocks attacking, so its own offensive buff can't trigger) and BAL-001
@@ -1278,7 +1294,9 @@ NEXT SESSION SHOULD (updated after Phase 10 — see that section for detail):
     §4, key `T`, 1 Fracture Pip) — a grapple-hook ability (hit an enemy to
     pull them toward you; hit a wall/ceiling to pull yourself toward it),
     tied to the not-yet-built companion/story system (a miniboss dilemma in
-    The Polar Shift). Not implemented anywhere in code; newer conceptually
+    The Polar Shift). [STALE as of 2026-07-17 — Void Tether IS implemented:
+    ability.js flag + player.js firing + combo.js action; its pickup is
+    Timeline X Roads Rm 2.] Newer conceptually
     than Graviton Surge (expansion.md Phase 1), which is itself still
     unbuilt.
   - **PLANNED: `level_designer.html`** (not built yet — noted per the user's
@@ -1322,7 +1340,9 @@ NEXT SESSION SHOULD (updated after Phase 10 — see that section for detail):
 PHASE 10 — Task 5: 5 New Enemies + Enemy Editor (2026-07-12)
 ─────────────────────────────────────────────────────────────────────────────
 [x] 5 new enemies, all in enemy.js, chosen to work with abilities already
-    built (Phase Dash, Shard Shot) rather than the unbuilt Graviton Surge:
+    built (Phase Dash, Shard Shot) rather than Graviton Surge [which as of
+    2026-07-17 IS implemented — ability.js constants/cooldown/canActivate,
+    game.js ABILITY_GRANTS + save/load, player.js graviton state]:
       - **Null Sentinel** (Phase Dash counter, expansion.md 2.3 #29) —
         extends Enemy, reuses the base chase/patrol/attack AI via
         `super.update()`. Alternates phaseable (dim, 30% alpha) / solid
@@ -1612,10 +1632,11 @@ this was the one place actual gameplay physics disagreed with the linter's
     only)" so it doesn't read as a hard bound anymore. Canvas height is no
     longer capped at 900px — tall rooms scroll within the already-
     `overflow:auto` `#wrap` container instead of being squashed to fit.
-[ ] NOT done: no existing room actually uses `roomHeight` yet (all 27 stay
-    on the groundY+100 fallback) — this phase only builds the capability.
-    Building an actual deep/tall room to prove it out in real gameplay
-    (not just the editor/Node-linter level) is still open.
+[x] DONE 2026-07-17 (Phase 20): 71 of 72 rooms now set `roomHeight`, sized
+    from the world board — the capability built here is fully in use (tall
+    shafts like the_fracture_part1 1000x2821 and chrono_rift_loop2
+    1133x5947). Still unproven in real gameplay by a human (headless
+    validation only).
 
 PHASE 14 — `ceiling: true` Platform Flag (2026-07-12)
 ─────────────────────────────────────────────────────────────────────────────
@@ -1983,8 +2004,10 @@ especially Stillpoint Lv4 (unresolved root cause), Void Tether, and the
 wall bounce.
 
 ────────────────────────────────────────────────────────────────────────
-PHASE 17 — Systems build-out: physics, AI, cutscenes, combos, healing,
+PHASE 19 — Systems build-out: physics, AI, cutscenes, combos, healing,
 the Child, and 4 new editors (2026-07-16, same day as Phase 16)
+(renumbered 2026-07-17: was a second 'PHASE 17', clashing with the
+Phase 16 follow-up section above)
 ────────────────────────────────────────────────────────────────────────
 The single largest batch of new systems yet — user green-lit "everything we
 just planned" (Plans/child_companion_system_plan.md,
@@ -2147,7 +2170,9 @@ MANUAL TEST CHECKLIST (browser, human — the no-browser rule stands):
    + "?" before it engages; in a fight, watch for windup-timing variance.
    Knock an enemy into a wall — hard bounce + particles; enemies should
    stop at walls/ceilings, never perch on wall tops.
-3. Void Tether: new pickup in Mirror Corridor; R pulls the RING-marked
+3. Void Tether: pickup is in Timeline X Roads Rm 2, on the "give up the
+   Child" branch (moved out of Mirror Corridor 2026-07-17 — the board is the
+   source of truth); R pulls the RING-marked
    enemy (always in front); R with nothing in front = quick fizzle, ~20f
    cooldown; near a wall with no enemy = grapple to the wall.
 4. NullSentinel (enemy_test.html): frontal light hits clank off its guard;
@@ -2173,3 +2198,1281 @@ MANUAL TEST CHECKLIST (browser, human — the no-browser rule stands):
    window to 10f, Save, verify it's now hard to trigger; Clear overrides),
    hud_editor (drag hearts to top-center, Save, boot game → moved; Reset),
    levelEditor (draw Solid Wall + Ceiling pieces, check the legend/export).
+
+═══════════════════════════════════════════════════════════════════════════
+PHASE 20 — SVG-driven level scaffold (2026-07-17)
+═══════════════════════════════════════════════════════════════════════════
+
+[x] Rebuilt every room in `area.js` from the Whimsical board (`svg.txt`) +
+    `floor_plan.md`, as a re-runnable generator: `Plans/rebuild_levels_from_svg.js`.
+    - **Sizes** are board-proportional via a "ruler" (median SVG box → ~1300px;
+      `K≈2.305` px per SVG unit). True 2D: both `width` and `roomHeight` scale.
+      Void Expanse Rm 1 is now the giant it should be (5753×3043); tall board
+      boxes became tall shafts (the_fracture_part1 1000×2821; chrono_rift_loop2
+      is a vertical shaft); the Vault is very wide (8740). Teleport-gate stubs
+      kept small (600w).
+    - **Topology repaired.** The old graph was 544 validator errors / 222 warns
+      (col/row had drifted out of sync with door directions; 54 missing reverse
+      doors). Regenerated `col`/`row` via BFS spanning-tree over the authored
+      directions, synthesized the 20 missing reverse doors, and marked 53
+      long/non-grid-adjacent links as `shortcut` (the "fast tunnels" the board's
+      long connector lines imply). Result: **0 errors, 0 warnings** from both
+      `validateAreaGraph()` and `validateAllRoomLayouts()` (verified headless,
+      no browser).
+    - **Directions** come from the board geometry where unambiguous; the board
+      is topological (couldn't draw advanced shapes), so it's authoritative for
+      *which rooms connect* and *rough layout*, and directions were kept sane
+      per-room. Every door is a **floor-level walk-in doorway** for now (always
+      reachable → shells stay valid before any platforming exists); vertical
+      (N/S) and secondary doors carry `edgeExempt` so the compass validator
+      still passes. Arrival points (`toX/toY`) land you just above the target
+      room's floor at the matching return doorway.
+    - **Placeables** are doc-driven from `floor_plan.md` node annotations:
+      **6 cosmetic upgrades**, **18 lore pips**, **4 fracture pips**, and the
+      **6 ability grants** — counts taken straight off the board (annotation
+      lines like "(1 Lore Pip)"; "(locked by 4 Fracture Pips and 10 Lore Pips)"
+      is a GATE on that room, not a placement, and is skipped).
+      - Lore pips are `loreFragments[]` entries — that array IS the live lore-pip
+        system (`game.js` collects each one into `collectedLore` and banks it
+        toward the Inventory stat upgrades via `lorePipsBanked()`; `LORE_ENABLED`
+        only gates the *old text-popup* path, not collection). New ones carry
+        `text: 'TODO: lore pip text'` to fill in. A first pass wrongly invented a
+        separate `lorePipRewards[]` array — removed.
+      - Ability grants: exactly **6 abilities** exist on the board — charged
+        attack (Crag Altar), Phase Dash (Mirror Veil Sanctum), Shard Shot
+        (Crystal Cavern), Stillpoint (Chrono Rift Sanctum), Graviton Surge
+        (Graviton Core Rm 2), **Void Tether (Timeline X Roads Rm 2, on the
+        "give up the Child" branch — NOT Mirror Corridor; corrected 2026-07-17)**.
+        The board owns each grant, so an ability can only ever live in one room.
+        The other 4 pickups in `area.js` (3 max-health upgrades + Level 4 Limit
+        Break) are upgrades, not abilities, and are left where they were.
+      - Cosmetic upgrades are still inert placeholders (no runtime code reads
+        them) — same status as the note at the top of `area.js`.
+    - **"Stillpoints" = rest/checkpoint anchors:** every room gets one near its
+      entrance; wide rooms (>2600 / >5200) get a 2nd/3rd; minibosses keep an
+      entrance anchor. 89 anchors total.
+    - **Enemies left empty** (`enemies: []`) on purpose — encounter design is by
+      hand. Platforms are just a full-width floor per room — the tall rooms are
+      empty canvases above that floor, ready to build up into.
+    - `enemy_test_arena` (dev room, no col/row) left untouched.
+    - The minimap is unaffected: `map.js` draws from `MAP_LAYOUT_SVG` (board
+      positions, already covers all rooms), not `col`/`row`, so the BFS grid's
+      cell collisions are validation-only and invisible in game.
+
+⚠️ **RE-RUNNING THE GENERATOR OVERWRITES `area.js`.** It is a one-time
+scaffold. Once you start hand-designing rooms (platforms, enemies, moving
+doors up into real vertical shafts, tuning arrival points), do NOT re-run
+`rebuild_levels_from_svg.js` — it will blow away that work. Re-run it only if
+you re-export the board and want to regenerate the scaffold from scratch. It
+writes an `area.js.bak` first and the previous version is always in git.
+
+Known items left for the human pass (not bugs — design surface):
+  - Doors start at floor level; drag N/S doors up to the ceiling and build the
+    platforming climb when you make a room a true vertical shaft.
+  - `cosmeticUpgrades[]` exists as data but has no runtime collection/effect
+    code yet (lore + fracture pips DO both work).
+  - `floor_plan.md` specifies entry gates that aren't wired as door `requires`
+    (e.g. Mirror Corridor's `child_choice_resolved`, and Void Tether being
+    granted only if the Child was given up). These were deliberately NOT added
+    as `requires:` strings — `isRequirementMet()` returns false for unknown
+    requirement names, so adding one before the flag is implemented would
+    silently soft-lock the door. Wire the flag in code first, then the gate.
+
+
+═══════════════════════════════════════════════════════════════════════════
+WHAT'S ACTUALLY NEXT  (audited against code 2026-07-17 — SINGLE SOURCE)
+═══════════════════════════════════════════════════════════════════════════
+
+This replaces the two older "NEXT SESSION SHOULD" blocks above, which are now
+marked HISTORICAL. Every claim below was verified against the code, not
+carried over from an older entry.
+
+── BALANCE (NOT code bugs — corrected 2026-07-17) ─────────────────────────
+Both were previously listed here as "blocking bugs". That was wrong:
+[x] BUG-013 — the CODE bug is FIXED (2026-07-12): the `!this.stillpointActive`
+    guards were removed from all four attack/charge/parry gates. Verified
+    2026-07-17 — nothing in player.js/game.js gates attacking on
+    `stillpointActive` today (the one remaining guard is in `gainFracture()`,
+    which is intentional anti-chaining).
+[ ] What's actually left is a BALANCE question needing a human playtest:
+    Stillpoint now stacks free attacking + 1.5x damage + lifesteal + slow-time
+    with only the Fracture drain as a cost. Levers if it's too strong: lower
+    the 1.5x, cap lifesteal to once per swing, or shorten duration per pip.
+[ ] BAL-001 — Phase Dash strength: likewise a tuning judgement, not a defect.
+    Neither blocks level design. Tune whenever; rooms aren't tuned so tightly
+    that a later pass invalidates them.
+
+── LEVEL DESIGN IS UNBLOCKED, WITH THESE GAPS ─────────────────────────────
+[ ] NO ENEMIES ARE PLACED ANYWHERE. All 72 rooms have `enemies: []`. This was
+    already true in committed HEAD before the Phase 20 scaffold — the Phase 20
+    rebuild did not remove any. (CLAUDE.md's claim that 5 enemies are "placed
+    in AREAS" is FALSE; corrected 2026-07-17.) Still true 2026-07-21: 18
+    enemy types are now built and spawnable (10 as of this note, +8 more
+    2026-07-21 — see expansion.md Phase 2's status update) — placing them
+    is the level-design work, still entirely undone.
+[ ] Doors are all floor-level walk-in doorways. Rooms with big `roomHeight`
+    are empty canvases above a single floor — drag N/S doors up and build the
+    platforming climb to turn one into a real vertical shaft.
+[ ] The Child-choice WARNING does not exist. `CLAUDE.md`'s "irreversible,
+    consent-gated choices" throughline requires an explicit "are you sure"
+    before a permanent commitment. Void Tether's grant (Timeline X Roads Rm 2,
+    "give up the Child" branch) is permanent with NO confirmation today. The
+    real Child-choice cutscene is the open item that would carry it.
+[ ] `cosmeticUpgrades[]` — 6 placed as data, no runtime collection/effect code.
+    (Lore pips and fracture pips DO both work.)
+[ ] Entry gates named on the board (e.g. Mirror Corridor's
+    `child_choice_resolved`) are NOT wired as door `requires:`. Don't add them
+    until the flag exists in code — `isRequirementMet()` returns false for
+    unknown requirement strings, which would silently soft-lock the door.
+
+── VERIFIED NOT BUILT (safe to treat as real TODOs) ───────────────────────
+[ ] 2.6 Enemy health bars        — no healthBar code anywhere.
+[ ] 2.7 Enemy windup audio "ping" — no cue code.
+[ ] 2.5 Group coordination / adaptive aggression.
+[ ] 2.8 Enemy architecture rework (composable behaviors) — the motivating
+    case for 2.1 and for the remaining ~19 planned enemies.
+[ ] 4.5 Fast travel — no fastTravel code, though the board marks fast-travel
+    rooms and Sovereign's Observatory "unlocks fast travel".
+[ ] 5.1b Gamepad support — no Gamepad API usage anywhere.
+[ ] 5.2 Advanced reactive audio (+ 5.2a SFX sandbox, to build first).
+[ ] The remaining 10 of 13 regions, the 8 minibosses, and ~19 of the enemy
+    roster in expansion.md.
+
+── HUMAN-EYES-ONLY (cannot be closed headlessly; the no-browser rule) ─────
+[x] CONFIRMED IN BROWSER 2026-07-17 by the user. Console reads:
+      [compass graph] validated OK — 72 rooms
+      [room linter] all 71 rooms passed layout checks
+    (was 544 errors / 222 warnings before Phase 20). 72 vs 71 is correct:
+    the compass graph counts every room, the layout linter skips
+    enemy_test_arena, which has no col/row. The live runtime agrees with the
+    headless Node validation, so the Phase 20 scaffold is verified for real.
+[ ] Playtest the 5 Phase 10 enemies + BlitzGuard for feel.
+[ ] Confirm the Task 4 region decoration actually looks good.
+[ ] Confirm debug_v1.html R10/R11 pass in a real browser.
+
+── DOC HYGIENE NOTE ───────────────────────────────────────────────────────
+Phase numbering had two "PHASE 17" and two "PHASE 18" sections; the later two
+were renumbered to 19 and 20 on 2026-07-17. Phase 2's checkboxes were stale
+because the enemy work that actually happened was logged under Phases 10/16/19
+and never fed back — BlitzGuard is built but appears in no Phase 2 item.
+When finishing work, update the phase section AND this list.
+
+═══════════════════════════════════════════════════════════════════════════
+Phase 21 — Runtime platform behaviours: hazard/oneWay/moving/crumble (2026-07-17)
+═══════════════════════════════════════════════════════════════════════════
+
+[x] Four new platform flags, authored per-platform in area.js, wired through
+    the shared collision path (physics.js), the player loop (player.js), and
+    new systems in game.js. Verified with a headless physics harness (no
+    browser); room linter stays 0 errors / 0 warnings.
+    - `hazard: true, damage: 1` — trigger volume, NEVER solid (can sit on top
+      of a real floor); damages on overlap, throttled by the player's own
+      i-frames. Drawn as red spikes. Excluded from the linter's standable set.
+    - `oneWay: true` — land on top from above; jump up through from below;
+      down+jump while standing on it drops through (12-frame armed timer,
+      player.dropThroughTimer). Drawn with a dashed top edge. Counts as
+      standable in the linter.
+    - `moving: { toX, toY, speed }` — oscillates between the authored (x,y)
+      anchor and (toX,toY); carries whatever has standingPlat === it by the
+      same per-frame delta. Runtime state is derived from _baseX/_baseY and
+      reset on room entry, so re-entering never accumulates drift. Measured at
+      its anchor by the linter (can't simulate motion). Bluish tint.
+    - `crumble: true, crumbleDelay: 30, respawn: 120` — falls away
+      crumbleDelay frames after being stood on; returns after respawn frames
+      (0 = never). Counts as standable (a timing route, not absent floor).
+    - New player fields: `standingPlat` (set by both collision paths) and
+      `dropThroughTimer`. New game.js fns: updatePlatformSystems(),
+      applyHazardDamage(), resetPlatformRuntime() (called on switchArea, both
+      the leaving and entering room).
+[ ] Not done: enemies don't yet respect moving-platform carry or drop-through
+    (they use resolveEntityCollision, which now sets standingPlat and skips
+    hazards/oneWay-sides correctly, but nothing carries a standing enemy).
+    Fine for now — no enemies are placed yet.
+[ ] Not verified in a browser (the no-browser rule) — headless physics sim
+    only. Confirm feel (drop-through responsiveness, moving-platform carry
+    smoothness, hazard i-frame cadence) in real play.
+
+═══════════════════════════════════════════════════════════════════════════
+Phase 22 — levelEditor: placeable + platform-type UI (2026-07-17)
+═══════════════════════════════════════════════════════════════════════════
+
+[x] editor/levelEditor.html now has full place/drag/select/delete/inspect for
+    the placeables that were previously invisible in the editor (present in
+    data, only via the generic exporter):
+    - Fracture Pip (✦, key F), Healing Crystal (✚, key H), Cosmetic Upgrade
+      (✿, key K) — new tools, draw markers, hit-testing, outliner entries,
+      property panels, arrayFor/delete/paste wiring.
+[x] Platform inspector gained checkboxes for the Phase 21 runtime flags:
+    oneWay, hazard (+damage), crumble (+delay/respawn), moving (+toX/toY/
+    speed). Platforms render with per-type tint + a moving-platform path ghost
+    so the behaviour is visible while authoring. Toggling a flag reveals its
+    sub-fields immediately.
+[x] Export unaffected — the generic jsLit serializer already round-trips every
+    field; verified the extracted editor script is syntax-clean (node --check).
+[ ] Not done: no drag handle for a moving platform's TARGET position yet (edit
+    toX/toY numerically for now). Vertical-shaft door snapping is Phase 23.
+
+═══════════════════════════════════════════════════════════════════════════
+Phase 23 — Room design-progress tracker (2026-07-17)
+═══════════════════════════════════════════════════════════════════════════
+
+[x] Plans/room_progress.js — read-only Node CLI classifying every room as
+    SHELL / started / designed from design signals (platforms beyond the one
+    generated floor, enemies placed, doors moved off the floor line or up to a
+    ceiling = real vertical shaft, placeables/anchors moved off default Y).
+    `--full` adds region/type/size, `--todo` lists only untouched rooms.
+    Currently reports 71/71 SHELL (nothing hand-designed yet) — the baseline.
+    Verified it flips a room to "designed" when platforms/enemies/ceiling-doors
+    are added.
+
+── STILL OPEN from the 2026-07-17 tooling batch ──
+[ ] Child-choice CONFIRMATION mechanism (was going to be Phase 24). Needs a
+    new branching/`choice` step in cutscene.js (linear-only today) + a warned
+    yes/no prompt (input + render + save/load of the resulting flags), then a
+    Void-Tether give-up-the-Child cutscene that uses it. Deferred: it's a
+    narrative-gameplay feature, likely the user's own design work — build the
+    generic `choice` mechanism if asked, leave the specific beat to them.
+[ ] levelEditor moving-platform target drag handle + vertical-shaft door
+    snapping (snap a door to ceiling/floor, auto-drop edgeExempt when it's on
+    its true edge, warn on unreachable doors). Editor polish, lower urgency.
+
+═══════════════════════════════════════════════════════════════════════════
+Status catch-up (2026-07-21) — work done 07-18 through 07-21 that landed
+in other docs' own inline status updates and was never folded back here
+═══════════════════════════════════════════════════════════════════════════
+Per the DOC HYGIENE NOTE above (Phase 2 folding-back miss), this is the same
+failure mode again — several docs got their own dated status updates but
+this changelog's tail wasn't updated to match. Recording it here now;
+future work should still update the relevant Phase section AND this file.
+
+[x] `game/attackVFX.js` (2026-07-19, broadened same day) — shared player
+    VFX/hitbox math extracted out of player.js/ability.js so
+    `anim_editor.html`'s "Dissect from current game" button and
+    `animdata.js`'s POSE_RENDERERS can reuse the exact same shapes/hitboxes
+    as the legacy fallback draw path. New file, not yet listed in CLAUDE.md's
+    architecture map — add it there (loads alongside player.js/ability.js).
+[x] `editor/ability_tester.html` (untracked, undated) — a dev tool loading
+    the real game scripts in the same order as index.html; purpose/date not
+    yet documented anywhere. Add a real entry to CLAUDE.md's dev-tooling list
+    once its actual scope is confirmed.
+[x] Enemy Attack Vocabulary (`Plans/enemy_attack_vocabulary_plan.md`,
+    2026-07-19/07-20) — Reversal, Aggro-Pull, The Catch, Tiger Knee,
+    Afterimage Strike, and Mote Eater all built in `enemy.js`/`ability.js`.
+    Reversal still needs the Sword-Clash interrupt-and-punish resolution
+    (attack-hitbox-vs-telegraph-window check on the player side) — see that
+    doc's own tail for the exact remaining scope.
+[x] Animation editor bridge (`Plans/animation_editor_plan.md`, 2026-07-20) —
+    `ComposedEnemy` (enemy.js) and `Boss` (boss.js) both bridged onto
+    `animdata.js`'s `Animator`/`ANIM_DEFS`, same additive/fallback pattern as
+    the player bridge; raster per-frame image uploads (`frame.image`) are
+    fully working in `anim_editor.html`. That doc's "not built" framing is
+    now wrong — see the doc itself for corrected status.
+[x] 8 more enemies (`Plans/expansion.md` §Phase 2, 2026-07-21) — built as
+    `ComposedEnemy` defs; see that doc's own 2026-07-21 status update for
+    which ones and what's still missing (placement in `AREAS`, playtesting).
+[x] Lore/story war-bunker reframe (`lore.md`, `story.md`, 2026-07-21) — the
+    setting was reframed as a far-future war-bunker (sci-fi "magic is
+    misunderstood tech" framing) rather than the earlier fantasy framing.
+    Both docs' own revision-history entries have the full detail; nothing in
+    `area.js`'s live `loreFragments[]` strings has been touched (still
+    LORE_ENABLED = false, docs-only per the existing King→Sovereign
+    precedent above).
+[ ] NOT yet folded back into this doc: whether `regions.md`'s "3 of 13
+    regions built" framing and CLAUDE.md's matching "Current status" bullet
+    still hold after the Phase 20 SVG rebuild scaffolded all ~71 rooms — see
+    `regions.md`'s own 2026-07-21 correction note. Reconcile next session
+    rather than trusting either doc's older wording.
+
+═══════════════════════════════════════════════════════════════════════════
+Difficulty Bot v1 (2026-07-24)
+═══════════════════════════════════════════════════════════════════════════
+[x] `game/agentController.js` + `editor/difficulty_bot.html` — evolves a
+    small fixed-topology feedforward net (weight-only, not full NEAT — see
+    `Plans/difficulty_bot_and_combat_polish_plan.md`'s "Scope cut" note) to
+    play the real game against a customizable enemy roster / boss / miniboss.
+    Reads real `ComposedEnemy.attacks[]`/`.defense` data (the same data
+    `enemy_designer.html` edits) as net inputs, not just position/HP.
+    Fast-forwarded by stubbing `requestAnimationFrame` before `game.js` loads
+    (so its self-starting loop never fires) and calling the real `update()`
+    directly in a tight loop; the best genome of each generation is replayed
+    live (real `update()`+`draw()`, paced by the real rAF captured before the
+    stub) so training is fast but still watchable, per user request.
+[x] `game/area.js`'s `bot_arena` — new dev-only bounded room (floor +
+    ceiling platform, left/right handled by the existing `getBounds()` width
+    clamp already used by every room) so the bot can't discover "run to the
+    edge and kite forever" as a free fitness win. No `col`/`row`, same skip
+    rule as `enemy_test_arena`.
+[x] Registered in `dev_hub.html`'s Combat & Enemies group; `enemy_test.html`'s
+    stale "Bot Difficulty Scorer — planned" note updated to point here.
+    Verified with `node --check` on every touched file (per this repo's
+    standing no-browser-testing rule) — **not yet run in-browser**, so treat
+    the first real run as the actual verification pass, not this note.
+[ ] Not yet done: Part 2 of the same plan doc (centralized `triggerHitImpact`,
+    player attack → `Animator` migration, input buffering) — still just
+    scoped, not built.
+
+═══════════════════════════════════════════════════════════════════════════
+Combat AI review follow-ups (2026-07-24)
+═══════════════════════════════════════════════════════════════════════════
+Two confirmed bugs fixed, plus the first "Composed Enemy Expansions" data
+addition and the Graviton Surge counter-play gap flagged in the same review.
+
+[x] **Ability-cooldown save/load bug.** `phaseDashCooldown`/
+    `shardShotCooldown`/`gravitonSurgeCooldown`/`voidTetherCooldown` were
+    hardcoded to `0` on every load (`game.js` `loadGame()`), so quitting
+    mid-cooldown and reloading gave a free reset. Now persisted in
+    `saveGame()`'s `abilityState` block and restored (clamped to each
+    ability's real max, so a corrupted/old-format save can't hand out a
+    stuck-forever cooldown) in `loadGame()`.
+[x] **Hitstop vs. Stillpoint slow-mo bug.** `hitstopTimer` decremented one
+    raw frame per real frame regardless of `gameTimeScale`, so a hit landing
+    during Stillpoint read as a proportionally shorter freeze than the same
+    hit at normal speed. Added `setHitstop(frames)` (scales the requested
+    duration by `1/gameTimeScale`, capped at `HITSTOP_SLOWMO_MAX_MULT = 2`
+    so deep slow-mo can't turn a hit into a multi-second freeze) and
+    replaced all 18 `hitstopTimer = ...` call sites in `game.js` with it.
+[x] **Generic attack `condition` field** (`enemy_attack_vocabulary_plan.md`'s
+    "Conditional Triggers" section) — any attack def can now set
+    `condition: 'player_airborne' | 'player_grounded' | 'player_low_hp' |
+    'near_wall' | 'has_allies'` and `ComposedEnemy._decideActiveAttack()`
+    won't offer it as a candidate unless true (`_evalCondition()`,
+    `enemy.js`). `near_wall` reads `this._wallNormal`, now cached each frame
+    off `resolveEnemyPhysics()`'s return value (previously discarded).
+    Generalizes `requiresAirborne` (kept as-is, still Tiger Knee's own gate)
+    instead of adding another one-off boolean per condition.
+[x] **Graviton Surge counter-play gap fixed.** `COUNTER_EFFECTS.graviton_surge`
+    was a literal no-op (`null_field`) with a stale comment claiming the
+    ability "doesn't exist in the game yet" — it's been fully built since
+    Phase 19. Replaced with **Ground Stomp**: an enemy carrying this counter
+    is skipped by the ceiling-pin/slam loop entirely and instead fires a
+    ground-level shockwave once per active flip (while in
+    `GRAVITON_SURGE_RANGE`), damaging/knocking the player back regardless of
+    which side of the flip they're on. Cached as `enemy.groundStomp` at
+    construction (same pattern as `armored`/`reflectsProjectiles`). Exposed
+    in `enemy_designer.html`'s `COUNTER_UI.graviton_surge` (was also a
+    `null_field` placeholder there).
+[x] **Crystal Sentinel migrated to ComposedEnemy** (2026-07-24, user request:
+    "add crystal sentinel to composed enemy so that all enemies are
+    composed") — the directional shield-HP system that blocked this before
+    (separate HP pool, front-facing melee only, ranged bypasses, auto-regen,
+    break-and-snap-back) is now a generic `def.stats.shield` trait any
+    composed enemy can opt into (`ComposedEnemy` constructor/`takeDamage()`/
+    `update()`/`draw()` in `enemy.js`). Two more generic additions fell out
+    of the same migration: `def.stats.width/height` (every prior composed
+    def used the base 28x28 default) and `MOVEMENT_BEHAVIORS.hover`'s new
+    `verticalTrack` param (chases the player's y, not just a fixed-baseline
+    bob — off by default, Deflector Drone unaffected). Old bespoke
+    `class CrystalSentinel` + its own `updateProjectiles`/`drawProjectiles`/
+    `fireProjectile` removed entirely; `game.js`'s two call sites now just
+    go through `ComposedEnemy.updateProjectiles`/`drawProjectiles` (Crystal
+    Sentinel's shots already flow through `ranged_projectile`/pattern:
+    'homing'). Only non-composed enemies left: the two real minibosses
+    (ColossusCore, FracturedSlime) — separately scoped, see the "Migrated
+    legacy enemy classes" header comment in `enemy.js` for why.
+[ ] Not done from the same review: the base-`Enemy` jump-to-player/jump-a-gap
+    traversal capability (the actual root of the "enemies aren't mobile"
+    complaint — ground enemies currently have zero active verticality, only
+    ledge-stop safety — still true after the Sentinel migration, since it
+    flies rather than walks), role-coordination expansion (tank actively
+    shields allies), and per-attack cooldown + anti-repeat-weighted
+    selection. All still just discussed, not built — good candidates for
+    the next pass.
+[ ] Verified with `node --check` only (per this repo's no-browser-testing
+    rule) — not yet playtested. Manual test plan: (1) save mid-cooldown on
+    any ability, reload, confirm the ring HUD still shows time remaining
+    instead of snapping to ready; (2) land a hit during an active Stillpoint
+    and compare the freeze length to a normal-speed hit — should feel
+    roughly the same weight, not shorter; (3) in `enemy_designer.html`, add
+    `condition: 'player_low_hp'` to an attack and confirm it never fires
+    above ~30% player HP; (4) build a `graviton_surge`/`ground_stomp` enemy,
+    flip gravity near it, confirm it stays grounded (never pins to the
+    ceiling) and the shockwave lands once per flip, not every frame.
+
+═══════════════════════════════════════════════════════════════════════════
+Mobility/evasion pass + a real defense-verb bug (2026-07-24, same day)
+═══════════════════════════════════════════════════════════════════════════
+[x] **Found and fixed: `ComposedEnemy.update()` never called
+    `updateDefense()`.** Block/dodge/breakout/dashPunish (`this.defense`,
+    the whole Phase 19 defense-verb system) have been dead code for every
+    composed enemy since the 2026-07-20 migration — `ComposedEnemy`
+    completely overrides `Enemy.update()` and never calls the inherited
+    method, despite `enemy_designer.html` exposing UI for all four and the
+    constructor still setting `this.defense = def.defense`. Now called right
+    after the `dead` check, same ordering the base class used (before the
+    hit-stun early return, so anti-juggle breakout can still fire mid-juggle).
+    This means every "block/dodge" balance discussion from earlier sessions
+    was theoretical — nothing built on `ComposedEnemy` could have actually
+    exhibited it in play until this fix.
+[x] **Found and fixed while wiring the above: movement AI stomps dodge
+    velocity the same frame it's set.** Every `MOVEMENT_BEHAVIORS` type
+    recomputes `vx` (hover recomputes `vy` too) unconditionally whenever no
+    attack is active, with no check for an in-progress dodge — so a dodge's
+    push would be overwritten before it could move the enemy anywhere (only
+    the vertical hop survived for grounded enemies, since `ground_chase`
+    never touches `vy`). Fixed the same way Aggro-Pull's rage-charge already
+    overrides normal movement: `this.dodgeIFrames > 0` now fully suspends
+    movement AI for the dodge's duration, in both `ComposedEnemy.update()`
+    and the base `Enemy.update()`/`updateMovementIntent()` path.
+[x] **Evasion in flight.** `dodge` was hard-gated on `this.grounded`
+    ([enemy.js] `updateDefense()`), so every flying enemy (Crystal Sentinel,
+    Deflector Drone, Anchor Wraith, Echo Stalker) could never dodge at all.
+    Now branches on `this._movementFlies`: flying gets a lateral+randomized-
+    vertical jink (no ledge check needed, nothing to fall off); grounded
+    keeps the original back-hop. Flying dodge also needed its own position
+    integration (see next item's explanation) since normal movement — where
+    integration usually happens for flying enemies — is exactly what's
+    suspended during the dodge.
+[x] **Jumping.** `MOVEMENT_BEHAVIORS.ground_chase` gained an opt-in
+    (`canJump`, off by default — every existing placement unaffected) two
+    triggers: jump a ledge/gap instead of stopping dead while chasing, and
+    jump toward the player when they're detected above/below the enemy's
+    normal vertical band (using `sight.dx`/`dy`/`verticalOk` directly, not
+    `enemy.aware` — an enemy stuck outside the band never becomes aware in
+    the first place, since that's the same band gating `aware`). This is
+    the actual fix for "enemies aren't mobile" flagged two sessions ago —
+    ground enemies previously had zero active verticality, only ledge-stop
+    safety. Exposed in `enemy_designer.html`.
+[x] **Charging in flight.** `dash_charge` gained `aerial: true`: computes a
+    full 2D vector toward the player at the moment of firing (not
+    mid-flight homing) instead of the ground version's horizontal-only
+    `facing`. Needed two supporting fixes to actually work: (1) flying
+    enemies opt out of ComposedEnemy's generic physics tail entirely and
+    normally self-integrate position inside their movement type's own
+    `run()` — which is skipped while an attack is active, so a flying
+    charger would hold velocity and never move without `onTick` now
+    integrating x/y itself when `_movementFlies`; (2) that same tail is also
+    where grounded enemies get wall/edge collision for free, so the flying
+    path needed its own `bounds` clamp (threaded a new `bounds` param into
+    `onTick`, previously not passed). Exposed in `enemy_designer.html`. No
+    current built enemy has this in its `attacks[]` yet — it's a capability,
+    not yet applied to a named enemy's identity (deliberately not retrofit
+    onto Crystal Sentinel/Deflector Drone/Anchor Wraith, which each have
+    documented, considered movesets already).
+[ ] Verified with `node --check` only (no-browser-testing rule, per
+    `Plans/CLAUDE.md`) — not yet playtested, and this batch is riskier than
+    most (it touches the movement/attack dispatch every composed enemy runs
+    through every frame). Manual test plan: (1) in `enemy_test.html`, spawn
+    any enemy with `defense.dodge` enabled, attack it, confirm it now
+    actually dodges (previously it silently never would); (2) build a
+    `canJump` ground enemy near a low ledge/platform gap and confirm it
+    jumps instead of stopping; (3) place a `canJump` enemy below a platform
+    the player stands on and confirm it jumps up toward the player instead
+    of idling; (4) in `enemy_designer.html`, give a `hover`-movement enemy a
+    `dash_charge` attack with `aerial: true` and confirm it charges
+    diagonally and stays on-screen; (5) give a hover enemy `defense.dodge`
+    and confirm it jukes instead of never triggering.
+
+═══════════════════════════════════════════════════════════════════════════
+Boss buildout — Mirror King + Fractured Sovereign's Guard (2026-07-26)
+═══════════════════════════════════════════════════════════════════════════
+Continues `Plans/continue_boss_buildout_prompt.md`'s roadmap (itself
+continuing the architecture-proving batch that fixed the miniboss spawn bug
+and built the generic phase system + The Conduit). Two more of the 12
+remaining fights, following the doc's "cheapest/most-proven-pattern first,
+one or two at a time" guidance — both are plain `ComposedEnemy` + `phases`
+defs, no new engine work, following `CONDUIT_DEF`'s proven shape.
+
+[x] **The Mirror King** (`hollow_guardian`, `MIRROR_KING_DEF`/`MirrorKing` in
+    `enemy.js`) — Mirror Veil's miniboss. Story doc (`expansion.md` Phase 4
+    #4.1 / `lore.md`'s writeup): evil-by-choice section chief who duplicates
+    himself, the player, and projectiles; once "the real one" is found his
+    copies turn on each other. The literal clone-swarm is scoped down per
+    the plan's own outline (no new clone-entity engine work this pass) —
+    the mirror theme is carried by existing mechanics instead: `counter_stance`
+    (turns a landed player swing back on them), a spread `ranged_projectile`
+    (duplicated shard volleys), and `defense.dodge` (vanity/elusiveness).
+    Phase 2 at 50% HP speeds him up, shortens cooldowns, and thickens the
+    projectile spread — "no more hiding behind tricks," not literal copies.
+    Deliberately NOT knockback-resistant, matching the story doc's own
+    strategy note. Room (`mirror_veil_hollow`) already had
+    `roomType`/`miniboss`/`bossSpawn` authored; music
+    (`BOSS_MUSIC_MAP.hollow_guardian` → `boss_mirror_king.ogg`) was already
+    wired and the asset file already exists on disk — zero new area.js/
+    audio.js work needed.
+[x] **The Fractured Sovereign's Guard** (`graviton_sentinel`,
+    `GRAVITON_GUARD_DEF`/`GravitonGuard` in `enemy.js`) — Graviton Core's
+    miniboss, the one direct Sovereign-thread sympathetic fight (loyalty
+    with no one left to be loyal to). Story doc (`expansion.md` Phase 4
+    #4.4): phase 1 is a shield bash + melee combos, parriable/blockable
+    until the shield breaks; phase 2 hits much harder with huge knockback,
+    moves somewhat faster, resists the player's own knockback, and starts
+    throwing ceiling rubble. Reuses `FRACTURED_KNIGHT_DEF`'s
+    `defense.block` + `stats.shield` template almost directly (same
+    "shield wall that breaks open" archetype) — `dash_charge` is the shield
+    bash, `stats.shield` is the breakable guard, phase 2 patches the
+    dash_charge's knockback way up and adds an `arc` `ranged_projectile`
+    standing in for the rubble drop. Room (`graviton_core_room3`) already
+    had `roomType`/`miniboss`/`bossSpawn` authored; music
+    (`BOSS_MUSIC_MAP.graviton_sentinel` → `boss_graviton_guard.ogg`)
+    already wired, asset already on disk.
+[x] Both registered in `game.js`'s `MINIBOSS_CLASSES` registry (now 4
+    entries: `colossus_core`, `static_guardian`, `hollow_guardian`,
+    `graviton_sentinel`) — no other game.js changes needed, the
+    generalized spawn/combat/defeat block from the earlier architecture
+    pass already handles any registry entry generically.
+[ ] Verified with `node --check` on `game/enemy.js` and `game/game.js`
+    only — no browser testing per `Plans/CLAUDE.md`'s hard rule. Manual
+    test plan: enter `mirror_veil_gate`, confirm `MirrorKing` spawns,
+    fires melee/spread-shard/counter_stance, dodges on your swing startup,
+    and gets faster/denser at 50% HP; enter the Graviton Core boss room,
+    confirm `GravitonGuard` spawns, its shield absorbs melee hits and
+    breaks after enough landed swings (ranged bypasses the shield
+    entirely, per `shieldFacesPoint()`'s existing rules), block triggers
+    reactively on your swing startup, and phase 2's dash bash knocks back
+    much harder and starts throwing gray arc projectiles; confirm both
+    defeats grant +1 Max Health, persist `defeatedMinibosses` through
+    save/reload, and stop/clear their music on leaving the room mid-fight.
+[ ] 7 fights remained after this entry — see the next dated section below
+    for 2 more (The Assembler, The Stationmaster) built the same day.
+
+═══════════════════════════════════════════════════════════════════════════
+Boss buildout — The Assembler + The Stationmaster (2026-07-26, same day)
+═══════════════════════════════════════════════════════════════════════════
+Third pair in the same continuing batch. Both needed a genuinely new piece
+of infrastructure the first four fights didn't — added two small, generic
+extensions to `ComposedEnemy`'s existing phase system (`enemy.js`) rather
+than one-off bespoke code, matching the pattern the whole batch has used
+since the phase system was first built for The Conduit:
+
+[x] **`phaseDef.movement` override** (`_applyPhase()`) — shallow-merges
+    onto the enemy's per-instance `this.movement` clone, same
+    non-destructive pattern `statMultipliers` already uses. A `type` change
+    also recomputes `_movementFlies` so gravity/the physics-tail gating
+    (previously computed once at construction, `enemy.js`'s ctor) stays
+    consistent with the new movement type — this is what lets a phase
+    transition move an enemy from grounded to flying (or retune an existing
+    flying movement's numbers) without a bespoke subclass.
+[x] **`def.spawnOnStart` / `phaseDef.spawn`** (ctor + `_applyPhase()`, via
+    a new shared `_spawnAdds()` method) — pushes N fresh `ComposedEnemy`
+    adds (built from a caller-supplied def, not the boss's own) into the
+    current room's enemy array. Same push-to-`areaEnemies` mechanism
+    `ON_DEATH_EFFECTS.split` already proved, generalized to fire at
+    fight-start or on a phase threshold instead of only on death.
+[x] **The Assembler** (`paradox_engine`, `ASSEMBLER_DEF`/`TheAssembler`) —
+    Paradox Engine's miniboss, open moral axis (the creator herself, still
+    maintaining the shelter's warp fields, per `lore.md`). Story doc
+    (`expansion.md` Phase 4 #4.8): phase 1 a telegraphed slam/shockwave/
+    tracking-beam pattern (`dash_charge` / a 360° spread `ranged_projectile`
+    / `beam`), phase 2 adds portal-assisted flanking. Her `teleport_blink`
+    "portal" runs the whole fight (not just phase 2) and gets faster/
+    further via the new `phaseDef.movement` override at 50% HP, rather than
+    only switching on at a threshold — reads as "always warping, gets
+    worse," matching "punishing anything but patient, cooldown-timed
+    openings" better than a hard on/off would.
+[x] **The Stationmaster** (`timeline_keeper`, `STATIONMASTER_DEF`/
+    `TheStationmaster`) — Timeline Crossroads' miniboss (proposed name,
+    not locked per `lore.md`'s 2026-07-22 entry, which replaced the earlier
+    "Crystalline Warden"/"human but airborne" placeholder summary in
+    `Plans/continue_boss_buildout_prompt.md` with a fuller spec once
+    `expansion.md`'s Phase 4 table was actually read this session). Story
+    doc (#4.11): phase 1 fights via brainwashed-prisoner adds (killable by
+    his own attacks too — needs no special code, they're just as
+    vulnerable to his `dash_charge`/`melee_swing` hitboxes as the player
+    is) while trains/locomotives sweep the arena (a long-range, high-speed
+    `dash_charge`, not a new moving-hazard system); phase 2 he takes to the
+    air, flying and heavily (not fully) knockback-resistant. First real use
+    of `def.spawnOnStart` (3 prisoners, present from fight-start per the
+    doc's own phase-1 placement — see `PRISONER_ADD_DEF`) and of
+    `dash_charge`'s existing-but-previously-unused `aerial: true` mode
+    (flagged unused in the 2026-07-24 mobility-pass entry above — now a
+    real user).
+[x] Both registered in `game.js`'s `MINIBOSS_CLASSES` (now 6 entries).
+    Both rooms (`paradox_engine_room2`, `timeline_x_roads_room2`) already
+    had `roomType: 'miniboss'`/`miniboss`/`bossSpawn` authored; both
+    `BOSS_MUSIC_MAP` entries (`boss_assembler.ogg`, `boss_timeline_crossroads.ogg`)
+    were already wired and the asset files already exist on disk — zero
+    `area.js`/`audio.js` changes needed, same as every fight in this batch.
+[ ] Verified with `node --check` on `game/enemy.js`/`game/game.js` only —
+    no browser testing per `Plans/CLAUDE.md`'s hard rule, and this pair is
+    riskier than the first four (new shared engine hooks, not just new
+    defs). Manual test plan: enter Paradox Engine's boss room, confirm
+    `TheAssembler` spawns and teleport-blinks behind the player
+    periodically the whole fight (not just after 50% HP), confirm her slam/
+    shockwave-burst/tracking-beam all fire and connect, confirm the blink
+    gets visibly faster/further and her cooldowns tighten at 50% HP; enter
+    Timeline Crossroads' boss room, confirm `TheStationmaster` spawns with
+    3 `brainwashed_prisoner` adds already present and that the Stationmaster
+    can hit and kill his own prisoners with his attacks, confirm his
+    locomotive-sweep dash and melee connect, confirm at 50% HP he visibly
+    lifts off the ground into hover movement and his dash_charge becomes a
+    2D aerial charge, confirm he still takes knockback (just much less)
+    rather than reading as fully immune; confirm both defeats grant +1 Max
+    Health (or whatever `game.js`'s generic defeat block already grants —
+    neither def overrides it) and persist through save/reload.
+[ ] 8 fights remain (of the original 12 in `Plans/continue_boss_buildout_prompt.md`'s
+    table, 4 now built): Quantum Pursuer (`abyss_guardian`, needs a real
+    new delayed-player-shadow mechanic), Temporal Warden (`chrono_ally`,
+    needs a new precog-dodge defense concept), Sovereign (moveset
+    alignment pass only, architecture already exists — smaller than the
+    rest), the two engine-mechanic outliers (Gravity Collapse Core's room
+    gravity, Electromagnetic Golem's magnetize — each needs its own
+    `EnterPlanMode` pass before moveset design), Warden & Hollow (duo,
+    needs the small category-specific-defense addition — also smaller than
+    the rest, existing `role`/`applyRoleCoordination` fits it), and the two
+    unbuilt rooms (Void Expanse miniboss, Antechamber/The Child, which also
+    has an unresolved design conflict with Abandoned Shell per `lore.md` —
+    flag that to the user before building it).
+
+═══════════════════════════════════════════════════════════════════════════
+Boss buildout — Quantum Pursuer + Warden & Hollow (2026-07-26, same day)
+═══════════════════════════════════════════════════════════════════════════
+Fourth pair in the same continuing batch — 8 of the original 12 fights now
+built. Both needed genuinely new mechanics the phase-system extensions
+weren't enough for (unlike The Assembler/Stationmaster's pair, which reused
+`phaseDef.movement`/`spawnOnStart`), so this entry adds one real subclass
+and one real new defense verb, each scoped as small and isolated as
+possible:
+
+[x] **Quantum Pursuer** (`abyss_guardian`, `QUANTUM_PURSUER_DEF`/
+    `QuantumPursuer` in `enemy.js`) — Echoing Abyss's miniboss, evil-by-
+    choice. Story doc (`expansion.md` Phase 4 #4.6): releases a 0.5s-
+    delayed shadow of the player's own soul that forces constant movement,
+    while charging soul-powered ranged spells; phase 1 weak to knockback,
+    phase 2 soul-charged/knockback-resistant and covers the field with
+    long-range spells. The delayed-shadow half doesn't fit the existing
+    phase/attack vocabulary at all, so this is a real `ComposedEnemy`
+    subclass — `update()`/`draw()` overrides layered on the shared combat
+    machinery (same "bespoke overlay" shape `Boss`/`ColossusCore` already
+    use), not a data-only def. Mechanism: a 30-frame (~0.5s) FIFO ring
+    buffer of the player's own position, pushed every `update()`; once
+    full, the oldest entry is the shadow's live position, drawn as a
+    translucent silhouette and dealt as real contact damage (its own
+    60-frame hit cooldown, gated on `player.invincibleTimer`). NOT scaled
+    by `gameTimeScale` on purpose — the delay stays roughly wall-clock even
+    during Stillpoint rather than stretching with it (a judgement call, not
+    verified by playtest). Ranged half is the existing `ranged_projectile`
+    homing pattern, intensified to a 3-way spread at 50% HP. Base
+    `knockbackResistance` set to a near-zero 0.05, not a literal 0 — phase
+    2's `knockbackResistanceMult` *multiplies* the existing value
+    (`_applyPhase()`), so a true 0 could never be raised by any multiplier;
+    0.05 still reads as "weak to knockback" while leaving room for phase
+    2's real (not full-immunity) resistance bump.
+[x] **Warden & Hollow** (`warp_guardian`, `WARDEN_DEF`/`HOLLOW_DEF`/
+    `WardenAndHollow` in `enemy.js`) — Warp Gate Nexus's duo miniboss,
+    sympathetic (dutiful gatekeepers whose shift never technically ended,
+    per `lore.md`). Story doc (#4.9): a reactive counter-pair, not fake
+    prediction — Warden guarantees a parry vs. melee only with no other
+    offense; Hollow guarantees a dodge/teleport vs. ranged & ability hits
+    but is vulnerable to melee; strategy is melee Hollow, ranged/Phase Dash
+    Warden, forcing toolkit-switching. `game.js`'s miniboss system only
+    tracks one primary boss entity at a time (`MINIBOSS_CLASSES`/
+    `defeatedMinibosses` are both singular, not arrays), so per this
+    batch's established add-spawning pattern (the Stationmaster's
+    prisoners), **Warden is the registered miniboss and Hollow spawns
+    alongside him via `def.spawnOnStart`** — a second independent
+    `ComposedEnemy` fighting in the same arena, not a second tracked "boss"
+    (her own defeat doesn't independently grant/persist anything — only
+    Warden's does, via the existing generic defeat block). Warden's
+    "guaranteed parry, no other offense" needed zero new engine work:
+    `defense.block` with `chance: 1.0` plus an empty `attacks: []` (already
+    a sanctioned pattern — see Anchor Wraith's "deliberate zero-attack def"
+    precedent) covers it exactly; the existing cooldown gap between guard
+    windows is the real punish opportunity, not a new "guard break"
+    concept. Hollow's half needed a real new **`defense.rangedDodge`**
+    verb (`updateDefense()` in `enemy.js`) — checked every frame
+    (independent of the existing melee-swing-triggered `defense.dodge`),
+    scans the live player-projectile array (`game.js`'s `projectiles`,
+    i.e. Shard Shot — distinct from `ComposedEnemy`'s own enemy-fired
+    array) for anything within range and heading toward the enemy, then
+    reuses `defense.dodge`'s exact i-frame/hop mechanics on a separate
+    trigger. **Deliberately scoped to Shard Shot only** — Void Tether/
+    Graviton Surge "ability hits" from the doc's own wording aren't
+    detected by this verb; flagging honestly rather than over-claiming.
+[x] Both registered in `game.js`'s `MINIBOSS_CLASSES` (now 8 entries).
+    Both rooms (`echoing_abyss_room2`, `warp_gate_nexus_room2`) already
+    had `roomType: 'miniboss'`/`miniboss`/`bossSpawn` authored; both
+    `BOSS_MUSIC_MAP` entries (`boss_quantum_pursuer.ogg`,
+    `boss_warden_hollow.ogg`) already wired and the asset files already
+    exist on disk — zero `area.js`/`audio.js` changes needed, same as
+    every fight in this batch.
+[ ] Verified with `node --check` on `game/enemy.js`/`game/game.js` only —
+    no browser testing per `Plans/CLAUDE.md`'s hard rule, and this pair is
+    the riskiest yet (a real subclass overriding `update()`/`draw()`, plus
+    a new defense verb touching the shared `updateDefense()` every
+    enemy/miniboss runs through). Manual test plan: enter Echoing Abyss's
+    boss room, confirm `QuantumPursuer` spawns, confirm a translucent
+    player-shaped shadow appears trailing roughly half a second behind
+    real movement once ~0.5s has passed, confirm it deals real contact
+    damage without needing to be near the actual boss, confirm her homing
+    bolt fires and that at 50% HP it becomes a 3-way spread with a longer
+    range/shorter cooldown, confirm knockback still visibly moves her in
+    phase 1 and is clearly reduced (not eliminated) in phase 2; enter Warp
+    Gate Nexus's boss room, confirm both `WardenAndHollow` (Warden) and a
+    second `Hollow` enemy are present from the start, confirm Warden raises
+    guard on essentially every melee swing startup while in range/facing
+    him (and that a melee swing during his cooldown gap connects normally),
+    confirm Shard Shot connects on Warden normally (no ranged defense),
+    confirm Hollow hops/evades when a Shard Shot is fired toward her from
+    within ~260px, and confirm melee connects on Hollow normally with no
+    evasion; confirm both fights' defeats behave correctly (Warden's grants
+    +1 Max Health/persists as usual; confirm leaving mid-fight clears
+    Hollow along with everything else in the room, not just Warden).
+[ ] 6 fights remain: Temporal Warden (`chrono_ally` — re-read via
+    `expansion.md`'s #4.3 row this session: NOT a `defense.dodge` variant
+    as this doc's older outline guessed, it's a periodic self-health-
+    rewind-unless-interrupted cycle, a real new timer-based state machine,
+    plus a deliberately narrow, narratively-justified partial-Stillpoint-
+    resistance exception per `expansion.md` §2 — read that section
+    carefully before building, don't improvise the Stillpoint interaction),
+    Sovereign (moveset alignment pass to `boss.js`'s existing 3-phase
+    class — no new architecture, but a large, careful content pass across
+    a ~1000-line bespoke file, deliberately not attempted casually
+    alongside the additive def-only fights in this batch), the two
+    engine-mechanic outliers (Gravity Collapse Core's room gravity,
+    Electromagnetic Golem's magnetize — each still wants its own
+    `EnterPlanMode` pass before moveset design), and the two unbuilt rooms
+    (Void Expanse miniboss, Antechamber/The Child — the latter's Abandoned
+    Shell conflict still unresolved).
+
+═══════════════════════════════════════════════════════════════════════════
+Boss buildout — Electromagnetic Golem + Gravity Collapse Core (2026-07-26, same day)
+═══════════════════════════════════════════════════════════════════════════
+Fifth pair — **10 of the original 12 fights are now built** (4 remain:
+Temporal Warden, Sovereign, Void Expanse, Antechamber — see the end of this
+entry). Both of this pair were the batch's "large/machine, not human-scale"
+fights and
+both went through a full `EnterPlanMode` scoping pass first (plan file:
+`~/.claude/plans/distributed-gliding-forest.md`) before any code, per their
+own long-standing flag as "new-engine-mechanic outliers." Two background
+Explore agents established ground truth first (Graviton Surge is a narrow,
+player-only, up/down-only `vy` sign-flip with zero room-gravity concept —
+not reusable machinery; Magnet Climb, an earlier removed ability, left
+zero code behind), then a Plan agent designed the gravity architecture,
+which was independently spot-checked against the live code (the miniboss
+null-out lifecycle, a third `resolveEntityCollision` caller in
+`companion.js` the first research pass missed) before being written up and
+approved.
+
+[x] **Electromagnetic Golem** (`polar_guardian`, `ELECTROMAGNETIC_GOLEM_DEF`/
+    `ElectromagneticGolem` in `enemy.js`) — The Polar Shift's miniboss,
+    directed by an unnamed scientist (evil-by-choice). Story doc
+    (`expansion.md` #4.5): strong hits with heavy knockback; charges walls/
+    floor/the player with a magnetic charge (attract or repel); counterplay
+    platforms flip the player's own charge; phase 1 repulsion pushes the
+    player around, phase 2 (≤50% HP) charge-reversal slams pull them in
+    hard; weak to projectiles/charged attacks. **Needed zero changes to
+    `physics.js`'s shared collision resolver** — magnetism is purely an
+    additive force before the existing collision pass, the same shape as
+    the pre-existing gravity-well projectile pull (`enemy.js`) and the
+    Graviton Ball's enemy-pull (`game.js`). New pieces: `player.magnetCharge`
+    (`player.js`, null everywhere outside this fight), a `polarity` platform
+    flag (`area.js`/`game.js`'s platform draw code, following the existing
+    `destructible`/`crumble` precedent rather than the half-built `moving`
+    flag's), and a `magnetizable` flag marking which platforms the Golem's
+    own attack can charge at runtime (permanent `polarity`-authored
+    platforms are separate, fixed counterplay platforms, untouched by the
+    boss). The Golem itself is a real subclass (like Quantum Pursuer/The
+    Stationmaster) since "charge specific platforms on a timer" is genuine
+    per-frame room-state manipulation outside the phase/attack vocabulary;
+    includes a defensive reset in its own constructor so a fight left
+    mid-charge (room exit without defeat) can't leave stale charged
+    platforms for the next attempt. `polar_shift_room2` got 4 hand-authored
+    platforms (was a flat floor-only scaffold) — an early 620/480/380-height
+    draft failed `validateRoomLayout()`'s reachability check outright
+    (jump height caps at ~114px; the gaps were 2x that), corrected to a
+    single reachable tier at y:770, re-verified at zero failures before
+    commit.
+[x] **Gravity Collapse Core** (`horizon_core`, `HORIZON_CORE_DEF`/
+    `HorizonCore` in `enemy.js`) — Event Horizon's miniboss, no moral agent
+    (a runaway mining-extraction accident, not a person, per `lore.md`).
+    Story doc (`expansion.md` #4.2): a massive flying construct that
+    changes the room's gravity to any of 4 directions; phase 1 debris
+    projectiles + gravity shifts; phase 2 same kit, denser hazard layering;
+    immune to knockback and to being juggled. The real architecture work
+    this pass:
+    - **`physics.js`**: `getRoomGravityDir()` (reads `miniboss.roomGravityDir`,
+      defaults `'down'` — safe by construction, not convention, since
+      `game.js` already nulls `miniboss` the instant a room's
+      `isMinibossArena` flag goes false or on defeat), `applyRoomGravity()`
+      (replaces 9 previously-scattered `vy += GRAVITY` lines across
+      `enemy.js` ×6/`player.js`/`companion.js` — the `'down'` branch is
+      byte-identical to the old code), and `resolveRotatedGravityCollision()`
+      — a brand-new sibling function next to `resolveEntityCollision`
+      (**never modified, never called differently for `'down'`**), a direct
+      axis-swapped transposition of its existing two-pass floor/wall logic
+      for `'up'`/`'left'`/`'right'`. `resolveEnemyPhysics` gets one dispatch
+      branch at its top, so **zero changes were needed at any of the 6
+      `enemy.js` call sites** — every enemy's physics tail already routes
+      through that one choke point.
+    - **`player.js`/`companion.js`**: the 3 other direct gravity/collision
+      call sites get the same dispatch. `player.js` also gets an input-axis
+      remap — walking/jumping need to target different axes once gravity
+      points sideways, or "stand on a wall" degrades to "get stuck on a
+      wall." Reuses the existing `aimUp`/`aimDown` input actions for
+      along-the-wall movement during `'left'`/`'right'` gravity (a
+      first-draft control mapping, not confirmed by playtest — flagged as a
+      judgment call, easy to swap later). Wall-slide/wall-jump are
+      deliberately skipped in any non-`'down'` direction — their premise
+      (sliding down a vertical wall while gravity pulls straight down) has
+      no clear meaning once a wall IS the floor; out of scope for v1.
+    - **Verification**: `node --check` on every touched file (16 total,
+      the whole game/ folder), plus a from-scratch headless Node test suite
+      (12 cases: floor-landing and ceiling-bump for all 3 rotated
+      directions, the perpendicular wall-pass, the `resolveEnemyPhysics`
+      dispatch itself) exercising the actual collision math in isolation —
+      caught and fixed several real sign/edge-case bugs in the first draft
+      before they could ever reach a fight (transposing "pre-move edge
+      position" reasoning across 3 different axis/direction combinations is
+      exactly the kind of thing that's easy to get subtly wrong once but
+      hard to verify by eye). This is the strongest verification available
+      without a browser, but it is NOT a substitute for a real playtest of
+      the actual boss fight — flagged clearly to the user.
+    - **`enemy.js`**: the boss itself needed no gravity-architecture code at
+      all — `movement.type: 'hover'` already exempts it from its own
+      attack (`_movementFlies` skips `applyRoomGravity`/collision
+      entirely), and a `healthPct: 1` phase reuses the existing
+      `phaseFlags.knockbackImmune` hook for permanent immunity from frame
+      one. A new generic `gravity_flip` `ATTACK_BEHAVIORS` entry (reusable
+      by any future fight, not boss-specific) sets `enemy.roomGravityDir`
+      on fire, picking any direction other than the current one.
+    - **`area.js`**: `event_horizon_core` got real wall/ceiling platforms
+      (was a flat floor-only scaffold) — none carry `wall: true` (that flag
+      would make them permanently non-standable in every direction,
+      defeating the point). Positions clear both existing transition doors
+      with 60px+ margin. **Found and fixed a real linter false-positive as
+      part of this**: `validateAllRoomLayouts()` (auto-runs on every page
+      load) has no concept of rotated gravity, so it flagged the new
+      ceiling/walls as "unreachable" under its always-down-gravity
+      simulation — added a new `rotatedGravityOnly` platform flag (zero
+      effect on real physics, confirmed nothing in `physics.js` reads it)
+      following the exact same exemption pattern the linter's own
+      `ceiling`/`hazard` flags already use, so the dev-only linter stops
+      producing console noise for platforms that are only ever standable
+      once the boss flips gravity. Re-verified: `event_horizon_core` and
+      the full 71-room `validateAllRoomLayouts()` both pass with zero
+      failures after the fix.
+[x] Both registered in `game.js`'s `MINIBOSS_CLASSES` — **10 entries now
+    present** (`colossus_core`, `static_guardian`, `hollow_guardian`,
+    `graviton_sentinel`, `paradox_engine`, `timeline_keeper`,
+    `abyss_guardian`, `warp_guardian`, `polar_guardian`, `horizon_core`).
+    Both music entries (`boss_electromagnetic_golem.ogg`,
+    `boss_gravity_collapse_core.ogg`) already wired and on disk — zero
+    `audio.js` changes needed.
+[ ] Manual playtest checklist (not run — no-browser-testing rule):
+    Electromagnetic Golem — confirm platforms visibly pulse red/blue when
+    charged, confirm touching a fixed counterplay platform flips your own
+    charge, confirm same-charge repels and opposite-charge attracts,
+    confirm phase 2's forced charge-reversal reads as a real "slam," weak
+    to Shard Shot as intended. Gravity Collapse Core — confirm `gravity_flip`
+    visibly rotates the room and the player can actually walk/jump on
+    whichever surface is now "down," confirm the aimUp/aimDown-for-movement
+    control mapping feels reasonable during sideways gravity (this is the
+    one piece most likely to need a real design iteration after playtest),
+    confirm debris projectiles connect, confirm the boss is fully immune to
+    knockback/juggling throughout, confirm leaving the room mid-fight and
+    re-entering resets gravity cleanly back to `'down'`.
+[ ] **10 of the 12 fights from `Plans/continue_boss_buildout_prompt.md`'s
+    original table are now built** (`colossus_core`/Crag Warden predates
+    this batch and doesn't count toward the 12, but is included in the 10
+    `MINIBOSS_CLASSES` entries above). 2 remain, both architecturally
+    tractable with existing patterns, neither attempted this session:
+    - **Temporal Warden** (`chrono_ally`) — deliberately last per the user
+      ("doesn't go all out offensively on you but I haven't worked out his
+      kinks yet"); needs a periodic self-health-rewind-unless-interrupted
+      state machine (not the `defense.dodge` variant this doc's older
+      outline guessed) plus a narrow, narratively-justified partial-
+      Stillpoint-resistance exception (`expansion.md` §2) — don't build
+      until the design itself is settled with the user.
+    - **Sovereign** (final boss, `class Boss` in `boss.js`) — a content/
+      moveset-alignment pass to the existing bespoke 3-phase class, no new
+      architecture needed, but a large, careful pass across a ~1000-line
+      file; deliberately not attempted casually alongside this batch's
+      additive def-only fights.
+    Two more were flagged from the start as needing rooms authored before
+    they're even buildable, and were never strictly "the 12" in the same
+    sense (no id/room exists yet): **Void Expanse miniboss** (needs a name
+    and a room) and **Antechamber/The Child** (needs a room, and has an
+    unresolved design conflict with the Abandoned Shell fight per
+    `lore.md` — flag to the user before building). Every fight in this
+    batch is verified via `node --check` and (where the risk warranted it)
+    headless unit tests only — **none has been played in a real browser
+    yet.**
+
+═══════════════════════════════════════════════════════════════════════════
+The Sovereign — full moveset rebuild (2026-07-26, same day)
+═══════════════════════════════════════════════════════════════════════════
+The final boss (`class Boss`, `boss.js`) rebuilt to actually match the
+long-standing design intent from `lore.md`'s "Final fight structure" and
+`expansion.md` §2: she is "the player in the future" — same ability kit,
+missing only Graviton Surge, carrying a corrupted Void Tether that pulls
+HER to the player. Phase 1 (>60% HP): heavy precognition, restrained real
+offense. Phase 2 (<=60%): full kit except Stillpoint. Phase 3 (<=30%): adds
+Stillpoint itself (literal), full immunity to the player's own Stillpoint
+(pre-existing, confirmed still correct). Plan file:
+`~/.claude/plans/distributed-gliding-forest.md`. Old attacks (Charge Rush,
+Ground Slam, Projectile Barrage, Triple Shot, Nova, the phase-3 Ultimate
+beam) are gone — Projectile Barrage has no replacement (Nova already filled
+its "fill the room" role); everything else became the base for a
+player-mirrored move per the plan's disposition table. Teleport is kept
+unchanged as connective tissue between moves.
+
+[x] **Damage plumbing fix** — `Boss` gets `_activeAttack`/`attackDefs`
+    (mirrors `ComposedEnemy`'s shape, `enemy.js`), plus
+    `getAttackHitbox()`/`getAttackDamageAndKnockback()`. `game.js` gets a
+    new "Boss attack hits player" block modeled 1:1 on the existing
+    miniboss consumer pattern (`game.js:3919-3937`), inserted before the
+    old flat body-contact block (which stays, now the genuine low-tier
+    fallback). `bossProjectiles` consumer now reads `bp.damage`/
+    `bp.knockback` per-projectile with the old flat `BOSS_DAMAGE` as
+    fallback only. Every hit that used to be a flat 1 damage regardless of
+    attack now carries real, tuned numbers.
+[x] **New moves** (`boss.js`) — Melee combo (directional forward/up/down,
+    short 14f telegraph), Charged Heavy (40f telegraph, `damage: 2,
+    knockback: {vx:18, vy:-9, hitStun:22}` — tuned for the explicit "flying
+    into the arena wall" direction, ~2x this session's other hard-hit
+    reference points), Dash-Chain (repurposes the old Charge Rush's
+    slide/bounce state machinery, generalized from a single "double charge"
+    boolean to N chainable legs, up to 3 total), Phase-Dash (defensive,
+    short burst + 13f invincibility, no stagger — dashes away from the
+    player, unlike Dash-Chain's toward-player aggression), Reversed Void
+    Tether (Phase 2+, reddish corrupted telegraph, ramped pull-toward-player
+    using the same ramp shape as the player's own tether arrival, lands via
+    the generalized lunge motion then a punishable self-stagger), Shard Shot
+    (single aimed projectile, damage/knockback set directly on the pushed
+    object), Beam channel (Phase 2+, a boss.js-local per-frame overlap
+    check — same self-contained shape as the pre-existing Phase 3 aura,
+    not a reuse of the player's own beam code), Wall-Burst (edge-triggered
+    reposition with a vertical arc, silently no-ops back to idle if she
+    isn't actually near a wall when rolled — flagged as easy to cut if it
+    reads as a stretch in play).
+[x] **Precognition** (`readPlayerTell()`/`precogCounter()`, all phases) —
+    watches the player's own already-public fields (`charging`/
+    `chargeTimer`, `stillpointCharging`/`stillpointHoldTimer`,
+    `shardAiming`, `attacking`) for a rising tell past `PRECOG_MIN_LEAD`
+    (12f), no new `player.js` fields needed. Phase 1: reposition-only
+    response (Phase-Dash or the generalized lunge), matching "restrained,
+    no real offense yet." Phase 2+: the same reads feed real counter-
+    attacks (Dash-Chain off a predicted Heavy, the lunge off a predicted
+    Stillpoint-hold). Phase 3: keeps running on a longer cooldown (220f vs
+    140f) so it doesn't compete with the Stillpoint centerpiece.
+[x] **Phase 3 Stillpoint** (literal, not a reskin) — `bossStillpointActive`/
+    `Timer`/`Cooldown`, `BOSS_STILLPOINT_SLOW = 0.97` (steeper than the
+    player's own max, `STILLPOINT_SLOW_LV3 = 0.9`). Nova's old radial-burst
+    code is repurposed into the activation VFX (cosmetic particles only
+    now, not a damaging roll). `game.js`'s `gameTimeScale` assignment gets
+    an OR branch — player's own Stillpoint still wins if both are somehow
+    active, else her cast drives it. Her own pre-existing `myTimeScale`
+    phase-3 exemption already generalized correctly to "immune to her own
+    cast too" with zero changes needed (confirmed, not assumed). Her own
+    projectiles/beam get a `projScale` that ignores the slow specifically
+    during her own cast (the existing "boss projectiles stay slowed by the
+    *player's* Stillpoint" asymmetry is untouched — only her own-cast case
+    is newly exempted). **The real lift**: `player.js` gets a new
+    `this.timeScale` field, set from `game.js` right before
+    `player.update()` runs. Scoped deliberately (not an exhaustive rewrite
+    of every ability timer in the file, which would be high-risk to get
+    right without a playtest): scales position integration
+    (`x += vx*timeScale`), room-gravity application, `dashCooldown`,
+    `attackCooldown`, `hitStunTimer`, and `invincibleTimer` — leaves
+    input-latching decision timers (`chargeTimer`, `stillpointHoldTimer`)
+    and every other ability's internal timer (dash/attack/phaseDash active
+    duration, Graviton/Shard/Void Tether timers) untouched, so the
+    player's own choices stay legible while their resolution in the world
+    slows. This is the single highest-risk edit in the whole rebuild — a
+    real change to the player's core loop, not a flag — and the narrowed
+    scope is a deliberate risk-reduction call, not an oversight; worth
+    revisiting if a playtest shows the slow doesn't read as strongly as
+    intended.
+[x] `audio.js` gets `SFX.bossStillpointStart()`/`bossStillpointEnd()` —
+    lower/harsher mirrors of the player's own `stillpointActivate()`/
+    `stillpointEnd()`. No new music track needed (`final_boss.ogg` unchanged
+    per this session's own audio research, see below).
+[ ] **Out of scope, deliberately** (per the plan): `game.js:4369`'s
+    hardcoded HUD label `'THE FRACTURED KING'` — user-facing, directly
+    visible during this exact fight, but outside the documented
+    "identifiers only" scope of the King→Sovereign rename debt; flagging
+    for an explicit separate decision rather than silently changing copy.
+    Migrating `Boss`'s bespoke phase system onto `enemy.js`'s generic
+    `phasesDef` system — architecture-consistency-only, not requested,
+    thresholds already match. Player-side balance re-tuning for a harder
+    final boss — a real question eventually, a game-balance one, not a
+    moveset-parity one.
+[ ] Manual playtest checklist (not run — no-browser-testing rule): confirm
+    each mirrored move's telegraph reads clearly (especially Charged
+    Heavy's 40f windup vs. the quick 14f Melee combo — they should feel
+    like different weight classes); confirm Charged Heavy's knockback
+    actually carries the player into an arena wall on a clean hit as
+    intended, and re-tune `attackDefs.heavy.knockback` if it under- or
+    over-shoots; confirm Dash-Chain's up-to-3-leg bounce feels readable,
+    not disorienting; confirm Reversed Void Tether's pull-in reads as
+    "corrupted"/dangerous and its reddish telegraph is clearly distinct
+    from the player's own teal tether; confirm the Beam channel's tick
+    damage lands at a fair cadence (its cadence is bounded by
+    `player.invincibleTimer`, same shape as the pre-existing Phase 3 aura —
+    confirm that reads as intended rather than "only ticks once"); confirm
+    precognition's Phase 1 reads feel like real foresight, not random
+    dodges; confirm Phase 3 Stillpoint actually makes the player feel
+    slowed (the narrowed `player.timeScale` scope above is the one most
+    likely to need widening after a real playtest) and that ending it
+    cleanly returns `gameTimeScale`/`player.timeScale` to 1.0; confirm
+    Wall-Burst doesn't waste too many attack rolls silently no-op'ing back
+    to idle when she's not near a wall.
+
+═══════════════════════════════════════════════════════════════════════════
+Audio research — Crag/Antechamber/Void Expanse/Final Boss/Spawn/Tutorial (2026-07-26, same day)
+═══════════════════════════════════════════════════════════════════════════
+Research only, nothing downloaded/wired — a background agent independently
+re-verified and extended the prior pass's candidate table (all URLs/
+licenses confirmed live) for the 6 areas asked about:
+- **Crag**: "Loopable Dungeon Ambience" (JaggedStone, CC0) — same pick as
+  before, no stronger CC0 alternative found after a fresh search.
+- **Antechamber**: new recommendation — "Eye of the Storm" (Joth, CC0,
+  already the source for other ambient tracks in this game) over the prior
+  pick ("A New Start," Wolfgang_, CC0, kept as a hopeful-leaning backup) —
+  reads closer to "melancholy but not despair" than a resolved/hopeful
+  piano piece.
+- **Void Expanse**: "Call of the Void" (Mega Pixel Music Lab, CC-BY
+  3.0/4.0) — confirmed no CC0 equivalent exists for this specific mood;
+  same pick as before, needs attribution.
+- **Final Boss**: keep `final_boss.ogg` as-is (Juhani Junkala, CC0) — no
+  stronger match found for "fighting your own future self."
+- **Spawn Room**: "First Light Particles" (Yoiyami, CC0) — same pick,
+  confirmed strongest "weighted home" candidate.
+- **Tutorial Room**: new recommendation — "Where was I?" (yd, CC0) over the
+  prior pick (YannZ's "Intro Loop," CC-BY 4.0) — equally fitting and drops
+  a CC-BY attribution requirement entirely, leaving Void Expanse as the
+  only slot needing attribution.
+[ ] Execution not started (needs explicit approval — touches files): if
+    approved, download each track, run through the existing
+    `ffmpeg loudnorm` + fade + re-encode pipeline (`assets/audio/music/
+    CREDITS.md`), rename per convention, wire new `MUSIC_MAP` entries in
+    `game/audio.js` (Spawn/Tutorial need a genuine split off the shared
+    `hub_living.ogg` key, not just a rename), update `CREDITS.md` with the
+    new entries including attribution for the one CC-BY pick (Void
+    Expanse).
+
+═══════════════════════════════════════════════════════════════════════════
+Dev-tool sync, Temporal Warden, scavenged weapons (2026-07-26, same day)
+═══════════════════════════════════════════════════════════════════════════
+[x] **Every `editor/*.html` gets a "← Dev Hub" back-link** — the exact
+    `#back`/`<a id="back">` pattern that only `ability_utility_calculator.html`
+    previously had, added to the other 16 tools (`dev_hub.html` itself
+    excluded — it IS the hub). Caught and fixed a scoping miss mid-pass:
+    `anim_editor.html`/`enemy_editor.html`/`levelEditor.html` only supported
+    being deep-linked *from* the hub (`?anim=`/`?enemy=`/`?room=` query
+    params) — no actual button *to* it — so they needed the same fix as
+    every other tool, not the "already has it" pass they were first
+    assumed to be part of.
+[x] **`worldmap.html` — deleted**, per explicit user direction ("if it
+    can't be fixed... delete it... it's kinda useless too"). Investigated
+    the "so much overlap" complaint concretely first (loaded the real
+    `AREAS` object via the same `vm`-sandbox pattern `export_graph.js`
+    uses, not assumed): 22 of 35 occupied compass-grid cells had 2+ real
+    rooms stacked on the exact same cell. Root cause isn't a rendering bug —
+    `col`/`row` in `area.js` is a region-level positioning convention, not a
+    per-room-unique one (region-chain helper/cutscene/corridor sub-rooms
+    routinely share a cell with an unrelated region's room), so a real fix
+    means redesigning the renderer to cluster/stack overlapping rooms
+    instead of a flat grid — a rework, not a patch. `regions.md`'s own
+    history (line ~100) shows this exact complaint was already partially
+    patched once before (moving *planned*-region placeholders to clear
+    columns) and it recurred anyway once *built* rooms started colliding
+    too — reinforcing that the tool's core premise doesn't hold, not just
+    that one column assignment was wrong. Removed the dev_hub.html card and
+    updated every doc that described it as a live tool (`CLAUDE.md`,
+    `OVERVIEW.md`, `performanceInstructions.md`, `regions.md`) to note the
+    removal instead of silently going stale.
+[x] **Two miniboss-registry bugs found and fixed while doing the above**
+    (both predate this session): `polar_guardian`/`horizon_core` had been
+    added to `enemy.js`'s `ENEMY_REGISTRY` in an earlier pass this same day
+    — inconsistent with every other miniboss (ComposedEnemy-based or not),
+    none of which are ever listed there, only in `game.js`'s
+    `MINIBOSS_CLASSES` (a miniboss is a singular room-level assignment with
+    its own spawn lifecycle, not a regular placeable/roster enemy — the
+    two dev tools that read the roster generically would otherwise offer
+    them as swarm-placeable). Reverted; added a comment at the registry to
+    stop this recurring. Separately, `enemy_test.html`/`difficulty_bot.html`/
+    `game/agentController.js`'s miniboss-select UI+spawn code was hardcoded
+    to `colossus_core` only — generalized all three to read
+    `MINIBOSS_CLASSES` directly, so any future miniboss needs zero code
+    changes in those tools, just a roster/option entry.
+[x] **Temporal Warden** (`chrono_ally`, `TemporalWarden` in `enemy.js`) —
+    drafted from the existing design already written in `expansion.md`
+    §4.3/§2.5 and `lore.md`'s Chrono-Space Rift section (a sympathetic
+    precognition-driven time mage who deliberately holds back his true
+    strength out of guilt). Bespoke class (like `ColossusCore`, not
+    `ComposedEnemy`) since the core mechanic — rewinds his own health on a
+    visible ~10s countdown unless the player deals enough damage during a
+    brief flash-window tell — is real per-frame state manipulation outside
+    the phase/attack vocabulary, same reasoning as the two gravity/magnetism
+    fights. Also carries the one narratively-justified partial Stillpoint
+    resistance in the game (`expansion.md` §2.5 explicitly flags this as a
+    singular beat, "not a template to repeat elsewhere") — implemented as
+    his own local blend of `gameTimeScale`, ramping in only after 3+
+    Stillpoint activations against him specifically, never touching the
+    shared value every other enemy reads. Restrained ranged-only kit (no
+    melee, no heavy hits) matches "doesn't go all out on you." Reward on
+    defeat is a Stillpoint upgrade (+1 lifesteal per hit) instead of the
+    usual +1 Max Health, per his specific documented reward — implemented
+    as a new separate `stillpointLifestealBonus` (game.js, saved/loaded/
+    reset alongside `maxHealthBonus`) rather than bumping
+    `statUpgrades.stillpoint` directly, since `totalPipsSpent()` derives
+    spent-lore-pips purely from that stat's level and would have silently
+    charged the player pips they never spent. Registered in
+    `MINIBOSS_CLASSES` — `chrono_rift_sanctum` already had
+    `miniboss: 'chrono_ally'`/`roomType: 'miniboss'` authored (from an
+    earlier session) with no class to back it, so this was a real gap, not
+    new scaffolding. Music (`boss_temporal_warden.ogg`) was already wired
+    in `BOSS_MUSIC_MAP` — zero `audio.js` changes needed. **Not** added to
+    `enemy_test.html`'s Boss/Miniboss dropdown or `difficulty_bot.html`'s —
+    both already pick him up for free via the `MINIBOSS_CLASSES`
+    generalization above.
+[ ] Manual playtest checklist (not run): confirm the rewind countdown's
+    visible tell (pulsing ring + white eyes) reads clearly enough to know
+    when to commit damage; confirm `TEMPORAL_WARDEN_INTERRUPT_DAMAGE` (4)
+    is a fair bar — too low trivializes the mechanic, too high makes it
+    feel unfair; confirm the Stillpoint-resistance ramp (kicks in after 3
+    activations) is noticeable without reading as "Stillpoint is broken
+    against him"; confirm the Stillpoint-lifesteal reward notification/HUD
+    reads correctly and the bonus persists through a save/reload.
+[x] **Twin/duo miniboss check** — Warden & Hollow (`warp_guardian`,
+    `WardenAndHollow`/`HOLLOW_DEF` in `enemy.js`) already exists as a real
+    duo, built in an earlier session: Warden is the tracked miniboss
+    (guaranteed parry vs. melee, `defense.block` at `chance: 1.0`, no other
+    offense), Hollow is a second, independent `ComposedEnemy` spawned
+    alongside him via `def.spawnOnStart` (guaranteed dodge vs. Shard Shot,
+    vulnerable to melee) — not a single entity standing in for two. No new
+    work needed; user asked before assuming this was a gap.
+[x] **Generalized scavenged-weapon attack system** (`enemy.js`) — three new
+    `ATTACK_BEHAVIORS` entries any `ComposedEnemy` def can use: `gun`
+    (thin wrapper around the existing projectile pipeline, fast flat
+    bullets), `flamethrower` (close-range continuous cone, ticks a burn DoT
+    via `applyPlayerDot()` rather than one big hit — same `onTick`/
+    `visualRect`/null-`getHitbox` shape `beam` already uses), `taser` (low
+    damage, heavy hitstun — the "incapacitate, don't kill" read). Grounded
+    directly in `lore.md` (§264-265, §457) and `expansion.md` #331, both of
+    which already describe "tasers, flamethrowers, bombs, and guns
+    scavenged" as a widespread war-weapon motif — The Child's own planned
+    (unbuilt, conflicted with Abandoned Shell) kit was the reference point,
+    not a target to build here. "Normal vs strong" is expressed as preset
+    consts (`GUN_NORMAL`/`GUN_STRONG`, etc.) spread onto a def's own attack
+    entry — the same pattern every other tunable attack in this file
+    already uses (different numbers, not different type strings) — where
+    "strong" reads as more dangerous per weapon's own identity (a tighter
+    burst for a gun, a longer burn for a flamethrower, a longer stagger for
+    a taser), not just bigger numbers across the board. Bombs (also named
+    in both docs) needed no new behavior — `ranged_projectile`'s existing
+    `pattern: 'mine'` already covers a thrown-charge exactly. One concrete
+    example, `war_scavenger`/`WarScavenger`, ships with the gun preset and
+    is spawnable via `enemy_test.html`; `enemy_designer.html`'s attack-type
+    dropdown picked up all three automatically (it already derives from
+    `ATTACK_BEHAVIORS` generically, no changes needed there). **Not** placed
+    in any region's `AREAS` entry — general-purpose infrastructure, not a
+    roster/placement decision, per the request's own framing ("so normal
+    enemies CAN have" these, not "give region X this specific enemy").
+[ ] Flagged, not fixed (separate background task spawned): `enemy_test.html`'s
+    "Planned — Normal" enemy group has the same built-vs-planned staleness
+    already found and fixed in its miniboss group earlier this session —
+    several entries (Stillpoint Revenant, Shard Spitter, Timeworn Husk,
+    Kinetic Striker, Pulse Warden, Fractured Knight, Void Juggernaut, Ruin
+    Stalker) are real `ENEMY_REGISTRY` classes marked `built: false`. Out
+    of scope for this pass (noticed in passing while adding War Scavenger),
+    handed off separately.
+
+═══════════════════════════════════════════════════════════════════════════
+Scavenged-weapon SFX + Net Launcher (2026-07-26, same day)
+═══════════════════════════════════════════════════════════════════════════
+[x] **CC0 SFX wired for gun/taser/flamethrower + scavenged-bomb** — 4 new
+    samples in `assets/audio/sfx/` (`gunShot.ogg`/`taserZap.ogg`/
+    `flamethrower.ogg`/`bombExplode.ogg`), sourced/normalized/re-encoded
+    same convention as the music pipeline. `game/audio.js` gets matching
+    `SFX.gunShot()`/`taserZap()`/`flamethrower()`/`bombExplode()` (sample +
+    procedural fallback, same shape as every other SFX entry). Wired at
+    each behavior's actual trigger point in `game/enemy.js` (gun's
+    `onFire`, flamethrower's `onFire`, the mine-pattern explosion) plus a
+    new type-specific branch in `game.js`'s enemy-melee-hit block so a
+    taser hit plays `taserZap()` instead of the generic `playerHurt()`.
+    Full source/license table: `assets/audio/sfx/CREDITS.md` (new — the sfx
+    folder didn't have one before, unlike music). All 4 are CC0, no
+    attribution required. **Known gap, documented in that CREDITS.md**:
+    flamethrower.ogg is a fireplace-crackle placeholder, not a purpose-built
+    jet-flame sound — the one strong CC0 candidate found (Freesound,
+    SamsterBirdies) is login-gated for download and wasn't fetchable this
+    pass.
+[x] **Net Launcher** (`ATTACK_BEHAVIORS.net`, `game/enemy.js`) — a fourth
+    scavenged weapon alongside gun/flamethrower/taser (added on user
+    request, not from either doc's named list, but same "captured guard's
+    kit" reasoning). Ranged root instead of taser's close-range hitstun
+    jolt: thin wrapper over the existing projectile pipeline (like `gun`)
+    with near-zero knockback + a long `knockbackHitStun` (70f normal/100f
+    strong via `NET_NORMAL`/`NET_STRONG`) — reuses the pre-existing
+    "hitStunTimer suppresses directional input" rule in `player.js` as the
+    root itself, no new player-side state needed. Required one small
+    plumbing addition: `ComposedEnemy.fireProjectiles()`'s generic
+    projectiles previously never carried knockback at all (`player.
+    takeDamage(proj.damage)`, no `sourceX`/`knockback` args) — added an
+    opt-in `proj.knockback`/`proj.sourceX` (null for every existing
+    pattern, so all other `ranged_projectile` users are unaffected) so
+    `player.takeDamage(proj.damage, proj.knockback ? proj.sourceX :
+    undefined, proj.knockback)` can drive it. `enemy_designer.html`'s
+    attack-type dropdown picks it up automatically (derives from
+    `ATTACK_BEHAVIORS` generically). **No dedicated SFX yet** — placeholder
+    reuses `SFX.dash()`, flagged in `sfx/CREDITS.md`.
+[ ] Verified with `node --check` only (no-browser-testing rule) — not
+    played. In particular: net's root duration (70f/100f) and its
+    projectile speed (dodgeability) are untested balance guesses, same
+    caveat as every other scavenged-weapon preset.
+
+═══════════════════════════════════════════════════════════════════════════
+Difficulty bot: aim outputs, boss-phase awareness, bigger net + sidebar fix (2026-07-26, same day)
+═══════════════════════════════════════════════════════════════════════════
+[x] **Correction to this session's own earlier claim**: parry is NOT a real
+    player mechanic right now — `player.js` (`PARRY_STUN`/`PARRY_IFRAMES`
+    comment, line ~70) says it was removed 2026-07-18 ("silently overloaded
+    the attack button... read as broken timing rather than a skill window"),
+    kept only as scaffolding constants for "a future clash/deflect
+    mechanic." `roadmap.md`'s own Phase 1.5 checkbox above still says
+    "[x] 1.5 Player Parry / Deflect... done" — that entry is stale relative
+    to the actual removal and should not be trusted; flagging here rather
+    than silently editing history. The bot was never missing parry as a
+    gap to fix — there's nothing to add it to.
+[x] **Phase Dash was already fully available to the bot** — no code change
+    needed. `abilityState.hasPhaseDash` (grantable via the existing ability
+    loadout panel) makes the player's own `dash` action perform Phase Dash
+    automatically (`player.js`, wasActionJustPressed('dash') branch) — the
+    bot's pre-existing `dash` output already covers it whenever Phase Dash
+    is granted in the loadout. This session's earlier "the bot has no Phase
+    Dash" claim was wrong.
+[x] **aimUp/aimDown added as two real outputs** (`game/agentController.js`)
+    — closes a gap the file's own comments already flagged ("the bot always
+    fires level/facing-direction, never an angled shot... Phase Dash has
+    the same gap"). Both map generically through the existing
+    `keyBindings[action]` lookup (input.js's real `aimUp`/`aimDown`
+    bindings) — one addition unlocks angled Shard Shot aiming, 8-directional
+    Phase Dash, AND directional up/down melee attacks simultaneously, since
+    all three real mechanics read the same two input actions.
+[x] **Boss-phase/precog-window awareness** — two new net inputs: nearest
+    target's `.phase` ratio (0-1, present on Boss/several bespoke
+    multi-phase minibosses, 0 for plain roster fighters) and whether it's
+    currently running bossStillpointActive (Phase 3 Sovereign only). Without
+    these the net had no way to distinguish a restrained Phase 1 Sovereign
+    from a full-kit Phase 3 one, or notice the world/its own physics are
+    running slowed during her Stillpoint cast.
+[x] **Net capacity bumped** (HIDDEN_SIZE 26 -> 40) alongside the new
+    inputs/outputs (BASE_SIZE 17 -> 19, INPUT_SIZE 41 -> 43, OUTPUT_SIZE
+    9 -> 11) for more decision capacity. Still a single-hidden-layer
+    fixed-topology net (see the existing "Scope cut" note in
+    `difficulty_bot_and_combat_polish_plan.md` for why this isn't full NEAT
+    topology evolution) — a deliberate low-risk choice given the no-
+    browser-testing rule means none of this can be visually debugged if a
+    2-hidden-layer forward pass had a transposition bug.
+[x] **`#side` sidebar-invisible bug fixed at the source** — `game.js`'s
+    `resizeCanvasToFit()` sized the canvas against the FULL window width,
+    ignoring any sidebar; since `#stage`/`#side` are flex-shrink:0 flex
+    children of a `overflow:hidden` body, the oversized canvas pushed
+    `#side` fully off-screen (clipped, not just squeezed) on every
+    `#side`-based editor tool (`difficulty_bot.html`, `enemy_test.html`,
+    `companion_test.html`, `enemy_designer.html`, `ability_tester.html`).
+    4 of those 5 pages already carried their own copy of a fragile
+    "register a second resize listener after game.js's, so it wins"
+    workaround for this — now centralized: `resizeCanvasToFit()` itself
+    subtracts `#side`'s width when present (a no-op on `index.html`, which
+    has no `#side`). The 4 pages' duplicate override listeners are now
+    redundant no-ops, left in place rather than touched (out of scope for
+    this pass, harmless since they compute the same corrected value).
+[ ] Verified with `node --check` only (no-browser-testing rule) — none of
+    this has been watched replay live. In particular: whether the bigger
+    net actually trains "smarter" in practice (vs. just slower to converge
+    with more weights to search) and whether the sidebar fix actually
+    resolves what the user saw are both real open questions a session with
+    the no-browser rule lifted needs to close.

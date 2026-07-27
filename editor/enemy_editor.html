@@ -30,9 +30,13 @@ button:hover{background:#1e1e3e}
 button.primary{border-color:#2dd4bf;color:#2dd4bf}
 button.reset{border-color:#f87171;color:#f87171}
 #exp-out{width:100%;height:120px;background:#04040a;border:1px solid #1e1e3e;color:#67e8f9;font-size:9.5px;resize:none;font-family:monospace;padding:4px}
+#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
+#back:hover{color:#e0d7ff}
 </style>
 </head>
 <body>
+<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+
 
 <div id="main">
   <div id="bar">
@@ -85,6 +89,7 @@ button.reset{border-color:#f87171;color:#f87171}
 </div>
 
 <script src="../game/enemy.js"></script>
+<script src="../game/devContext.js"></script>
 <script>
 // Real defaults per built enemy — read live off enemy.js's own window-
 // exported consts (see the "if (typeof window !== 'undefined')" block at
@@ -177,7 +182,13 @@ function draw() {
   ctx.textAlign = 'left';
 }
 
-enemySelect.addEventListener('change', loadDefaultsIntoInputs);
+enemySelect.addEventListener('change', () => {
+  loadDefaultsIntoInputs();
+  if (typeof DevContext !== 'undefined') {
+    DevContext.set({ currentEnemyId: enemySelect.value });
+    DevContext.log('Enemy Editor', 'Opened enemy', ENEMY_DEFAULTS[enemySelect.value].name);
+  }
+});
 [statHealth, statAttackCooldown, statPatrolRange, statSpeed].forEach((el) => el.addEventListener('input', draw));
 document.getElementById('resetStatsBtn').addEventListener('click', loadDefaultsIntoInputs);
 
@@ -197,14 +208,19 @@ function buildOverrides() {
 document.getElementById('testBtn').addEventListener('click', () => {
   localStorage.setItem('stillpoint_enemy_editor_test', JSON.stringify(buildOverrides()));
   window.open('enemy_test.html', '_blank');
+  if (typeof DevContext !== 'undefined') DevContext.log('Enemy Editor', 'Sent to Test Bench', enemySelect.value);
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   const data = buildOverrides();
   const json = JSON.stringify(data, null, 2);
   document.getElementById('exp-out').value = json;
+  if (typeof DevContext !== 'undefined') DevContext.log('Enemy Editor', 'Exported overrides', enemySelect.value);
 });
 
+// Deep link from dev_hub.html (?enemy=<id>).
+const deepLinkEnemy = new URLSearchParams(location.search).get('enemy');
+if (deepLinkEnemy && ENEMY_DEFAULTS[deepLinkEnemy]) enemySelect.value = deepLinkEnemy;
 loadDefaultsIntoInputs();
 </script>
 </body>

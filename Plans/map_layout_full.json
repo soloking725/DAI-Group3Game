@@ -227,13 +227,13 @@
     "w": 54,
     "h": 34
   },
-  "tutorial_area": {
+  "tutorial_final": {
     "x": 16,
     "y": 16,
     "w": 107,
     "h": 60
   },
-  "spawn_area_1": {
+  "spawn_area_2": {
     "x": -70,
     "y": 16,
     "w": 30,
