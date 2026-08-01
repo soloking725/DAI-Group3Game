@@ -3,98 +3,127 @@
 <head>
 <meta charset="UTF-8">
 <title>Stillpoint — Dev Hub</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
 /* TOP BAR */
-#topbar{display:flex;align-items:center;gap:14px;padding:10px 16px;background:#0e0e1e;border-bottom:1px solid #1e1e3e;flex-shrink:0}
-#topbar h1{font-size:14px;color:#e0d7ff;font-weight:normal}
-#status-banner{display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:3px;border:1px solid #2e2e5e}
-#status-banner.ok{color:#34d399;border-color:#1d5a45}
-#status-banner.bad{color:#f87171;border-color:#5a1d1d}
-#status-banner.idle{color:#5a5a8e}
-.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
-#runAllBtn{margin-left:auto;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:6px 12px;cursor:pointer}
-#runAllBtn:hover{background:#1e1e48}
+#topbar h1{font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--fg)}
+#status-banner{display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:var(--radius-full);border:1px solid var(--border-hover);font-family:var(--font-ui)}
+#status-banner.ok{color:var(--ok);border-color:var(--ok-border);background:var(--ok-dim)}
+#status-banner.bad{color:var(--danger);border-color:var(--danger-border);background:var(--danger-dim)}
+#status-banner.idle{color:var(--fg-faint);background:var(--surface)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+#runAllBtn{margin-left:auto}
 
 /* LAYOUT */
 #main{display:flex;flex:1;overflow:hidden}
-#sidebar{width:230px;background:#0a0a18;border-right:1px solid #1e1e3e;overflow-y:auto;flex-shrink:0;padding:10px 0;display:flex;flex-direction:column}
-#sidebar h3{font-size:9px;color:#4a4a7e;text-transform:uppercase;letter-spacing:1px;padding:10px 14px 4px}
+#sidebar{width:230px;overflow-y:auto;flex-shrink:0;padding:10px 0;display:flex;flex-direction:column}
+#sidebar h3{font-family:var(--font-ui);font-size:9px;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.08em;padding:10px 14px 4px;font-weight:600}
 #tool-search-wrap{padding:0 14px 8px}
-#tool-search{width:100%;background:#0e0e1e;border:1px solid #1e1e3e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:6px 8px}
-#tool-search:focus{outline:none;border-color:#3e3e7e}
-.tool{display:block;padding:6px 14px;color:#a8a8d8;text-decoration:none;font-size:11px;border-left:2px solid transparent}
-.tool:hover{background:#12122a;color:#e0d7ff;border-left-color:#a78bfa}
+#tool-search{width:100%;font-family:var(--font-ui);font-size:11px;padding:7px 9px;background:var(--bg-input);border:1px solid var(--border-hover);border-radius:var(--radius-sm);color:var(--fg)}
+#tool-search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow-soft)}
+.tool{display:block;padding:6px 14px;color:var(--fg-muted);text-decoration:none;font-size:11px;border-left:2px solid transparent;transition:background var(--dur-fast) var(--ease-out-expo),color var(--dur-fast) var(--ease-out-expo),border-color var(--dur-fast) var(--ease-out-expo)}
+.tool:hover{background:var(--surface);color:var(--fg);border-left-color:var(--accent-bright)}
 .tool.hidden{display:none}
-.tool .desc{display:block;color:#4a4a7e;font-size:9px;margin-top:1px}
-.tool .ctx{color:#2dd4bf;font-size:9px}
-.tool .health{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;background:#3a3a5e;vertical-align:middle}
-.tool .health.ok{background:#34d399}
-.tool .health.bad{background:#f87171}
-#recent-group{border-bottom:1px solid #1a1a2e;padding-bottom:6px;margin-bottom:2px}
+.tool .desc{display:block;color:var(--fg-faint);font-size:9px;margin-top:1px}
+.tool .ctx{color:var(--teal);font-size:9px}
+.tool .health{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;background:var(--fg-faint);vertical-align:middle}
+.tool .health.ok{background:var(--ok)}
+.tool .health.bad{background:var(--danger)}
+#recent-group{border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:2px}
 .group-hidden{display:none}
 
-#content{flex:1;overflow-y:auto;padding:16px}
+#content{flex:1;overflow-y:auto;padding:var(--space-4)}
 .section{margin-bottom:18px}
-.section h2{font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;border-bottom:1px solid #1a1a2e;padding-bottom:4px}
+.section h2{font-family:var(--font-ui);font-size:10px;font-weight:600;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px}
 
 /* QUICK STATS */
 #stats-row{display:flex;gap:10px;flex-wrap:wrap}
-.stat-card{background:#0e0e1e;border:1px solid #1e1e3e;padding:10px 16px;min-width:120px}
-.stat-card .n{font-size:20px;color:#e0d7ff}
-.stat-card .l{font-size:9px;color:#5a5a8e;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}
+.stat-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-inset-top);padding:10px 16px;min-width:120px;transition:border-color var(--dur-fast) var(--ease-out-expo)}
+.stat-card:hover{border-color:var(--border-hover)}
+.stat-card .n{font-family:var(--font-ui);font-size:20px;font-weight:600;letter-spacing:-0.02em;color:var(--fg)}
+.stat-card .n.warn{color:var(--warn)}
+.stat-card .l{font-size:9px;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}
+.stat-card .bar{margin-top:5px;height:4px;background:var(--surface);border-radius:var(--radius-full);overflow:hidden}
+.stat-card .bar-fill{height:100%;background:var(--accent)}
+.stat-card .note{font-size:8px;color:var(--fg-faint);margin-top:3px}
+
+/* PROGRESS / REGION ROLLUP */
+#progress-section summary{cursor:pointer;color:var(--fg-muted);font-size:10px;padding:4px 0;user-select:none;transition:color var(--dur-fast) var(--ease-out-expo)}
+#progress-section summary:hover{color:var(--fg)}
+#region-table{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px}
+#region-table th{text-align:left;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.06em;font-size:9px;padding:5px 8px;border-bottom:1px solid var(--border)}
+#region-table td{padding:5px 8px;border-bottom:1px solid var(--border);color:var(--fg-muted)}
+#region-table tr.region-row{cursor:pointer;transition:background var(--dur-fast) var(--ease-out-expo)}
+#region-table tr.region-row:hover td{background:var(--surface);color:var(--fg)}
+#region-table .region-name{color:var(--fg)}
+#region-table .yes{color:var(--ok)}
+#region-table .no{color:var(--fg-faint)}
+#region-table .manual{color:var(--fg-muted);font-style:italic}
+#progress-footnote{color:var(--fg-faint);font-size:9px;margin-top:6px;line-height:1.5}
 
 /* VALIDATION OUTPUT */
-#validation-out{background:#04040a;border:1px solid #1e1e3e;padding:10px;font-size:10px;line-height:1.6;max-height:280px;overflow-y:auto}
-#validation-out .ok{color:#34d399}
-#validation-out .bad{color:#f87171;cursor:pointer}
+#validation-out{background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px;font-size:10px;line-height:1.6;max-height:280px;overflow-y:auto}
+#validation-out .ok{color:var(--ok)}
+#validation-out .bad{color:var(--danger);cursor:pointer}
 #validation-out .bad:hover{color:#fca5a5;text-decoration:underline}
-#validation-out .group-title{color:#8a8ac0;margin-top:8px}
+#validation-out .group-title{color:var(--fg-muted);margin-top:8px}
 #validation-out .group-title:first-child{margin-top:0}
-#validation-out .hint{color:#3a3a5e}
+#validation-out .hint{color:var(--fg-faint)}
 
 /* ACTIVITY FEED */
-#activity-list{background:#04040a;border:1px solid #1e1e3e;max-height:260px;overflow-y:auto}
-.act-row{display:flex;gap:8px;padding:6px 10px;border-bottom:1px solid #14142a;font-size:10px}
+#activity-list{background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-md);max-height:260px;overflow-y:auto}
+.act-row{display:flex;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);font-size:10px}
 .act-row:last-child{border-bottom:none}
-.act-tool{color:#a78bfa;flex-shrink:0;width:90px}
-.act-action{color:#c4b5fd;flex-shrink:0}
-.act-detail{color:#6a6a9e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.act-time{color:#3a3a5e;margin-left:auto;flex-shrink:0}
-.empty{color:#3a3a5e;padding:10px;font-size:10px}
+.act-tool{color:var(--accent-bright);flex-shrink:0;width:90px}
+.act-action{color:var(--fg);flex-shrink:0}
+.act-detail{color:var(--fg-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act-time{color:var(--fg-faint);margin-left:auto;flex-shrink:0}
+.empty{color:var(--fg-faint);padding:10px;font-size:10px}
 
 /* LIVE OVERRIDES */
 #overrides-list{display:flex;flex-direction:column;gap:4px}
-.ovr-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#0e0e1e;border:1px solid #1e1e3e;font-size:10px}
-.ovr-row.active{border-color:#2a5a4a}
+.ovr-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:10px;transition:border-color var(--dur-fast) var(--ease-out-expo)}
+.ovr-row.active{border-color:var(--ok-border)}
 .ovr-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.ovr-row.active .ovr-dot{background:#34d399}
-.ovr-row:not(.active) .ovr-dot{background:#3a3a5e}
-.ovr-name{width:150px;color:#c4b5fd}
-.ovr-detail{flex:1;color:#5a5a8e}
-.ovr-clear{background:#141432;border:1px solid #3e3e7e;color:#8a8ac0;font-family:monospace;font-size:9px;padding:3px 8px;cursor:pointer}
-.ovr-clear:hover{background:#1e1e48;color:#f87171}
+.ovr-row.active .ovr-dot{background:var(--ok)}
+.ovr-row:not(.active) .ovr-dot{background:var(--fg-faint)}
+.ovr-name{width:150px;color:var(--fg)}
+.ovr-detail{flex:1;color:var(--fg-faint)}
+.ovr-clear{background:var(--bg-input);border:1px solid var(--border-hover);border-radius:var(--radius-sm);color:var(--fg-muted);font-family:var(--font-mono);font-size:9px;padding:3px 8px;cursor:pointer;transition:background var(--dur-fast) var(--ease-out-expo),color var(--dur-fast) var(--ease-out-expo)}
+.ovr-clear:hover{background:var(--surface-hover);color:var(--danger)}
 .ovr-clear:disabled{opacity:0.3;cursor:default}
-#clear-all-overrides{margin-top:6px;background:#200e0e;border:1px solid #7f1d1d;color:#f87171;font-family:monospace;font-size:10px;padding:5px 10px;cursor:pointer}
-#clear-all-overrides:hover{background:#3a1a1a}
+#clear-all-overrides{margin-top:6px;background:var(--danger-dim);border:1px solid var(--danger-border);border-radius:var(--radius-sm);color:var(--danger);font-family:var(--font-mono);font-size:10px;padding:5px 10px;cursor:pointer;transition:background var(--dur-fast) var(--ease-out-expo)}
+#clear-all-overrides:hover{background:rgba(248,113,113,0.22)}
 </style>
 </head>
-<body>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
 
-<div id="topbar">
+<div id="topbar" class="ds-topbar">
   <h1>◆ Stillpoint Dev Hub</h1>
   <div id="status-banner" class="idle"><span class="dot"></span><span id="status-text">Not yet checked</span></div>
-  <button id="runAllBtn">▶ Run All Validations</button>
+  <button id="runAllBtn" class="ds-btn ds-btn-primary">▶ Run All Validations</button>
 </div>
 
 <div id="main">
-  <div id="sidebar"></div>
-  <div id="content">
+  <div id="sidebar" class="ds-sidebar ds-sidebar-left ds-scroll"></div>
+  <div id="content" class="ds-scroll">
     <div class="section">
       <h2>Quick Stats</h2>
       <div id="stats-row"></div>
+    </div>
+    <div class="section" id="progress-section">
+      <h2>Progress by Region <span style="color:#3a3a5e;font-weight:normal">(read-only — click a region to open its first room in the Level Editor)</span></h2>
+      <details>
+        <summary>▸ expand per-region rollup</summary>
+        <div id="region-table-wrap"></div>
+        <div id="progress-footnote"></div>
+      </details>
     </div>
     <div class="section">
       <h2>CLI-Only Tools <span style="color:#3a3a5e;font-weight:normal">(no browser UI — run from a terminal in the repo root)</span></h2>
@@ -127,6 +156,8 @@ body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-s
 <script src="../game/animdata.js"></script>
 <script src="../game/animImageStore.js"></script>
 <script src="../game/devContext.js"></script>
+<script src="../game/roomDesignScore.js"></script>
+<script src="../game/minibossRegistry.js"></script>
 <script>
 // ─── TOOL REGISTRY — grouped by workflow, not alphabetically, per the
 // "group tools by how you actually work" fix in the dev-hub critique ───────
@@ -134,10 +165,14 @@ const TOOL_GROUPS = [
   { label: 'Level Design', tools: [
     { name: 'Level Editor', file: 'levelEditor.html', desc: 'Rooms, platforms, transitions, enemies', contextKey: 'currentRoomId', param: 'room' },
     { name: 'World Graph Analyzer', file: 'graph_analyzer.html', desc: 'Critical-path & reachability' },
+    { name: 'Room Verification', file: 'room_verify.html', desc: 'Reachability/floor-gap/embedded-door linter + Spawn-into-room links' },
+    { name: 'Room Scene Editor', file: 'room_scene_editor.html', desc: 'Backdrop art/parallax layers + region style tuning, live preview', contextKey: 'currentRoomId', param: 'room' },
+    { name: 'Cutscene Editor', file: 'cutscene_editor.html', desc: 'Author CUTSCENES step lists (wait/text/cameraPan/choice/call), branch nesting, mocked preview', contextKey: 'currentCutsceneId', param: 'cutscene' },
   ]},
   { label: 'Combat & Enemies', tools: [
     { name: 'Enemy Editor', file: 'enemy_editor.html', desc: 'Quick stat tweaks on built-in enemies', contextKey: 'currentEnemyId', param: 'enemy' },
     { name: 'Enemy Designer', file: 'enemy_designer.html', desc: 'Full ComposedEnemy attack/behavior authoring' },
+    { name: 'Boss Phase Editor', file: 'boss_phase_editor.html', desc: 'The Sovereign\'s phase thresholds & attack-selection weights' },
     { name: 'Enemy & Miniboss Test Bench', file: 'enemy_test.html', desc: 'Spawn and fight enemies in an arena' },
     { name: 'Ability Tester', file: 'ability_tester.html', desc: 'Live-tune player ability constants' },
     { name: 'Ability Utility Calculator', file: 'ability_utility_calculator.html', desc: 'Weighted damage/CC/mobility score per ability level' },
@@ -155,9 +190,9 @@ const TOOL_GROUPS = [
     { name: 'Debug Console (smoke test)', file: 'debug_new.html', desc: '8-point live sanity check' },
   ]},
   { label: 'Analysis & Reports (static snapshots)', tools: [
-    { name: 'Room Difficulty Calculator', file: '../Plans/room_difficulty_calculator.html', desc: 'Pathfind + time/difficulty cost per room' },
-    { name: 'Floor Plan Path Viewer', file: '../Plans/floor_plan_report.html', desc: 'Critical-path report over the floor plan' },
-    { name: 'Playthrough Simulation', file: '../Plans/floor_plan_simulation.html', desc: 'Simulated full-run walkthrough log' },
+    { name: 'Room Difficulty Calculator', file: 'room_difficulty_calculator.html', desc: 'Pathfind + time/difficulty cost per room' },
+    { name: 'Floor Plan Path Viewer', file: 'floor_plan_report.html', desc: 'Critical-path report over the floor plan' },
+    { name: 'Playthrough Simulation', file: 'floor_plan_simulation.html', desc: 'Simulated full-run walkthrough log' },
   ]},
 ];
 
@@ -243,6 +278,8 @@ const OVERRIDE_KEYS = [
     describe: (v) => { const o = JSON.parse(v); return Array.isArray(o) ? `${o.length} combo(s) — replaces the built-in set entirely` : 'malformed'; } },
   { name: 'HUD Layout (HUD Editor)', key: 'stillpoint_hud_layout_v1',
     describe: (v) => { const o = JSON.parse(v); return `${Object.keys(o).length} element(s) repositioned`; } },
+  { name: 'Cutscenes (Cutscene Editor)', key: 'stillpoint_cutscene_overrides_v1',
+    describe: (v) => { const o = JSON.parse(v); const ids = Object.keys(o); return `${ids.length} cutscene(s): ${ids.join(', ')}`; } },
 ];
 
 function renderOverrides() {
@@ -281,19 +318,198 @@ function renderOverrides() {
   });
 }
 
-// ─── QUICK STATS ────────────────────────────────────────────────────────
+// ─── PROGRESS DASHBOARD ─────────────────────────────────────────────────
+// Extends the old 3-card Quick Stats into the full "what's left" view from
+// Plans/project_progress_dashboard_plan.md. Targets below are design
+// decisions recorded in Plans/regions.md/room_design_bible.md/expansion.md —
+// NOT derivable from code — so they're hand-maintained constants, same
+// dual-copy caveat hud_editor.html's DEFAULTS table already lives with.
+// Update both by hand if the target ever changes.
+const FRACTURE_PIP_TARGET = 5;   // regions.md "Fracture Pips — 5 total"
+// Lore vs. Extra/Customization Pips are BOTH `area.js` loreFragments entries,
+// split live by the real `lf.mode` field ('overlay'/'cutscene' = Lore,
+// 'none' = Extra — game_update.js's pickup handler and levelEditor.html's
+// pip inspector both already branch on this, shipped roadmap.md Phase 28,
+// 2026-07-29; unset defaults to 'overlay'). The mechanism is fully built —
+// what's actually missing is that no room has placed a `mode:'none'` pip
+// yet, so Extra reads 0 live, not because the field doesn't exist.
+const LORE_PIP_TARGET = 15;      // regions.md's Lore Pips table
+const EXTRA_PIP_TARGET = 15;     // regions.md "Extra/Customization Pips" table
+const COSMETIC_UPGRADE_TARGET = 4; // regions.md "one per cluster" proposal (Gravity/Void-Sky/Magnetic/Time-Mirror)
+const ENEMY_ROSTER_TARGET = 35;  // expansion.md §2: 26 normal + 2 hard + 7 new countering enemies
+const MINIBOSS_TARGET = 14;      // room_design_bible.md §3.2 — all 14 already built
+
+// Per-region metadata not derivable from AREAS — display name + whether that
+// region's special mechanical effect is actually coded (Plans/CLAUDE.md's
+// "Current status" section is the source; this is explicitly a manual flag,
+// not a live check, because "is the traversal mechanic coded" is a fact
+// about game_update.js/player.js, not area.js data).
+const REGION_META = {
+  origin:        { name: 'Origin Spine',        mechanicBuilt: true  },
+  crag:          { name: 'Crag of the Colossus', mechanicBuilt: true  },
+  mirror_veil:   { name: 'Mirror Veil',          mechanicBuilt: true  },
+  event_horizon: { name: 'Event Horizon',        mechanicBuilt: true  },
+  chrono_rift:   { name: 'Chrono-Space Rift',    mechanicBuilt: true  },
+  abyss:         { name: 'Echoing Abyss',        mechanicBuilt: false },
+  timeline:      { name: 'Timeline Crossroads',  mechanicBuilt: false },
+  observatory:   { name: 'The Observatory',      mechanicBuilt: false },
+  void_expanse:  { name: 'The Void Expanse',     mechanicBuilt: false },
+  warp:          { name: 'Warp Gate Nexus',      mechanicBuilt: false },
+  spire:         { name: 'The Inverted Spire',   mechanicBuilt: false },
+  graviton:      { name: 'Graviton Core',        mechanicBuilt: false },
+  polar:         { name: 'The Polar Shift',      mechanicBuilt: false },
+  paradox:       { name: 'Paradox Engine',       mechanicBuilt: false },
+  static:        { name: 'Static Field',         mechanicBuilt: false },
+  teleport:      { name: 'Teleport Connector',   mechanicBuilt: true  },
+  sovereign:     { name: 'Sovereign Room',       mechanicBuilt: false },
+};
+
+// Dev-only rooms (no col/row) are excluded the same way runAllValidations()
+// already excludes them from the room linter — keeps this panel and that
+// one agreeing on what counts as a "real" room.
+function realRoomEntries() {
+  return Object.keys(AREAS).filter((id) => typeof AREAS[id].col === 'number').map((id) => [id, AREAS[id]]);
+}
+
+function computeProgress() {
+  const rooms = realRoomEntries();
+  const roomStates = rooms.map(([id, r]) => analyzeRoomDesignState({ id, ...r }));
+  const stateCounts = { SHELL: 0, started: 0, designed: 0 };
+  for (const rs of roomStates) stateCounts[rs.state]++;
+
+  // lf.mode: undefined/'overlay'/'cutscene' = Lore Pip, 'none' = Extra/
+  // Customization Pip — same split game_update.js's pickup handler and
+  // levelEditor.html's pip inspector already use live.
+  const isExtraPip = (lf) => lf.mode === 'none';
+  let fracturePips = 0, lorePips = 0, extraPips = 0, cosmeticUpgrades = 0;
+  for (const [, r] of rooms) {
+    fracturePips += (r.fracturePipRewards || []).length;
+    for (const lf of (r.loreFragments || [])) { if (isExtraPip(lf)) extraPips++; else lorePips++; }
+    cosmeticUpgrades += (r.cosmeticUpgrades || []).length;
+  }
+
+  const enemyIds = typeof ENEMY_REGISTRY !== 'undefined'
+    ? Object.keys(ENEMY_REGISTRY).filter((k) => k !== 'composed')
+    : [];
+  const minibossIds = typeof MINIBOSS_REGISTRY !== 'undefined' ? Object.keys(MINIBOSS_REGISTRY) : [];
+
+  const animKeys = typeof ANIM_DEFS !== 'undefined' ? Object.keys(ANIM_DEFS) : [];
+  const animatedEnemies = enemyIds.filter((id) => animKeys.some((k) => k.startsWith('enemy_' + id + '_')));
+  const bossAnimated = animKeys.some((k) => k.startsWith('boss_'));
+
+  // Per-region rollup
+  const blankRow = () => ({ SHELL: 0, started: 0, designed: 0, fracturePips: 0, lorePips: 0, extraPips: 0, cosmeticUpgrades: 0, minibossAssigned: null, firstRoomId: null });
+  const regionRows = {};
+  for (const regionId in REGION_META) regionRows[regionId] = { id: regionId, ...REGION_META[regionId], ...blankRow() };
+  for (const rs of roomStates) {
+    const region = rs.region;
+    if (!regionRows[region]) regionRows[region] = { id: region, name: region, mechanicBuilt: false, ...blankRow() };
+    const row = regionRows[region];
+    row[rs.state]++;
+    if (!row.firstRoomId) row.firstRoomId = rs.id;
+  }
+  for (const [id, r] of rooms) {
+    const row = regionRows[r.region];
+    if (!row) continue;
+    row.fracturePips += (r.fracturePipRewards || []).length;
+    for (const lf of (r.loreFragments || [])) { if (isExtraPip(lf)) row.extraPips++; else row.lorePips++; }
+    row.cosmeticUpgrades += (r.cosmeticUpgrades || []).length;
+    if (r.miniboss) row.minibossAssigned = r.miniboss;
+  }
+
+  return {
+    roomTotal: rooms.length, stateCounts,
+    fracturePips, lorePips, extraPips, cosmeticUpgrades,
+    enemyBuilt: enemyIds.length, minibossBuilt: minibossIds.length,
+    animEntityTotal: enemyIds.length, animEntityCovered: animatedEnemies.length, bossAnimated,
+    regionRows,
+  };
+}
+
+function statCard(n, l, opts) {
+  opts = opts || {};
+  const barHtml = opts.target
+    ? `<div class="bar"><div class="bar-fill" style="width:${Math.min(100, Math.round(100 * n / opts.target))}%"></div></div>`
+    : '';
+  const nClass = opts.warn ? 'n warn' : 'n';
+  const label = opts.target ? `${n}/${opts.target}` : n;
+  const noteHtml = opts.note ? `<div class="note">${opts.note}</div>` : '';
+  return `<div class="stat-card"><div class="${nClass}">${label}</div><div class="l">${l}</div>${barHtml}${noteHtml}</div>`;
+}
+
 function renderStats() {
-  const roomCount = Object.keys(AREAS).length;
-  const enemyCount = typeof ENEMY_REGISTRY !== 'undefined' ? Object.keys(ENEMY_REGISTRY).length : 0;
-  const animCount = typeof ANIM_DEFS !== 'undefined' ? Object.keys(ANIM_DEFS).length : 0;
+  const p = computeProgress();
+  const roomsDone = p.stateCounts.started + p.stateCounts.designed;
   const cards = [
-    { n: roomCount, l: 'Rooms' },
-    { n: enemyCount, l: 'Enemies Built' },
-    { n: animCount, l: 'Animations Defined' },
+    statCard(roomsDone, 'Rooms Started/Designed', { target: p.roomTotal, note: `${p.stateCounts.SHELL} still SHELL` }),
+    statCard(p.fracturePips, 'Fracture Pips', { target: FRACTURE_PIP_TARGET }),
+    statCard(p.lorePips, 'Lore Pips', { target: LORE_PIP_TARGET, note: 'loreFragments w/ mode ≠ \'none\'' }),
+    statCard(p.extraPips, 'Extra/Customization Pips', { target: EXTRA_PIP_TARGET, note: 'loreFragments w/ mode:\'none\' — mechanism built, just none placed yet' }),
+    statCard(p.cosmeticUpgrades, 'Cosmetic Upgrades', { target: COSMETIC_UPGRADE_TARGET, note: 'target is "~1/cluster", proposed' }),
+    statCard(p.enemyBuilt, 'Enemies Built', { target: ENEMY_ROSTER_TARGET }),
+    statCard(p.minibossBuilt, 'Minibosses Built', { target: MINIBOSS_TARGET }),
+    statCard(p.animEntityCovered, 'Enemies w/ Authored Anim', { target: p.animEntityTotal, note: p.bossAnimated ? 'Sovereign: authored' : 'Sovereign: procedural only' }),
   ];
-  document.getElementById('stats-row').innerHTML = cards.map(c =>
-    `<div class="stat-card"><div class="n">${c.n}</div><div class="l">${c.l}</div></div>`
-  ).join('');
+  document.getElementById('stats-row').innerHTML = cards.join('');
+  renderRegionRollup(p);
+}
+
+function regionBarCell(row) {
+  const total = row.SHELL + row.started + row.designed;
+  if (total === 0) return '<span class="no">—</span>';
+  return `${row.designed}d / ${row.started}s / ${row.SHELL}sh <span style="color:#3a3a5e">(${total})</span>`;
+}
+
+function renderRegionRollup(p) {
+  const order = Object.keys(p.regionRows).sort((a, b) => {
+    const ra = p.regionRows[a], rb = p.regionRows[b];
+    const ta = ra.SHELL + ra.started + ra.designed, tb = rb.SHELL + rb.started + rb.designed;
+    return tb - ta || a.localeCompare(b);
+  });
+  const rowsHtml = order.map((regionId) => {
+    const r = p.regionRows[regionId];
+    const total = r.SHELL + r.started + r.designed;
+    if (total === 0) return ''; // no real rooms in this region yet
+    const minibossName = r.minibossAssigned
+      ? (typeof MINIBOSS_REGISTRY !== 'undefined' && MINIBOSS_REGISTRY[r.minibossAssigned] || r.minibossAssigned)
+      : null;
+    return `<tr class="region-row" data-first-room="${r.firstRoomId || ''}">
+      <td class="region-name">${r.name}</td>
+      <td>${regionBarCell(r)}</td>
+      <td>${r.fracturePips}</td>
+      <td>${r.lorePips}</td>
+      <td>${r.extraPips}</td>
+      <td>${r.cosmeticUpgrades}</td>
+      <td>${minibossName ? `<span class="yes">✓ ${minibossName}</span>` : '<span class="no">—</span>'}</td>
+      <td class="manual">${r.mechanicBuilt ? '<span class="yes">✓ built</span>' : 'not built'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('region-table-wrap').innerHTML = `
+    <table id="region-table">
+      <thead><tr>
+        <th>Region</th><th>Rooms (designed/started/shell)</th><th>Fracture</th><th>Lore</th><th>Extra</th><th>Cosmetic</th><th>Miniboss</th><th>Mechanic</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+
+  document.getElementById('progress-footnote').innerHTML =
+    `<em>Manual/approximate figures, not live-derived:</em> Cosmetic Upgrade target (~1 per cluster,
+    proposed); the "Mechanic" column (whether a region's special traversal effect is coded in
+    game_update.js/player.js — not derivable from area.js data at all). Everything else on this panel,
+    <strong>including the Lore/Extra split</strong>, is a live count: both are area.js loreFragments
+    entries, split by the real <code>lf.mode</code> field ('overlay'/'cutscene' → Lore, 'none' → Extra) —
+    game_update.js's pickup handler and levelEditor.html's pip inspector already branch on this field
+    (shipped roadmap.md Phase 28, 2026-07-29), including skipping the cutscene/vignette entirely for
+    'none'-mode pips. The mechanism is fully built; Extra currently reads 0 only because no room has
+    placed a mode:'none' pip yet, not because the split doesn't exist.`;
+
+  document.querySelectorAll('#region-table tr.region-row').forEach((tr) => {
+    tr.addEventListener('click', () => {
+      const roomId = tr.dataset.firstRoom;
+      if (roomId) window.open(`levelEditor.html?room=${encodeURIComponent(roomId)}`, '_blank');
+    });
+  });
 }
 
 // ─── RUN ALL VALIDATIONS ────────────────────────────────────────────────

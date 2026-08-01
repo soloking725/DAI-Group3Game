@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stillpoint – World Graph Analyzer</title>
+  <link rel="stylesheet" href="../styles/design-system.css">
   <style>
     * {
       box-sizing: border-box;
@@ -11,28 +12,29 @@
       padding: 0;
     }
     body {
-      background: #0a0a0f;
-      color: #c4b5fd;
-      font-family: 'Courier New', monospace;
+      font-family: var(--font-mono);
       font-size: 13px;
-      padding: 20px;
+      padding: 24px;
       line-height: 1.6;
     }
     h1 {
+      font-family: var(--font-ui);
       font-size: 1.6em;
+      font-weight: 600;
       margin-bottom: 4px;
-      color: #e0d7ff;
+      color: var(--fg);
     }
     .sub {
-      color: #6a6a8e;
+      color: var(--fg-muted);
       font-size: 0.85em;
       margin-bottom: 20px;
     }
     #results {
-      background: #0d0d1a;
-      border: 1px solid #1a1a2e;
-      padding: 16px 20px;
-      border-radius: 4px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      padding: 18px 22px;
       max-width: 900px;
       white-space: pre-wrap;
       font-size: 13px;
@@ -45,78 +47,85 @@
       margin: 12px 0;
     }
     .stat {
-      background: #12121f;
-      border: 1px solid #1e1e3e;
-      padding: 4px 12px;
-      border-radius: 3px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-inset-top);
+      padding: 5px 14px;
+      border-radius: var(--radius-md);
     }
     .stat .label {
-      color: #6a6a8e;
+      color: var(--fg-muted);
     }
     .stat .value {
-      color: #c4b5fd;
+      color: var(--fg);
       font-weight: bold;
     }
     .stat .highlight {
-      color: #67e8f9;
+      color: var(--info);
     }
     .stat .warn {
-      color: #fbbf24;
+      color: var(--warn);
     }
     .stat .err {
-      color: #f87171;
+      color: var(--danger);
     }
     button {
-      background: #1a1a2e;
-      border: 1px solid #2a2a4e;
-      color: #c4b5fd;
-      padding: 6px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border-hover);
+      color: var(--fg);
+      padding: 7px 18px;
       font-family: inherit;
       font-size: 13px;
       cursor: pointer;
-      border-radius: 3px;
+      border-radius: var(--radius-sm);
       margin-right: 8px;
+      box-shadow: var(--shadow-inset-top);
+      transition: background var(--dur-fast) var(--ease-out-expo), border-color var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo);
     }
     button:hover {
-      background: #2a2a4e;
-      border-color: #6a6a9e;
+      background: var(--surface-hover);
+      border-color: var(--border-hover);
     }
+    button:active { transform: scale(0.98); }
     .path {
-      color: #2dd4bf;
+      color: var(--teal);
       font-weight: bold;
     }
     .optional {
-      color: #fbbf24;
+      color: var(--warn);
     }
     .deadend {
-      color: #f87171;
+      color: var(--danger);
     }
     .footnote {
-      color: #4a4a6e;
+      color: var(--fg-faint);
       font-size: 0.8em;
       margin-top: 16px;
-      border-top: 1px solid #1a1a2e;
+      border-top: 1px solid var(--border);
       padding-top: 12px;
     }
     #raw {
       margin-top: 12px;
-      background: #04040a;
-      border: 1px solid #1a1a2e;
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
       padding: 10px;
       font-size: 11px;
       max-height: 300px;
       overflow-y: auto;
       display: none;
       white-space: pre-wrap;
-      color: #6a6a9e;
+      color: var(--fg-muted);
     }
     .toggle-raw {
-      color: #6a6a8e;
+      color: var(--fg-muted);
       cursor: pointer;
       text-decoration: underline;
       font-size: 0.85em;
       margin-left: 12px;
+      transition: color var(--dur-fast) var(--ease-out-expo);
     }
+    .toggle-raw:hover { color: var(--fg); }
     .input-group {
       display: flex;
       gap: 12px;
@@ -125,24 +134,33 @@
       margin: 8px 0 12px;
     }
     .input-group label {
-      color: #6a6a8e;
+      color: var(--fg-muted);
+      font-family: var(--font-ui);
       font-size: 0.9em;
     }
     .input-group input {
-      background: #12121f;
-      border: 1px solid #1e1e3e;
-      color: #c4b5fd;
-      padding: 3px 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-hover);
+      border-radius: var(--radius-sm);
+      color: var(--fg);
+      padding: 5px 9px;
       font-family: inherit;
       font-size: 13px;
       width: 160px;
+      transition: border-color var(--dur-fast) var(--ease-out-expo), box-shadow var(--dur-fast) var(--ease-out-expo);
     }
-  #back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
-#back:hover{color:#e0d7ff}
+    .input-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow-soft);
+    }
 </style>
 </head>
-<body>
-<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
 
 
   <h1>🗺️ Stillpoint — Graph Analyzer</h1>
@@ -163,7 +181,7 @@
   </div>
 
   <div id="results">
-    <span style="color:#4a4a6e;">Press <strong>Analyze</strong> to run the graph analysis.</span>
+    <span style="color:var(--fg-faint);">Press <strong>Analyze</strong> to run the graph analysis.</span>
   </div>
 
   <div id="raw"></div>
@@ -401,7 +419,7 @@
 
     document.getElementById('analyzeBtn').addEventListener('click', async () => {
       const resultsEl = document.getElementById('results');
-      resultsEl.innerHTML = '<span style="color:#6a6a8e;">Loading area.js...</span>';
+      resultsEl.innerHTML = '<span style="color:var(--fg-muted);">Loading area.js...</span>';
 
       const startId = document.getElementById('startInput').value.trim() || 'spawn_area_1';
       const endId = document.getElementById('endInput').value.trim() || 'boss_arena';

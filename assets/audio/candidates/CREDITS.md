@@ -110,3 +110,39 @@ turn out useful elsewhere, e.g. an ability-cast sound.)
 
 **Still no non-Kenney alternative found for `uiSelect`** — flagged for a follow-up
 search rather than filled with a weaker fit.
+
+## Second pass (2026-07-27) — attack/parry alternates + new ability slots
+
+The user didn't like any of the existing `attack`/`heavyAttack`/`parry`/`shardHit`
+candidates, so this pass adds a second, differently-sourced batch to each, plus four
+brand-new candidate-only slots (`liveTrack: null`) for abilities that have no SFX hook
+yet: `phaseDash`, `stillpoint`, `chargedAttack`, `electricAbility` (the last for an
+unbuilt electromagnetic ability, e.g. roadmap's `graviton_surge`, or Polar
+Shift/Static Field/Conduit stingers).
+
+| Slot | New files | Source pack | Author | License | Source URL |
+|---|---|---|---|---|---|
+| attack | swish_1..13.ogg | "Swishes Sound Pack" | Summoning Wars team | CC0 | https://opengameart.org/content/swishes-sound-pack |
+| attack | sword_swing_1..10.ogg | "20 Sword Sound Effects (Attacks and Clashes)" | StarNinjas | CC0 | https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes |
+| heavyAttack | sword_clash_1..10.ogg | "20 Sword Sound Effects (Attacks and Clashes)" | StarNinjas | CC0 | https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes |
+| parry | cast_iron_clang_1/6/12/18/24/30.ogg (6 of 33) | "33 Metal Clang Sounds from Cast Iron Pans" | bart | CC0 | https://opengameart.org/content/33-metal-clang-sounds-cast-iron-pans |
+| parry | metal_bing1/bong1/clink1/clink2/clink3/thud2/thud3.ogg | "Metal Impact Sounds" | unknown (OGA page) | CC0 | https://opengameart.org/content/metal-impact-sounds |
+| shardHit | ice_shatter_1..5.ogg | "Ice Breaking/Shattering" | LedasLuzta | CC0 | https://opengameart.org/content/ice-breakingshattering |
+| phaseDash (new) | teleport_summoningwars.ogg | "Teleport Spell" | Summoning Wars team | CC0 | https://opengameart.org/content/teleport-spell |
+| phaseDash (new) | teleport_electricity.ogg | "Electricity Game Sound Pack" | faxcorp | CC0 | https://opengameart.org/content/electricity-game-sound-pack |
+| stillpoint (new) | time_stop.ogg | "Time Slow" | unknown (OGA page) | CC0 | https://opengameart.org/content/time-slow |
+| stillpoint (new) | freeze_spell.ogg | "Freeze Spell" | artisticdude | CC0 | https://opengameart.org/content/freeze-spell-0 |
+| stillpoint (new) | qubodup_ice_damage_01/02/03/03b/03c/03d/03e/03f.ogg | "Ice & Electricity Magic" | Iwan 'qubodup' Gabovitch | **CC-BY 3.0 — attribution required** | https://opengameart.org/content/ice-electricity-magic |
+| chargedAttack (new) | power_up_v1/v2/v3.ogg | "Power-Up Sound Effects" | Spring Spring | CC0 | https://opengameart.org/content/power-up-sound-effects |
+| chargedAttack (new) | charge.ogg, chargestart.ogg | "Electricity Game Sound Pack" | faxcorp | CC0 | https://opengameart.org/content/electricity-game-sound-pack |
+| electricAbility (new) | crackle_electricity_loop.ogg, deathboom.ogg, powerup.ogg, shieldhit.ogg | "Electricity Game Sound Pack" | faxcorp | CC0 | https://opengameart.org/content/electricity-game-sound-pack |
+| electricAbility (new) | qubodup_electricity_damage_01/02.ogg | "Ice & Electricity Magic" | Iwan 'qubodup' Gabovitch | **CC-BY 3.0 — attribution required** | https://opengameart.org/content/ice-electricity-magic |
+
+All files were re-encoded the same way as the rest of the pool: `ffmpeg` loudness-
+normalized to -18 LUFS (TP -1.5, LRA 11), resampled to 44.1kHz, encoded to Ogg
+Vorbis. `cast_iron_clang` picked 6 of the pack's 33 near-identical markers spaced
+across the set rather than all 33, to avoid near-duplicate clutter in the tester.
+
+**License note**: everything above is CC0 except the two `qubodup` sources (ice and
+electricity), which are CC-BY 3.0 — attribution to Iwan 'qubodup' Gabovitch is
+required if either ends up live.

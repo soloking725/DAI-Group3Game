@@ -132,7 +132,7 @@ const AREAS = {
           h: 72,
           to: 'crag_entrance',
           toX: 60,
-          toY: 693,
+          toY: 1150,
           requires: 'phase_dash'
         }
       ],
@@ -174,7 +174,10 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured', x: 291, y: 896 },
+        { type: 'stutterer', x: 681, y: 896 }
+      ],
       anchors: [
         { x: 100, y: 916, index: 0 }
       ],
@@ -238,7 +241,13 @@ const AREAS = {
           doorIndex: 2
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured', x: 429, y: 460 },
+        { type: 'stutterer', x: 823, y: 460 },
+        { type: 'fractured', x: 1217, y: 460 },
+        { type: 'stutterer', x: 1611, y: 460 },
+        { type: 'fractured', x: 2005, y: 460 }
+      ],
       anchors: [
         { x: 140, y: 480, index: 0 }
       ],
@@ -302,7 +311,10 @@ const AREAS = {
           doorIndex: 2
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured', x: 291, y: 460 },
+        { type: 'stutterer', x: 681, y: 460 }
+      ],
       anchors: [
         { x: 100, y: 480, index: 0 }
       ],
@@ -350,7 +362,10 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured', x: 291, y: 2721 },
+        { type: 'stutterer', x: 681, y: 2721 }
+      ],
       anchors: [
         { x: 100, y: 2741, index: 0 }
       ],
@@ -358,48 +373,256 @@ const AREAS = {
     },
 
     crag_entrance: {
-      id: 'crag_entrance',
-      name: 'Crag Entrance',
-      region: 'crag',
-      mapAccent: '#d97757',
-      col: 2,
-      row: 1,
-      width: 1286,
-      roomHeight: 793,
-      groundY: 733,
-      bgColor: '#120a06',
-      bgTint: 'rgba(180,90,40,0.05)',
-      ambientColor: '#d97757',
-      platforms: [
-        { x: 0, y: 733, w: 1286, h: 60 }
-      ],
-      transitions: [
-        { x: 0, y: 661, w: 60, h: 72, to: 'the_fracture_part1', toX: 856, toY: 896 },
-        { x: 1226, y: 661, w: 60, h: 72, to: 'crag_breach', toX: 60, toY: 1283 }
-      ],
-      connections: [
-        {
-          direction: 'west',
-          to: 'the_fracture_part1',
-          requires: null,
-          oneWay: false,
-          order: 0,
-          doorIndex: 0
-        },
-        {
-          direction: 'east',
-          to: 'crag_breach',
-          requires: null,
-          oneWay: false,
-          order: 0,
-          doorIndex: 1
-        }
-      ],
-      enemies: [],
-      anchors: [
-        { x: 129, y: 713, index: 0 }
-      ],
-      abilityReward: null
+    id: 'crag_entrance',
+    name: 'Crag Entrance',
+    region: 'crag',
+    mapAccent: '#d97757',
+    col: 2,
+    row: 1,
+    width: 4280,
+    roomHeight: 2530,
+    groundY: 2480,
+    bgColor: '#120a06',
+    bgTint: 'rgba(180,90,40,0.05)',
+    ambientColor: '#d97757',
+    platforms: [
+      {
+        x: 0,
+        y: 300,
+        w: 710,
+        h: 60
+      },
+      {
+        x: 1480,
+        y: 1940,
+        w: 200,
+        h: 36
+      },
+      {
+        x: 1190,
+        y: 2100,
+        w: 200,
+        h: 36
+      },
+      {
+        x: 760,
+        y: 2210,
+        w: 220,
+        h: 36
+      },
+      {
+        x: 1590,
+        y: 1640,
+        w: 150,
+        h: 36
+      },
+      {
+        x: 1170,
+        y: 1730,
+        w: 220,
+        h: 36
+      },
+      {
+        x: 4070,
+        y: 1650,
+        w: 220,
+        h: 150
+      },
+      {
+        x: 0,
+        y: 0,
+        w: 4290,
+        h: 120
+      },
+      {
+        x: 20,
+        y: 2350,
+        w: 4240,
+        h: 110
+      },
+      {
+        x: 1780,
+        y: 2040,
+        w: 250,
+        h: 60
+      },
+      {
+        x: 1830,
+        y: 1800,
+        w: 200,
+        h: 30
+      },
+      {
+        x: 2090,
+        y: 1660,
+        w: 180,
+        h: 60
+      },
+      {
+        x: 2440,
+        y: 1800,
+        w: 110,
+        h: 30
+      },
+      {
+        x: 2200,
+        y: 1890,
+        w: 190,
+        h: 80
+      },
+      {
+        x: 2680,
+        y: 2050,
+        w: 150,
+        h: 70
+      },
+      {
+        x: 2960,
+        y: 1880,
+        w: 100,
+        h: 40
+      },
+      {
+        x: 2770,
+        y: 1740,
+        w: 130,
+        h: 80
+      },
+      {
+        x: 2490,
+        y: 1650,
+        w: 170,
+        h: 60
+      },
+      {
+        x: 1810,
+        y: 1560,
+        w: 170,
+        h: 70
+      },
+      {
+        x: 2730,
+        y: 1510,
+        w: 220,
+        h: 60
+      },
+      {
+        x: 3030,
+        y: 1630,
+        w: 130,
+        h: 70
+      },
+      {
+        x: 3370,
+        y: 1640,
+        w: 160,
+        h: 50
+      },
+      {
+        x: 3250,
+        y: 1840,
+        w: 170,
+        h: 60
+      },
+      {
+        x: 3780,
+        y: 1690,
+        w: 170,
+        h: 60
+      },
+      {
+        x: 3580,
+        y: 1540,
+        w: 160,
+        h: 50
+      },
+      {
+        x: 530,
+        y: 560,
+        w: 10,
+        h: 4,
+        wall: true
+      }
+    ],
+    transitions: [
+      {
+        x: 10,
+        y: 210,
+        w: 60,
+        h: 72,
+        to: 'the_fracture_part1',
+        toX: 856,
+        toY: 896
+      },
+      {
+        x: 4220,
+        y: 1560,
+        w: 60,
+        h: 72,
+        to: 'crag_breach',
+        toX: 60,
+        toY: 1283
+      }
+    ],
+    connections: [
+      {
+        direction: 'west',
+        to: 'the_fracture_part1',
+        requires: null,
+        oneWay: false,
+        order: 0,
+        doorIndex: 0
+      },
+      {
+        direction: 'east',
+        to: 'crag_breach',
+        requires: null,
+        oneWay: false,
+        order: 0,
+        doorIndex: 1,
+        edgeExempt: true,
+        edgeExemptReason: 'east door now sits atop the climb (ledge 6, y:760) rather than at floor height — same room, real elevation change'
+      }
+    ],
+    enemies: [
+      {
+        type: 'fractured',
+        x: 890,
+        y: 2150
+      },
+      {
+        type: 'blitz_guard',
+        x: 1280,
+        y: 2050
+      },
+      {
+        type: 'ruin_stalker',
+        x: 1590,
+        y: 1890
+      },
+      {
+        type: 'blitz_guard',
+        x: 1290,
+        y: 1610
+      }
+    ],
+    anchors: [
+      {
+        x: 130,
+        y: 270,
+        index: 0
+      }
+    ],
+    abilityReward: null,
+    cosmeticUpgrades: [
+      {
+        id: 'cu_ce_secret_1',
+        x: 650,
+        y: 270,
+        name: 'Cosmetic Upgrade'
+      }
+    ],
+    pitDeathY: Infinity
     },
 
     crag_breach: {
@@ -419,7 +642,7 @@ const AREAS = {
         { x: 0, y: 1323, w: 1000, h: 60 }
       ],
       transitions: [
-        { x: 0, y: 1251, w: 60, h: 72, to: 'crag_entrance', toX: 1226, toY: 693 },
+        { x: 0, y: 1251, w: 60, h: 72, to: 'crag_entrance', toX: 1240, toY: 720 },
         { x: 114, y: 1251, w: 60, h: 72, to: 'crag_altar', toX: 991, toY: 1283 }
       ],
       connections: [
@@ -442,7 +665,10 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured', x: 291, y: 1283 },
+        { type: 'blitz_guard', x: 681, y: 1283 }
+      ],
       anchors: [
         { x: 100, y: 1303, index: 0 }
       ],
@@ -489,7 +715,10 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured', x: 304, y: 1283 },
+        { type: 'blitz_guard', x: 719, y: 1283 }
+      ],
       anchors: [
         { x: 105, y: 1303, index: 0 }
       ],
@@ -630,7 +859,12 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'mirror_sprite', x: 194, y: 3855 },
+        { type: 'echo_stalker', x: 389, y: 3855 },
+        { type: 'null_sentinel', x: 584, y: 3855 },
+        { type: 'mirror_sprite', x: 779, y: 3855 }
+      ],
       anchors: [
         { x: 100, y: 3875, index: 0 }
       ],
@@ -677,7 +911,14 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'mirror_sprite', x: 336, y: 591 },
+        { type: 'echo_stalker', x: 617, y: 591 },
+        { type: 'null_sentinel', x: 897, y: 591 },
+        { type: 'mirror_sprite', x: 1177, y: 591 },
+        { type: 'echo_stalker', x: 1458, y: 591 },
+        { type: 'null_sentinel', x: 1738, y: 591 }
+      ],
       anchors: [
         { x: 140, y: 611, index: 0 }
       ],
@@ -822,7 +1063,12 @@ const AREAS = {
           doorIndex: 1
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'mirror_sprite', x: 194, y: 1919 },
+        { type: 'echo_stalker', x: 389, y: 1919 },
+        { type: 'null_sentinel', x: 584, y: 1919 },
+        { type: 'mirror_sprite', x: 779, y: 1919 }
+      ],
       anchors: [
         { x: 100, y: 1939, index: 0 }
       ],
@@ -928,7 +1174,20 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured', x: 1126, y: 460 },
+        { type: 'stutterer', x: 1696, y: 460 },
+        { type: 'fractured', x: 2265, y: 460 },
+        { type: 'stutterer', x: 2835, y: 460 },
+        { type: 'fractured', x: 3405, y: 460 },
+        { type: 'stutterer', x: 3975, y: 460 },
+        { type: 'fractured', x: 4544, y: 460 },
+        { type: 'stutterer', x: 5114, y: 460 },
+        { type: 'fractured', x: 5684, y: 460 },
+        { type: 'stutterer', x: 6254, y: 460 },
+        { type: 'fractured', x: 6823, y: 460 },
+        { type: 'stutterer', x: 7393, y: 460 }
+      ],
       anchors: [
         { x: 140, y: 480, index: 0 },
         { x: 4274, y: 480, index: 1 },
@@ -991,7 +1250,13 @@ const AREAS = {
           doorIndex: 2
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured_knight', x: 295, y: 582 },
+        { type: 'stutterer', x: 569, y: 582 },
+        { type: 'fractured_knight', x: 844, y: 582 },
+        { type: 'fractured_knight', x: 1118, y: 582 },
+        { type: 'stutterer', x: 1392, y: 582 }
+      ],
       anchors: [
         { x: 140, y: 602, index: 0 }
       ],
@@ -1042,7 +1307,10 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured', x: 297, y: 923 },
+        { type: 'stutterer', x: 698, y: 923 }
+      ],
       anchors: [
         { x: 102, y: 943, index: 0 }
       ],
@@ -1158,7 +1426,14 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured', x: 286, y: 1034 },
+        { type: 'crystal_sentinel', x: 526, y: 934 },
+        { type: 'stutterer', x: 765, y: 1034 },
+        { type: 'fractured', x: 1005, y: 1034 },
+        { type: 'crystal_sentinel', x: 1245, y: 934 },
+        { type: 'stutterer', x: 1484, y: 1034 }
+      ],
       anchors: [
         { x: 140, y: 1054, index: 0 }
       ],
@@ -1211,7 +1486,12 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'echo_stalker', x: 230, y: 460 },
+        { type: 'timeworn_husk', x: 473, y: 460 },
+        { type: 'pulse_warden', x: 716, y: 360 },
+        { type: 'echo_stalker', x: 959, y: 460 }
+      ],
       anchors: [
         { x: 122, y: 480, index: 0 }
       ],
@@ -1333,7 +1613,12 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'stutterer', x: 194, y: 460 },
+        { type: 'void_lancer', x: 389, y: 460 },
+        { type: 'shard_spitter', x: 584, y: 460 },
+        { type: 'stutterer', x: 779, y: 460 }
+      ],
       anchors: [
         { x: 100, y: 480, index: 0 }
       ],
@@ -1605,7 +1890,12 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'stutterer', x: 194, y: 460 },
+        { type: 'void_lancer', x: 389, y: 460 },
+        { type: 'shard_spitter', x: 584, y: 460 },
+        { type: 'stutterer', x: 779, y: 460 }
+      ],
       anchors: [
         { x: 100, y: 480, index: 0 }
       ],
@@ -1651,7 +1941,14 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'stutterer', x: 309, y: 730 },
+        { type: 'void_lancer', x: 567, y: 730 },
+        { type: 'shard_spitter', x: 825, y: 730 },
+        { type: 'stutterer', x: 1083, y: 730 },
+        { type: 'void_lancer', x: 1341, y: 730 },
+        { type: 'shard_spitter', x: 1599, y: 730 }
+      ],
       anchors: [
         { x: 140, y: 750, index: 0 }
       ],
@@ -1697,7 +1994,14 @@ const AREAS = {
           doorIndex: 1
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'stutterer', x: 309, y: 730 },
+        { type: 'void_lancer', x: 567, y: 730 },
+        { type: 'shard_spitter', x: 825, y: 730 },
+        { type: 'stutterer', x: 1083, y: 730 },
+        { type: 'void_lancer', x: 1341, y: 730 },
+        { type: 'shard_spitter', x: 1599, y: 730 }
+      ],
       anchors: [
         { x: 140, y: 750, index: 0 }
       ],
@@ -1762,7 +2066,14 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'crystal_sentinel', x: 327, y: 934 },
+        { type: 'deflector_drone', x: 600, y: 934 },
+        { type: 'pulse_warden', x: 873, y: 934 },
+        { type: 'crystal_sentinel', x: 1146, y: 934 },
+        { type: 'deflector_drone', x: 1419, y: 934 },
+        { type: 'pulse_warden', x: 1692, y: 934 }
+      ],
       anchors: [
         { x: 140, y: 1054, index: 0 }
       ],
@@ -1818,7 +2129,14 @@ const AREAS = {
           doorIndex: 2
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'crystal_sentinel', x: 351, y: 934 },
+        { type: 'deflector_drone', x: 642, y: 934 },
+        { type: 'pulse_warden', x: 933, y: 934 },
+        { type: 'crystal_sentinel', x: 1224, y: 934 },
+        { type: 'deflector_drone', x: 1515, y: 934 },
+        { type: 'pulse_warden', x: 1806, y: 934 }
+      ],
       anchors: [
         { x: 140, y: 1054, index: 0 }
       ],
@@ -1881,7 +2199,14 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'crystal_sentinel', x: 286, y: 934 },
+        { type: 'deflector_drone', x: 526, y: 934 },
+        { type: 'pulse_warden', x: 765, y: 934 },
+        { type: 'crystal_sentinel', x: 1005, y: 934 },
+        { type: 'deflector_drone', x: 1245, y: 934 },
+        { type: 'pulse_warden', x: 1484, y: 934 }
+      ],
       anchors: [
         { x: 140, y: 1054, index: 0 }
       ],
@@ -1929,7 +2254,14 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'crystal_sentinel', x: 327, y: 934 },
+        { type: 'deflector_drone', x: 600, y: 934 },
+        { type: 'pulse_warden', x: 873, y: 934 },
+        { type: 'crystal_sentinel', x: 1146, y: 934 },
+        { type: 'deflector_drone', x: 1419, y: 934 },
+        { type: 'pulse_warden', x: 1692, y: 934 }
+      ],
       anchors: [
         { x: 140, y: 1054, index: 0 }
       ],
@@ -1999,7 +2331,16 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured_knight', x: 293, y: 1034 },
+        { type: 'void_juggernaut', x: 498, y: 1034 },
+        { type: 'timeworn_husk', x: 703, y: 1034 },
+        { type: 'stillpoint_revenant', x: 907, y: 1034 },
+        { type: 'fractured_knight', x: 1112, y: 1034 },
+        { type: 'void_juggernaut', x: 1316, y: 1034 },
+        { type: 'timeworn_husk', x: 1521, y: 1034 },
+        { type: 'stillpoint_revenant', x: 1726, y: 1034 }
+      ],
       anchors: [
         { x: 140, y: 1054, index: 0 }
       ],
@@ -2058,7 +2399,16 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'stutterer', x: 264, y: 1089 },
+        { type: 'stillpoint_revenant', x: 449, y: 1089 },
+        { type: 'timeworn_husk', x: 634, y: 1089 },
+        { type: 'stutterer', x: 820, y: 1089 },
+        { type: 'stillpoint_revenant', x: 1005, y: 1089 },
+        { type: 'timeworn_husk', x: 1191, y: 1089 },
+        { type: 'stutterer', x: 1376, y: 1089 },
+        { type: 'stillpoint_revenant', x: 1561, y: 1089 }
+      ],
       anchors: [
         { x: 140, y: 1109, index: 0 }
       ],
@@ -2144,7 +2494,20 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'stutterer', x: 941, y: 1089 },
+        { type: 'stillpoint_revenant', x: 1418, y: 1089 },
+        { type: 'timeworn_husk', x: 1896, y: 1089 },
+        { type: 'stutterer', x: 2373, y: 1089 },
+        { type: 'stillpoint_revenant', x: 2851, y: 1089 },
+        { type: 'timeworn_husk', x: 3328, y: 1089 },
+        { type: 'stutterer', x: 3806, y: 1089 },
+        { type: 'stillpoint_revenant', x: 4283, y: 1089 },
+        { type: 'timeworn_husk', x: 4761, y: 1089 },
+        { type: 'stutterer', x: 5238, y: 1089 },
+        { type: 'stillpoint_revenant', x: 5716, y: 1089 },
+        { type: 'timeworn_husk', x: 6193, y: 1089 }
+      ],
       anchors: [
         { x: 140, y: 1109, index: 0 },
         { x: 3581, y: 1109, index: 1 },
@@ -2216,7 +2579,14 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'stutterer', x: 175, y: 5847 },
+        { type: 'stillpoint_revenant', x: 326, y: 5847 },
+        { type: 'timeworn_husk', x: 477, y: 5847 },
+        { type: 'stutterer', x: 628, y: 5847 },
+        { type: 'stillpoint_revenant', x: 779, y: 5847 },
+        { type: 'timeworn_husk', x: 930, y: 5847 }
+      ],
       anchors: [
         { x: 113, y: 5867, index: 0 }
       ],
@@ -2286,7 +2656,20 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'stutterer', x: 598, y: 460 },
+        { type: 'stillpoint_revenant', x: 904, y: 460 },
+        { type: 'timeworn_husk', x: 1210, y: 460 },
+        { type: 'stutterer', x: 1516, y: 460 },
+        { type: 'stillpoint_revenant', x: 1822, y: 460 },
+        { type: 'timeworn_husk', x: 2128, y: 460 },
+        { type: 'stutterer', x: 2435, y: 460 },
+        { type: 'stillpoint_revenant', x: 2741, y: 460 },
+        { type: 'timeworn_husk', x: 3047, y: 460 },
+        { type: 'stutterer', x: 3353, y: 460 },
+        { type: 'stillpoint_revenant', x: 3659, y: 460 },
+        { type: 'timeworn_husk', x: 3965, y: 460 }
+      ],
       anchors: [
         { x: 140, y: 480, index: 0 },
         { x: 2296, y: 480, index: 1 }
@@ -2390,7 +2773,12 @@ const AREAS = {
           doorIndex: 1
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'crystal_sentinel', x: 194, y: 491 },
+        { type: 'void_lancer', x: 389, y: 591 },
+        { type: 'anchor_wraith', x: 584, y: 491 },
+        { type: 'crystal_sentinel', x: 779, y: 491 }
+      ],
       anchors: [
         { x: 100, y: 611, index: 0 }
       ],
@@ -2456,7 +2844,13 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'crystal_sentinel', x: 235, y: 2372 },
+        { type: 'void_lancer', x: 456, y: 2472 },
+        { type: 'anchor_wraith', x: 678, y: 2372 },
+        { type: 'crystal_sentinel', x: 899, y: 2372 },
+        { type: 'void_lancer', x: 1120, y: 2472 }
+      ],
       anchors: [
         { x: 138, y: 2492, index: 0 }
       ],
@@ -2503,7 +2897,12 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'crystal_sentinel', x: 194, y: 491 },
+        { type: 'void_lancer', x: 389, y: 591 },
+        { type: 'anchor_wraith', x: 584, y: 491 },
+        { type: 'crystal_sentinel', x: 779, y: 491 }
+      ],
       anchors: [
         { x: 100, y: 611, index: 0 }
       ],
@@ -2679,7 +3078,20 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'void_juggernaut', x: 753, y: 2943 },
+        { type: 'anchor_wraith', x: 1136, y: 2843 },
+        { type: 'null_sentinel', x: 1520, y: 2943 },
+        { type: 'void_juggernaut', x: 1904, y: 2943 },
+        { type: 'anchor_wraith', x: 2287, y: 2843 },
+        { type: 'null_sentinel', x: 2671, y: 2943 },
+        { type: 'void_juggernaut', x: 3054, y: 2943 },
+        { type: 'anchor_wraith', x: 3438, y: 2843 },
+        { type: 'null_sentinel', x: 3821, y: 2943 },
+        { type: 'void_juggernaut', x: 4205, y: 2943 },
+        { type: 'anchor_wraith', x: 4589, y: 2843 },
+        { type: 'null_sentinel', x: 4972, y: 2943 }
+      ],
       anchors: [
         { x: 140, y: 2963, index: 0 },
         { x: 2877, y: 2963, index: 1 },
@@ -2703,6 +3115,7 @@ const AREAS = {
       id: 'void_expanse_room2',
       name: 'The Void Expanse, Room 2',
       region: 'void_expanse',
+      roomType: 'miniboss',
       mapAccent: '#E100BB',
       col: 0,
       row: 2,
@@ -2762,7 +3175,9 @@ const AREAS = {
       anchors: [
         { x: 100, y: 480, index: 0 }
       ],
-      abilityReward: null
+      abilityReward: null,
+      miniboss: 'void_expanse_boss',
+      bossSpawn: { x: 470, y: 334 }
     },
 
     one_way_teleport_gate_to_paradox_engine: {
@@ -3023,7 +3438,15 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'crystal_sentinel', x: 203, y: 1114 },
+        { type: 'pulse_warden', x: 361, y: 1114 },
+        { type: 'deflector_drone', x: 519, y: 1114 },
+        { type: 'crystal_sentinel', x: 678, y: 1114 },
+        { type: 'pulse_warden', x: 836, y: 1114 },
+        { type: 'deflector_drone', x: 994, y: 1114 },
+        { type: 'crystal_sentinel', x: 1152, y: 1114 }
+      ],
       anchors: [
         { x: 138, y: 1234, index: 0 }
       ],
@@ -3091,7 +3514,17 @@ const AREAS = {
           doorIndex: 2
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'void_juggernaut', x: 382, y: 1034 },
+        { type: 'fractured_knight', x: 625, y: 1034 },
+        { type: 'deflector_drone', x: 868, y: 934 },
+        { type: 'void_juggernaut', x: 1112, y: 1034 },
+        { type: 'fractured_knight', x: 1355, y: 1034 },
+        { type: 'deflector_drone', x: 1598, y: 934 },
+        { type: 'void_juggernaut', x: 1842, y: 1034 },
+        { type: 'fractured_knight', x: 2085, y: 1034 },
+        { type: 'deflector_drone', x: 2328, y: 934 }
+      ],
       anchors: [
         { x: 140, y: 1054, index: 0 },
         { x: 1369, y: 1054, index: 1 }
@@ -3158,7 +3591,16 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'void_juggernaut', x: 260, y: 1034 },
+        { type: 'fractured_knight', x: 443, y: 1034 },
+        { type: 'deflector_drone', x: 625, y: 934 },
+        { type: 'void_juggernaut', x: 808, y: 1034 },
+        { type: 'fractured_knight', x: 990, y: 1034 },
+        { type: 'deflector_drone', x: 1173, y: 934 },
+        { type: 'void_juggernaut', x: 1355, y: 1034 },
+        { type: 'fractured_knight', x: 1538, y: 1034 }
+      ],
       anchors: [
         { x: 140, y: 1054, index: 0 }
       ],
@@ -3353,7 +3795,20 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured_knight', x: 1151, y: 1034 },
+        { type: 'void_juggernaut', x: 1734, y: 1034 },
+        { type: 'timeworn_husk', x: 2317, y: 1034 },
+        { type: 'stillpoint_revenant', x: 2899, y: 1034 },
+        { type: 'fractured_knight', x: 3482, y: 1034 },
+        { type: 'void_juggernaut', x: 4065, y: 1034 },
+        { type: 'timeworn_husk', x: 4647, y: 1034 },
+        { type: 'stillpoint_revenant', x: 5230, y: 1034 },
+        { type: 'fractured_knight', x: 5813, y: 1034 },
+        { type: 'void_juggernaut', x: 6395, y: 1034 },
+        { type: 'timeworn_husk', x: 6978, y: 1034 },
+        { type: 'stillpoint_revenant', x: 7561, y: 1034 }
+      ],
       anchors: [
         { x: 140, y: 1054, index: 0 },
         { x: 4370, y: 1054, index: 1 },
@@ -3411,7 +3866,18 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured_knight', x: 244, y: 460 },
+        { type: 'void_juggernaut', x: 391, y: 460 },
+        { type: 'timeworn_husk', x: 538, y: 460 },
+        { type: 'stillpoint_revenant', x: 685, y: 460 },
+        { type: 'fractured_knight', x: 832, y: 460 },
+        { type: 'void_juggernaut', x: 979, y: 460 },
+        { type: 'timeworn_husk', x: 1126, y: 460 },
+        { type: 'stillpoint_revenant', x: 1273, y: 460 },
+        { type: 'fractured_knight', x: 1420, y: 460 },
+        { type: 'void_juggernaut', x: 1567, y: 460 }
+      ],
       anchors: [
         { x: 140, y: 480, index: 0 }
       ],
@@ -3506,7 +3972,20 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'fractured_knight', x: 562, y: 840 },
+        { type: 'void_juggernaut', x: 849, y: 840 },
+        { type: 'timeworn_husk', x: 1137, y: 840 },
+        { type: 'stillpoint_revenant', x: 1425, y: 840 },
+        { type: 'fractured_knight', x: 1712, y: 840 },
+        { type: 'void_juggernaut', x: 2000, y: 840 },
+        { type: 'timeworn_husk', x: 2287, y: 840 },
+        { type: 'stillpoint_revenant', x: 2575, y: 840 },
+        { type: 'fractured_knight', x: 2862, y: 840 },
+        { type: 'void_juggernaut', x: 3150, y: 840 },
+        { type: 'timeworn_husk', x: 3438, y: 840 },
+        { type: 'stillpoint_revenant', x: 3725, y: 840 }
+      ],
       anchors: [
         { x: 140, y: 860, index: 0 },
         { x: 2158, y: 860, index: 1 }
@@ -3572,7 +4051,18 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'kinetic_striker', x: 257, y: 1809 },
+        { type: 'blitz_guard', x: 412, y: 1809 },
+        { type: 'shard_spitter', x: 567, y: 1809 },
+        { type: 'kinetic_striker', x: 722, y: 1809 },
+        { type: 'blitz_guard', x: 877, y: 1809 },
+        { type: 'shard_spitter', x: 1031, y: 1809 },
+        { type: 'kinetic_striker', x: 1186, y: 1809 },
+        { type: 'blitz_guard', x: 1341, y: 1809 },
+        { type: 'shard_spitter', x: 1496, y: 1809 },
+        { type: 'kinetic_striker', x: 1651, y: 1809 }
+      ],
       anchors: [
         { x: 140, y: 1829, index: 0 }
       ],
@@ -3723,7 +4213,17 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'void_juggernaut', x: 174, y: 1186 },
+        { type: 'timeworn_husk', x: 289, y: 1186 },
+        { type: 'kinetic_striker', x: 405, y: 1186 },
+        { type: 'void_juggernaut', x: 520, y: 1186 },
+        { type: 'timeworn_husk', x: 636, y: 1186 },
+        { type: 'kinetic_striker', x: 752, y: 1186 },
+        { type: 'void_juggernaut', x: 867, y: 1186 },
+        { type: 'timeworn_husk', x: 983, y: 1186 },
+        { type: 'kinetic_striker', x: 1098, y: 1186 }
+      ],
       anchors: [
         { x: 130, y: 1206, index: 0 }
       ],
@@ -3927,7 +4427,17 @@ const AREAS = {
           shortcut: true
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'kinetic_striker', x: 174, y: 1186 },
+        { type: 'anchor_wraith', x: 289, y: 1086 },
+        { type: 'deflector_drone', x: 405, y: 1086 },
+        { type: 'kinetic_striker', x: 520, y: 1186 },
+        { type: 'anchor_wraith', x: 636, y: 1086 },
+        { type: 'deflector_drone', x: 752, y: 1086 },
+        { type: 'kinetic_striker', x: 867, y: 1186 },
+        { type: 'anchor_wraith', x: 983, y: 1086 },
+        { type: 'deflector_drone', x: 1098, y: 1086 }
+      ],
       anchors: [
         { x: 130, y: 1206, index: 0 }
       ],
@@ -3999,6 +4509,7 @@ const AREAS = {
       id: 'antechamber',
       name: 'The Antechamber',
       region: 'origin',
+      roomType: 'miniboss',
       col: 1,
       row: 5,
       width: 2462,
@@ -4058,13 +4569,16 @@ const AREAS = {
       anchors: [
         { x: 140, y: 1552, index: 0 }
       ],
-      abilityReward: null
+      abilityReward: null,
+      miniboss: 'antechamber_child',
+      bossSpawn: { x: 1150, y: 334 }
     },
 
     hollow_core: {
       id: 'hollow_core',
       name: 'Hollow Core',
       region: 'origin',
+      roomType: 'miniboss',
       mapAccent: '#C08CEA',
       col: 2,
       row: 5,
@@ -4102,7 +4616,9 @@ const AREAS = {
           y: 481,
           text: 'The core is hollow because it has already given everything.'
         }
-      ]
+      ],
+      miniboss: 'abandoned_shell',
+      bossSpawn: { x: 550, y: 334 }
     },
 
     spawn_area_2: {
@@ -4220,7 +4736,18 @@ const AREAS = {
           doorIndex: 0
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'war_scavenger', x: 141, y: 460 },
+        { type: 'fractured_knight', x: 230, y: 460 },
+        { type: 'stillpoint_revenant', x: 318, y: 460 },
+        { type: 'war_scavenger', x: 406, y: 460 },
+        { type: 'fractured_knight', x: 495, y: 460 },
+        { type: 'stillpoint_revenant', x: 583, y: 460 },
+        { type: 'war_scavenger', x: 672, y: 460 },
+        { type: 'fractured_knight', x: 760, y: 460 },
+        { type: 'stillpoint_revenant', x: 848, y: 460 },
+        { type: 'war_scavenger', x: 937, y: 460 }
+      ],
       anchors: [
         { x: 111, y: 480, index: 0 }
       ],
@@ -4258,7 +4785,18 @@ const AREAS = {
           edgeExemptReason: 'vertical/secondary link rendered as a floor-level doorway (side-scroller)'
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'war_scavenger', x: 135, y: 702 },
+        { type: 'fractured_knight', x: 213, y: 702 },
+        { type: 'stillpoint_revenant', x: 291, y: 702 },
+        { type: 'war_scavenger', x: 369, y: 702 },
+        { type: 'fractured_knight', x: 447, y: 702 },
+        { type: 'stillpoint_revenant', x: 525, y: 702 },
+        { type: 'war_scavenger', x: 603, y: 702 },
+        { type: 'fractured_knight', x: 681, y: 702 },
+        { type: 'stillpoint_revenant', x: 759, y: 702 },
+        { type: 'war_scavenger', x: 837, y: 702 }
+      ],
       anchors: [
         { x: 100, y: 722, index: 0 }
       ],
@@ -4294,7 +4832,18 @@ const AREAS = {
           doorIndex: 0
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'war_scavenger', x: 135, y: 965 },
+        { type: 'fractured_knight', x: 213, y: 965 },
+        { type: 'stillpoint_revenant', x: 291, y: 965 },
+        { type: 'war_scavenger', x: 369, y: 965 },
+        { type: 'fractured_knight', x: 447, y: 965 },
+        { type: 'stillpoint_revenant', x: 525, y: 965 },
+        { type: 'war_scavenger', x: 603, y: 965 },
+        { type: 'fractured_knight', x: 681, y: 965 },
+        { type: 'stillpoint_revenant', x: 759, y: 965 },
+        { type: 'war_scavenger', x: 837, y: 965 }
+      ],
       anchors: [
         { x: 100, y: 985, index: 0 }
       ],
@@ -4377,7 +4926,24 @@ const AREAS = {
           doorIndex: 1
         }
       ],
-      enemies: [],
+      enemies: [
+        { type: 'war_scavenger', x: 861, y: 633 },
+        { type: 'blitz_guard', x: 1211, y: 633 },
+        { type: 'war_scavenger', x: 1561, y: 633 },
+        { type: 'kinetic_striker', x: 1911, y: 633 },
+        { type: 'war_scavenger', x: 2260, y: 633 },
+        { type: 'blitz_guard', x: 2610, y: 633 },
+        { type: 'war_scavenger', x: 2960, y: 633 },
+        { type: 'blitz_guard', x: 3310, y: 633 },
+        { type: 'war_scavenger', x: 3660, y: 633 },
+        { type: 'kinetic_striker', x: 4010, y: 633 },
+        { type: 'war_scavenger', x: 4360, y: 633 },
+        { type: 'blitz_guard', x: 4710, y: 633 },
+        { type: 'war_scavenger', x: 5059, y: 633 },
+        { type: 'blitz_guard', x: 5409, y: 633 },
+        { type: 'war_scavenger', x: 5759, y: 633 },
+        { type: 'kinetic_striker', x: 6109, y: 633 }
+      ],
       anchors: [
         { x: 140, y: 653, index: 0 },
         { x: 3499, y: 653, index: 1 },

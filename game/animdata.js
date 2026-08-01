@@ -38,9 +38,16 @@
 //     imageScale: 1,            // optional draw scale for the image
 //     hurtbox: {x,y,w,h},       // where THIS entity can be hit (entity-relative,
 //                               //   +x = facing direction; mirrored automatically)
-//     hitboxes: [{x,y,w,h, damage, knockbackX, knockbackY}], // damage-dealing boxes
+//     hitboxes: [{x,y,w,h, damage, knockbackX, knockbackY, hitStun}], // damage boxes
 //     cancelableFrom: false,    // true = a queued next-action may start during
 //                               //   this frame (the combo-chain window)
+//     events: [{type:'spawnProjectile'|'cameraShake'|'sfx', ...params}],
+//                               // side effects that fire once, the tick this
+//                               //   frame is FIRST entered (2026-07-27) — see
+//                               //   Animator.consumeFrameEvents() below. Read
+//                               //   by boss.js's frame-event consumer; opt-in
+//                               //   per entity/attack, nothing else changes
+//                               //   behavior if a frame has none.
 //
 //     // Pose-specific fields (2026-07-19) — only read by the matching pose
 //     // function in POSE_RENDERERS below; irrelevant/ignored otherwise:
@@ -248,6 +255,8 @@ applyAnimOverrides();
 //   this.animator.draw(ctx);                       // translated+mirrored pose/image
 //   this.animator.currentHitboxes();               // world-space damage boxes (or [])
 //   this.animator.canCancel();                     // inside a combo-cancel window?
+//   this.animator.consumeFrameEvents();             // authored side effects for the frame
+//                                                    //   just entered (or [] most ticks)
 //   this.animator.done                             // non-looping anim finished?
 class Animator {
   constructor(entity) {
@@ -257,6 +266,7 @@ class Animator {
     this.frameIndex = 0;
     this.frameTimer = 0;
     this.done = false;
+    this._frameEntered = false; // see consumeFrameEvents() below
   }
 
   play(key, restart = false) {
@@ -266,6 +276,7 @@ class Animator {
     this.frameIndex = 0;
     this.frameTimer = 0;
     this.done = !this.def;
+    this._frameEntered = true; // frame 0 counts as "just entered" too
     if (!this.def) console.warn(`[animdata] no animation named "${key}"`);
   }
 
@@ -280,7 +291,20 @@ class Animator {
         if (this.def.loop) this.frameIndex = 0;
         else { this.frameIndex = this.def.frames.length - 1; this.done = true; }
       }
+      this._frameEntered = true;
     }
+  }
+
+  // Authored side effects (spawn projectile / camera shake / sfx — see the
+  // FRAME SHAPE comment up top) for whichever frame was JUST entered this
+  // tick. Returns [] on every other tick so a multi-frame-duration frame
+  // doesn't refire its events once per tick it sits on. Consumers (boss.js)
+  // call this once per their own update(), same cadence as currentHitboxes().
+  consumeFrameEvents() {
+    if (!this._frameEntered) return [];
+    this._frameEntered = false;
+    const frame = this.currentFrame();
+    return (frame && frame.events) || [];
   }
 
   currentFrame() {
@@ -303,6 +327,7 @@ class Animator {
       damage: hb.damage ?? 1,
       knockbackX: hb.knockbackX ?? 4,
       knockbackY: hb.knockbackY ?? -3,
+      hitStun: hb.hitStun ?? 10,
     }));
   }
 

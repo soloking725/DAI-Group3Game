@@ -976,6 +976,75 @@
           "author": "Kenney",
           "license": "CC0",
           "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "swishes_1", "file": "assets/audio/candidates/enemy_sfx/attack/swish_1.ogg", "title": "Swish 1", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_2", "file": "assets/audio/candidates/enemy_sfx/attack/swish_2.ogg", "title": "Swish 2", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_3", "file": "assets/audio/candidates/enemy_sfx/attack/swish_3.ogg", "title": "Swish 3", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_4", "file": "assets/audio/candidates/enemy_sfx/attack/swish_4.ogg", "title": "Swish 4", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_5", "file": "assets/audio/candidates/enemy_sfx/attack/swish_5.ogg", "title": "Swish 5", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_6", "file": "assets/audio/candidates/enemy_sfx/attack/swish_6.ogg", "title": "Swish 6", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_7", "file": "assets/audio/candidates/enemy_sfx/attack/swish_7.ogg", "title": "Swish 7", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_8", "file": "assets/audio/candidates/enemy_sfx/attack/swish_8.ogg", "title": "Swish 8", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_9", "file": "assets/audio/candidates/enemy_sfx/attack/swish_9.ogg", "title": "Swish 9", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_10", "file": "assets/audio/candidates/enemy_sfx/attack/swish_10.ogg", "title": "Swish 10", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_11", "file": "assets/audio/candidates/enemy_sfx/attack/swish_11.ogg", "title": "Swish 11", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_12", "file": "assets/audio/candidates/enemy_sfx/attack/swish_12.ogg", "title": "Swish 12", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "swishes_13", "file": "assets/audio/candidates/enemy_sfx/attack/swish_13.ogg", "title": "Swish 13", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "sword_swing_1", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_1.ogg", "title": "Sword Attack 1 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_swing_2", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_2.ogg", "title": "Sword Attack 2 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_swing_3", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_3.ogg", "title": "Sword Attack 3 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_swing_4", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_4.ogg", "title": "Sword Attack 4 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_swing_5", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_5.ogg", "title": "Sword Attack 5 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_swing_6", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_6.ogg", "title": "Sword Attack 6 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_swing_7", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_7.ogg", "title": "Sword Attack 7 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_swing_8", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_8.ogg", "title": "Sword Attack 8 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_swing_9", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_9.ogg", "title": "Sword Attack 9 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_swing_10", "file": "assets/audio/candidates/enemy_sfx/attack/sword_swing_10.ogg", "title": "Sword Attack 10 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
         }
       ]
     },
@@ -1112,6 +1181,36 @@
           "author": "Kenney",
           "license": "CC0",
           "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "sword_clash_1", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_1.ogg", "title": "Sword Clash 1 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_clash_2", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_2.ogg", "title": "Sword Clash 2 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_clash_3", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_3.ogg", "title": "Sword Clash 3 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_clash_4", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_4.ogg", "title": "Sword Clash 4 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_clash_5", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_5.ogg", "title": "Sword Clash 5 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_clash_6", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_6.ogg", "title": "Sword Clash 6 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_clash_7", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_7.ogg", "title": "Sword Clash 7 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_clash_8", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_8.ogg", "title": "Sword Clash 8 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_clash_9", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_9.ogg", "title": "Sword Clash 9 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
+        },
+        {
+          "id": "sword_clash_10", "file": "assets/audio/candidates/enemy_sfx/heavyAttack/sword_clash_10.ogg", "title": "Sword Clash 10 (StarNinjas)", "author": "StarNinjas", "license": "CC0", "sourceUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes"
         }
       ]
     },
@@ -1384,6 +1483,21 @@
           "author": "Kenney",
           "license": "CC0",
           "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "ice_shatter_1", "file": "assets/audio/candidates/enemy_sfx/shardHit/ice_shatter_LedasLuzta.ogg", "title": "Ice Shatter 1", "author": "LedasLuzta", "license": "CC0", "sourceUrl": "https://opengameart.org/content/ice-breakingshattering"
+        },
+        {
+          "id": "ice_shatter_2", "file": "assets/audio/candidates/enemy_sfx/shardHit/ice_shatter_LedasLuzta2.ogg", "title": "Ice Shatter 2", "author": "LedasLuzta", "license": "CC0", "sourceUrl": "https://opengameart.org/content/ice-breakingshattering"
+        },
+        {
+          "id": "ice_shatter_3", "file": "assets/audio/candidates/enemy_sfx/shardHit/ice_shatter_LedasLuzta33.ogg", "title": "Ice Shatter 3", "author": "LedasLuzta", "license": "CC0", "sourceUrl": "https://opengameart.org/content/ice-breakingshattering"
+        },
+        {
+          "id": "ice_shatter_4", "file": "assets/audio/candidates/enemy_sfx/shardHit/ice_shatter_LedasLuzta4.ogg", "title": "Ice Shatter 4", "author": "LedasLuzta", "license": "CC0", "sourceUrl": "https://opengameart.org/content/ice-breakingshattering"
+        },
+        {
+          "id": "ice_shatter_5", "file": "assets/audio/candidates/enemy_sfx/shardHit/ice_shatter_LedasLuzta5.ogg", "title": "Ice Shatter 5", "author": "LedasLuzta", "license": "CC0", "sourceUrl": "https://opengameart.org/content/ice-breakingshattering"
         }
       ]
     },
@@ -1448,6 +1562,45 @@
           "author": "Kenney",
           "license": "CC0",
           "sourceUrl": "https://kenney.nl/assets/impact-sounds"
+        },
+        {
+          "id": "cast_iron_clang_1", "file": "assets/audio/candidates/enemy_sfx/parry/cast_iron_clang_1.ogg", "title": "Cast Iron Clang 1", "author": "bart", "license": "CC0", "sourceUrl": "https://opengameart.org/content/33-metal-clang-sounds-cast-iron-pans"
+        },
+        {
+          "id": "cast_iron_clang_6", "file": "assets/audio/candidates/enemy_sfx/parry/cast_iron_clang_6.ogg", "title": "Cast Iron Clang 6", "author": "bart", "license": "CC0", "sourceUrl": "https://opengameart.org/content/33-metal-clang-sounds-cast-iron-pans"
+        },
+        {
+          "id": "cast_iron_clang_12", "file": "assets/audio/candidates/enemy_sfx/parry/cast_iron_clang_12.ogg", "title": "Cast Iron Clang 12", "author": "bart", "license": "CC0", "sourceUrl": "https://opengameart.org/content/33-metal-clang-sounds-cast-iron-pans"
+        },
+        {
+          "id": "cast_iron_clang_18", "file": "assets/audio/candidates/enemy_sfx/parry/cast_iron_clang_18.ogg", "title": "Cast Iron Clang 18", "author": "bart", "license": "CC0", "sourceUrl": "https://opengameart.org/content/33-metal-clang-sounds-cast-iron-pans"
+        },
+        {
+          "id": "cast_iron_clang_24", "file": "assets/audio/candidates/enemy_sfx/parry/cast_iron_clang_24.ogg", "title": "Cast Iron Clang 24", "author": "bart", "license": "CC0", "sourceUrl": "https://opengameart.org/content/33-metal-clang-sounds-cast-iron-pans"
+        },
+        {
+          "id": "cast_iron_clang_30", "file": "assets/audio/candidates/enemy_sfx/parry/cast_iron_clang_30.ogg", "title": "Cast Iron Clang 30", "author": "bart", "license": "CC0", "sourceUrl": "https://opengameart.org/content/33-metal-clang-sounds-cast-iron-pans"
+        },
+        {
+          "id": "metal_bing1", "file": "assets/audio/candidates/enemy_sfx/parry/metal_bing1.ogg", "title": "Metal Bing 1", "author": "unknown (OGA \"Metal Impact Sounds\")", "license": "CC0", "sourceUrl": "https://opengameart.org/content/metal-impact-sounds"
+        },
+        {
+          "id": "metal_bong1", "file": "assets/audio/candidates/enemy_sfx/parry/metal_bong1.ogg", "title": "Metal Bong 1", "author": "unknown (OGA \"Metal Impact Sounds\")", "license": "CC0", "sourceUrl": "https://opengameart.org/content/metal-impact-sounds"
+        },
+        {
+          "id": "metal_clink1", "file": "assets/audio/candidates/enemy_sfx/parry/metal_clink1.ogg", "title": "Metal Clink 1", "author": "unknown (OGA \"Metal Impact Sounds\")", "license": "CC0", "sourceUrl": "https://opengameart.org/content/metal-impact-sounds"
+        },
+        {
+          "id": "metal_clink2", "file": "assets/audio/candidates/enemy_sfx/parry/metal_clink2.ogg", "title": "Metal Clink 2", "author": "unknown (OGA \"Metal Impact Sounds\")", "license": "CC0", "sourceUrl": "https://opengameart.org/content/metal-impact-sounds"
+        },
+        {
+          "id": "metal_clink3", "file": "assets/audio/candidates/enemy_sfx/parry/metal_clink3.ogg", "title": "Metal Clink 3", "author": "unknown (OGA \"Metal Impact Sounds\")", "license": "CC0", "sourceUrl": "https://opengameart.org/content/metal-impact-sounds"
+        },
+        {
+          "id": "metal_thud2", "file": "assets/audio/candidates/enemy_sfx/parry/metal_thud2.ogg", "title": "Metal Thud 2", "author": "unknown (OGA \"Metal Impact Sounds\")", "license": "CC0", "sourceUrl": "https://opengameart.org/content/metal-impact-sounds"
+        },
+        {
+          "id": "metal_thud3", "file": "assets/audio/candidates/enemy_sfx/parry/metal_thud3.ogg", "title": "Metal Thud 3", "author": "unknown (OGA \"Metal Impact Sounds\")", "license": "CC0", "sourceUrl": "https://opengameart.org/content/metal-impact-sounds"
         }
       ]
     },
@@ -1528,6 +1681,107 @@
           "author": "Kenney",
           "license": "CC0",
           "sourceUrl": "https://kenney.nl/assets/interface-sounds"
+        }
+      ]
+    },
+    {
+      "key": "phaseDash",
+      "name": "Phase Dash (ability)",
+      "description": "New candidate-only slot, no live track yet. The Phase Dash ability's cast/activation cue.",
+      "liveTrack": null,
+      "candidates": [
+        {
+          "id": "teleport_summoningwars", "file": "assets/audio/candidates/enemy_sfx/phaseDash/teleport_summoningwars.ogg", "title": "Teleport Spell", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/teleport-spell"
+        },
+        {
+          "id": "teleport_electricity", "file": "assets/audio/candidates/enemy_sfx/phaseDash/teleport_electricity.ogg", "title": "Teleport (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        }
+      ]
+    },
+    {
+      "key": "stillpoint",
+      "name": "Stillpoint (ability)",
+      "description": "New candidate-only slot, no live track yet. The Stillpoint time-slow ability's cast cue.",
+      "liveTrack": null,
+      "candidates": [
+        {
+          "id": "time_stop", "file": "assets/audio/candidates/enemy_sfx/stillpoint/time_stop.ogg", "title": "Time Slow (\"time_stop\")", "author": "unknown (OGA \"Time Slow\")", "license": "CC0", "sourceUrl": "https://opengameart.org/content/time-slow"
+        },
+        {
+          "id": "freeze_spell", "file": "assets/audio/candidates/enemy_sfx/stillpoint/freeze_spell.ogg", "title": "Freeze Spell", "author": "artisticdude", "license": "CC0", "sourceUrl": "https://opengameart.org/content/freeze-spell-0"
+        },
+        {
+          "id": "qubodup_ice_01", "file": "assets/audio/candidates/enemy_sfx/stillpoint/qubodup_ice_damage_01.ogg", "title": "Ice Damage 1", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        },
+        {
+          "id": "qubodup_ice_02", "file": "assets/audio/candidates/enemy_sfx/stillpoint/qubodup_ice_damage_02.ogg", "title": "Ice Damage 2", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        },
+        {
+          "id": "qubodup_ice_03", "file": "assets/audio/candidates/enemy_sfx/stillpoint/qubodup_ice_damage_03.ogg", "title": "Ice Damage 3", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        },
+        {
+          "id": "qubodup_ice_03b", "file": "assets/audio/candidates/enemy_sfx/stillpoint/qubodup_ice_damage_03b.ogg", "title": "Ice Damage 3b", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        },
+        {
+          "id": "qubodup_ice_03c", "file": "assets/audio/candidates/enemy_sfx/stillpoint/qubodup_ice_damage_03c.ogg", "title": "Ice Damage 3c", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        },
+        {
+          "id": "qubodup_ice_03d", "file": "assets/audio/candidates/enemy_sfx/stillpoint/qubodup_ice_damage_03d.ogg", "title": "Ice Damage 3d", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        },
+        {
+          "id": "qubodup_ice_03e", "file": "assets/audio/candidates/enemy_sfx/stillpoint/qubodup_ice_damage_03e.ogg", "title": "Ice Damage 3e", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        },
+        {
+          "id": "qubodup_ice_03f", "file": "assets/audio/candidates/enemy_sfx/stillpoint/qubodup_ice_damage_03f.ogg", "title": "Ice Damage 3f", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        }
+      ]
+    },
+    {
+      "key": "chargedAttack",
+      "name": "Charged Attack (ability)",
+      "description": "New candidate-only slot, no live track yet. The player's charge-up windup and/or release cue.",
+      "liveTrack": null,
+      "candidates": [
+        {
+          "id": "power_up_v1", "file": "assets/audio/candidates/enemy_sfx/chargedAttack/power_up_v1.ogg", "title": "Power-Up Sound v1", "author": "Spring Spring", "license": "CC0", "sourceUrl": "https://opengameart.org/content/power-up-sound-effects"
+        },
+        {
+          "id": "power_up_v2", "file": "assets/audio/candidates/enemy_sfx/chargedAttack/power_up_v2.ogg", "title": "Power-Up Sound v2", "author": "Spring Spring", "license": "CC0", "sourceUrl": "https://opengameart.org/content/power-up-sound-effects"
+        },
+        {
+          "id": "power_up_v3", "file": "assets/audio/candidates/enemy_sfx/chargedAttack/power_up_v3.ogg", "title": "Power-Up Sound v3", "author": "Spring Spring", "license": "CC0", "sourceUrl": "https://opengameart.org/content/power-up-sound-effects"
+        },
+        {
+          "id": "charge", "file": "assets/audio/candidates/enemy_sfx/chargedAttack/charge.ogg", "title": "Charge (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "chargestart", "file": "assets/audio/candidates/enemy_sfx/chargedAttack/chargestart.ogg", "title": "Charge Start (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        }
+      ]
+    },
+    {
+      "key": "electricAbility",
+      "name": "Electric/Static Ability (new mechanic)",
+      "description": "New candidate-only slot, no live track yet. For an unbuilt electromagnetic ability (e.g. roadmap's 'graviton_surge') or Polar Shift/Static Field/Conduit region stingers.",
+      "liveTrack": null,
+      "candidates": [
+        {
+          "id": "crackle_electricity_loop", "file": "assets/audio/candidates/enemy_sfx/electricAbility/crackle_electricity_loop.ogg", "title": "Crackle Electricity Loop", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "deathboom", "file": "assets/audio/candidates/enemy_sfx/electricAbility/deathboom.ogg", "title": "Death Boom", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "electricity_powerup", "file": "assets/audio/candidates/enemy_sfx/electricAbility/powerup.ogg", "title": "Power Up (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "shieldhit", "file": "assets/audio/candidates/enemy_sfx/electricAbility/shieldhit.ogg", "title": "Shield Hit", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "qubodup_electricity_01", "file": "assets/audio/candidates/enemy_sfx/electricAbility/qubodup_electricity_damage_01.ogg", "title": "Electricity Damage 1", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        },
+        {
+          "id": "qubodup_electricity_02", "file": "assets/audio/candidates/enemy_sfx/electricAbility/qubodup_electricity_damage_02.ogg", "title": "Electricity Damage 2", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
         }
       ]
     }

@@ -3,81 +3,96 @@
 <head>
 <meta charset="UTF-8">
 <title>Stillpoint — Level Editor</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:radial-gradient(ellipse at 50% -10%,#0b0b1c 0%,#06060e 55%);color:#c4b5fd;font-family:'Courier New',monospace;font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
+body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
 
 /* TOP BAR */
-#bar{display:flex;gap:6px;align-items:center;padding:7px 10px;background:linear-gradient(#12122400,#0e0e1e);background-color:#0e0e1e;border-bottom:1px solid #22224a;box-shadow:0 2px 10px rgba(0,0,0,0.35);flex-shrink:0;flex-wrap:wrap;position:relative;z-index:2}
-#bar select,#bar button,#bar input{background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:4px 8px;border-radius:4px;cursor:pointer;transition:background .12s ease,border-color .12s ease,transform .08s ease}
-#bar button:hover{background:#1e1e3e;border-color:#7a7ab0}
-#bar button:active{transform:translateY(1px)}
-#bar button.on{background:#332a66;border-color:#a78bfa;color:#f1eaff;box-shadow:0 0 0 1px #a78bfa50,0 0 10px #a78bfa30}
+#bar{display:flex;gap:6px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;position:relative;z-index:2}
+#bar select,#bar button,#bar input{background:var(--bg-input);border:1px solid var(--border-hover);color:var(--fg);font-family:var(--font-mono);font-size:11px;padding:5px 9px;border-radius:var(--radius-sm);cursor:pointer;transition:background var(--dur-fast) var(--ease-out-expo),border-color var(--dur-fast) var(--ease-out-expo),transform var(--dur-fast) var(--ease-out-expo)}
+#bar button:hover{background:var(--surface-hover);border-color:var(--border-hover)}
+#bar button:active{transform:scale(0.98)}
+#bar button.on{background:var(--accent-glow-soft);border-color:var(--border-accent);color:var(--fg);box-shadow:0 0 0 1px var(--border-accent),0 0 12px var(--accent-glow-soft)}
 #bar button:disabled{opacity:0.35;cursor:default;transform:none}
-#bar label{color:#6a6aa0;font-size:10px}
-#coord{color:#4a4a7e;font-size:10px;margin-left:auto;min-width:90px;text-align:right;font-variant-numeric:tabular-nums}
-#zoom-pct{color:#6a6aa0;font-size:10px;min-width:34px;text-align:center;user-select:none;font-variant-numeric:tabular-nums}
-.sep{width:1px;height:20px;background:linear-gradient(#1e1e3e00,#2e2e5e,#1e1e3e00);flex-shrink:0}
+#bar label{color:var(--fg-muted);font-family:var(--font-ui);font-size:10px}
+#coord{color:var(--fg-faint);font-size:10px;margin-left:auto;min-width:90px;text-align:right;font-variant-numeric:tabular-nums}
+#zoom-pct{color:var(--fg-muted);font-size:10px;min-width:34px;text-align:center;user-select:none;font-variant-numeric:tabular-nums}
+.sep{width:1px;height:20px;background:linear-gradient(var(--border) 0%,var(--border-hover) 50%,var(--border) 100%);flex-shrink:0}
 
 /* LAYOUT */
 #main{display:flex;flex:1;overflow:hidden}
-#wrap{flex:1;overflow:auto;position:relative;background:radial-gradient(ellipse at 50% 30%,#060612 0%,#030308 70%);cursor:crosshair}
+#canvasArea{flex:1;position:relative;overflow:hidden}
+/* grid + place-items, not flex + align/justify-center: a flex container
+   centering a child BIGGER than itself makes the overflow on the start
+   side (left/top) unreachable via scrolling — scrollLeft/scrollTop can't
+   go negative, so half the "centered overflow" is stuck off-screen. Grid's
+   place-items:center doesn't have this bug, and behaves identically for a
+   single child smaller than the container (still centered). This is what
+   made zoomed-in canvas content (bigger than #wrap) impossible to fully
+   pan to on the left/top no matter how much scrolling was attempted. */
+#wrap{width:100%;height:100%;overflow:auto;position:relative;display:grid;place-items:center;background:var(--bg-deep);cursor:crosshair}
 #wrap.panning{cursor:grabbing}
 #wrap.space-held{cursor:grab}
-canvas{display:block;box-shadow:0 0 40px rgba(120,100,220,0.06)}
+canvas{display:block;flex-shrink:0;box-shadow:var(--shadow-card)}
+
+/* MINIMAP */
+#minimap{position:absolute;left:0;right:0;bottom:0;height:64px;background:rgba(11,11,16,0.93);backdrop-filter:blur(8px);border-top:1px solid var(--border-hover);box-shadow:0 -6px 16px rgba(0,0,0,0.35);z-index:5;cursor:pointer}
+#minimap canvas{display:block;width:100%;height:100%;box-shadow:none}
 
 /* SIDEBAR */
-#side{width:260px;background:#0a0a18;border-left:1px solid #22224a;box-shadow:-6px 0 16px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative;z-index:1}
-#side h3{font-size:10px;color:#7a7ab8;padding:9px 8px;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #1a1a2e;background:#0d0d20}
+#side{width:260px;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative;z-index:1}
+#side h3{font-family:var(--font-ui);font-size:10px;font-weight:600;color:var(--fg-faint);padding:9px 8px;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid var(--border)}
 #props{flex:1;overflow-y:auto;padding:9px}
 .row{display:flex;align-items:center;gap:4px;margin-bottom:5px}
-.row label{color:#6a6aa0;font-size:10px;width:50px;flex-shrink:0}
-.row input,.row select,.row textarea{flex:1;background:#06060e;border:1px solid #22224a;color:#c4b5fd;font-family:monospace;font-size:11px;padding:3px 5px;border-radius:3px;min-width:0;transition:border-color .12s ease}
-.row input:focus,.row select:focus,.row textarea:focus{outline:none;border-color:#8b7ae0}
-.row input[type=checkbox]{width:auto;flex:none;cursor:pointer}
+.row label{color:var(--fg-muted);font-family:var(--font-ui);font-size:10px;width:50px;flex-shrink:0}
+.row input,.row select,.row textarea{flex:1;background:var(--bg-deep);border:1px solid var(--border-hover);color:var(--fg);font-family:var(--font-mono);font-size:11px;padding:4px 6px;border-radius:var(--radius-sm);min-width:0;transition:border-color var(--dur-fast) var(--ease-out-expo),box-shadow var(--dur-fast) var(--ease-out-expo)}
+.row input:focus,.row select:focus,.row textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow-soft)}
+.row input[type=checkbox]{width:auto;flex:none;cursor:pointer;accent-color:var(--accent)}
 .row textarea{height:52px;resize:none;font-size:10px}
-.row button{flex:1;padding:4px;cursor:pointer;font-family:monospace;font-size:10px;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;border-radius:4px;transition:background .12s ease}
-.row button:hover{background:#20204c}
-.del{background:#200e0e;border:1px solid #7f1d1d;color:#f87171}
-.del:hover{background:#3a1a1a}
-.hint{color:#4a4a78;font-size:10px;padding:7px;line-height:1.6}
-.section-title{color:#8b8ad0;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin:10px 0 5px;padding-bottom:3px;border-bottom:1px solid #23234a;position:relative}
-.section-title::before{content:'';display:inline-block;width:5px;height:5px;background:#a78bfa;border-radius:50%;margin-right:6px;box-shadow:0 0 6px #a78bfa}
+.row button{flex:1;padding:5px;cursor:pointer;font-family:var(--font-mono);font-size:10px;background:var(--surface);border:1px solid var(--border-hover);color:var(--fg);border-radius:var(--radius-sm);transition:background var(--dur-fast) var(--ease-out-expo)}
+.row button:hover{background:var(--surface-hover)}
+.del{background:var(--danger-dim);border:1px solid var(--danger-border);color:var(--danger)}
+.del:hover{background:rgba(248,113,113,0.22)}
+.hint{color:var(--fg-faint);font-size:10px;padding:7px;line-height:1.6}
+.section-title{color:var(--fg-muted);font-family:var(--font-ui);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin:10px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--border);position:relative}
+.section-title::before{content:'';display:inline-block;width:5px;height:5px;background:var(--accent-bright);border-radius:50%;margin-right:6px;box-shadow:0 0 6px var(--accent-glow)}
 
 /* SEARCH */
-#search-wrap{padding:9px;border-bottom:1px solid #1a1a2e;background:#0d0d20}
-#search-wrap input{width:100%;background:#06060e;border:1px solid #22224a;color:#c4b5fd;font-family:monospace;font-size:11px;padding:4px 6px;border-radius:3px}
-#search-wrap input:focus{outline:none;border-color:#8b7ae0}
-#search-results{max-height:120px;overflow-y:auto;margin-top:4px;border-radius:3px;overflow-x:hidden}
-.sr-item{padding:4px 6px;font-size:10px;color:#8a8ac0;cursor:pointer;border-bottom:1px solid #14142a;transition:background .1s ease}
-.sr-item:hover{background:#1a1a3a;color:#e0d7ff}
+#search-wrap{padding:9px;border-bottom:1px solid var(--border)}
+#search-wrap input{width:100%;background:var(--bg-deep);border:1px solid var(--border-hover);color:var(--fg);font-family:var(--font-mono);font-size:11px;padding:5px 7px;border-radius:var(--radius-sm)}
+#search-wrap input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow-soft)}
+#search-results{max-height:120px;overflow-y:auto;margin-top:4px;border-radius:var(--radius-sm);overflow-x:hidden}
+.sr-item{padding:5px 7px;font-size:10px;color:var(--fg-muted);cursor:pointer;border-bottom:1px solid var(--border);transition:background var(--dur-fast) var(--ease-out-expo),color var(--dur-fast) var(--ease-out-expo)}
+.sr-item:hover{background:var(--surface);color:var(--fg)}
 
 /* EXPORT */
-#exp{border-top:1px solid #22224a;padding:9px;background:#08081a}
-#exp-btn,#check-btn,#save-live-btn{width:100%;padding:6px;background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;cursor:pointer;font-family:monospace;font-size:11px;margin-bottom:6px;border-radius:4px;transition:background .12s ease}
+#exp{border-top:1px solid var(--border);padding:9px}
+#exp-btn,#check-btn,#save-live-btn{width:100%;padding:7px;background:var(--surface);border:1px solid var(--border-hover);color:var(--fg);cursor:pointer;font-family:var(--font-mono);font-size:11px;margin-bottom:6px;border-radius:var(--radius-sm);transition:background var(--dur-fast) var(--ease-out-expo)}
 #save-live-out{margin-bottom:8px}
-#exp-btn:hover,#check-btn:hover,#save-live-btn:hover{background:#1e1e48}
-#exp-out{width:100%;height:72px;background:#04040a;border:1px solid #22224a;color:#67e8f9;font-size:9px;resize:none;font-family:monospace;margin-bottom:5px;border-radius:3px}
-#check-out{width:100%;max-height:110px;overflow-y:auto;background:#04040a;border:1px solid #22224a;color:#8a8ac0;font-size:9px;padding:5px;line-height:1.6;border-radius:3px}
-#check-out .ok{color:#34d399}
-#check-out .bad{color:#f87171;cursor:pointer}
+#exp-btn:hover,#check-btn:hover,#save-live-btn:hover{background:var(--surface-hover)}
+#exp-out{width:100%;height:72px;background:var(--bg-deep);border:1px solid var(--border);color:var(--info);font-size:9px;resize:none;font-family:var(--font-mono);margin-bottom:5px;border-radius:var(--radius-sm)}
+#check-out{width:100%;max-height:110px;overflow-y:auto;background:var(--bg-deep);border:1px solid var(--border);color:var(--fg-muted);font-size:9px;padding:6px;line-height:1.6;border-radius:var(--radius-sm)}
+#check-out .ok{color:var(--ok)}
+#check-out .bad{color:var(--danger);cursor:pointer}
 #check-out .bad:hover{color:#fca5a5;text-decoration:underline}
-#diff-out,#validate-out{width:100%;max-height:110px;overflow-y:auto;background:#04040a;border:1px solid #22224a;color:#8a8ac0;font-size:9px;padding:5px;line-height:1.6;margin-bottom:5px;border-radius:3px}
-#diff-out .ok,#validate-out .ok{color:#34d399}
-#diff-out .bad,#validate-out .bad{color:#f87171}
-#save-live-out .ok{color:#34d399}
-#save-live-out .bad{color:#f87171}
+#diff-out,#validate-out{width:100%;max-height:110px;overflow-y:auto;background:var(--bg-deep);border:1px solid var(--border);color:var(--fg-muted);font-size:9px;padding:6px;line-height:1.6;margin-bottom:5px;border-radius:var(--radius-sm)}
+#diff-out .ok,#validate-out .ok{color:var(--ok)}
+#diff-out .bad,#validate-out .bad{color:var(--danger)}
+#save-live-out .ok{color:var(--ok)}
+#save-live-out .bad{color:var(--danger)}
 
 /* LEGEND */
-#legend{display:flex;gap:10px;padding:6px 10px;background:#08081a;border-top:1px solid #22224a;flex-shrink:0;flex-wrap:wrap;align-items:center}
-.leg{display:flex;align-items:center;gap:4px;font-size:9px;color:#6a6aa0;padding:2px 6px;border-radius:10px;background:#0e0e22}
-.lc{width:10px;height:10px;border:1px solid;border-radius:2px}
-#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px;transition:color .12s ease}
-#back:hover{color:#e0d7ff}
+#legend{display:flex;gap:10px;padding:7px 10px;border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--fg-muted);padding:3px 8px;border-radius:var(--radius-full);background:var(--surface)}
+.lc{width:10px;height:10px;border:1px solid;border-radius:3px}
 </style>
 </head>
-<body>
-<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
 
 
 <div id="bar">
@@ -96,7 +111,7 @@ canvas{display:block;box-shadow:0 0 40px rgba(120,100,220,0.06)}
   <button data-tool="sp" title="T">◆ Anchor</button>
   <button data-tool="ab" title="A">★ Ability</button>
   <button data-tool="trans" title="X">→ Transition</button>
-  <button data-tool="lore" title="L — Lore Pip (loreFragments: collectible that banks toward Inventory upgrades)">💬 Lore Pip</button>
+  <button data-tool="lore" title="L — Lore Pip (loreFragments: collectible that banks toward Inventory upgrades). Pick Overlay/Cutscene/None in the side panel to choose its vision.">💬 Lore Pip</button>
   <button data-tool="pip" title="F — Fracture Pip (raises max Fracture meter)">✦ Fracture Pip</button>
   <button data-tool="heal" title="H — Healing Crystal (strike to full-heal)">✚ Heal Crystal</button>
   <button data-tool="cos" title="K — Cosmetic Upgrade (placeholder collectible, no effect yet)">✿ Cosmetic</button>
@@ -108,9 +123,9 @@ canvas{display:block;box-shadow:0 0 40px rgba(120,100,220,0.06)}
   <div class="sep"></div>
   <button id="stitch-btn" title="Snap dragged platform edges flush against neighbors">🧲 Stitch</button>
   <div class="sep"></div>
-  <button id="zoom-" title="Scroll wheel also zooms, centered on the cursor">−</button>
+  <button id="zoom-" title="Ctrl/Cmd+scroll or trackpad pinch also zooms, centered on the cursor">−</button>
   <span id="zoom-pct" title="Current zoom level">100%</span>
-  <button id="zoom+" title="Scroll wheel also zooms, centered on the cursor">+</button>
+  <button id="zoom+" title="Ctrl/Cmd+scroll or trackpad pinch also zooms, centered on the cursor">+</button>
   <button id="center-btn" title="Home — fit the whole room in view and center it">⊙ Center</button>
   <label>Grid:</label>
   <select id="grid-size">
@@ -124,14 +139,17 @@ canvas{display:block;box-shadow:0 0 40px rgba(120,100,220,0.06)}
 </div>
 
 <div id="main">
-  <div id="wrap"><canvas id="cv"></canvas></div>
+  <div id="canvasArea">
+    <div id="wrap"><canvas id="cv"></canvas></div>
+    <div id="minimap" title="Click or drag to jump around the room"><canvas id="minimap-cv"></canvas></div>
+  </div>
   <div id="side">
     <div id="search-wrap">
       <input id="obj-search" type="text" placeholder="Find object (type, id, target)…">
       <div id="search-results"></div>
     </div>
     <h3>Properties</h3>
-    <div id="props">
+    <div id="props" class="ds-scroll">
       <div class="section-title">Area</div>
       <div class="row"><label>name</label><input id="a-name" type="text"></div>
       <div class="row"><label>region</label><input id="a-region" type="text" list="region-list"><datalist id="region-list"></datalist></div>
@@ -147,8 +165,8 @@ canvas{display:block;box-shadow:0 0 40px rgba(120,100,220,0.06)}
         </select>
       </div>
       <div class="row" id="a-miniboss-row" style="display:none"><label>miniboss</label><input id="a-minibossid" type="text" placeholder="e.g. colossus_core"></div>
-      <div class="row"><label>no pit</label><input id="a-nopit" type="checkbox"><span style="color:#5a5a8e;font-size:10px"> No Pit Death (pitDeathY = ∞)</span></div>
-      <div id="sel-props"><div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll wheel to zoom (centered on cursor).<br>Home key — fit &amp; center room.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div></div>
+      <div class="row"><label>no pit</label><input id="a-nopit" type="checkbox"><span style="color:var(--fg-muted);font-size:10px"> No Pit Death (pitDeathY = ∞)</span></div>
+      <div id="sel-props"><div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll/swipe to pan.<br>Ctrl/Cmd+scroll or pinch to zoom (centered on cursor).<br>Home key — fit &amp; center room.<br>Overview strip (bottom) — click/drag to jump anywhere in the room.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div></div>
     </div>
     <div id="exp">
       <button id="exp-btn">⬇ Export JavaScript</button>
@@ -176,12 +194,13 @@ canvas{display:block;box-shadow:0 0 40px rgba(120,100,220,0.06)}
   <div class="leg"><div class="lc" style="background:#34d39920;border-color:#34d399"></div> Transition</div>
   <div class="leg"><div class="lc" style="background:#fbbf2440;border-color:#fbbf24"></div> Lore</div>
   <div class="leg"><div class="lc" style="background:#f8717125;border-color:#f87171"></div> Boss Spawn</div>
-  <span style="color:#3a3a5e;font-size:9px;margin-left:auto">Keys: V P W E T A X L B R — tools | G — cycle grid | Home — fit &amp; center | Del — remove | Arrows — nudge | Ctrl+Z/Y — undo/redo | Ctrl+C/V — copy/paste</span>
+  <span style="color:var(--fg-faint);font-size:9px;margin-left:auto">Keys: V P W E T A X L B R — tools | G — cycle grid | Home — fit &amp; center | Del — remove | Arrows — nudge | Ctrl+Z/Y — undo/redo | Ctrl+C/V — copy/paste</span>
 </div>
 
 <script src="../game/physics.js"></script>
 <script src="../game/area.js"></script>
 <script src="../game/enemy.js"></script>
+<script src="../game/cutscene.js"></script>
 <script src="../game/devContext.js"></script>
 <script src="../game/unsavedGuard.js"></script>
 <script>
@@ -218,6 +237,15 @@ let testSpawn = null; // {x,y} — reachability-envelope test marker
 let validationFailures = []; // [{msg,x,y}] from the last "Validate This Room" run
 
 function snp(v){ return SNAP>0 ? Math.round(v/SNAP)*SNAP : Math.round(v); }
+// Same as snp() but clamped to the room's own four walls — for object
+// POSITIONS only (x/y), never sizes (w/h) or the room bounds themselves,
+// which already clamp their own way. Without this, dragging/resizing/
+// creating a platform past any edge just let it go past 0 or past
+// width/roomHeight and vanish off-canvas instead of stopping at the wall.
+// clampX/clampY additionally need the object's own w/h to clamp the FAR
+// edge against the right/bottom wall, not just the near edge against 0.
+function clampX(v, w){ return Math.min(Math.max(0, snp(v)), Math.max(0, area.width - w)); }
+function clampY(v, h){ return Math.min(Math.max(0, snp(v)), Math.max(0, effectiveRoomHeight() - h)); }
 function aC(v){ return v*SCALE; }
 function cA(v){ return v/SCALE; }
 
@@ -272,11 +300,13 @@ function frameRoom(){
 }
 
 function resizeCV(){
-  const W = wrapEl.clientWidth;
+  // Size the canvas to the room's own content, not the viewport — #wrap
+  // centers it via flexbox when it's smaller than the viewport (so the
+  // room sits in the middle instead of pinned to the top-left corner),
+  // and overflow:auto on #wrap gives a hard scroll limit at the room's
+  // actual edges (no infinite/padded void to scroll into) when it's bigger.
   const visH = Math.max(effectiveRoomHeight(), 500);
-  cv.width = Math.max(area.width*SCALE, W)+40;
-  // No 900px cap anymore — tall/deep rooms scroll within #wrap (which is
-  // already overflow:auto) instead of being squashed to fit a fixed canvas.
+  cv.width = area.width*SCALE+40;
   cv.height = visH*SCALE+40;
 }
 
@@ -292,7 +322,7 @@ function render(){
   resizeCV();
   const zp=document.getElementById('zoom-pct'); if(zp)zp.textContent=Math.round(SCALE*100)+'%';
   ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.fillStyle='#04040a';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#050506';ctx.fillRect(0,0,cv.width,cv.height); // ambient base — canvas constraint: only this base fill may change
 
   // Subtle grid
   const gridStep = SNAP>0?SNAP:10;
@@ -384,10 +414,15 @@ function render(){
     ctx.fillStyle='#67e8f9';ctx.font='8px monospace';ctx.fillText('SP',aC(sp.x)+12,aC(sp.y)+3);
   }
 
-  // Lore
+  // Lore (color follows lf.mode: amber=overlay, amber+ring=cutscene, slate=none/extra)
   for(const lf of (area.loreFragments||[])){
     const isSel=isSelObj(lf);
-    diamond(aC(lf.x),aC(lf.y),aC(8),'rgba(251,191,36,0.25)',isSel?'#fbbf24':'#fbbf24',isSel?2:1.5);
+    const mode=lf.mode||'overlay';
+    const c=mode==='none'?'#94a3b8':'#fbbf24';
+    diamond(aC(lf.x),aC(lf.y),aC(8),mode==='none'?'rgba(148,163,184,0.25)':'rgba(251,191,36,0.25)',isSel?'#fbbf24':c,isSel?2:1.5);
+    if(mode==='cutscene'){
+      ctx.strokeStyle=isSel?'#fbbf24':c;ctx.lineWidth=1;ctx.beginPath();ctx.arc(aC(lf.x),aC(lf.y),aC(13),0,Math.PI*2);ctx.stroke();
+    }
   }
 
   // Ability
@@ -477,7 +512,95 @@ function render(){
     ctx.fillStyle='#6a6a9e';ctx.font='9px monospace';
     ctx.fillText(Math.round(cA(rw))+'×'+Math.round(cA(rh)),rx+2,ry-3);
   }
+
+  renderMinimap();
 }
+
+// ─── MINIMAP ─────────────────────────────────────────────────────────────
+// A fixed overview strip (doesn't scroll with #wrap) showing the WHOLE room
+// squashed down, with a box for the current viewport. Exists because rooms
+// like echo_bridge_part1 (8547×560) are so wide that "fit whole room in
+// view" zooms out to an unreadable sliver, and once you zoom back in to
+// work, a scrollbar alone gives no sense of where you are along ~8500px.
+const mmCv = document.getElementById('minimap-cv');
+const mmCtx = mmCv.getContext('2d');
+const mmEl = document.getElementById('minimap');
+const MM_PAD = 6;
+let mmScrubbing = false;
+
+function renderMinimap(){
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = mmEl.clientWidth, cssH = mmEl.clientHeight;
+  if(mmCv.width !== Math.round(cssW*dpr) || mmCv.height !== Math.round(cssH*dpr)){
+    mmCv.width = Math.round(cssW*dpr); mmCv.height = Math.round(cssH*dpr);
+  }
+  mmCtx.setTransform(dpr,0,0,dpr,0,0);
+  mmCtx.clearRect(0,0,cssW,cssH);
+  const {scale, offX, offY} = mmMetricsCss(cssW,cssH);
+  const roomW = area.width, roomH = effectiveRoomHeight();
+
+  mmCtx.fillStyle = '#050506'; // ambient base — canvas constraint: only this base fill may change
+  mmCtx.fillRect(offX, offY, roomW*scale, roomH*scale);
+  mmCtx.strokeStyle = 'rgba(90,90,180,0.6)';
+  mmCtx.lineWidth = 1;
+  mmCtx.strokeRect(offX+0.5, offY+0.5, roomW*scale, roomH*scale);
+
+  mmCtx.fillStyle = 'rgba(120,110,180,0.55)';
+  for(const p of area.platforms){
+    mmCtx.fillRect(offX+p.x*scale, offY+p.y*scale, Math.max(1,p.w*scale), Math.max(1,p.h*scale));
+  }
+  mmCtx.fillStyle = 'rgba(52,211,153,0.85)';
+  for(const t of area.transitions){
+    mmCtx.fillRect(offX+t.x*scale-1, offY+t.y*scale-1, Math.max(2,t.w*scale)+2, Math.max(2,t.h*scale)+2);
+  }
+  mmCtx.fillStyle = 'rgba(248,113,113,0.85)';
+  for(const e of area.enemies){
+    mmCtx.fillRect(offX+e.x*scale-1.5, offY+e.y*scale-1.5, 3, 3);
+  }
+  if(selList.length){
+    mmCtx.fillStyle = '#fbbf24';
+    for(const s of selList){
+      if(s.obj.x===undefined) continue;
+      const sw = s.obj.w||8, sh = s.obj.h||8;
+      mmCtx.fillRect(offX+s.obj.x*scale-1, offY+s.obj.y*scale-1, Math.max(3,sw*scale)+2, Math.max(3,sh*scale)+2);
+    }
+  }
+
+  // Current viewport box
+  const vx0 = cA(wrapEl.scrollLeft), vy0 = cA(wrapEl.scrollTop);
+  const vx1 = cA(wrapEl.scrollLeft + wrapEl.clientWidth), vy1 = cA(wrapEl.scrollTop + wrapEl.clientHeight);
+  mmCtx.strokeStyle = '#e0d7ff';
+  mmCtx.lineWidth = 1.5;
+  mmCtx.strokeRect(offX+vx0*scale, offY+vy0*scale, Math.max(1,(vx1-vx0)*scale), Math.max(1,(vy1-vy0)*scale));
+  mmCtx.fillStyle = 'rgba(224,215,255,0.08)';
+  mmCtx.fillRect(offX+vx0*scale, offY+vy0*scale, Math.max(1,(vx1-vx0)*scale), Math.max(1,(vy1-vy0)*scale));
+}
+
+// Room->minimap fit/center transform, in CSS px (mmCtx is dpr-scaled via setTransform).
+function mmMetricsCss(cssW,cssH){
+  const availW = Math.max(1, cssW - MM_PAD*2);
+  const availH = Math.max(1, cssH - MM_PAD*2);
+  const roomW = area.width, roomH = effectiveRoomHeight();
+  const scale = Math.min(availW/roomW, availH/roomH);
+  const offX = MM_PAD + (availW - roomW*scale)/2;
+  const offY = MM_PAD + (availH - roomH*scale)/2;
+  return {scale, offX, offY};
+}
+
+function mmJumpTo(clientX, clientY){
+  const r = mmEl.getBoundingClientRect();
+  const {scale, offX, offY} = mmMetricsCss(r.width, r.height);
+  const roomX = (clientX - r.left - offX) / scale;
+  const roomY = (clientY - r.top - offY) / scale;
+  wrapEl.scrollLeft = Math.max(0, Math.min(cv.width - wrapEl.clientWidth, aC(roomX) - wrapEl.clientWidth/2));
+  wrapEl.scrollTop = Math.max(0, Math.min(cv.height - wrapEl.clientHeight, aC(roomY) - wrapEl.clientHeight/2));
+  renderMinimap();
+}
+
+mmEl.addEventListener('mousedown', e=>{ mmScrubbing = true; mmJumpTo(e.clientX, e.clientY); e.preventDefault(); });
+window.addEventListener('mousemove', e=>{ if(mmScrubbing) mmJumpTo(e.clientX, e.clientY); });
+window.addEventListener('mouseup', ()=>{ mmScrubbing = false; });
+wrapEl.addEventListener('scroll', renderMinimap);
 
 // ─── HIT TESTING ─────────────────────────────────────────────────────────
 function hitPlat(ax,ay,p){return ax>=p.x&&ax<=p.x+p.w&&ay>=p.y&&ay<=p.y+p.h;}
@@ -587,7 +710,7 @@ cv.addEventListener('mousedown',e=>{
     if(tool==='enemy'){const et=document.getElementById('enemy-type').value||'fractured';const en={type:et,x:sx,y:sy};area.enemies.push(en);setSingleSel(en,'enemy');}
     else if(tool==='sp'){const spn={x:sx,y:sy,index:area.anchors.length};area.anchors.push(spn);setSingleSel(spn,'sp');}
     else if(tool==='ab'){area.abilityReward={id:'new_ability',x:sx,y:sy,name:'New Ability',desc:''};setSingleSel(area.abilityReward,'ab');}
-    else if(tool==='lore'){if(!area.loreFragments)area.loreFragments=[];const lf={id:'lore_'+Date.now(),x:sx,y:sy,text:'"..."'};area.loreFragments.push(lf);setSingleSel(lf,'lore');}
+    else if(tool==='lore'){if(!area.loreFragments)area.loreFragments=[];const lf={id:'lore_'+Date.now(),x:sx,y:sy,text:'"..."',mode:'overlay'};area.loreFragments.push(lf);setSingleSel(lf,'lore');}
     else if(tool==='pip'){if(!area.fracturePipRewards)area.fracturePipRewards=[];const o={id:'fp_'+Date.now(),x:sx,y:sy};area.fracturePipRewards.push(o);setSingleSel(o,'pip');}
     else if(tool==='heal'){if(!area.healingCrystals)area.healingCrystals=[];const o={id:'hc_'+Date.now(),x:sx,y:sy};area.healingCrystals.push(o);setSingleSel(o,'heal');}
     else if(tool==='cos'){if(!area.cosmeticUpgrades)area.cosmeticUpgrades=[];const o={id:'cu_'+Date.now(),x:sx,y:sy,name:'Cosmetic Upgrade'};area.cosmeticUpgrades.push(o);setSingleSel(o,'cos');}
@@ -616,10 +739,10 @@ cv.addEventListener('mousemove',e=>{
     const mxx=snp(ax), myy=snp(ay);
     const minW = r.obj===sel && selType==='trans' ? 10 : 4;
     const minH = r.obj===sel && selType==='trans' ? 10 : 1;
-    if(r.edge.includes('e')) nw=Math.max(minW, mxx-r.sx);
-    if(r.edge.includes('s')) nh=Math.max(minH, myy-r.sy);
-    if(r.edge.includes('w')){ nw=Math.max(minW,(r.sx+r.sw)-mxx); nx=(r.sx+r.sw)-nw; }
-    if(r.edge.includes('n')){ nh=Math.max(minH,(r.sy+r.sh)-myy); ny=(r.sy+r.sh)-nh; }
+    if(r.edge.includes('e')) nw=Math.min(Math.max(minW, mxx-r.sx), Math.max(minW, area.width-r.sx));
+    if(r.edge.includes('s')) nh=Math.min(Math.max(minH, myy-r.sy), Math.max(minH, effectiveRoomHeight()-r.sy));
+    if(r.edge.includes('w')){ nw=Math.max(minW,(r.sx+r.sw)-mxx); nx=(r.sx+r.sw)-nw; if(nx<0){ nx=0; nw=r.sx+r.sw; } }
+    if(r.edge.includes('n')){ nh=Math.max(minH,(r.sy+r.sh)-myy); ny=(r.sy+r.sh)-nh; if(ny<0){ ny=0; nh=r.sy+r.sh; } }
     r.obj.x=nx; r.obj.y=ny; r.obj.w=nw; r.obj.h=nh;
     updateSideProps();
     render();
@@ -630,7 +753,7 @@ cv.addEventListener('mousemove',e=>{
     const anchor = dragStarts.find(d=>d.obj===sel) || dragStarts[0];
     const ddx = nx-anchor.sx, ddy = ny-anchor.sy;
     if(ddx!==0||ddy!==0) dragMoved=true;
-    for(const d of dragStarts){ d.obj.x = snp(d.sx+ddx); d.obj.y = snp(d.sy+ddy); }
+    for(const d of dragStarts){ d.obj.x = clampX(d.sx+ddx, d.obj.w); d.obj.y = clampY(d.sy+ddy, d.obj.h); }
     if(stitchEnabled && dragStarts.length===1 && selType==='plat') applyStitch(dragStarts[0].obj);
     updateSideProps();
   } else if(tool==='select' && !dragging && !panning){
@@ -671,8 +794,9 @@ cv.addEventListener('mouseup',e=>{
   if(objResizing){ objResizing=null; pushHistory(); render(); return; }
   if(creating&&cs){
     const{x:ax,y:ay}=getAC(e);
-    const x1=Math.min(cs.ax,snp(ax)),y1=Math.min(cs.ay,snp(ay));
-    const w=Math.abs(snp(ax)-cs.ax),h=Math.abs(snp(ay)-cs.ay);
+    const rawX2=Math.min(area.width,Math.max(cs.ax,snp(ax))), rawY2=Math.min(effectiveRoomHeight(),Math.max(cs.ay,snp(ay)));
+    const x1=Math.max(0,Math.min(cs.ax,snp(ax))),y1=Math.max(0,Math.min(cs.ay,snp(ay)));
+    const w=rawX2-x1,h=rawY2-y1;
     if(w>=10||h>=4){
       if(tool==='plat'||tool==='wall'||tool==='solidwall'||tool==='ceilingtool'){
         const p={x:x1,y:y1,w:Math.max(10,w),h:Math.max(4,h)};
@@ -716,10 +840,22 @@ function zoomBy(delta, clientX, clientY){
   wrapEl.scrollTop += ay*(SCALE-oldScale);
   render();
 }
-cv.addEventListener('wheel',e=>{
+// Trackpad-friendly scheme (matches Figma/Whimsical): a plain two-finger
+// swipe pans in both axes; pinch (which Mac browsers report as a wheel
+// event with ctrlKey:true) or holding Ctrl/Cmd zooms, anchored on the
+// cursor. Zoom delta scales with gesture magnitude instead of jumping a
+// fixed step per event, since trackpads fire far more wheel events than a
+// mouse wheel's discrete clicks — without scaling, zoom felt way too fast.
+const ZOOM_WHEEL_SENSITIVITY = 0.0018;
+wrapEl.addEventListener('wheel',e=>{
   e.preventDefault();
-  const delta = e.deltaY<0?ZOOM_STEP:-ZOOM_STEP;
-  zoomBy(delta, e.clientX, e.clientY);
+  if(e.ctrlKey || e.metaKey){
+    const delta = Math.max(-ZOOM_STEP, Math.min(ZOOM_STEP, -e.deltaY*ZOOM_WHEEL_SENSITIVITY));
+    zoomBy(delta, e.clientX, e.clientY);
+  } else {
+    wrapEl.scrollLeft += e.deltaX;
+    wrapEl.scrollTop += e.deltaY;
+  }
 },{passive:false});
 
 cv.addEventListener('contextmenu',e=>{ if(spaceHeld||panning) e.preventDefault(); });
@@ -1002,7 +1138,7 @@ function updateSideProps(){
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete All</button></div>`;
     return;
   }
-  if(!sel){el.innerHTML='<div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll wheel to zoom (centered on cursor).<br>Home key — fit &amp; center room.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div>';return;}
+  if(!sel){el.innerHTML='<div class="hint">Click any object to edit its properties.<br>Shift+click to multi-select.<br>Drag to move. Arrow keys nudge by 10px.<br>Shift+arrows nudge by 50px.<br>Delete key removes selected.<br>Ctrl+Z/Y undo/redo. Ctrl+C/V copy/paste.<br>Hold Space or middle-drag to pan.<br>Scroll/swipe to pan.<br>Ctrl/Cmd+scroll or pinch to zoom (centered on cursor).<br>Home key — fit &amp; center room.<br>Overview strip (bottom) — click/drag to jump anywhere in the room.<br><br><b>Platform/Wall/Transition:</b> click‑drag to draw.<br><b>Others:</b> single click to place.</div>';return;}
   let h='';
   const pi=(id,lbl,val,step=1)=>`<div class="row"><label>${lbl}</label><input type="number" id="${id}" value="${val}" step="${step}"></div>`;
   const pt=(id,lbl,val)=>`<div class="row"><label>${lbl}</label><input type="text" id="${id}" value="${String(val).replace(/"/g,'&quot;')}"></div>`;
@@ -1012,8 +1148,8 @@ function updateSideProps(){
     h=`<div class="section-title">Platform</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pi('p-w','w',sel.w,10)}${pi('p-h','h',sel.h,1)}
     <div class="row"><label>💥</label><input type="checkbox" id="p-dest" ${sel.destructible?'checked':''}><span style="color:#2dd4bf;font-size:10px"> Destructible</span></div>
     ${sel.destructible?pi('p-hp','hp',sel.hp||2,1):''}
-    <div class="row"><label>wall</label><input type="checkbox" id="p-wall" ${sel.wall?'checked':''}><span style="color:#5a5a8e;font-size:10px"> Side wall: can't be stood on; player wall-slides on it; knocked-back enemies bounce off it</span></div>
-    <div class="row"><label>ceiling</label><input type="checkbox" id="p-ceiling" ${sel.ceiling?'checked':''}><span style="color:#5a5a8e;font-size:10px"> Ceiling: full collision for player AND enemies (physics.js); only exempt from the room linter's reachability check</span></div>
+    <div class="row"><label>wall</label><input type="checkbox" id="p-wall" ${sel.wall?'checked':''}><span style="color:var(--fg-muted);font-size:10px"> Side wall: can't be stood on; player wall-slides on it; knocked-back enemies bounce off it</span></div>
+    <div class="row"><label>ceiling</label><input type="checkbox" id="p-ceiling" ${sel.ceiling?'checked':''}><span style="color:var(--fg-muted);font-size:10px"> Ceiling: full collision for player AND enemies (physics.js); only exempt from the room linter's reachability check</span></div>
     <div class="row"><label>oneWay</label><input type="checkbox" id="p-plat-oneway" ${sel.oneWay?'checked':''}><span style="color:#8b9dc3;font-size:10px"> Jump up through, land on top; down+jump drops through</span></div>
     <div class="row"><label>hazard</label><input type="checkbox" id="p-hazard" ${sel.hazard?'checked':''}><span style="color:#f87171;font-size:10px"> Damage on contact, never solid (put on top of a floor)</span></div>
     ${sel.hazard?pi('p-damage','dmg',sel.damage||1,1):''}
@@ -1026,6 +1162,7 @@ function updateSideProps(){
   }else if(selType==='enemy'){
     h=`<div class="section-title">Enemy</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}
     <div class="row"><label>type</label><select id="p-type">${ENEMY_TYPES.map(t=>`<option ${sel.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="row"><label>tint</label><input type="text" id="p-tint" value="${sel.tint||''}" placeholder="#rrggbb" style="width:90px"><span style="color:#5a9bd4;font-size:10px"> Optional per-instance color override (visualVariants.js) — same enemy, different look. Blank = normal color, or the room's region default if one's set.</span></div>
     ${layerButtons('enemy')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='sp'){
@@ -1043,11 +1180,18 @@ function updateSideProps(){
     <div class="row"><label>req</label><select id="p-req">${rOpts}</select></div>
     <div class="row"><label>oneWay</label><input type="checkbox" id="p-oneway" ${sel.oneWay?'checked':''}></div>
     <div class="row"><label>edge exit</label><input type="checkbox" id="p-edgeexit" ${sel.edgeExit?'checked':''}><span style="color:#5a9bd4;font-size:10px"> Hollow Knight-style — no door art, camera holds at the room edge instead</span></div>
-    ${sel.edgeExit && !edgeExitIsFlush(sel) ? '<div class="hint" style="color:#e0a458">Not flush against a room edge (x=0 or x=roomWidth-w) — an edge exit needs to sit at the literal boundary or the camera-hold illusion breaks.</div>' : ''}
+    ${sel.edgeExit && !edgeExitIsFlush(sel) ? '<div class="hint" style="color:var(--warn)">Not flush against a room edge (x=0 or x=roomWidth-w) — an edge exit needs to sit at the literal boundary or the camera-hold illusion breaks.</div>' : ''}
     ${layerButtons('trans')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='lore'){
-    h=`<div class="section-title">Lore Fragment</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pp('p-txt','txt',sel.text||'')}
+    const lmode=sel.mode||'overlay';
+    const modeLabels={overlay:'Overlay (amber vignette, no scripted scene)',cutscene:'Cutscene (full scripted playCutscene())',none:'None (extra/customization pip, no vision)'};
+    const modeOpts=['overlay','cutscene','none'].map(m=>`<option value="${m}" ${lmode===m?'selected':''}>${modeLabels[m]}</option>`).join('');
+    const cutsceneIds=(typeof CUTSCENES!=='undefined')?Object.keys(CUTSCENES):[];
+    h=`<div class="section-title">Lore Fragment</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}
+    <div class="row"><label>vision</label><select id="p-mode">${modeOpts}</select></div>
+    ${lmode==='cutscene'?`<div class="row"><label>cutsceneId</label><input list="cutscene-ids" id="p-cutsceneid" value="${(sel.cutsceneId||'').replace(/"/g,'&quot;')}"></div><datalist id="cutscene-ids">${cutsceneIds.map(k=>`<option value="${k}">`).join('')}</datalist>${cutsceneIds.length?'':'<div class="hint" style="color:var(--warn)">No CUTSCENES found (game/cutscene.js not loaded) — type the id anyway, it just won\'t autocomplete.</div>'}`:''}
+    ${lmode!=='none'?pp('p-txt','txt',sel.text||''):'<div class="hint">Extra/customization pip — banks the same as any Lore Pip but plays no vision on pickup (see regions.md\'s Extra/Customization Pips table).</div>'}
     ${layerButtons('lore')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='ab'){
@@ -1076,14 +1220,14 @@ function updateSideProps(){
   el.innerHTML=h;
 
   // Wire inputs
-  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-wall p-ceiling p-to p-req p-oneway p-edgeexit p-manualspawn p-type p-id p-name p-txt p-desc p-plat-oneway p-hazard p-damage p-crumble p-crumbledelay p-respawn p-moving p-mvx p-mvy p-mvspeed'.split(' ').forEach(id=>{
+  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-wall p-ceiling p-to p-req p-oneway p-edgeexit p-manualspawn p-type p-tint p-id p-name p-txt p-desc p-plat-oneway p-hazard p-damage p-crumble p-crumbledelay p-respawn p-moving p-mvx p-mvy p-mvspeed p-mode p-cutsceneid'.split(' ').forEach(id=>{
     const e=document.getElementById(id);if(!e)return;
     e.addEventListener('input',applyProps);
     e.addEventListener('change',()=>{applyProps();pushHistory();});
   });
   // Flag checkboxes reveal/hide sub-fields (dmg, delay, toX...) — re-render
   // the panel so those inputs appear immediately, not on next reselect.
-  'p-hazard p-crumble p-moving p-dest p-manualspawn p-edgeexit'.split(' ').forEach(id=>{
+  'p-hazard p-crumble p-moving p-dest p-manualspawn p-edgeexit p-mode'.split(' ').forEach(id=>{
     const e=document.getElementById(id);if(!e)return;
     e.addEventListener('change',updateSideProps);
   });
@@ -1115,6 +1259,7 @@ function applyProps(){
   }else if(selType==='enemy'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const t=gs('p-type');if(t)sel.type=t;
+    const tint=gs('p-tint');if(tint&&tint.trim())sel.tint=tint.trim();else delete sel.tint;
   }else if(selType==='sp'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     if(gi('p-idx')!==null)sel.index=gi('p-idx');
@@ -1130,6 +1275,8 @@ function applyProps(){
     const id=gs('p-id');if(id!==null)sel.id=id;
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const txt=gs('p-txt');if(txt!==null)sel.text=txt;
+    const mode=gs('p-mode');if(mode!==null)sel.mode=mode;
+    if((sel.mode||'overlay')==='cutscene'){const cs=gs('p-cutsceneid');if(cs!==null)sel.cutsceneId=cs;}else{delete sel.cutsceneId;}
   }else if(selType==='ab'){
     const id=gs('p-id');if(id!==null)sel.id=id;
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');

@@ -19,7 +19,7 @@ from a single screenshot taken at the room's spawn point. They only show up by
 actually trying to traverse the room. That's the gap this tool closes — catch
 this class of bug before a human has to find it by playing.
 
-## Two components
+## Three components (was two — the Spawn button added 2026-07-29, user request)
 
 ### 1. Static layout linter (fast, runs on every `area.js` change)
 
@@ -92,7 +92,59 @@ Output: per-room reachability report (same shape as the static linter) plus a
 recorded path log for any room that failed, so a human can see exactly where
 the bot got stuck rather than re-deriving it by hand.
 
-## Loadout tiers (needed by both components)
+### 3. "Spawn" button — actually jump into the room yourself (2026-07-29, direct request)
+
+Per direct request: the static linter and bot walker both produce *reports*, but the
+user wants a one-click way to go stand in the room themselves and look — the report
+tells you *that* something's wrong (or that everything passed), a spawn button lets you
+immediately confirm *how it actually looks/feels*, no different from
+`enemy_editor.html`'s existing "Test in Arena" handoff to `enemy_test.html`, just
+targeting an arbitrary real room instead of a dedicated arena.
+
+**Where the button lives**: next to every room row in both the static linter's report
+and the bot walker's per-room result (pass or fail — a passing room is still worth
+eyeballing, not just failures), plus a free-standing version in `room_progress.js`'s
+`--full` output once that's surfaced in the (also newly planned) Project Progress
+Dashboard, so "spawn here" is reachable from wherever a room's status shows up, not
+just this one tool.
+
+**Mechanism** (small, self-contained dev-only harness, same spirit as
+`debug_v1.html`'s sandboxed real-game boot):
+
+- A tiny query-param handler, added to `index.html` (or the harness page this tool
+  lives on) guarded so it only ever fires in a dev context: `?spawnRoom=<roomId>`
+  (optionally `&loadout=<comma-separated ability keys>|all`).
+- After the real `init()` runs (so all the usual setup — `AREAS`, `player`, `abilityState`
+  defaults — already happened), override the two things `init()` hardcodes:
+  `currentAreaId = 'spawn_area_1'` becomes the requested room id, and `gameState =
+  'menu'` becomes `'playing'` (skip the main menu entirely — you want to land *in* the
+  room, not one extra click away from it). Reposition the player at the room's first
+  `anchors[]` entry (same fallback `switchArea()` already uses when a transition has no
+  manual spawn point) rather than a hardcoded `(100, groundY-60)`, so you land somewhere
+  sane in an arbitrary room instead of possibly inside geometry.
+- **Grant the requested loadout** before dropping the player in — this is exactly why
+  the "loadout tiers" concept below matters for this feature too, not just the bot
+  walker: inspecting `graviton_core_room2` with zero abilities means every ability-gated
+  path in it is unreachable and looks broken when it isn't. Default to `all` (every
+  `abilityState.hasX` flag true, `player.fractureMax` maxed) for quick manual eyeballing;
+  support the room's own declared `expectedLoadout.onEntry` for a truer "what does a
+  first-time player actually see" check when that's the thing being verified instead.
+- No save-game interaction at all — this harness should never read or write a real save
+  slot, so jumping around rooms for inspection can't corrupt or overwrite actual
+  progress. Same "never touch real save data from a dev tool" principle
+  `enemy_test.html`/`companion_test.html` already follow.
+- Once in the room, it's just the real game — real input, real camera, real physics,
+  real enemy AI (if any are placed) — no scripted bot involved for this path, that's
+  the whole point: the user drives it themselves, this only removes the "navigate the
+  whole game from the main menu to get here" friction.
+
+**Explicitly not this feature's job**: this doesn't replace the bot walker's automated
+reachability report (§2) — it's the *manual follow-up* once a report flags something (or
+even when nothing's flagged and you just want to eyeball a room after a layout edit).
+Keep both: automated report for scale (71 rooms), spawn button for the specific
+room you actually care about right now.
+
+## Loadout tiers (needed by all three components)
 
 Every room should declare, alongside its existing data, something like:
 

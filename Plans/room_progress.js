@@ -22,6 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { analyzeRoomDesignState } = require('../game/roomDesignScore.js');
 
 const AREA_PATH = path.join(__dirname, '..', 'game', 'area.js');
 const args = process.argv.slice(2);
@@ -33,42 +34,10 @@ vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(AREA_PATH, 'utf8'), ctx, { filename: 'area.js' });
 const AREAS = ctx.window.AREAS;
 
-const FLOOR_H = 60, DOOR_H = 72; // must match rebuild_levels_from_svg.js
 const SKIP = new Set(['enemy_test_arena']);
 
 function analyze(id) {
-  const r = AREAS[id];
-  const groundY = r.groundY;
-  const plats = r.platforms || [];
-  const floorY = groundY;
-  const defaultDoorY = groundY - DOOR_H;
-  const defaultPickY = groundY - 40;
-
-  // platforms beyond the one generated full-width floor
-  const nonFloor = plats.filter((p) => !(p.y === floorY && p.x === 0 && p.w === r.width && !p.wall && !p.ceiling && !p.hazard && !p.oneWay && !p.moving && !p.crumble));
-  const specialPlats = plats.filter((p) => p.hazard || p.oneWay || p.moving || p.crumble || p.wall || p.ceiling || p.destructible);
-
-  const enemies = (r.enemies || []).length;
-  const doorsMoved = (r.transitions || []).filter((t) => t.y !== defaultDoorY).length;
-  const ceilingDoors = (r.transitions || []).filter((t) => t.y <= 20).length; // real vertical shaft
-  const placeables = []
-    .concat(r.fracturePipRewards || [], r.loreFragments || [], r.cosmeticUpgrades || [], r.healingCrystals || []);
-  const placeablesMoved = placeables.filter((o) => o.y !== defaultPickY).length;
-  const anchorsMoved = (r.anchors || []).filter((a) => a.y !== groundY - 20).length;
-
-  let score = 0;
-  score += Math.min(nonFloor.length, 6);      // platforming built
-  score += specialPlats.length ? 2 : 0;       // used a hazard/oneWay/etc
-  score += Math.min(enemies, 4);              // encounters placed
-  score += doorsMoved ? 1 : 0;
-  score += ceilingDoors ? 1 : 0;              // real vertical shaft
-  score += placeablesMoved ? 1 : 0;
-  score += anchorsMoved ? 1 : 0;
-
-  const state = score === 0 ? 'SHELL' : score <= 3 ? 'started' : 'designed';
-  return { id, name: r.name, region: r.region, type: r.roomType || 'room', size: `${r.width}x${r.roomHeight}`,
-    nonFloor: nonFloor.length, specialPlats: specialPlats.length, enemies, doorsMoved, ceilingDoors,
-    placeablesMoved, anchorsMoved, score, state };
+  return analyzeRoomDesignState({ id, ...AREAS[id] });
 }
 
 const rows = Object.keys(AREAS).filter((id) => !SKIP.has(id)).map(analyze);

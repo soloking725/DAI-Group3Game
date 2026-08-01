@@ -114,6 +114,14 @@ ROADMAP.md's checkboxes as work happens.
   <script src="game/enemy.js"></script>
   <script src="game/companion.js"></script>
   <script src="game/player.js"></script>
-  <script src="game/game.js"></script>
+  <!-- game.js split 2026-07-27 into 6 files, in its original top-to-bottom
+       order (order-preserving split — behaves exactly like the one file). -->
+  <script src="game/game_state.js"></script>
+  <script src="game/game_entities.js"></script>
+  <script src="game/visualVariants.js"></script>
+  <script src="game/game_boot_save.js"></script>
+  <script src="game/game_update.js"></script>
+  <script src="game/game_hud_menus.js"></script>
+  <script src="game/game_draw_loop.js"></script>
 </body>
 </html>

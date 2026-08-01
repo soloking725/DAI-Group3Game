@@ -3,36 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <title>Stillpoint — Combo Chain Editor</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0a0a0f; color: #e2e8f0; font: 13px/1.5 "Courier New", monospace; display: flex; height: 100vh; overflow: hidden; }
-  h2 { font-size: 14px; color: #c4b5fd; margin-bottom: 8px; }
-  h3 { font-size: 12px; color: #94a3b8; margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 1px; }
-  button { background: #1e1e32; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 4px 10px; font: inherit; cursor: pointer; border-radius: 3px; }
-  button:hover { background: #2a2a44; }
-  button.danger { border-color: #7f1d1d; color: #fca5a5; }
-  input, select { background: #14141f; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 3px 6px; font: inherit; border-radius: 3px; }
+  body { font: 13px/1.5 var(--font-mono); display: flex; height: 100vh; overflow: hidden; }
+  h2 { font-family: var(--font-ui); font-size: 14px; font-weight: 600; color: var(--fg); margin-bottom: 8px; }
+  h3 { font-family: var(--font-ui); font-size: 10px; font-weight: 600; color: var(--fg-faint); margin: var(--space-4) 0 var(--space-2); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+  button { background: var(--surface); color: var(--fg); border: 1px solid var(--border-hover); padding: 6px 12px; font: inherit; cursor: pointer; border-radius: var(--radius-sm); box-shadow: var(--shadow-inset-top); transition: background var(--dur-fast) var(--ease-out-expo), border-color var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo); }
+  button:hover { background: var(--surface-hover); border-color: var(--border-hover); }
+  button:active { transform: scale(0.98); }
+  button.danger { border-color: var(--danger-border); color: var(--danger); }
+  button.danger:hover { background: var(--danger-dim); }
+  input, select { background: var(--bg-input); color: var(--fg); border: 1px solid var(--border-hover); padding: 5px 8px; font: inherit; border-radius: var(--radius-sm); transition: border-color var(--dur-fast) var(--ease-out-expo), box-shadow var(--dur-fast) var(--ease-out-expo); }
+  input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow-soft); }
   input[type=number] { width: 66px; }
-  label { display: inline-flex; align-items: center; gap: 5px; margin: 2px 8px 2px 0; }
-  .panel { padding: 12px; overflow-y: auto; }
-  #left { width: 230px; border-right: 1px solid #26263c; flex-shrink: 0; }
+  label { display: inline-flex; align-items: center; gap: 5px; margin: 2px 8px 2px 0; font-family: var(--font-ui); font-size: 11.5px; color: var(--fg-muted); }
+  .row { margin: 8px 0; }
+  .panel { padding: var(--space-4); overflow-y: auto; }
+  #left { width: 230px; border-right: 1px solid var(--border); flex-shrink: 0; }
   #main { flex: 1; }
-  #comboList div { padding: 4px 8px; cursor: pointer; border-radius: 3px; margin-bottom: 2px; }
-  #comboList div:hover { background: #1e1e32; }
-  #comboList div.sel { background: #4c3a8e; }
-  .chain { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
-  .stepCard { border: 1px solid #a78bfa; border-radius: 6px; padding: 8px 10px; background: #17172a; text-align: center; }
-  .stepCard .gap { font-size: 11px; color: #94a3b8; margin-top: 4px; }
-  .arrow { color: #64748b; font-size: 18px; }
-  .hint { color: #64748b; font-size: 11px; margin-top: 4px; }
-  textarea { width: 100%; height: 130px; background: #14141f; color: #a5f3c4; border: 1px solid #3a3a5e; font: 11px monospace; padding: 6px; margin-top: 6px; }
-  .rewardBox { border: 1px solid #3a3a5e; border-radius: 4px; padding: 8px; margin-top: 6px; }
-#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
-#back:hover{color:#e0d7ff}
+  #comboList div { padding: 6px 10px; cursor: pointer; border-radius: var(--radius-sm); margin-bottom: 3px; font-size: 12px; color: var(--fg-muted); transition: background var(--dur-fast) var(--ease-out-expo), color var(--dur-fast) var(--ease-out-expo); }
+  #comboList div:hover { background: var(--surface); color: var(--fg); }
+  #comboList div.sel { background: var(--accent-glow-soft); color: var(--fg); box-shadow: inset 2px 0 0 var(--accent-bright); }
+  .chain { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: var(--space-4) 0; }
+  .stepCard { border: 1px solid var(--border-accent); border-radius: var(--radius-md); padding: 8px 12px; background: var(--bg-panel); box-shadow: var(--shadow-card); text-align: center; }
+  .stepCard .gap { font-size: 11px; color: var(--fg-muted); margin-top: 4px; }
+  .arrow { color: var(--fg-faint); font-size: 18px; }
+  .hint { color: var(--fg-faint); font-size: 11px; margin-top: 4px; line-height: 1.6; }
+  textarea { width: 100%; height: 130px; background: var(--bg-deep); color: var(--info); border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font: 11px var(--font-mono); padding: 8px; margin-top: 6px; }
+  .rewardBox { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3); margin-top: 6px; background: var(--bg-panel); }
 </style>
 </head>
-<body>
-<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
 
 
 <div id="left" class="panel">
@@ -81,7 +87,7 @@
     <div id="rewardParams" style="margin-top:6px"></div>
   </div>
 
-  <h3 style="color:#7f1d1d">Danger</h3>
+  <h3 style="color:var(--danger)">Danger</h3>
   <button class="danger" onclick="deleteCombo()">✕ Delete this combo</button>
 </div>
 

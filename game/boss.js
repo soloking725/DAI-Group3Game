@@ -30,6 +30,96 @@ const BOSS_STILLPOINT_SLOW = 0.97;
 // react to. See readPlayerTell()/precogCounter() below.
 const PRECOG_MIN_LEAD = 12;
 
+// ── Data-driven phase / attack-selection config (2026-07-27) ────────────────
+// Extracted from pickAttack()'s prior hardcoded probability bands so
+// editor/boss_phase_editor.html can tune phase thresholds and per-phase
+// attack weights without touching this file. Same numbers as before by
+// default — the weighted-table walk below reproduces the old if/else-if
+// cumulative-threshold chain exactly (including its fall-through-to-last-
+// entry behavior when a bias shift pushes the roll past 1 or below 0).
+//   phaseThresholds: health% cutoffs, descending. health% > thresholds[0] is
+//     phase 1, > thresholds[1] is phase 2, else the next phase, etc.
+//   reservedSlot: a single always-checked-first special move (only Phase 3's
+//     Stillpoint uses this — it has its own active/cooldown fields, not a
+//     plain attackCooldown, so it doesn't fit the weighted table below).
+//   teleport: a flat chance rolled before the weighted table, phase-gated.
+//   phases[n].attacks: ordered {method, weight} pool for that phase — order
+//     matches the old if/else-if chain's order exactly.
+//   phases[n].preferRangedShift/preferMeleeShift/preferMargin: reproduces
+//     the old adaptation nudge (adapt.rangedHits/meleeHits comparison shifts
+//     the roll by a flat amount before the table walk).
+//   phases[n].distanceBias/distanceFar/distanceNear: reproduces the old
+//     "far → bias toward ranged end of table, close → bias toward melee end"
+//     spacing read.
+const BOSS_PHASE_CONFIG = {
+  phaseThresholds: [0.6, 0.3],
+  reservedSlot: {
+    phase: 3, chance: 0.4,
+    activeField: 'bossStillpointActive', cooldownField: 'bossStillpointCooldown',
+    startMethod: 'startBossStillpoint',
+  },
+  teleport: { minPhase: 2, chance: 0.12, startMethod: 'startTeleport' },
+  phases: {
+    1: {
+      preferRangedShift: -0.15, preferMeleeShift: 0, preferMargin: 4,
+      distanceBias: 0.14, distanceFar: 320, distanceNear: 150,
+      attacks: [
+        { method: 'startMeleeSwing', weight: 0.35 },
+        { method: 'startShardShot', weight: 0.40 },
+        { method: 'startPhaseDash', weight: 0.25 },
+      ],
+    },
+    2: {
+      preferRangedShift: -0.08, preferMeleeShift: 0.08, preferMargin: 4,
+      distanceBias: 0.14, distanceFar: 320, distanceNear: 150,
+      attacks: [
+        { method: 'startMeleeSwing', weight: 0.18 },
+        { method: 'startChargedHeavy', weight: 0.18 },
+        { method: 'startDashChain', weight: 0.14 },
+        { method: 'startReversedVoidTether', weight: 0.14 },
+        { method: 'startShardShot', weight: 0.18 },
+        { method: 'startBeamChannel', weight: 0.10 },
+        { method: 'startWallBurst', weight: 0.08 },
+      ],
+    },
+  },
+};
+BOSS_PHASE_CONFIG.phases[3] = BOSS_PHASE_CONFIG.phases[2]; // Phase 3 reuses Phase 2's table — Stillpoint is the reserved slot above, not a table entry.
+
+// Pure — no `this`, so boss_phase_editor.html / tests can exercise it
+// directly. Walks the cumulative-weight table exactly like the old
+// if/else-if chain: falls through to the last entry if `r` (after bias
+// shifts) lands below 0 or at/above the summed weight, same as the old
+// chain's unconditional trailing `else`.
+function resolveWeightedAttackName(attacks, r) {
+  let acc = 0;
+  for (const entry of attacks) {
+    acc += entry.weight;
+    if (r < acc) return entry.method;
+  }
+  return attacks[attacks.length - 1].method;
+}
+
+// ── Editor overrides ─────────────────────────────────────────────────────
+// boss_phase_editor.html saves work-in-progress here; same pattern as
+// animdata.js's ANIM_OVERRIDES_KEY. Merges per top-level key (phases merge
+// per-phase-number), never a wholesale replace of BOSS_PHASE_CONFIG.
+const BOSS_CONFIG_OVERRIDES_KEY = 'stillpoint_boss_phase_overrides_v1';
+function applyBossConfigOverrides() {
+  try {
+    const raw = localStorage.getItem(BOSS_CONFIG_OVERRIDES_KEY);
+    if (!raw) return;
+    const overrides = JSON.parse(raw);
+    if (overrides.phaseThresholds) BOSS_PHASE_CONFIG.phaseThresholds = overrides.phaseThresholds;
+    if (overrides.reservedSlot) Object.assign(BOSS_PHASE_CONFIG.reservedSlot, overrides.reservedSlot);
+    if (overrides.teleport) Object.assign(BOSS_PHASE_CONFIG.teleport, overrides.teleport);
+    if (overrides.phases) {
+      for (const key in overrides.phases) BOSS_PHASE_CONFIG.phases[key] = overrides.phases[key];
+    }
+  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+}
+applyBossConfigOverrides();
+
 class Boss {
   constructor(x, y) {
     this.x = x;
@@ -227,6 +317,27 @@ class Boss {
   // neither goes through the generic melee-hitbox consumer.
   getAttackHitbox() {
     if (!this._activeAttack) return null;
+
+    // ── Anim-driven path (2026-07-27) — mirrors player.js's own
+    // getAttackHitbox() anim bridge exactly: only for active-attack keys
+    // that actually have an authored ANIM_DEFS entry (editor/anim_editor.html,
+    // `boss_active_<attack>` keys — see bossAnimStateKey()). Additive: falls
+    // through to the hardcoded rects below when unauthored, zero behavior
+    // change. `this._animKey` was already set to this tick's correct value
+    // by update() before game.js calls this.
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      const hitboxes = this.animator.currentHitboxes();
+      if (hitboxes.length === 0) return null; // this frame of the active window has no live box yet
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const hb of hitboxes) {
+        minX = Math.min(minX, hb.x);
+        minY = Math.min(minY, hb.y);
+        maxX = Math.max(maxX, hb.x + hb.width);
+        maxY = Math.max(maxY, hb.y + hb.height);
+      }
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    }
+
     switch (this._activeAttack) {
       case 'melee_forward': {
         const w = 86, h = 50;
@@ -255,6 +366,19 @@ class Boss {
   // BOSS_DAMAGE every contact used before this pass.
   getAttackDamageAndKnockback() {
     if (!this._activeAttack) return null;
+
+    // Anim-driven path — same authored-frame source as getAttackHitbox()
+    // above. First authored hitbox on the frame wins (this attack shape
+    // only ever authors one live box per frame in practice); falls through
+    // to attackDefs below when unauthored.
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      const hitboxes = this.animator.currentHitboxes();
+      if (hitboxes.length > 0) {
+        const hb = hitboxes[0];
+        return { damage: hb.damage, knockback: { vx: hb.knockbackX, vy: hb.knockbackY, hitStun: hb.hitStun } };
+      }
+    }
+
     const def = this.attackDefs[this._activeAttack];
     return def ? { damage: def.damage, knockback: def.knockback } : null;
   }
@@ -410,9 +534,12 @@ class Boss {
     this.readPlayerTell(player);
     if (this.precogCooldown > 0) this.precogCooldown -= myTimeScale;
 
-    // Phase detection
+    // Phase detection — thresholds from BOSS_PHASE_CONFIG (see its comment above).
     const healthPct = this.health / this.maxHealth;
-    const newPhase = healthPct > 0.6 ? 1 : healthPct > 0.3 ? 2 : 3;
+    let newPhase = BOSS_PHASE_CONFIG.phaseThresholds.length + 1;
+    for (let i = 0; i < BOSS_PHASE_CONFIG.phaseThresholds.length; i++) {
+      if (healthPct > BOSS_PHASE_CONFIG.phaseThresholds[i]) { newPhase = i + 1; break; }
+    }
     if (newPhase !== this.phase) {
       this.phase = newPhase;
       this.phaseTransitionTimer = 90;
@@ -772,15 +899,65 @@ class Boss {
     if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
       this.animator.play(this._animKey);
       this.animator.update(_globalTS);
+      this._consumeFrameEvents(bossProjectiles);
     }
   }
 
-  // `boss_<attack-or-state>` convention — this.telegraph.type is the real
-  // per-attack identifier, falling back to this.state when no attack is
-  // telegraphed.
+  // ── Frame events (2026-07-27) ────────────────────────────────────────
+  // Authored per-frame side effects (editor/anim_editor.html's "Frame
+  // Events" list, game/animdata.js's Animator.consumeFrameEvents()) —
+  // fires once, the tick a frame is first entered. Additive: only runs at
+  // all when an ANIM_DEFS key is authored for the current bossAnimStateKey()
+  // (see the call site above), same fallback contract as every other
+  // anim-bridge hook in this file. Unknown event types are silently
+  // ignored so an editor-side typo can't throw mid-fight.
+  _consumeFrameEvents(bossProjectiles) {
+    const events = this.animator.consumeFrameEvents();
+    for (const ev of events) {
+      if (ev.type === 'cameraShake') {
+        if (typeof screenShake !== 'undefined') {
+          screenShake = Math.max(screenShake, ev.shake ?? 10);
+          screenShakeIntensity = Math.max(screenShakeIntensity, ev.intensity ?? 5);
+        }
+      } else if (ev.type === 'sfx') {
+        if (typeof SFX !== 'undefined' && typeof SFX[ev.name] === 'function') SFX[ev.name]();
+      } else if (ev.type === 'spawnProjectile') {
+        let vx, vy;
+        if (ev.aimAtPlayer) {
+          const dx = (player.x + player.width / 2) - (this.x + this.width / 2);
+          const dy = (player.y + player.height / 2) - (this.y + this.height / 2);
+          const dist = Math.hypot(dx, dy) || 1;
+          const speed = ev.speed ?? 5;
+          vx = (dx / dist) * speed;
+          vy = (dy / dist) * speed;
+        } else {
+          vx = (ev.vx ?? 0) * this.facing;
+          vy = ev.vy ?? 0;
+        }
+        const w = ev.width ?? 12, h = ev.height ?? 12;
+        bossProjectiles.push({
+          x: this.x + this.width / 2 - w / 2,
+          y: this.y + this.height / 2 - h / 2,
+          vx, vy, width: w, height: h,
+          life: ev.life ?? 160, gravity: !!ev.gravity,
+          type: ev.projType || 'orb',
+          damage: ev.damage ?? 1,
+          knockback: { vx: ev.knockbackX ?? 4, vy: ev.knockbackY ?? -3, hitStun: ev.hitStun ?? 10 },
+        });
+      }
+    }
+  }
+
+  // `boss_<attack-or-state>` convention. Three tiers, most specific first:
+  // telegraph (windup) > active-attack (hitbox-live window, 2026-07-27,
+  // see getAttackHitbox()'s anim-driven path below) > this.state (idle/
+  // recovering/etc). Same fallback rule as everywhere else in this bridge:
+  // an unauthored key at any tier just means the caller's ANIM_DEFS lookup
+  // misses and procedural draw/hardcoded hitboxes take over unchanged.
   bossAnimStateKey() {
     if (this.dead) return 'boss_dead';
     if (this.telegraph) return `boss_${this.telegraph.type}`;
+    if (this._activeAttack) return `boss_active_${this._activeAttack}`;
     return `boss_${this.state}`;
   }
 
@@ -798,53 +975,39 @@ class Boss {
       return;
     }
 
-    // Phase 3: Stillpoint gets a reserved high-priority slot, checked
-    // first, on its own long cooldown — a centerpiece move, not just
-    // another roll in the table.
-    if (this.phase === 3 && !this.bossStillpointActive && this.bossStillpointCooldown <= 0 && Math.random() < 0.4) {
-      this.startBossStillpoint();
+    // Reserved slot (Phase 3's Stillpoint) — checked first, on its own
+    // active/cooldown fields, a centerpiece move rather than a table entry.
+    const rs = BOSS_PHASE_CONFIG.reservedSlot;
+    if (this.phase === rs.phase && !this[rs.activeField] && this[rs.cooldownField] <= 0 && Math.random() < rs.chance) {
+      this[rs.startMethod]();
       return;
     }
 
-    const prefersRange = this.adapt.rangedHits > this.adapt.meleeHits + 4;
-    const prefersMelee = this.adapt.meleeHits > this.adapt.rangedHits + 4;
+    const tp = BOSS_PHASE_CONFIG.teleport;
+    if (this.phase >= tp.minPhase && Math.random() < tp.chance) {
+      this[tp.startMethod](this.arenaWidth);
+      return;
+    }
+
+    const cfg = BOSS_PHASE_CONFIG.phases[this.phase];
+    const prefersRange = this.adapt.rangedHits > this.adapt.meleeHits + cfg.preferMargin;
+    const prefersMelee = this.adapt.meleeHits > this.adapt.rangedHits + cfg.preferMargin;
 
     // Current spacing to the player, on top of the style-adaptation above —
     // she reads the fight moment-to-moment as well as the long-run pattern.
-    // Positive bias pushes the roll toward the ranged end of each table
+    // Positive bias pushes the roll toward the ranged end of the table
     // (she's far, no reason to walk into melee range this cycle); negative
     // pushes toward the close end (she's already on top of the player).
     const bossCX = this.x + this.width / 2;
     const distNow = Math.abs((player.x + player.width / 2) - bossCX);
-    const distBias = distNow > 320 ? 0.14 : distNow < 150 ? -0.14 : 0;
+    const distBias = distNow > cfg.distanceFar ? cfg.distanceBias : distNow < cfg.distanceNear ? -cfg.distanceBias : 0;
 
-    if (this.phase >= 2 && Math.random() < 0.12) {
-      this.startTeleport(this.arenaWidth);
-      return;
-    }
-
-    if (this.phase === 1) {
-      let r = Math.random();
-      if (prefersRange) r -= 0.15;
-      r += distBias;
-      if (r < 0.35) this.startMeleeSwing();
-      else if (r < 0.75) this.startShardShot();
-      else this.startPhaseDash();
-      return;
-    }
-
-    // Phase 2+ — full kit (Stillpoint itself is Phase 3-only, above).
     let r = Math.random();
-    if (prefersMelee) r += 0.08;
-    if (prefersRange) r -= 0.08;
+    if (prefersRange) r += cfg.preferRangedShift;
+    if (prefersMelee) r += cfg.preferMeleeShift;
     r += distBias;
-    if (r < 0.18) this.startMeleeSwing();
-    else if (r < 0.36) this.startChargedHeavy();
-    else if (r < 0.50) this.startDashChain();
-    else if (r < 0.64) this.startReversedVoidTether();
-    else if (r < 0.82) this.startShardShot();
-    else if (r < 0.92) this.startBeamChannel();
-    else this.startWallBurst();
+
+    this[resolveWeightedAttackName(cfg.attacks, r)]();
   }
 
   // Generalized landing motion — short telegraph then a fast surge. Reused

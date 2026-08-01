@@ -3,43 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <title>Stillpoint — Enemy &amp; Miniboss Test Bench</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; background: #06060e; color: #c4b5fd; font-family: 'Courier New', monospace; font-size: 12px;
+  body { margin: 0; font-family: var(--font-mono); font-size: 12px;
          display: flex; height: 100vh; overflow: hidden; }
+  /* #back floats over the canvas corner instead of sitting in the flex row —
+     as a row sibling it would eat width from #stage that resizeCanvasToFit()
+     (game_state.js) doesn't know to account for, letting the canvas size
+     itself wider than the space actually left and pushing #side (partly)
+     past the viewport edge with no scrollbar to reach it. */
+  #back { position: absolute; top: 8px; left: 8px; z-index: 6; }
   #stage { position: relative; background: #000; }
   canvas#game { display: block; image-rendering: pixelated; }
-  #unstuck-btn, #fullscreen-btn { position: absolute; top: 6px; font-size: 10px; padding: 3px 6px;
-    background: #141428; border: 1px solid #2e2e5e; color: #c4b5fd; cursor: pointer; }
+  #unstuck-btn, #fullscreen-btn { position: absolute; top: 6px; font-size: 10px; padding: 4px 8px; border-radius: var(--radius-sm);
+    background: rgba(10,10,20,0.85); backdrop-filter: blur(6px); border: 1px solid var(--border-hover); color: var(--fg); cursor: pointer; transition: background var(--dur-fast) var(--ease-out-expo); }
+  #unstuck-btn:hover, #fullscreen-btn:hover { background: var(--surface-hover); }
   #unstuck-btn { right: 90px; } #fullscreen-btn { right: 6px; }
-  #side { width: 340px; flex-shrink: 0; background: #0a0a18; border-left: 1px solid #1e1e3e;
-          overflow-y: auto; padding: 10px; }
-  h1 { font-size: 13px; margin: 0 0 4px; color: #e0d7ff; }
-  h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #4a4a7e;
-       border-bottom: 1px solid #1a1a2e; margin: 14px 0 6px; padding-bottom: 3px; }
-  p.note { color: #5a5a8e; font-size: 10.5px; line-height: 1.5; margin: 0 0 8px; }
-  select, button { width: 100%; background: #141428; border: 1px solid #2e2e5e; color: #c4b5fd;
-    font-family: inherit; font-size: 11px; padding: 5px; margin-bottom: 6px; cursor: pointer; }
-  button.primary { border-color: #2dd4bf; color: #2dd4bf; }
-  button:hover { background: #1e1e3e; }
-  #blurb { background: #04040a; border: 1px solid #1a1a2e; padding: 8px; font-size: 10.5px;
-    line-height: 1.5; min-height: 60px; margin-bottom: 8px; }
-  #blurb .tag { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; margin-bottom: 4px; }
-  .tag.built { background: rgba(45,212,191,0.18); color: #2dd4bf; }
-  .tag.planned { background: rgba(251,191,36,0.18); color: #fbbf24; }
-  .tag.needs-room { background: rgba(248,113,113,0.18); color: #f87171; }
-  #liveStats { background: #04040a; border: 1px solid #1a1a2e; padding: 8px; font-size: 10.5px; line-height: 1.6; }
+  #side { width: 340px; flex-shrink: 0; border-left: 1px solid var(--border);
+          overflow-y: auto; padding: var(--space-3); }
+  h1 { font-family: var(--font-ui); font-size: 14px; font-weight: 600; margin: 0 0 4px; color: var(--fg); }
+  h2 { font-family: var(--font-ui); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-faint);
+       border-bottom: 1px solid var(--border); margin: 16px 0 6px; padding-bottom: 3px; }
+  p.note { color: var(--fg-muted); font-size: 10.5px; line-height: 1.6; margin: 0 0 8px; }
+  select, button, input[type=number] { width: 100%; background: var(--bg-input); border: 1px solid var(--border-hover); color: var(--fg); border-radius: var(--radius-sm);
+    font-family: inherit; font-size: 11px; padding: 6px; margin-bottom: 6px; cursor: pointer; transition: background var(--dur-fast) var(--ease-out-expo), border-color var(--dur-fast) var(--ease-out-expo); }
+  input[type=number] { cursor: text; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow-soft); }
+  button { box-shadow: var(--shadow-inset-top); }
+  button.primary { border-color: var(--teal-border); color: var(--teal); }
+  button.primary:hover { background: var(--teal-dim); }
+  button:hover { background: var(--surface-hover); }
+  button:active { transform: scale(0.98); }
+  #blurb { background: var(--bg-deep); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; font-size: 10.5px;
+    line-height: 1.6; min-height: 60px; margin-bottom: 8px; }
+  #blurb .tag { display: inline-block; font-size: 9px; padding: 2px 6px; border-radius: var(--radius-sm); margin-bottom: 4px; }
+  .tag.built { background: var(--teal-dim); color: var(--teal); }
+  .tag.planned { background: var(--warn-dim); color: var(--warn); }
+  .tag.needs-room { background: var(--danger-dim); color: var(--danger); }
+  #liveStats { background: var(--bg-deep); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; font-size: 10.5px; line-height: 1.6; }
   #liveStats div { display: flex; justify-content: space-between; }
   .region-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
-  .region-table td { border-bottom: 1px solid #1a1a2e; padding: 3px 2px; vertical-align: top; }
-  .region-table td:first-child { color: #8888aa; white-space: nowrap; }
-  optgroup { color: #6a6a9e; }
-#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
-#back:hover{color:#e0d7ff}
+  .region-table td { border-bottom: 1px solid var(--border); padding: 4px 2px; vertical-align: top; }
+  .region-table td:first-child { color: var(--fg-subtle); white-space: nowrap; }
+  optgroup { color: var(--fg-muted); }
 </style>
 </head>
-<body>
-<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
 
 
 <div id="stage">
@@ -48,7 +62,7 @@
   <button id="fullscreen-btn" title="Toggle fullscreen (F)">⛶ Fullscreen</button>
 </div>
 
-<div id="side">
+<div id="side" class="ds-scroll">
   <h1>⚔ Enemy / Miniboss Test Bench</h1>
   <p class="note">
     Spawns a real enemy instance (same class as the live game) in a flat, standard test arena
@@ -67,13 +81,13 @@
 
   <h2>3. Fracture &amp; Lore Pips</h2>
   <label style="display:block; margin-bottom:6px;">Fracture Pip cap (0-4)
-    <input type="number" id="fractureMaxInput" min="0" max="4" value="4" style="width:100%; background:#141428; border:1px solid #2e2e5e; color:#c4b5fd; font-family:inherit; padding:4px;">
+    <input type="number" id="fractureMaxInput" min="0" max="4" value="4" style="width:100%; background:var(--bg-input); border:1px solid var(--border-hover); border-radius:var(--radius-sm); color:var(--fg); font-family:inherit; padding:6px;">
   </label>
   <label style="display:block; margin-bottom:6px;">Fracture meter (current pips)
-    <input type="number" id="fractureMeterInput" min="0" max="4" value="4" style="width:100%; background:#141428; border:1px solid #2e2e5e; color:#c4b5fd; font-family:inherit; padding:4px;">
+    <input type="number" id="fractureMeterInput" min="0" max="4" value="4" style="width:100%; background:var(--bg-input); border:1px solid var(--border-hover); border-radius:var(--radius-sm); color:var(--fg); font-family:inherit; padding:6px;">
   </label>
   <label style="display:block; margin-bottom:10px;">Lore pips banked (0-18)
-    <input type="number" id="lorePipsInput" min="0" max="18" value="18" style="width:100%; background:#141428; border:1px solid #2e2e5e; color:#c4b5fd; font-family:inherit; padding:4px;">
+    <input type="number" id="lorePipsInput" min="0" max="18" value="18" style="width:100%; background:var(--bg-input); border:1px solid var(--border-hover); border-radius:var(--radius-sm); color:var(--fg); font-family:inherit; padding:6px;">
   </label>
 
   <label style="display:block; margin-bottom:10px;">
@@ -96,7 +110,7 @@
   <h2>Bot Difficulty Scorer — built, see difficulty_bot.html</h2>
   <p class="note">
     Superseded this note (2026-07-24) — built as a separate tool,
-    <a href="difficulty_bot.html" style="color:#2dd4bf">Difficulty Bot</a>, not a mode of this page. Evolves a small
+    <a href="difficulty_bot.html" style="color:var(--teal)">Difficulty Bot</a>, not a mode of this page. Evolves a small
     neural net (not the simple reactive policy originally sketched here) against a customizable roster/boss in the
     bounded <code>bot_arena</code> room, fast-forwarded via direct <code>update()</code> calls with the best genome
     replayed live after each generation. See <code>Plans/difficulty_bot_and_combat_polish_plan.md</code> for the design.
@@ -120,7 +134,13 @@
 <script src="../game/enemy.js"></script>
 <script src="../game/companion.js"></script>
 <script src="../game/player.js"></script>
-<script src="../game/game.js"></script>
+<script src="../game/game_state.js"></script>
+<script src="../game/game_entities.js"></script>
+<script src="../game/visualVariants.js"></script>
+<script src="../game/game_boot_save.js"></script>
+<script src="../game/game_update.js"></script>
+<script src="../game/game_hud_menus.js"></script>
+<script src="../game/game_draw_loop.js"></script>
 
 <script>
 // ─── Enemy roster — built (real, spawnable) + planned (from expansion.md) ───
@@ -544,7 +564,7 @@ setInterval(() => {
   let html = `<div><span>Player HP</span><span>${player.health}/${MAX_HEALTH}</span></div>`;
   html += `<div><span>Fracture Pips</span><span>${player.fractureMeter}/${player.fractureMax}</span></div>`;
   html += `<div><span>Lore Pips</span><span>${Object.keys(collectedLore).length}</span></div>`;
-  if (limitBreak.active) html += `<div><span style="color:#60a5fa">LIMIT BREAK (${limitBreak.ability})</span><span>${(limitBreak.timer / 60).toFixed(1)}s</span></div>`;
+  if (limitBreak.active) html += `<div><span style="color:var(--info)">LIMIT BREAK (${limitBreak.ability})</span><span>${(limitBreak.timer / 60).toFixed(1)}s</span></div>`;
   if (miniboss) html += `<div><span>${miniboss.dead ? 'Miniboss (dead)' : 'Miniboss HP'}</span><span>${miniboss.health}/${miniboss.maxHealth}</span></div>`;
   for (const en of list) html += `<div><span>${en.type || en.constructor.name}${en.dead ? ' (dead)' : ''}</span><span>HP ${en.health}</span></div>`;
   if (!miniboss && list.length === 0) html += `<div>Nothing spawned</div>`;

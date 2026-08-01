@@ -50,9 +50,12 @@ wrong one with one stray tap. Two confirmed uses:
    her to fight alongside you (Train) — and forcing her here has an explicit cost (not
    yet specced — a small HP hit, a delay, a visible reluctance animation, TBD), matching
    the already-established mechanic that the moment she fights, she becomes something the
-   Sovereign can perceive (`lore.md`'s "On the child" section). Every fight after this
-   first one presumably just uses whichever path was chosen, without re-prompting —
-   confirm that assumption before implementing.
+   Sovereign can perceive (`lore.md`'s "On the child" section). **Built 2026-07-27**
+   (`child_first_fight_choice` in `game/cutscene.js`, triggered from `game.js`): confirmed
+   — every fight after this first one uses whichever path was chosen, no re-prompt
+   (`storyFlags.child_fight_choice_resolved` gates it to once). The explicit Train cost
+   above is still TBD/not built — flag before adding it, since it touches the same choice
+   step this section's cutscene wiring now depends on.
 
 ---
 
@@ -66,7 +69,7 @@ At any point, you can **leave her behind** by pressing `F`. She sits and waits.
 | Path | Key Mechanic | Advantage | Emotional Cost |
 | :--- | :--- | :--- | :--- |
 | **Protect** (Keep her safe) | Passive HP regen (scales). She finds secrets (flashes near breakable walls). | Survivability + Exploration aid. | You die at the final boss; she loops. |
-| **Train** (Teach her to fight) | She fires shard shots. Deals visible damage. | Extra DPS (makes fights easier). | **Corrected 2026-07-14 — she does NOT take a fatal blow.** You beat the Sovereign together, same as any other route. The cost lands after the fight, not during it — see §7's Sovereign Ending and §9. |
+| **Train** (Teach her to fight) | **Corrected 2026-07-27 — replaces "she fires shard shots" (never built that way; see `game/companion.js`).** She fights with a FOUND weapon — same as the player finds abilities, not a fixed kit. Starts with one weapon assigned at the Train choice (§2 point 2); enemies can rarely drop a different one later, so her kit can change over a run. Deals real, modest damage (an assist, not a DPS race with the player). | Extra DPS (makes fights easier). | **Corrected 2026-07-14 — she does NOT take a fatal blow.** You beat the Sovereign together, same as any other route. The cost lands after the fight, not during it — see §7's Sovereign Ending and §9. |
 | **Leave** (Abandon her) | +15% speed/damage. No companion. | Raw power for speedruns. | She dies off-screen OR becomes the penultimate boss (see below). |
 
 ---
@@ -91,8 +94,9 @@ all rather than leaving it alone.
   before it's built. What IS decided: if the child is left behind specifically during
   this break (as opposed to lost some other way), escaped prisoners protect and raise
   her — this is the trigger for the Antechamber's grown **Child** fight (see
-  `lore.md`/`expansion.md` — **status: conflicts with The Abandoned Shell below, not yet
-  reconciled**, don't build both as the same trigger's outcome without picking one).
+  `lore.md`/`expansion.md` — **status: BUILT 2026-07-28**, now the sole "lost the child"
+  consequence and the one that carries the Absorb/Spare choice below — see §5's updated
+  status for what happened to Abandoned Shell).
 - **If you leave the child at the entrance**: unchanged — you fight The Stationmaster
   alone, without triggering the arrest.
 
@@ -118,40 +122,52 @@ the Tether on the spot, but she's gone for good — not "until you backtrack," s
 This is the same weight of choice as permanently abandoning her at the final door
 (§5), just earlier and easier to stumble into without realizing the cost — raises the
 stakes of this choice considerably, intentional. **Downstream consequence**: losing her
-here counts as the same "permanently lost the child" state that triggers The Abandoned
-Shell (§5) and the Collapse/Loop-via-Shell branch in §7 — you don't need to reach the
-final door specifically to trigger that branch anymore, losing her at Void Tether does
-it just as surely, just sooner. **Unless** she's specifically lost during the
-prison-break branch above, in which case the still-unreconciled Antechamber Child fight
-may apply instead — see the open flag above.
+here counts as the same "permanently lost the child" state that triggers the Antechamber
+Child fight (§5, resolved 2026-07-28 — that fight now covers every route to losing her,
+not just the prison break) and the Collapse/Loop-via-Child branch in §7 — you don't need
+to reach the final door specifically to trigger it anymore, losing her at Void Tether
+does it just as surely, just sooner.
 
 ---
 
-## 5. THE PENULTIMATE BOSS — THE ABANDONED SHELL
+## 5. THE PENULTIMATE BOSS — THE ANTECHAMBER CHILD (formerly THE ABANDONED SHELL)
 
-**Trigger (broadened 2026-07-14)**: Permanently lose the child — either by abandoning
-her at the final door (Region 13 entrance), or by leaving her behind for the Void Tether
-(§4) and never returning, which is now itself permanent. Either route counts as the same
-"lost her for good" state. **Open conflict, flagged 2026-07-22, not resolved**: §4's new
-Stationmaster/prison-break branch introduces a third way to lose her (left behind
-specifically during that break) that's supposed to lead to a completely different fight —
-the Antechamber's grown Child (see `lore.md`/`expansion.md`) — not this one. There's no
-rule yet for keeping these two "you lost her" outcomes from colliding; needs a direct
-decision before either gets built further.
+**Resolved 2026-07-28 (user direction)**: the Antechamber Child fight (`lore.md`'s
+"grown Child," §4 above) now REPLACES Abandoned Shell as the sole "lost the child"
+consequence, however she was lost (final door, Void Tether abandonment, or the
+Stationmaster's prison break — all three routes lead here now, one rule, no more
+three-way collision). She carries the Absorb/Spare choice and the Collapse/Loop endings
+below, in place of what Abandoned Shell used to grant. Built as `ANTECHAMBER_CHILD_DEF`/
+`TheChild` in `game/enemy.js`, fought at the Antechamber itself (not the final door) —
+`game_update.js`'s miniboss-death branch for `antechamber_child` triggers the choice
+cutscene (`cutscene.js`'s `antechamber_child_ending`) instead of the usual +1 Max Health
+miniboss reward.
 
-**What happens**: The Sovereign's fracture energy corrupts her empty body — regardless of
-where she was actually lost, what's left of her surfaces here, at the final door, claimed
-by the fracture rather than by distance. She rises as a ghostly, red-eyed boss that
-*copies your moves* (dashes, shard shots, attack patterns). HP = ~60% of the Sovereign.
+**After defeating her**, a choice plays out (rapid-tap cutscene prompt):
 
-**After defeating her**, two choices appear (canvas icons):
+| Choice | Effect | Leads To |
+| :--- | :--- | :--- |
+| **Absorb Her** | Gain +1 Fracture Pip (max 4). She is consumed. | **Collapse Ending** (world ends). |
+| **Spare Her** | She dissipates into peaceful light. You proceed to the Sovereign. | **Loop Ending** (you die, she loops). |
 
-| Choice | Key | Effect | Leads To |
-| :--- | :--- | :--- | :--- |
-| **Absorb Her** | `[E]` | Gain +1 Fracture Pip (max 4). She is consumed. | **Collapse Ending** (world ends). |
-| **Spare Her** | `[Q]` | She dissipates into peaceful light. You proceed to the Sovereign. | **Loop Ending** (you die, she loops). |
+> **Note**: If you never lost her, you skip this fight entirely and go straight to the Sovereign.
 
-> **Note**: If you never abandoned her, you skip this boss entirely and go straight to the Sovereign.
+> **Correction (2026-07-28)**: not actually a seam — the Stationmaster's prison-break
+> scene (§4) is a fixed story beat that happens regardless of how the player eventually
+> loses the child. The escaped prisoners are already out there by the time any permanent
+> loss occurs, whichever route causes it (final door, Void Tether abandonment, or the
+> break itself), so she ends up raised by the same group either way. She grows up among
+> escaped prisoners *because of* the prison break happening in the story's timeline, not
+> because of the specific circumstances of how she and the player got separated. No
+> rework needed.
+
+**Abandoned Shell didn't disappear** — relocated to Hollow Core (2026-07-28, user
+direction) and made **unconditional**: every playthrough fights her there now,
+regardless of the child's fate, fully decoupled from the losing-the-child narrative.
+Same original concept — a ghostly, red-eyed boss that *copies your moves* (dashes, shard
+shots, attack patterns), HP ~60% of the Sovereign (48 of 80) — built as
+`ABANDONED_SHELL_DEF`/`AbandonedShell` in `game/enemy.js`. No Absorb/Spare choice
+attaches to her anymore; she's just a real fight with a normal miniboss reward.
 
 ---
 
@@ -519,6 +535,25 @@ this is just a suggestion
 ```
 
 ## Revision history (most recent first)
+
+- **2026-07-27 — Child companion system actually built (`game/companion.js`,
+  `game/cutscene.js`); §2/§3 corrected to match.** The companion existed only as this
+  design doc and dialogue/flags before now — `companionState.active` was never set true
+  anywhere in real gameplay (only the `companion_test.html` arena tool), so she never
+  appeared in an actual playthrough. Fixed: (1) §2 point 1 (meeting her, Echo Bridge) is
+  now a real cutscene (`CUTSCENES.echo_bridge_intro`) ending in the rapid-tap Leave/Save
+  choice this doc always specced — a new reusable `choice` cutscene step type was added
+  to support it (mash one of two actions to a tap threshold, first to reach it wins,
+  times out to a default). (2) §2 point 2 (the first-fight Protect/Train choice) is now a
+  live trigger (`child_first_fight_choice`, `game.js`) firing the first time an enemy goes
+  `aware` after she's active — same `choice` mechanic, not pre-decided at Echo Bridge.
+  (3) §3's Train row is corrected — see the table above — from "she fires shard shots"
+  (never built that way) to a found-weapon kit (knuckles/taser/flamethrower,
+  `COMPANION_WEAPONS` in `companion.js`), matching the discussion that produced this: the
+  companion IS the player (§0.5's identity loop), so her kit should be *found*, not
+  granted, same as the player's own abilities — including a rare enemy-drop that swaps
+  her weapon mid-run. Cross-check `Plans/child_companion_system_plan.md` for the fuller
+  build log (hide-and-heal Phase 1, locomotion) — this doc only tracks what changed here.
 
 - **2026-07-22 — miniboss redesign fallout: Void Tether reworked, Loop-ending NG+ detail,
   Collapse ending's outside-world options expanded.** Matches `lore.md`/`expansion.md`'s

@@ -3,46 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <title>Stillpoint — Enemy Editor</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-size:12px;display:flex;height:100vh;overflow:hidden}
+body{font-family:var(--font-mono);font-size:12px;display:flex;height:100vh;overflow:hidden}
 
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-#bar{display:flex;gap:8px;align-items:center;padding:8px 12px;background:#0e0e1e;border-bottom:1px solid #1e1e3e;flex-shrink:0}
-#bar select{background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:4px 8px}
-#bar h1{font-size:13px;color:#e0d7ff;margin-right:auto}
+#bar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+#bar select{width:auto}
+#bar h1{font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--fg);margin-right:auto}
+#bar label{font-family:var(--font-ui);font-size:11px;color:var(--fg-muted)}
 
-#stage{flex:1;display:flex;align-items:center;justify-content:center;background:#04040a;position:relative}
-canvas{display:block;background:#0a0a12;border:1px solid #1a1a2e}
-.tag{position:absolute;top:10px;left:10px;font-size:10px;padding:3px 7px;border-radius:3px}
-.tag.built{background:rgba(45,212,191,0.18);color:#2dd4bf}
+#stage{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg-deep);position:relative}
+canvas{display:block;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-card)}
+.tag{position:absolute;top:10px;left:10px;font-size:10px;padding:3px 7px;border-radius:var(--radius-full);font-family:var(--font-ui);font-weight:600;letter-spacing:0.02em}
+.tag.built{background:var(--teal-dim);color:var(--teal);border:1px solid var(--teal-border)}
 
 /* SIDEBAR */
-#side{width:300px;background:#0a0a18;border-left:1px solid #1e1e3e;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;padding:10px}
-h2{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#4a4a7e;border-bottom:1px solid #1a1a2e;margin:12px 0 6px;padding-bottom:3px}
+#side{width:300px;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;padding:var(--space-3)}
+h2{font-family:var(--font-ui);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--fg-faint);border-bottom:1px solid var(--border);margin:var(--space-4) 0 var(--space-2);padding-bottom:3px}
 h2:first-child{margin-top:0}
-p.note{color:#5a5a8e;font-size:10.5px;line-height:1.5;margin:0 0 8px}
+p.note{color:var(--fg-muted);font-size:10.5px;line-height:1.5;margin:0 0 var(--space-2)}
 .row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-.row label{color:#8888aa;font-size:10.5px;flex:1}
-.row input,.row select{width:110px;background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:3px 5px}
-button{width:100%;background:#141428;border:1px solid #2e2e5e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:6px;cursor:pointer;margin-bottom:6px}
-button:hover{background:#1e1e3e}
-button.primary{border-color:#2dd4bf;color:#2dd4bf}
-button.reset{border-color:#f87171;color:#f87171}
-#exp-out{width:100%;height:120px;background:#04040a;border:1px solid #1e1e3e;color:#67e8f9;font-size:9.5px;resize:none;font-family:monospace;padding:4px}
-#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
-#back:hover{color:#e0d7ff}
+.row label{color:var(--fg-muted);font-family:var(--font-ui);font-size:10.5px;flex:1}
+.row input,.row select{width:110px}
+
+input,select{font-family:var(--font-mono);font-size:11px;color:var(--fg);background:var(--bg-input);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:4px 6px;transition:border-color var(--dur-fast) var(--ease-out-expo),box-shadow var(--dur-fast) var(--ease-out-expo)}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow-soft)}
+button{width:100%;font-family:var(--font-mono);font-size:11px;color:var(--fg);background:var(--surface);border:1px solid var(--border-hover);border-radius:var(--radius-md);padding:7px;cursor:pointer;margin-bottom:6px;box-shadow:var(--shadow-inset-top);transition:background var(--dur-fast) var(--ease-out-expo),border-color var(--dur-fast) var(--ease-out-expo),transform var(--dur-fast) var(--ease-out-expo)}
+button:hover{background:var(--surface-hover);border-color:var(--border-hover)}
+button:active{transform:scale(0.98)}
+button.primary{border-color:var(--teal-border);color:var(--teal)}
+button.primary:hover{background:var(--teal-dim)}
+button.reset{border-color:var(--danger-border);color:var(--danger)}
+button.reset:hover{background:var(--danger-dim)}
+
+#exp-out{width:100%;height:120px;color:var(--info);font-size:9.5px;resize:none;font-family:var(--font-mono)}
 </style>
 </head>
-<body>
-<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
 
 
 <div id="main">
-  <div id="bar">
+  <div id="bar" class="ds-topbar">
     <h1>⚔ Enemy Editor</h1>
     <label>Enemy:</label>
-    <select id="enemySelect"></select>
+    <select id="enemySelect" class="ds-select"></select>
   </div>
   <div id="stage">
     <span class="tag built" id="stageTag">fractured</span>
@@ -50,7 +61,7 @@ button.reset{border-color:#f87171;color:#f87171}
   </div>
 </div>
 
-<div id="side">
+<div id="side" class="ds-sidebar ds-scroll">
   <p class="note">
     Edits stats/loadout for a real <code>enemy.js</code> class (not a mock), then hands off to
     <code>enemy_test.html</code> to actually spawn and fight it. Geometry/AI logic lives in enemy.js —
@@ -152,7 +163,7 @@ function loadDefaultsIntoInputs() {
 function draw() {
   const d = currentDefaults();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#0a0a12';
+  ctx.fillStyle = '#050506'; // ambient base — canvas constraint: only this base fill may change, entity/indicator colors below stay untouched
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const cx = canvas.width / 2, cy = canvas.height / 2;

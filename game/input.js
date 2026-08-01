@@ -12,7 +12,7 @@ const DEFAULT_KEYBINDS = {
   moveLeft:      'ArrowLeft',
   moveRight:     'ArrowRight',
   aimUp:         'ArrowUp',    // also attack-direction / duck-release / shard-shot tilt
-  aimDown:       'ArrowDown',  // also attack-direction / duck / shard-shot tilt
+  aimDown:       'ArrowDown',  // also attack-direction / duck / parry / shard-shot tilt
   jump:          'KeyZ',
   attack:        'KeyX',
   // Phase Dash and Dash share this one binding as of 2026-07-16 (user
@@ -22,14 +22,15 @@ const DEFAULT_KEYBINDS = {
   // to anything) since the separate phaseDash action was retired.
   dash:          'KeyC',
   shardShot:     'KeyV',
-  stillpoint:    'KeyQ',
-  gravitonSurge: 'KeyE',
-  voidTether:    'KeyR',
+  stillpoint:    'KeyA',
+  gravitonSurge: 'KeyS',
+  voidTether:    'KeyD',
   callChild:     'KeyF', // companion.js — call the Child to you (KeyF freed 2026-07-16 when phaseDash merged into dash)
   map:           'Tab',
   pause:         'Escape',
   fullscreen:    'Backquote',
   inventory:     'KeyI',
+  construct:     'KeyQ',
 };
 
 const ACTION_LABELS = {
@@ -49,6 +50,7 @@ const ACTION_LABELS = {
   pause: 'Pause',
   fullscreen: 'Toggle Fullscreen',
   inventory: 'Inventory',
+  construct: 'Construct',
 };
 
 const KEYBINDS_STORAGE_KEY = 'stillpoint_keybinds_v1';

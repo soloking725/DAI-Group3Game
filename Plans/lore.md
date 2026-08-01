@@ -449,23 +449,30 @@ but to fight; there's no one here to place on a moral axis, they're closer to a 
 than a character. The player has to clear a long horde of them, mixed ranged and melee, to
 reach the Limit Break beyond.
 
-### The Antechamber — The Child *(new 2026-07-22 — status: proposed, conflicts with the
-existing Abandoned Shell fight, not yet reconciled — see note)*
-If the child is left behind specifically during the Stationmaster's prison-break sequence
-(above), she isn't lost the way she is everywhere else in the game — escaped prisoners
-protect her, and by the time the player reaches the Antechamber she's grown up among them,
-their de facto leader, fighting with tasers, flamethrowers, bombs, and guns scavenged and
-stolen from guards over the years. Three phases: alone; then calling other former
-prisoners to her aid and occasionally healing them; then a rage-boosted final phase.
-**Open conflict, flagged not resolved:** this is a fundamentally different answer to
-"what happens if you lose the child" than the existing Abandoned Shell fight (§5 of
-`story.md` — a corrupted ghost-copy of the player's own moveset). They can't both be the
-one canonical penultimate-boss consequence without a rule for which one triggers when.
-Two live options, neither picked yet: (a) this fight *replaces* Abandoned Shell entirely,
+### The Antechamber — The Child *(new 2026-07-22 — status: BUILT 2026-07-28,
+now the sole "lost the child" consequence — see resolution below)*
+The Stationmaster's prison-break sequence (above) is a fixed story beat that happens
+regardless of how she's eventually lost — so by the time the player permanently loses
+her, whichever way that happens (the final door, Void Tether abandonment, or the break
+itself), the same escaped prisoners are already out there to take her in. She isn't lost
+the way she is everywhere else in the game: they protect her, and by the time the player
+reaches the Antechamber she's grown up among them, their de facto leader, fighting with
+tasers, flamethrowers, bombs, and guns scavenged and stolen from guards over the years.
+Three phases: alone; then calling other former prisoners to her aid and occasionally
+healing them; then a rage-boosted final phase.
+**Resolved 2026-07-28 (user direction), option (a) below:** this fight *replaces*
+Abandoned Shell entirely as the one canonical "lost the child" consequence — it now
+carries the Absorb/Spare choice and Collapse/Loop endings (`game_update.js`'s
+`antechamber_child` miniboss-death branch, `cutscene.js`'s `antechamber_child_ending`).
+Abandoned Shell itself wasn't deleted — it was relocated to Hollow Core and made
+unconditional (every playthrough fights it there now, regardless of the child's fate;
+see `story.md` §5's updated status). Built as `ANTECHAMBER_CHILD_DEF`/`TheChild` in
+`game/enemy.js`, wired into the `antechamber` room. The two options that used to be open
+here, for the record: (a) this fight *replaces* Abandoned Shell entirely — **picked** —
 or (b) they're two different consequences for two different ways of losing her — Void
 Tether/final-door abandonment still leads to Abandoned Shell, while being specifically
-separated from her during the Stationmaster's prison break leads to this fight instead.
-Needs a direct decision before it's built.
+separated from her during the Stationmaster's prison break leads to this fight instead —
+**not picked**.
 
 ## Region lore — the place itself (added 2026-07-14)
 
@@ -730,12 +737,17 @@ default, Cutscene reserved for plot-critical Sovereign-thread beats.
   Graviton Core's Fractured Sovereign's Guard (the one direct Sovereign-thread miniboss).
   Now 9 minibosses, not 8 — Static Field's Conduit was added 2026-07-13 by `floor_plan.md`
   — see "Region lore" and the Lore Pip table above for its content.
-- Implementation note: roadmap.md 1.9 shipped one placeholder visual (a generic amber
-  vignette pulse, `lorePipEffect` in game.js) used identically for every fragment. The
-  table above is the spec for replacing that generic placeholder with per-fragment
-  content and adding the Cutscene mode (a full game-loop pause, which doesn't exist yet —
-  `lorePipEffect` currently never blocks `update()`). Both are follow-up implementation
-  work, not done in this pass.
+- Implementation note, updated 2026-07-29 (roadmap.md Phase 28): the plumbing for this
+  table now exists. Each `loreFragments[]` entry has a `mode` field —
+  `'overlay'` (default, the original generic amber vignette pulse, `lorePipEffect` in
+  `game_update.js`), `'cutscene'` (calls a real `playCutscene(lf.cutsceneId)` script —
+  the "full game-loop pause" this note used to flag as unbuilt already exists via
+  `cutscene.js`'s existing `gameState = 'cutscene'` input-lock, so no new engine work was
+  needed there), or `'none'` (no visual effect — the Extra/Customization Pips from
+  `regions.md`). `editor/levelEditor.html`'s Lore Pip panel can set all three. **Still not
+  done**: writing the actual per-fragment `text`/`cutsceneId` content from this table into
+  `area.js`'s real pip entries once each room is built — this table is still the content
+  spec, the code now just has somewhere to put it.
 - Core principle carried over from the previous version: lore is felt and seen, not read.
   Text pop-ups stay permanently disabled (`LORE_ENABLED = false`).
 
@@ -765,9 +777,11 @@ default, Cutscene reserved for plot-critical Sovereign-thread beats.
   Undertow's defeat completes it. (7) **Scope raised from two to three moveset instances
   per miniboss** (base game, Sovereign postgame, and now a Loop-ending/child-NG+ variant)
   — confirmed acceptable since a base kit makes variants cheap. (8) Added Sovereign's Army
-  Reserve as a horde gauntlet (not an individual) and a new, **unresolved-conflict**
-  Antechamber "grown Child" fight that doesn't yet have a rule for how it coexists with
-  the existing Abandoned Shell fight — flagged, not decided. (9) Documented the final
+  Reserve as a horde gauntlet (not an individual) and a new Antechamber "grown Child"
+  fight, whose conflict with the existing Abandoned Shell fight was **resolved
+  2026-07-28**: the Child fight replaces Abandoned Shell as the canonical "lost the
+  child" consequence; Abandoned Shell was relocated to Hollow Core as its own
+  unconditional fight instead. (9) Documented the final
   boss's actual phase structure (precog phase 1, full-kit-minus-Stillpoint phase 2,
   Stillpoint-plus-immunity phase 3, missing Graviton Surge, corrupted Void-Tether pull)
   matching what's already built in `boss.js`.

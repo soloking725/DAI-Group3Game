@@ -19,6 +19,16 @@ same pipeline convention as `assets/audio/music/CREDITS.md`. None require
 attribution, but author names are kept in each file's `ARTIST`/`COMMENTS`
 metadata and in this table regardless.
 
+| chargedAttack.ogg | "Power-Up Sound v2" | Spring Spring | CC0 | https://opengameart.org/content/power-up-sound (via candidates/enemy_sfx/chargedAttack) | `SFX.chargeFull()` — charged-attack ready cue |
+| phaseDash.ogg | "Teleport Spell" (Summoning Wars) | Summoning Wars team | CC0 | https://opengameart.org/content/summoning-wars-sounds (via candidates/enemy_sfx/phaseDash) | `SFX.phaseDash()` |
+| stillpoint.ogg | "Time Slow" ("time_stop") | unknown (OGA "Time Slow") | CC0 | via candidates/enemy_sfx/stillpoint | `SFX.stillpointActivate()` |
+
+Promoted 2026-07-28 from the reviewed `assets/audio/candidates/enemy_sfx/`
+pool (CC0-only picks) to replace procedural fallbacks for those three cues;
+untouched procedural SFX (jump, land, dash, wall-jump/slide, telegraphs,
+pickups, boss phase/death, teleport) have no matching candidate yet and stay
+procedural.
+
 ## Known gaps
 
 - **Net launcher** (`ATTACK_BEHAVIORS.net`, added 2026-07-26 alongside these)

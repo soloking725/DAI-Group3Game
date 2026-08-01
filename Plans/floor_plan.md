@@ -74,7 +74,7 @@ Corrections made when adopting this as official:
   path / "speedrun" path search — run it after any edit to this graph:
   `node Plans/analyze_floor_plan.js`. `--diff` cross-checks this doc
   against `floor_plan.svg`/`floor_plan_mermaid.txt` for drift. `--html`
-  generates `Plans/floor_plan_report.html`, a visual path/backtracking
+  generates `editor/floor_plan_report.html`, a visual path/backtracking
   viewer.
 
 ```mermaid

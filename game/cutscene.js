@@ -32,10 +32,23 @@
 //   { type: 'call',    fn: () => { ... } }
 //       Run arbitrary code (spawn something, switch area, grant an
 //       ability). Instant. Keep these small — big logic belongs in game.js.
+//   { type: 'choice',  actionA: 'moveLeft', actionB: 'moveRight',
+//     promptA: 'Leave', promptB: 'Save her', taps: 8, window: 90,
+//     onTimeout: 'A', onA: [...steps], onB: [...steps] }
+//       story.md's rapid-tap-repeat choice prompt: mash actionA vs actionB,
+//       first to `taps` presses within `window` frames wins. Neither side
+//       reaching the threshold in time resolves to `onTimeout` ('A' or
+//       'B'). The winning branch's steps are spliced into the running
+//       script in place of the choice step, so setFlag/call steps inside
+//       onA/onB are ordinary steps once a winner is picked — including for
+//       skip-sweep purposes (see endCutscene below).
 //
 // SKIPPING: holding the attack key for SKIP_HOLD_FRAMES skips the whole
 // scene — every remaining setFlag/call step still executes (skipping must
-// never eat a story flag or a grant), everything else is dropped.
+// never eat a story flag or a grant), everything else is dropped. If the
+// skip lands mid-choice, the choice resolves via onTimeout first (so its
+// branch's own setFlag/call steps are in the flat list the sweep walks),
+// then the sweep runs as usual.
 
 // ── Story flags ─────────────────────────────────────────────────────────────
 // Global narrative switches set by cutscenes ('setFlag') and read by
@@ -47,10 +60,12 @@ const SKIP_HOLD_FRAMES = 45;       // ~0.75s of holding attack to skip
 
 // ── The scripts ─────────────────────────────────────────────────────────────
 const CUTSCENES = {
-  // Sample/reference scene — plays the first time the player enters Echo
-  // Bridge part 1 (wired in game.js's switchArea pickup block; also
-  // playable from anywhere via playCutscene('echo_bridge_intro')). Doubles
-  // as the template to copy for the real Child-meeting scene later.
+  // Plays the first time the player enters Echo Bridge part 1 (wired in
+  // game.js's switchArea pickup block). Ends in story.md §2's rapid-tap
+  // meeting-the-child choice: mash moveLeft to walk away (she plays a sad
+  // reaction, meant to make the choice feel costly) vs. mash moveRight to
+  // go to her and keep her (companionState.active = true — game.js's own
+  // per-frame block then lazily spawns the real Child).
   echo_bridge_intro: {
     steps: [
       { type: 'wait', frames: 30 },
@@ -58,10 +73,117 @@ const CUTSCENES = {
       { type: 'cameraPan', x: 900, y: 300, speed: 4 },
       { type: 'text', text: 'Something small moves between the pillars ahead.', frames: 150 },
       { type: 'cameraReturn', speed: 5 },
+      { type: 'text', text: 'A child. Watching you. Waiting to see what you do.', frames: 150 },
+      {
+        type: 'choice',
+        actionA: 'moveLeft', actionB: 'moveRight',
+        promptA: 'Walk away', promptB: 'Go to her',
+        taps: 8, window: 100, onTimeout: 'A',
+        onA: [
+          { type: 'text', text: 'She watches you go. She does not follow.', frames: 150 },
+          { type: 'setFlag', flag: 'child_choice_resolved', value: true },
+        ],
+        onB: [
+          { type: 'text', text: 'She takes your hand like she already knew you would.', frames: 150 },
+          { type: 'call', fn: () => { companionState.active = true; } },
+          { type: 'setFlag', flag: 'child_choice_resolved', value: true },
+        ],
+      },
       { type: 'setFlag', flag: 'echo_bridge_intro_seen', value: true },
     ],
   },
+
+  // story.md §2 point 2: "the actual first moment the Protect/Train choice
+  // becomes concrete" — triggered live (game.js) the first time an enemy
+  // goes aware while the Child is active and untaught. Protect keeps her on
+  // the existing hide-and-heal kit; Train unlocks companionState.canFight
+  // and assigns her starter found weapon (companion.js's weapon kit).
+  child_first_fight_choice: {
+    steps: [
+      { type: 'text', text: 'She sees them too. What do you want her to do?', frames: 90 },
+      {
+        type: 'choice',
+        actionA: 'jump', actionB: 'attack',
+        promptA: 'Protect her', promptB: 'Let her fight',
+        taps: 8, window: 110, onTimeout: 'A',
+        onA: [
+          { type: 'text', text: 'Stay back. Stay hidden. That is the deal.', frames: 120 },
+          { type: 'setFlag', flag: 'child_fight_choice_resolved', value: true },
+        ],
+        onB: [
+          { type: 'text', text: 'She grits her teeth and steps up beside you.', frames: 120 },
+          { type: 'call', fn: () => { companionState.canFight = true; if (!companionState.weapon) companionState.weapon = 'knuckles'; } },
+          { type: 'setFlag', flag: 'child_fight_choice_resolved', value: true },
+        ],
+      },
+    ],
+  },
+
+  // story.md §5's Absorb/Spare choice, now attached to the Antechamber
+  // Child fight instead of Abandoned Shell (user direction 2026-07-28 —
+  // this fight replaces it as the sole "lost the child" consequence; see
+  // game_update.js's miniboss-death branch for antechamber_child, which
+  // calls this instead of the usual +1 Max Health reward). Absorb grants
+  // +1 Fracture Pip and locks in the Collapse ending; Spare locks in the
+  // Loop ending — both read by the Sovereign's own victory screen
+  // (game_draw_loop.js) via storyFlags.antechamber_ending.
+  antechamber_child_ending: {
+    steps: [
+      { type: 'text', text: 'She lies still. Whatever she was, whatever she became — this is what is left.', frames: 150 },
+      {
+        type: 'choice',
+        actionA: 'aimDown', actionB: 'attack',
+        promptA: 'Spare her', promptB: 'Absorb her',
+        taps: 8, window: 110, onTimeout: 'A',
+        onA: [
+          { type: 'text', text: 'She dissipates into peaceful light.', frames: 150 },
+          { type: 'setFlag', flag: 'antechamber_ending', value: 'loop' },
+        ],
+        onB: [
+          { type: 'text', text: 'You take what is left of her. One more piece of the Fracture, yours now.', frames: 150 },
+          { type: 'call', fn: () => { player.fractureMax = Math.min(FRACTURE_ABS_MAX, player.fractureMax + 1); } },
+          { type: 'setFlag', flag: 'antechamber_ending', value: 'collapse' },
+        ],
+      },
+    ],
+  },
 };
+
+// ── Editor overrides ─────────────────────────────────────────────────────────
+// editor/cutscene_editor.html saves work-in-progress here; applied on load,
+// same pattern as animdata.js's ANIM_OVERRIDES_KEY (see that file's own
+// comment). A saved cutscene's 'call' steps carry a JSON-safe `_callCode`
+// source string instead of a live `fn` (functions can't survive
+// JSON.stringify/structuredClone) — materializeCallSteps() below rebuilds
+// the real `fn` from that string. Overrides merge per-key (whole cutscene
+// replaced), never per-step.
+const CUTSCENE_OVERRIDES_KEY = 'stillpoint_cutscene_overrides_v1';
+
+function materializeCallSteps(steps) {
+  for (const step of (steps || [])) {
+    if (step.type === 'call' && !step.fn && step._callCode) {
+      try { step.fn = new Function('return (' + step._callCode + ')')(); }
+      catch (e) { console.warn(`[cutscene] bad _callCode, step becomes a no-op:`, e); step.fn = () => {}; }
+    }
+    if (step.type === 'choice') {
+      materializeCallSteps(step.onA);
+      materializeCallSteps(step.onB);
+    }
+  }
+}
+
+function applyCutsceneOverrides() {
+  try {
+    const raw = localStorage.getItem(CUTSCENE_OVERRIDES_KEY);
+    if (!raw) return;
+    const overrides = JSON.parse(raw);
+    for (const key in overrides) {
+      materializeCallSteps(overrides[key].steps);
+      CUTSCENES[key] = overrides[key];
+    }
+  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+}
+applyCutsceneOverrides();
 
 // ── Runner state ────────────────────────────────────────────────────────────
 const cutsceneState = {
@@ -78,7 +200,11 @@ const cutsceneState = {
 function playCutscene(id) {
   const scene = CUTSCENES[id];
   if (!scene) { console.warn(`[cutscene] no cutscene named "${id}"`); return; }
-  cutsceneState.active = scene;
+  // Shallow-clone the steps array (not the CUTSCENES entry itself) — a
+  // 'choice' step splices its winning branch into this array in place, and
+  // without cloning that would permanently mutate the shared script on its
+  // first play.
+  cutsceneState.active = { steps: scene.steps.slice() };
   cutsceneState.id = id;
   cutsceneState.stepIndex = 0;
   cutsceneState.stepTimer = 0;
@@ -86,15 +212,37 @@ function playCutscene(id) {
   cutsceneState.skipHold = 0;
   cutsceneState.camOverride = null;
   cutsceneState.barSlide = 0;
+  cutsceneState.choiceTapsA = 0;
+  cutsceneState.choiceTapsB = 0;
   gameState = 'cutscene';
+}
+
+// Resolves the 'choice' step currently at cs.stepIndex by splicing the
+// winning branch's steps into the running script in its place. Shared by
+// the tap-threshold win path and the timeout/skip fallback path.
+function resolveChoice(cs, step, winner) {
+  const branch = (winner === 'A' ? step.onA : step.onB) || [];
+  cs.active.steps.splice(cs.stepIndex, 1, ...branch);
+  cs.stepTimer = 0;
+  cs.choiceTapsA = 0;
+  cs.choiceTapsB = 0;
 }
 
 function endCutscene(skipped) {
   // Flags and calls must fire even on skip — a skipped scene that forgot to
   // set child_choice_resolved would be a progression bug, not a shortcut.
   if (skipped && cutsceneState.active) {
-    const steps = cutsceneState.active.steps;
-    for (let i = cutsceneState.stepIndex; i < steps.length; i++) {
+    const cs = cutsceneState;
+    // A choice step mid-resolution needs its branch spliced in first (via
+    // onTimeout) so the branch's own setFlag/call steps are in the flat
+    // list the sweep below walks — otherwise skipping mid-choice would
+    // silently drop whichever setFlag the winning branch would have set.
+    const pending = cs.active.steps[cs.stepIndex];
+    if (pending && pending.type === 'choice') {
+      resolveChoice(cs, pending, pending.onTimeout === 'B' ? 'B' : 'A');
+    }
+    const steps = cs.active.steps;
+    for (let i = cs.stepIndex; i < steps.length; i++) {
       const s = steps[i];
       if (s.type === 'setFlag') storyFlags[s.flag] = s.value;
       if (s.type === 'call' && typeof s.fn === 'function') s.fn();
@@ -185,6 +333,20 @@ function updateCutscene() {
       done = true;
       break;
 
+    case 'choice': {
+      const taps = step.taps || 8;
+      const winFrames = step.window || 90;
+      if (wasActionJustPressed(step.actionA)) cs.choiceTapsA++;
+      if (wasActionJustPressed(step.actionB)) cs.choiceTapsB++;
+      if (cs.choiceTapsA >= taps) resolveChoice(cs, step, 'A');
+      else if (cs.choiceTapsB >= taps) resolveChoice(cs, step, 'B');
+      else if (cs.stepTimer >= winFrames) resolveChoice(cs, step, step.onTimeout === 'B' ? 'B' : 'A');
+      // done stays false either way — resolveChoice (if it ran) already
+      // spliced the winning branch's first step into cs.stepIndex and reset
+      // stepTimer, so next frame picks it up naturally without an index bump.
+      break;
+    }
+
     default:
       console.warn(`[cutscene] unknown step type "${step.type}" in "${cs.id}" — skipping`);
       done = true;
@@ -227,6 +389,29 @@ function drawCutsceneOverlay(ctx) {
     ctx.fillText(step.text, W / 2, H - barH - 28);
     ctx.textAlign = 'left';
     ctx.globalAlpha = 1;
+  }
+
+  // Choice prompt — two racing tap-meters, story.md's rapid-tap-repeat UI.
+  if (step && step.type === 'choice') {
+    const taps = step.taps || 8;
+    const barW = 180, barH2 = 10, gap = 40;
+    const cy = H / 2 + 40;
+    const drawBar = (x, label, count, color) => {
+      const frac = Math.min(1, count / taps);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(x, cy, barW, barH2);
+      ctx.fillStyle = color;
+      ctx.fillRect(x, cy, barW * frac, barH2);
+      ctx.strokeStyle = '#475569';
+      ctx.strokeRect(x, cy, barW, barH2);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x + barW / 2, cy - 8);
+      ctx.textAlign = 'left';
+    };
+    drawBar(W / 2 - barW - gap / 2, step.promptA || 'A', cs.choiceTapsA || 0, '#64748b');
+    drawBar(W / 2 + gap / 2, step.promptB || 'B', cs.choiceTapsB || 0, '#f9a8d4');
   }
 
   // Skip prompt (bottom-right, brightens as the hold progresses)

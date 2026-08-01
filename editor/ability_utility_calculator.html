@@ -3,76 +3,80 @@
 <head>
 <meta charset="UTF-8">
 <title>Stillpoint — Ability Utility Calculator</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#06060e;color:#c4b5fd;font-family:'Courier New',monospace;font-size:12px;padding:16px 20px 60px;line-height:1.5}
-h1{font-size:15px;color:#e0d7ff;font-weight:normal;margin-bottom:4px}
-.sub{color:#5a5a8e;font-size:11px;margin-bottom:16px;max-width:900px}
-.sub b{color:#8a8ac0}
-h2{font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin:20px 0 8px;border-bottom:1px solid #1a1a2e;padding-bottom:4px}
+body{font-family:var(--font-mono);font-size:12px;padding:20px 24px 60px;line-height:1.5}
+h1{font-family:var(--font-ui);font-size:16px;font-weight:600;color:var(--fg);margin-bottom:4px}
+.sub{color:var(--fg-muted);font-size:11px;margin-bottom:var(--space-4);max-width:900px}
+.sub b{color:var(--fg-subtle)}
+h2{font-family:var(--font-ui);font-size:10px;font-weight:600;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.08em;margin:24px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px}
 
 /* WEIGHTS PANEL */
-#weights{display:flex;gap:22px;flex-wrap:wrap;background:#0e0e1e;border:1px solid #1e1e3e;padding:12px 16px}
-.weight{display:flex;flex-direction:column;gap:4px;min-width:150px}
-.weight label{font-size:10px;color:#a8a8d8;display:flex;justify-content:space-between}
-.weight label span{color:#2dd4bf}
-.weight input[type=range]{width:100%;accent-color:#a78bfa}
-.weight .hint{color:#3a3a5e;font-size:9px}
-#formula{margin-top:10px;color:#6a6a9e;font-size:10px;background:#04040a;border:1px solid #1e1e3e;padding:8px 10px}
-#formula code{color:#c4b5fd}
+#weights{display:flex;gap:22px;flex-wrap:wrap;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:14px 18px}
+.weight{display:flex;flex-direction:column;gap:5px;min-width:150px}
+.weight label{font-family:var(--font-ui);font-size:10.5px;color:var(--fg-subtle);display:flex;justify-content:space-between}
+.weight label span{color:var(--teal)}
+.weight input[type=range]{width:100%;accent-color:var(--accent)}
+.weight .hint{color:var(--fg-faint);font-size:9px}
+#formula{margin-top:10px;color:var(--fg-muted);font-size:10px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px}
+#formula code{color:var(--fg)}
 
 /* ABILITY BLOCKS */
-.ability-block{background:#0e0e1e;border:1px solid #1e1e3e;margin-bottom:14px}
-.ability-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #1e1e3e;background:#12122a}
-.ability-head .name{color:#e0d7ff;font-size:12px}
-.ability-head .note{color:#4a4a7e;font-size:9px;flex:1}
-.ability-head .flag{color:#f472b6;font-size:9px;border:1px solid #5a1d45;padding:2px 6px;border-radius:2px}
+.ability-block{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);margin-bottom:16px;overflow:hidden}
+.ability-head{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--bg-elevated)}
+.ability-head .name{font-family:var(--font-ui);font-weight:600;color:var(--fg);font-size:12px}
+.ability-head .note{color:var(--fg-faint);font-size:9px;flex:1}
+.ability-head .flag{color:#f472b6;font-size:9px;border:1px solid #5a1d45;padding:2px 6px;border-radius:var(--radius-sm)}
 
 table{width:100%;border-collapse:collapse;font-size:10.5px}
-th,td{padding:5px 8px;text-align:right;border-bottom:1px solid #14142a}
-th{color:#5a5a8e;font-weight:normal;text-align:right;font-size:9px;text-transform:uppercase;letter-spacing:0.5px}
+th,td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--border)}
+th{color:var(--fg-faint);font-weight:normal;text-align:right;font-size:9px;text-transform:uppercase;letter-spacing:0.06em}
 td:first-child,th:first-child{text-align:left}
-tr.lvrow:hover td{background:#141428}
-input.cell{width:52px;background:#141428;border:1px solid #2a2a4e;color:#c4b5fd;font-family:monospace;font-size:10.5px;padding:3px 4px;text-align:right}
-input.cell:focus{outline:none;border-color:#a78bfa}
-.score{color:#2dd4bf;font-weight:bold}
+tr.lvrow{transition:background var(--dur-fast) var(--ease-out-expo)}
+tr.lvrow:hover td{background:var(--surface)}
+input.cell{width:52px;background:var(--bg-input);border:1px solid var(--border-hover);border-radius:var(--radius-sm);color:var(--fg);font-family:var(--font-mono);font-size:10.5px;padding:4px 5px;text-align:right;transition:border-color var(--dur-fast) var(--ease-out-expo)}
+input.cell:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow-soft)}
+.score{color:var(--teal);font-weight:bold}
 .bar-wrap{width:120px}
-.bar-track{background:#1a1a2e;height:8px;position:relative}
-.bar-fill{background:linear-gradient(90deg,#7c3aed,#2dd4bf);height:100%}
+.bar-track{background:var(--surface);height:8px;border-radius:var(--radius-full);position:relative;overflow:hidden}
+.bar-fill{background:linear-gradient(90deg,var(--accent),var(--teal));height:100%}
 .marginal{font-size:9px}
-.marginal.good{color:#34d399}
-.marginal.bad{color:#f87171}
-.marginal.flat{color:#5a5a8e}
+.marginal.good{color:var(--ok)}
+.marginal.bad{color:var(--danger)}
+.marginal.flat{color:var(--fg-faint)}
 
 /* CROSS-ABILITY COMPARISON */
-#compare-wrap{background:#0e0e1e;border:1px solid #1e1e3e;padding:10px 14px}
-.cmp-row{display:flex;align-items:center;gap:10px;padding:4px 0}
-.cmp-name{width:150px;color:#a8a8d8;flex-shrink:0}
-.cmp-lvl{width:26px;color:#4a4a7e;flex-shrink:0;text-align:right}
-.cmp-track{flex:1;background:#1a1a2e;height:12px;position:relative}
-.cmp-fill{background:linear-gradient(90deg,#7c3aed,#2dd4bf);height:100%}
-.cmp-val{width:46px;color:#2dd4bf;font-size:10px;text-align:right;flex-shrink:0}
-#level-select{background:#141432;border:1px solid #3e3e7e;color:#c4b5fd;font-family:monospace;font-size:11px;padding:4px 8px;margin-left:8px}
+#compare-wrap{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:12px 16px}
+.cmp-row{display:flex;align-items:center;gap:10px;padding:5px 0}
+.cmp-name{width:150px;color:var(--fg-subtle);flex-shrink:0}
+.cmp-lvl{width:26px;color:var(--fg-faint);flex-shrink:0;text-align:right}
+.cmp-track{flex:1;background:var(--surface);height:12px;border-radius:var(--radius-full);position:relative;overflow:hidden}
+.cmp-fill{background:linear-gradient(90deg,var(--accent),var(--teal));height:100%}
+.cmp-val{width:46px;color:var(--teal);font-size:10px;text-align:right;flex-shrink:0}
+#level-select{background:var(--bg-input);border:1px solid var(--border-hover);border-radius:var(--radius-sm);color:var(--fg);font-family:var(--font-mono);font-size:11px;padding:5px 9px;margin-left:8px}
 
-#reset-btn{background:#200e0e;border:1px solid #7f1d1d;color:#f87171;font-family:monospace;font-size:10px;padding:5px 10px;cursor:pointer;margin-top:4px}
-#reset-btn:hover{background:#3a1a1a}
-#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
-#back:hover{color:#e0d7ff}
+#reset-btn{background:var(--danger-dim);border:1px solid var(--danger-border);border-radius:var(--radius-sm);color:var(--danger);font-family:var(--font-mono);font-size:10px;padding:6px 12px;cursor:pointer;margin-top:6px;transition:background var(--dur-fast) var(--ease-out-expo)}
+#reset-btn:hover{background:rgba(248,113,113,0.22)}
 </style>
 </head>
-<body>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
 
-<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
 <h1>◆ Ability Utility Calculator</h1>
 <div class="sub">
   Rough, tunable "how strong is this level" score per ability. There's no single objective
   definition of "utility" — damage, crowd control, and mobility aren't the same currency — so
   every number below is <b>editable</b>: the raw per-level stats (sourced from
-  <code>game/ability.js</code> / <code>player.js</code> / <code>game.js</code>, with a few
+  <code>game/ability.js</code> / <code>player.js</code> / <code>game_state.js</code> (game.js
+  was split into 6 files 2026-07-27), with a few
   judgment-call fields like Mobility/Utility flagged) and the weights that combine them into one
   score. Use it to spot outliers (a level that costs the same lore pips as every other ability's
   same level but adds far less), not as a final verdict. All 6 abilities cost the identical
-  <b>2 / 3 / 4 lore pips</b> for Lv1/2/3 (game.js's <code>INVENTORY_UPGRADES</code>), so the
+  <b>2 / 3 / 4 lore pips</b> for Lv1/2/3 (game_state.js's <code>INVENTORY_UPGRADES</code>), so the
   "value per pip" column is directly comparable across abilities.
 </div>
 
@@ -108,7 +112,8 @@ input.cell:focus{outline:none;border-color:#a78bfa}
 //   mobility  — 0-10 judgment-call rating for traversal/positioning/buff
 //               value NOT already captured by damage or ccFrames (i-frames,
 //               range, melee dmg multiplier, lifesteal, flight, etc.)
-// Sourced from game/ability.js, game/player.js, game/game.js (2026-07-24 read).
+// Sourced from game/ability.js, game/player.js, game/game_state.js (2026-07-24 read;
+// game.js split into 6 files 2026-07-27, this data now lives in game_state.js).
 const DEFAULT_DATA = {
   phase_dash: {
     label: 'Phase Dash', note: 'i-frame dash + Echo (distraction/counter). No direct offense until Lv3.',

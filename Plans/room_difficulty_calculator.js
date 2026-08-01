@@ -15,7 +15,7 @@
 //
 // Usage:
 //   node Plans/room_difficulty_calculator.js --html [outPath]
-//     Writes Plans/room_difficulty_calculator.html (default path) — an
+//     Writes editor/room_difficulty_calculator.html (default path) — an
 //     interactive page: pick a room from a dropdown, set run count /
 //     keep-the-child odds, click Run, see averaged loadout + a rough
 //     difficulty-tier suggestion. All simulation happens client-side in
@@ -521,7 +521,7 @@ function main() {
   const html = buildDifficultyCalculatorHtml(graph, startId, difficultyConfig);
   const htmlIdx = args.indexOf('--html');
   const outArg = htmlIdx !== -1 && args[htmlIdx + 1] && !args[htmlIdx + 1].startsWith('--') ? args[htmlIdx + 1] : null;
-  const outPath = outArg ? path.resolve(outArg) : path.join(PLANS_DIR, 'room_difficulty_calculator.html');
+  const outPath = outArg ? path.resolve(outArg) : path.join(PLANS_DIR, '..', 'editor', 'room_difficulty_calculator.html');
   const fullDoc = `<!doctype html>\n<html><head><meta charset="utf-8"><title>Stillpoint — Room Difficulty Calculator</title></head><body>\n${html}\n</body></html>\n`;
   fs.writeFileSync(outPath, fullDoc);
   console.log(`Wrote room difficulty calculator to: ${path.relative(process.cwd(), outPath)}`);

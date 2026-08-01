@@ -47,73 +47,77 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Stillpoint — Debug Console v2</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
   :root {
-    --bg:#0b0b14; --panel:#14141f; --panel2:#1a1a2b; --border:#2a2a44;
-    --text:#c4b5fd; --text-dim:#8b8bab; --ok:#2dd4bf; --warn:#fbbf24;
-    --err:#f87171; --skip:#6b7280; --accent:#a78bfa;
+    --bg:#050506; --panel:#0b0b10; --panel2:#0a0a0c; --border:rgba(255,255,255,0.10);
+    --text:#EDEDEF; --text-dim:#8A8F98; --ok:#2dd4bf; --warn:#fbbf24;
+    --err:#f87171; --skip:#6b7280; --accent:#6872D9;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; font-size:13px; line-height:1.45; }
-  header { padding:12px 16px 8px; border-bottom:1px solid var(--border); }
-  h1 { font-size:1.15em; letter-spacing:0.5px; }
+  body { font-family:var(--font-mono); font-size:13px; line-height:1.45; }
+  header { padding:16px 20px 10px; border-bottom:1px solid var(--border); }
+  h1 { font-family:var(--font-ui); font-weight:600; font-size:1.15em; letter-spacing:-0.01em; }
   h1 span { color:var(--text-dim); font-weight:normal; font-size:0.75em; margin-left:8px; }
-  .sub { color:var(--text-dim); font-size:0.8em; margin-top:3px; max-width:1100px; }
+  .sub { color:var(--text-dim); font-size:0.8em; margin-top:4px; max-width:1100px; line-height:1.6; }
 
-  .bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; padding:8px 16px; border-bottom:1px solid var(--border); background:var(--panel); }
-  .btn { background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:5px 12px; border-radius:3px;
-         cursor:pointer; font-family:inherit; font-size:0.85em; }
-  .btn:hover:not(:disabled) { background:var(--border); }
+  .bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; padding:10px 20px; border-bottom:1px solid var(--border); background:var(--panel); }
+  .btn { background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:6px 14px; border-radius:var(--radius-sm);
+         cursor:pointer; font-family:inherit; font-size:0.85em; box-shadow:var(--shadow-inset-top); transition:background var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo); }
+  .btn:hover:not(:disabled) { background:var(--surface-hover); }
+  .btn:active:not(:disabled) { transform:scale(0.98); }
   .btn:disabled { opacity:0.4; cursor:default; }
   .btn.primary { border-color:var(--ok); color:var(--ok); }
   .btn.danger { border-color:var(--err); color:var(--err); }
-  input[type=search] { background:#0a0a12; border:1px solid var(--border); color:var(--text); padding:5px 8px;
-                       border-radius:3px; font-family:inherit; font-size:0.85em; width:210px; }
+  input[type=search] { background:var(--bg-input); border:1px solid var(--border); color:var(--text); padding:6px 9px;
+                       border-radius:var(--radius-sm); font-family:inherit; font-size:0.85em; width:210px; transition:border-color var(--dur-fast) var(--ease-out-expo), box-shadow var(--dur-fast) var(--ease-out-expo); }
+  input[type=search]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow-soft); }
   label.chk { color:var(--text-dim); font-size:0.8em; cursor:pointer; user-select:none; display:flex; align-items:center; gap:4px; }
 
-  .stats { display:flex; gap:8px; padding:8px 16px; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--border); }
-  .stat { background:var(--panel); border:1px solid var(--border); padding:4px 11px; border-radius:3px; font-size:0.82em; }
+  .stats { display:flex; gap:8px; padding:10px 20px; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--border); }
+  .stat { background:var(--panel); border:1px solid var(--border); box-shadow:var(--shadow-inset-top); padding:5px 12px; border-radius:var(--radius-sm); font-size:0.82em; }
   .stat b { font-weight:bold; }
   .progress { height:3px; background:var(--border); }
-  .progress > div { height:100%; background:var(--accent); width:0%; transition:width .15s; }
+  .progress > div { height:100%; background:var(--accent); width:0%; transition:width .15s var(--ease-out-expo); }
 
-  main { display:flex; align-items:flex-start; gap:14px; padding:12px 16px 40px; }
+  main { display:flex; align-items:flex-start; gap:16px; padding:16px 20px 40px; }
   #results { flex:1; min-width:420px; }
   .side { width:430px; flex-shrink:0; position:sticky; top:8px; }
 
-  .phase { border:1px solid var(--border); border-radius:4px; margin-bottom:10px; overflow:hidden; }
-  .phase > h2 { background:var(--panel); font-size:0.85em; padding:6px 10px; cursor:pointer; display:flex; gap:8px; align-items:center; }
+  .phase { border:1px solid var(--border); border-radius:var(--radius-lg); margin-bottom:10px; overflow:hidden; box-shadow:var(--shadow-card); }
+  .phase > h2 { background:var(--panel); font-family:var(--font-ui); font-weight:600; font-size:0.85em; padding:8px 12px; cursor:pointer; display:flex; gap:8px; align-items:center; }
   .phase > h2 .pcount { color:var(--text-dim); font-weight:normal; margin-left:auto; font-size:0.9em; }
-  .row { display:flex; gap:8px; padding:4px 10px; border-top:1px solid #1e1e30; cursor:pointer; align-items:baseline; }
-  .row:hover { background:#16162a; }
+  .row { display:flex; gap:8px; padding:5px 12px; border-top:1px solid var(--border); cursor:pointer; align-items:baseline; transition:background var(--dur-fast) var(--ease-out-expo); }
+  .row:hover { background:var(--surface); }
   .row .id { color:var(--text-dim); width:58px; flex-shrink:0; font-size:0.85em; }
   .row .nm { flex:1; }
   .row .msg { color:var(--text-dim); font-size:0.85em; flex:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .pill { flex-shrink:0; width:56px; text-align:center; border-radius:2px; font-size:0.72em; padding:1px 0; border:1px solid; }
+  .pill { flex-shrink:0; width:56px; text-align:center; border-radius:var(--radius-full); font-size:0.72em; padding:2px 0; border:1px solid; }
   .pill.pass { color:var(--ok); border-color:var(--ok); }
   .pill.fail { color:var(--err); border-color:var(--err); }
   .pill.warn { color:var(--warn); border-color:var(--warn); }
   .pill.skip { color:var(--skip); border-color:var(--skip); }
   .pill.pend { color:var(--text-dim); border-color:var(--border); }
   .pill.run  { color:var(--accent); border-color:var(--accent); }
-  .detail { display:none; padding:6px 10px 10px 76px; background:#0e0e18; border-top:1px solid #1e1e30;
+  .detail { display:none; padding:8px 12px 12px 76px; background:var(--bg-deep); border-top:1px solid var(--border);
             white-space:pre-wrap; font-size:0.82em; color:var(--text-dim); }
   .detail.open { display:block; }
   .detail .hl { color:var(--text); }
 
-  iframe#sandbox { width:400px; height:225px; border:1px solid var(--border); background:#000; display:block; }
-  #log { background:#07070d; border:1px solid var(--border); border-top:none; padding:8px; height:280px;
+  iframe#sandbox { width:400px; height:225px; border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-card); background:#000; display:block; }
+  #log { background:var(--bg-deep); border:1px solid var(--border); border-top:none; border-radius:0 0 var(--radius-md) var(--radius-md); padding:10px; height:280px;
          overflow-y:auto; font-size:0.78em; white-space:pre-wrap; }
   #log .ok{color:var(--ok);} #log .warn{color:var(--warn);} #log .err{color:var(--err);} #log .dim{color:var(--text-dim);}
-  .sidenote { color:var(--text-dim); font-size:0.75em; margin-top:8px; }
-  textarea#report { display:none; width:100%; height:260px; margin-top:8px; background:#07070d; color:var(--text);
-                    border:1px solid var(--border); font-family:inherit; font-size:0.78em; padding:8px; }
-#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
-#back:hover{color:#e0d7ff}
+  .sidenote { color:var(--text-dim); font-size:0.75em; margin-top:8px; line-height:1.6; }
+  textarea#report { display:none; width:100%; height:260px; margin-top:8px; background:var(--bg-deep); color:var(--text);
+                    border:1px solid var(--border); border-radius:var(--radius-sm); font-family:inherit; font-size:0.78em; padding:10px; }
 </style>
 </head>
-<body>
-<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
 
 
 <header>
@@ -177,6 +181,7 @@ const INSTRUMENT = `
     key: function (i) { var ks = Object.keys(mem); return i < ks.length ? ks[i] : null; }
   };
   Object.defineProperty(shim, 'length', { get: function () { return Object.keys(mem).length; } });
+  window.__lsError = null; // set below on failure; declared here so reading it on the success path never throws
   try {
     Object.defineProperty(window, 'localStorage', { value: shim, configurable: true });
     window.__lsSandboxed = true;
@@ -788,7 +793,12 @@ test('A01', P2, 'Phase Dash sets its cooldown and spawns one echo', (T) => {
   const echoes = T.get('echoes');
   T.note('echoes after dash: ' + echoes.length + ', cooldown=' + T.get('abilityState.phaseDashCooldown') + '/' + T.get('PHASE_DASH_COOLDOWN'));
   T.ok(T.get('player.phaseDashing') || T.get('abilityState.phaseDashCooldown') > 0, 'Phase Dash never fired');
-  T.eq(T.get('abilityState.phaseDashCooldown'), T.get('PHASE_DASH_COOLDOWN'), 'phaseDashCooldown was not set to PHASE_DASH_COOLDOWN');
+  // Cooldown is armed to the exact constant the instant the dash fires, but
+  // this read happens a few frames later (the pulse's hold/settle steps),
+  // during which it's already ticked down by design — tolerate that instead
+  // of demanding exact equality against a moving target.
+  const pdCooldown = T.get('abilityState.phaseDashCooldown'), pdMax = T.get('PHASE_DASH_COOLDOWN');
+  T.ok(pdCooldown > pdMax - 6 && pdCooldown <= pdMax, 'phaseDashCooldown was not armed near PHASE_DASH_COOLDOWN (got ' + pdCooldown + '/' + pdMax + ')');
   T.ok(echoes.length === 1, 'expected exactly 1 echo, got ' + echoes.length);
   const echo = echoes[0];
   T.note('echo spawned at x=' + echo.x.toFixed(1) + ', dash started at x=' + x0.toFixed(1) + ', player now x=' + T.player().x.toFixed(1));
@@ -846,6 +856,12 @@ test('A04', P2, 'Phase Dash aims 8-directionally from held inputs', (T) => {
   for (const [h, v, ok] of dirs) {
     T.arena(700);
     T.grantAll();
+    // grantAll() only sets the hasX flags — 8-directional aim is gated on
+    // the ability LEVEL (player.js's getDashDirection(): oldTier('phase_dash')
+    // >= 1, i.e. raw level 2+ since the 2026-07-27 rebalance), so without
+    // this the test silently exercised the un-leveled horizontal-only
+    // fallback instead of the real feature.
+    T.level('phase_dash', 2);
     T.ev('player.y = 300;'); // airborne so vertical dashes are unobstructed
     T.hold(h); if (v) T.hold(v);
     T.step(2);
@@ -866,7 +882,12 @@ test('A05', P2, 'Shard Shot fires a projectile and arms its cooldown', (T) => {
   const projs = T.get('projectiles');
   T.note('projectiles=' + projs.length + ' cooldown=' + T.get('abilityState.shardShotCooldown') + '/' + T.get('SHARD_SHOT_COOLDOWN'));
   T.ok(projs.length > 0, 'releasing the Shard Shot button spawned no projectile');
-  T.eq(T.get('abilityState.shardShotCooldown'), T.get('SHARD_SHOT_COOLDOWN'), 'shardShotCooldown was not armed on fire');
+  // Same timing note as A01's phaseDashCooldown check: armed to the exact
+  // constant the instant it fires, but the `pulse` settle steps let it
+  // tick down a little before this read — tolerate that instead of an
+  // exact-equality check against a moving target.
+  const ssCooldown = T.get('abilityState.shardShotCooldown'), ssMax = T.get('SHARD_SHOT_COOLDOWN');
+  T.ok(ssCooldown > ssMax - 6 && ssCooldown <= ssMax, 'shardShotCooldown was not armed near SHARD_SHOT_COOLDOWN (got ' + ssCooldown + '/' + ssMax + ')');
   return projs.length + ' projectile(s) fired, cooldown set to ' + T.get('SHARD_SHOT_COOLDOWN');
 });
 
@@ -922,15 +943,18 @@ test('A08', P2, 'Shard Shot aim tilt clamps to its authored range', (T) => {
   return 'tilt range honoured in both directions';
 });
 
-test('A09', P2, 'Lv3 beam channels and drains Fracture Pips', (T) => {
+test('A09', P2, 'Lv4 beam channels and drains Fracture Pips', (T) => {
+  // 2026-07-27 rebalance moved the beam threshold from raw Lv3 to raw Lv4
+  // (player.js's getDashDirection-style check: oldTier('shard_shot') >= 3,
+  // i.e. raw level - 1 >= 3) — same pattern as A11/A12/A18/A04.
   T.arena(300);
   T.grantAll();
-  T.level('shard_shot', 3);
+  T.level('shard_shot', 4);
   T.pips(4);
   T.hold('shardShot');
   T.step(T.get('BEAM_CHARGE_TIME') + 5);
   T.note('beaming after BEAM_CHARGE_TIME: ' + T.get('player.beaming') + ', pips=' + T.get('player.fractureMeter'));
-  T.ok(T.get('player.beaming') === true, 'holding past BEAM_CHARGE_TIME at Lv3 with pips in reserve did not start the beam');
+  T.ok(T.get('player.beaming') === true, 'holding past BEAM_CHARGE_TIME at Lv4 with pips in reserve did not start the beam');
   const before = T.get('player.fractureMeter');
   T.step(70); // > 60f drain tick
   const after = T.get('player.fractureMeter');
@@ -960,9 +984,12 @@ test('A10', P2, 'Stillpoint tap costs 1 pip, hold costs 3', (T) => {
 });
 
 test('A11', P2, 'Stillpoint slow factor matches the design values per level', (T) => {
+  // 2026-07-27 rebalance shifted the deep-slow tier from raw Lv3 to raw Lv4
+  // (player.js reads oldTier('stillpoint') >= 3, i.e. raw level - 1 >= 3) —
+  // same "new cheap Lv1 tier inserted below" pattern as every other ability.
   const cases = [
     { lvl: 0, lb: false, want: 0.4 },
-    { lvl: 3, lb: false, want: 0.1 },
+    { lvl: 4, lb: false, want: 0.1 },
     { lvl: 4, lb: true,  want: 0.05 },
   ];
   const bad = [];
@@ -979,18 +1006,31 @@ test('A11', P2, 'Stillpoint slow factor matches the design values per level', (T
   return 'Lv0-2 = 0.4, Lv3 = 0.1, Lv4 Limit Break = 0.05 as designed';
 });
 
-test('A12', P2, 'Stillpoint Lv1+ extends duration by 25%', (T) => {
+test('A12', P2, 'Stillpoint Lv2+ extends duration by 25% (Lv1 partial +10%)', (T) => {
+  // `T.pulse(action, frames, settle)` needs settle >= 1 — the release-
+  // triggered activation branch only runs on the update() tick AFTER the
+  // key goes up, so settle=0 read stillpointDuration before Stillpoint ever
+  // actually activated (this test's own bug, not the game's — stayed at its
+  // constructor default of 1 for every level, which is what "got 1" meant).
+  // Also: 2026-07-27 rebalance inserted a new cheap Lv1 tier (+10% partial)
+  // below the old full +25% effect, now at raw Lv2+ (player.js's
+  // oldTier('stillpoint') >= 1 check) — same pattern as A11/A18.
   T.arena(300); T.grantAll(); T.pips(4);
   T.level('stillpoint', 0);
-  T.pulse('stillpoint', 3, 0);
+  T.pulse('stillpoint', 3, 1);
   const d0 = T.get('player.stillpointDuration');
   T.arena(300); T.grantAll(); T.pips(4);
   T.level('stillpoint', 1);
-  T.pulse('stillpoint', 3, 0);
+  T.pulse('stillpoint', 3, 1);
   const d1 = T.get('player.stillpointDuration');
-  T.note('tap duration Lv0=' + d0 + ' frames, Lv1=' + d1 + ' frames (want ×1.25)');
-  T.near(d1 / d0, 1.25, 0.03, 'Lv1 duration multiplier is not 1.25');
-  return 'Lv0 ' + d0 + 'f → Lv1 ' + d1 + 'f (×' + (d1 / d0).toFixed(2) + ')';
+  T.arena(300); T.grantAll(); T.pips(4);
+  T.level('stillpoint', 2);
+  T.pulse('stillpoint', 3, 1);
+  const d2 = T.get('player.stillpointDuration');
+  T.note('tap duration Lv0=' + d0 + ', Lv1=' + d1 + ' (want ×1.10), Lv2=' + d2 + ' frames (want ×1.25)');
+  T.near(d1 / d0, 1.10, 0.03, 'Lv1 (partial) duration multiplier is not 1.10');
+  T.near(d2 / d0, 1.25, 0.03, 'Lv2+ (full) duration multiplier is not 1.25');
+  return 'Lv0 ' + d0 + 'f → Lv1 ' + d1 + 'f (×' + (d1 / d0).toFixed(2) + ') → Lv2 ' + d2 + 'f (×' + (d2 / d0).toFixed(2) + ')';
 });
 
 test('A13', P2, 'Taking damage cancels Stillpoint', (T) => {
@@ -1023,7 +1063,7 @@ test('A14', P2, 'Stillpoint lifesteal is capped by level', (T) => {
 
 test('A15', P2, 'Graviton Surge tap flips gravity, hold spawns the ball', (T) => {
   T.arena(300); T.grantAll(); T.pips(4);
-  T.level('graviton_surge', 2);
+  T.level('graviton_surge', 3);
   const thr = T.get('GRAVITON_SURGE_TAP_THRESHOLD');
   T.pulse('gravitonSurge', Math.max(1, thr - 4), 1);
   const tapFlip = T.get('player.gravitonActive'), tapBall = T.get('player.gravitonBallCharging');
@@ -1031,7 +1071,7 @@ test('A15', P2, 'Graviton Surge tap flips gravity, hold spawns the ball', (T) =>
   T.note('tap (' + (thr - 4) + 'f): gravitonActive=' + tapFlip + ' ballCharging=' + tapBall + ' cost=' + tapCost + ' pip(s)');
 
   T.arena(300); T.grantAll(); T.pips(4);
-  T.level('graviton_surge', 2);
+  T.level('graviton_surge', 3);
   T.hold('gravitonSurge');
   T.step(thr + 6);
   const holdBall = T.get('player.gravitonBallCharging');
@@ -1047,10 +1087,22 @@ test('A15', P2, 'Graviton Surge tap flips gravity, hold spawns the ball', (T) =>
   return 'tap = flip @' + tapCost + ' pip, hold = ball @' + holdCost + ' pips';
 });
 
-test('A16', P2, 'Gravity Ball flies, then detonates at Lv3+', (T) => {
+test('A16', P2, 'Gravity Ball flies, then detonates at Lv4+', (T) => {
+  // 2026-07-27 rebalance moved the detonation-damage threshold from raw
+  // Lv3 to raw Lv4 (game_update.js's gravitonBallPop handler checks
+  // oldTier('graviton_surge') >= 3, i.e. raw level - 1 >= 3) — same pattern
+  // as A09/A11/A12/A18/A04. Enemy is also spawned at the ball's own charge
+  // position with speed=0 (frozen) instead of an arbitrary nearby spot —
+  // the original position let the enemy's own patrol AI wander it just
+  // outside GRAVITON_BALL_PULL_RADIUS by detonation time even once the
+  // level fix alone was applied, which is a test-positioning fragility,
+  // not a mechanic bug (confirmed: an enemy that stays in range takes the
+  // correct damage).
   T.arena(300); T.grantAll(); T.pips(4);
-  T.level('graviton_surge', 3);
-  const e = T.spawnEnemy('fractured', 480, 468);
+  T.level('graviton_surge', 4);
+  const spawnDist = T.get('GRAVITON_BALL_SPAWN_DIST');
+  const e = T.spawnEnemy('fractured', T.get('player.x') + T.get('player.width') / 2 + spawnDist, 468);
+  T.ev('(areaEnemies[currentAreaId][0]).speed = 0;');
   const hp0 = e.health;
   T.hold('gravitonSurge');
   T.step(T.get('GRAVITON_SURGE_TAP_THRESHOLD') + 6);
@@ -1064,7 +1116,7 @@ test('A16', P2, 'Gravity Ball flies, then detonates at Lv3+', (T) => {
   T.note('ball x ' + bx0.toFixed(0) + ' → ' + T.get('player.gravitonBallX').toFixed(0) + ' over ' + flight + ' flight frames');
   T.note('enemy hp ' + hp0 + ' → ' + e.health + ' (explosion damage = ' + T.get('GRAVITON_BALL_EXPLODE_DAMAGE') + ')');
   T.ok(T.get('player.gravitonBallFlying') === false, 'ball never stopped flying after GRAVITON_BALL_FLIGHT_DURATION');
-  T.ok(e.health < hp0, 'Lv3 detonation dealt no damage to an enemy inside the blast radius');
+  T.ok(e.health < hp0, 'Lv4 detonation dealt no damage to an enemy inside the blast radius');
   return 'flew ' + Math.abs(T.get('player.gravitonBallX') - bx0).toFixed(0) + 'px and detonated for ' + (hp0 - e.health) + ' damage';
 });
 
@@ -1088,16 +1140,23 @@ test('A17', P2, 'Charge thresholds separate taps from heavies', (T) => {
   return 'tap < ' + TAP + 'f = light, full charge at ' + FULL + 'f = heavy (ratio ' + ratio + ')';
 });
 
-test('A18', P2, 'Strength Lv1 shortens the attack cooldown to 15f', (T) => {
+test('A18', P2, 'Strength shortens the attack cooldown (Lv1 partial, Lv2+ full)', (T) => {
+  // 2026-07-27 rebalance inserted a new, cheap Lv1 tier below every
+  // ability's old Lv1-3 effects (player.js's getAttackCooldown() comment):
+  // raw Lv1 is now the small partial step (18f -> 17f), raw Lv2+ is the old
+  // Lv1 full effect (18f -> 15f) — not raw Lv1 alone.
   T.arena(300); T.grantAll();
   T.level('strength', 0);
   const cd0 = T.ev('player.getAttackCooldown()');
   T.level('strength', 1);
   const cd1 = T.ev('player.getAttackCooldown()');
-  T.note('ATTACK_COOLDOWN base=' + T.get('ATTACK_COOLDOWN') + ', Lv0=' + cd0 + ', Lv1=' + cd1);
+  T.level('strength', 2);
+  const cd2 = T.ev('player.getAttackCooldown()');
+  T.note('ATTACK_COOLDOWN base=' + T.get('ATTACK_COOLDOWN') + ', Lv0=' + cd0 + ', Lv1=' + cd1 + ', Lv2=' + cd2);
   T.eq(cd0, 18, 'base attack cooldown is not 18 frames');
-  T.eq(cd1, 15, 'Strength Lv1 attack cooldown is not 15 frames');
-  return '18f → 15f at Strength Lv1';
+  T.eq(cd1, 17, 'Strength Lv1 (partial step) attack cooldown is not 17 frames');
+  T.eq(cd2, 15, 'Strength Lv2+ (full effect) attack cooldown is not 15 frames');
+  return '18f → 17f at Lv1 → 15f at Lv2+';
 });
 
 test('A19', P2, 'LIMIT BREAK: every Lv4 ability is reachable from real input', (T) => {
@@ -1477,7 +1536,7 @@ test('U02', P4, 'Every menu screen renders without throwing', (T) => {
 test('U03', P4, 'HUD_LAYOUT anchors are valid and visibility flags are honoured', (T) => {
   T.reset();
   const layout = T.get('HUD_LAYOUT');
-  const valid = ['top-left', 'top-center', 'bottom-left', 'bottom-right'];
+  const valid = ['top-left', 'top-center', 'bottom-left', 'bottom-right', 'bottom-center'];
   const bad = [];
   for (const k in layout) {
     const el = layout[k];
@@ -1552,7 +1611,12 @@ test('U05', P4, 'Hearts track health and max health', (T) => {
 const P5 = '5 · Audio';
 
 test('S01', P5, 'Every SFX.x() called anywhere in the game exists on SFX', async (T) => {
-  const files = ['game.js', 'player.js', 'enemy.js', 'boss.js', 'ability.js', 'companion.js', 'healing.js', 'combo.js', 'cutscene.js'];
+  const files = [
+    // game.js was split into 6 files 2026-07-27, in its original order:
+    'game_state.js', 'game_entities.js', 'game_boot_save.js', 'game_update.js',
+    'game_hud_menus.js', 'game_draw_loop.js',
+    'player.js', 'enemy.js', 'boss.js', 'ability.js', 'companion.js', 'healing.js', 'combo.js', 'cutscene.js',
+  ];
   const called = new Set();
   for (const f of files) {
     let src;
@@ -1561,7 +1625,14 @@ test('S01', P5, 'Every SFX.x() called anywhere in the game exists on SFX', async
   }
   if (called.size === 0) T.skip('could not read the game sources over HTTP to scan for SFX calls');
   const have = new Set(Object.keys(T.get('SFX')));
-  const missing = Array.from(called).filter((c) => !have.has(c));
+  // This regex can't tell a bare call from one guarded by its own existence
+  // check first — enemy.js:1294 is `SFX.enemyHeavyLand ? SFX.enemyHeavyLand()
+  // : SFX.enemyTelegraphHeavy()`, which never throws even though
+  // enemyHeavyLand isn't defined on SFX (the ternary just falls back).
+  // Known-guarded names are exempt from the "must be defined" check below,
+  // but still show up in the "called"/"defined but never called" notes.
+  const GUARDED_SFX = new Set(['enemyHeavyLand']);
+  const missing = Array.from(called).filter((c) => !have.has(c) && !GUARDED_SFX.has(c));
   T.note('called: ' + Array.from(called).sort().join(', '));
   T.note('defined but never called: ' + Array.from(have).filter((h) => !called.has(h)).join(', '));
   T.ok(missing.length === 0, 'called but not defined on SFX (throws at runtime): ' + missing.join(', '));
@@ -1750,9 +1821,18 @@ test('V03', P7, 'Blocked/full storage never crashes the game', (T) => {
 });
 
 test('V04', P7, 'Save slots stay independent', (T) => {
+  // currentSaveSlot must track the slot in play (set `currentSaveSlot = N`
+  // below) — every real autosave call site (switchArea(), checkpoints,
+  // etc.) calls the bare saveGame() with no argument, defaulting to
+  // currentSaveSlot, exactly like the Play menu does when a real player
+  // picks a slot (game_update.js sets currentSaveSlot = menuSelectionPlay).
+  // Without this, switchArea()'s own internal autosave silently re-writes
+  // whatever currentSaveSlot last was (0 by default) out from under an
+  // explicit saveGame(1) call below — a scenario no real play session can
+  // reach, since the only way to change slots IS that menu flow.
   T.reset();
-  T.ev('switchArea("tutorial_area", 300, 700); player.health = 2; saveGame(0);');
-  T.ev('switchArea("spawn_area_1", 200, 440); player.health = 5; saveGame(1);');
+  T.ev('currentSaveSlot = 0; switchArea("tutorial_area", 300, 700); player.health = 2; saveGame(0);');
+  T.ev('currentSaveSlot = 1; switchArea("spawn_area_1", 200, 440); player.health = 5; saveGame(1);');
   T.ev('deleteSave(2);');
   T.note('slot 0: ' + JSON.stringify(T.ev('getSlotInfo(0)')));
   T.note('slot 1: ' + JSON.stringify(T.ev('getSlotInfo(1)')));

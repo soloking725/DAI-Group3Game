@@ -1,13 +1,31 @@
-# Child Companion System — Plan (Phase 1 built, see 2026-07-16 update)
+# Child Companion System — Plan (Phase 1+2 built, see 2026-07-27 update)
 
-Status: **Phase 1 built 2026-07-16** — `game/companion.js` +
-`editor/companion_test.html` (roadmap.md Phase 19): real locomotion (like
-**Neva** — a physically present companion, not a leash-teleporting ghost;
-v1 of this doc's "no real locomotion" recommendation was overruled and
-withdrawn before build), follow/hide/heal modes, combat auto-switching
-(hides while any enemy is `aware`). Fighting-alongside-you mode (this
-doc's Phase 2 combat kit) is still open — see roadmap.md's "Not done this
-pass" notes for Phase 19.
+Status: **Phase 1 built 2026-07-16, Phase 2 + real activation built
+2026-07-27** — `game/companion.js` + `editor/companion_test.html`
+(roadmap.md Phase 19): real locomotion (like **Neva** — a physically
+present companion, not a leash-teleporting ghost; v1 of this doc's "no
+real locomotion" recommendation was overruled and withdrawn before
+build), follow/hide/heal modes, combat auto-switching (hides while any
+enemy is `aware`).
+
+**2026-07-27 update — root cause of "she doesn't do anything" found and
+fixed, plus Phase 2:** `companionState.active` was never set `true`
+anywhere in real gameplay (only `companion_test.html`'s arena tool) — the
+Echo Bridge meeting cutscene and the story.md §2 point 2 first-fight
+choice didn't exist yet, so she never spawned in an actual playthrough.
+Both are now real (`game/cutscene.js`'s new `choice` step type + the
+`echo_bridge_intro`/`child_first_fight_choice` scripts, triggered from
+`game.js`). Phase 2's kit changed from this doc's original tether-pull
+proposal (below, now superseded) to a **found-weapon kit**
+(`COMPANION_WEAPONS` in companion.js: knuckles/taser/flamethrower) per
+direct discussion — she's the same person as the player (§0.5's identity
+loop), so her kit should be *found*, not granted, matching the player's
+own ability pickups; a rare enemy-drop can swap her weapon mid-run. This
+also matches/corrects story.md §3's Train row (was "she fires shard
+shots," never built that way). See story.md's 2026-07-27 revision-history
+entry for the fuller narrative-side account. The tether-pull-only
+version below is kept for its locomotion/design-pillar content, not its
+combat-kit specifics — those are superseded by COMPANION_WEAPONS.
 
 Cross-check against `story.md` (narrative source of truth for the Child).
 Note there's an unrelated `child`/`childDef` var in `enemy.js`'s
@@ -109,18 +127,32 @@ New file: `game/companion.js` (10th runtime script, loaded after
 
 ### Phase 2 — She fights (post-"teach her" story beat)
 
-- She keeps follow behavior but engages enemies within ~200px:
-  - **Tether pull** (if the recommendation above is approved): every ~8–10s
-    she tethers the enemy nearest the *player's facing direction* and drags
-    it 60–80px toward the player + brief `hitStun` — she sets up *your*
-    combos rather than dealing damage herself. This keeps the player the
-    damage-dealer (combat stays the point) and makes her feel like a combo
-    partner, which plugs directly into the combo-system plans.
-  - Small self-defense swipe if an enemy overlaps her (low damage, mostly
-    animation).
-- She still heals between fights (Phase 1 behavior persists).
+**Superseded 2026-07-27 — built as a found-weapon kit, not a tether.** She
+keeps follow behavior but engages enemies within ~200px, on the same
+~9s assist timer this section originally proposed for the tether — but the
+*effect* now comes from `companionState.weapon` (`COMPANION_WEAPONS` in
+companion.js), assigned at the story.md §2 point 2 choice and swappable
+via a rare enemy drop:
+- **Knuckles** (starter): pulls the enemy toward the player + `hitStun` +
+  real (if modest) direct damage — closest to this section's original
+  tether-pull idea, minus the no-damage rule.
+- **Taser**: no pull, opens guards (`guardBroken`) + `hitStun` + damage —
+  a setup tool for guard-heavy enemies specifically.
+- **Flamethrower**: no pull/guard-break, ticks small damage over ~4 hits —
+  reads as sustained pressure rather than a single assist.
+- Small self-defense swipe if an enemy overlaps her — not built this pass,
+  still a good follow-up (low damage, mostly animation).
+- She still heals between fights (Phase 1 behavior persists) — see open
+  question 3 above on whether that should be exclusive of other healing.
 - She disengages and retreats to hiding during boss phase transitions or
-  when a `scripted` sequence says so.
+  when a `scripted` sequence says so — not built this pass (no boss uses
+  `scripted` mode to park her yet).
+
+Hide-spot quality was also improved this pass: `_hideSpot()` now prefers
+an optional `area.hideSpots: [{x, y}]` array (real authored cover — an
+alcove, behind a crate) over the original pure-computed "walk away along
+the ground" fallback, when a room defines one. No rooms author this data
+yet — that's a level-design task, not built here.
 
 ## Attachment behaviors (cheap, high-return — build alongside Phase 1)
 
@@ -168,11 +200,21 @@ will build the test room; the tool needs:
 
 ## Open questions for the user
 
-1. Approve the "her combat kit is a tether" symmetry? (Changes ability
-   balance; alternative is a plain melee swipe kit.)
-2. When does "teach her to fight" happen — a fixed story beat, or
-   player-initiated at an anchor?
+1. ~~Approve the "her combat kit is a tether" symmetry?~~ **Resolved
+   2026-07-27, superseded**: not the tether-symmetry framing — a
+   found-weapon kit instead (see the 2026-07-27 status update above).
+2. ~~When does "teach her to fight" happen?~~ **Resolved 2026-07-27**:
+   story.md §2 point 2's live rapid-tap choice at the first fight after
+   meeting her (`child_first_fight_choice`), not an anchor interaction.
 3. Should her heal be the *only* out-of-anchor healing on the keep-her
    branch, or stack with enemy healing drops? (See
    `healing_items_plan.md` — recommendation there is they stack, hers
-   being the reliable one.)
+   being the reliable one.) **Still open** — not touched this pass; her
+   touch-heal and vitality motes already coexist in code as-is (nothing
+   gates one on the other), which happens to match the "stack" answer,
+   but that was never a deliberate decision — confirm before relying on it.
+4. **New, 2026-07-27**: the found-weapon drop chance
+   (`COMPANION_WEAPON_DROP_CHANCE = 0.06` in companion.js) and the starter
+   weapon (fixed to `'knuckles'`, not randomized) are both first-guess
+   numbers, not tuned — same "tune in the arena" caveat as the rest of
+   this doc's constants.

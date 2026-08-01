@@ -2253,7 +2253,7 @@ function main() {
       const html = buildSimulationHtml(runs, graph, startId, goalId, difficultyConfig);
       const outArgIndex = args.indexOf('--html');
       const outArg = args[outArgIndex + 1] && !args[outArgIndex + 1].startsWith('--') ? args[outArgIndex + 1] : null;
-      const outPath = outArg ? path.resolve(outArg) : path.join(PLANS_DIR, 'floor_plan_simulation.html');
+      const outPath = outArg ? path.resolve(outArg) : path.join(PLANS_DIR, '..', 'editor', 'floor_plan_simulation.html');
       const fullDoc = `<!doctype html>\n<html><head><meta charset="utf-8"><title>Stillpoint — Playthrough Simulation</title></head><body>\n${html}\n</body></html>\n`;
       fs.writeFileSync(outPath, fullDoc);
       console.log(`Wrote HTML simulation viewer to: ${path.relative(process.cwd(), outPath)}`);
@@ -2271,7 +2271,7 @@ function main() {
     const html = generateHtmlReport(graph, startId, goalId, normalPath, speedPath);
     const outArgIndex = args.indexOf('--html');
     const outArg = args[outArgIndex + 1] && !args[outArgIndex + 1].startsWith('--') ? args[outArgIndex + 1] : null;
-    const outPath = outArg ? path.resolve(outArg) : path.join(PLANS_DIR, 'floor_plan_report.html');
+    const outPath = outArg ? path.resolve(outArg) : path.join(PLANS_DIR, '..', 'editor', 'floor_plan_report.html');
     const fullDoc = `<!doctype html>\n<html><head><meta charset="utf-8"><title>Stillpoint — Floor Plan Path Viewer</title></head><body>\n${html}\n</body></html>\n`;
     fs.writeFileSync(outPath, fullDoc);
     console.log(`\nWrote HTML path viewer to: ${path.relative(process.cwd(), outPath)}`);

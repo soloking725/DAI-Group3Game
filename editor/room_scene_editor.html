@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Room Scene Editor</title>
+<link rel="stylesheet" href="../styles/design-system.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
+
+#bar{display:flex;gap:6px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#bar select,#bar button{font-family:var(--font-mono);font-size:11px;padding:5px 9px;cursor:pointer}
+#bar select{min-width:220px}
+#bar label{color:var(--fg-muted);font-family:var(--font-ui);font-size:10px}
+.sep{width:1px;height:20px;background:linear-gradient(var(--border) 0%,var(--border-hover) 50%,var(--border) 100%);flex-shrink:0}
+#preview-status{margin-left:auto;font-size:10px;color:var(--fg-muted);font-family:var(--font-ui)}
+#preview-status.ready{color:var(--ok)}
+#preview-status.err{color:var(--danger)}
+
+#main{display:flex;flex:1;overflow:hidden}
+
+#left{width:250px;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+#center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:auto;background:var(--bg-deep);padding:var(--space-4)}
+#right{width:270px;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+
+h3{font-family:var(--font-ui);font-size:10px;font-weight:600;color:var(--fg-muted);padding:9px 8px;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid var(--border)}
+.scroll{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.16) transparent}
+.section-title{color:var(--fg-muted);font-family:var(--font-ui);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin:10px 8px 5px;padding-bottom:3px;border-bottom:1px solid var(--border);position:relative}
+.section-title::before{content:'';display:inline-block;width:5px;height:5px;background:var(--accent-bright);border-radius:50%;margin-right:6px;box-shadow:0 0 6px var(--accent-glow)}
+.hint{color:var(--fg-faint);font-size:10px;padding:9px;line-height:1.6}
+
+.layer-row{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--dur-fast) var(--ease-out-expo)}
+.layer-row:hover{background:var(--surface)}
+.layer-row.sel{background:var(--accent-glow-soft);box-shadow:inset 2px 0 0 var(--accent-bright)}
+.layer-row .thumb{width:32px;height:22px;object-fit:cover;background:var(--bg-deep);border:1px solid var(--border-hover);border-radius:4px;flex-shrink:0}
+.layer-row .layer-info{flex:1;min-width:0}
+.layer-row .layer-name{font-size:11px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.layer-row .layer-badge{font-size:9px;color:var(--fg-muted)}
+.layer-row .vis-toggle{cursor:pointer;flex-shrink:0}
+
+#add-layer-btn{width:calc(100% - 16px);margin:8px}
+
+.region-row{padding:9px 8px}
+.region-row .region-name{font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--fg);margin-bottom:6px}
+.region-btn{width:100%;padding:7px 9px;cursor:pointer;font-family:var(--font-mono);font-size:11px;border-radius:var(--radius-sm);margin-top:4px;text-align:left}
+.region-btn.sel{background:var(--accent-glow-soft);border-color:var(--border-accent)}
+
+.row{display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:0 9px}
+.row label{color:var(--fg-muted);font-family:var(--font-ui);font-size:10px;width:70px;flex-shrink:0}
+.row input[type=range]{flex:1;accent-color:var(--accent)}
+.row input[type=color]{width:36px;height:22px;padding:0;border:1px solid var(--border-hover);border-radius:var(--radius-sm);background:none;cursor:pointer}
+.row .readout{width:40px;flex-shrink:0;text-align:right;font-size:10px;color:var(--fg-muted)}
+.row input[type=checkbox]{width:auto;cursor:pointer;accent-color:var(--accent)}
+.row button.del{border-color:var(--danger-border);color:var(--danger)}
+.row button.del:hover{background:var(--danger-dim)}
+
+input[type=text],input[type=number],select{font-family:var(--font-mono);font-size:11px;color:var(--fg);background:var(--bg-input);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:5px 7px;transition:border-color var(--dur-fast) var(--ease-out-expo),box-shadow var(--dur-fast) var(--ease-out-expo)}
+input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow-soft)}
+.row input[type=text],.row input[type=number],.row select{flex:1;min-width:0}
+button{font-family:var(--font-mono);font-size:11px;color:var(--fg);background:var(--surface);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:6px 10px;cursor:pointer;box-shadow:var(--shadow-inset-top);transition:background var(--dur-fast) var(--ease-out-expo),border-color var(--dur-fast) var(--ease-out-expo),transform var(--dur-fast) var(--ease-out-expo)}
+button:hover{background:var(--surface-hover);border-color:var(--border-hover)}
+button:active{transform:scale(0.98)}
+button:disabled{opacity:0.35;cursor:default;transform:none}
+.row button{flex:1;padding:5px;font-size:10px}
+
+#preview-frame{width:800px;height:450px;border:1px solid var(--border-hover);border-radius:var(--radius-md);box-shadow:var(--shadow-card);flex-shrink:0}
+#scrub-wrap{width:800px;margin-top:var(--space-2);display:flex;align-items:center;gap:8px;flex-shrink:0}
+#scrub-wrap label{font-family:var(--font-ui);font-size:10px;color:var(--fg-muted);white-space:nowrap}
+#scrub{flex:1;accent-color:var(--accent)}
+#scrub-note{width:800px;color:var(--fg-faint);font-size:9px;margin-top:4px;line-height:1.5}
+
+#exp{border-top:1px solid var(--border);padding:var(--space-3);flex-shrink:0}
+#exp-out{width:100%;height:110px;color:var(--info);font-size:9px;resize:none;font-family:var(--font-mono);margin-bottom:6px}
+#exp button,#exp .row button{width:100%;margin-bottom:6px}
+#live-status{font-size:10px;padding:0 2px;line-height:1.6}
+#live-status .ok{color:var(--ok)}
+#live-status .bad{color:var(--danger)}
+</style>
+</head>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+
+<div id="bar" class="ds-topbar">
+  <a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
+  <div class="sep"></div>
+  <label>Room:</label>
+  <select id="room-select"></select>
+  <div class="sep"></div>
+  <button id="undo-btn" title="Ctrl+Z">↶ Undo</button>
+  <button id="redo-btn" title="Ctrl+Shift+Z / Ctrl+Y">↷ Redo</button>
+  <div class="sep"></div>
+  <button id="reload-preview-btn" title="Reboot the live preview into this room">⟳ Reload Preview</button>
+  <span id="preview-status">preview: booting…</span>
+</div>
+
+<div id="main">
+  <div id="left" class="ds-sidebar ds-sidebar-left">
+    <h3>Backdrop Layers</h3>
+    <button id="add-layer-btn">+ Add Layer</button>
+    <div id="layer-list" class="scroll" style="flex:0 0 auto;max-height:33%"></div>
+    <div class="section-title">Region Style</div>
+    <div id="region-panel" class="scroll" style="flex:0 0 auto;max-height:110px"></div>
+    <div class="section-title">Cutscene Triggers</div>
+    <button id="add-trigger-btn">+ Add Trigger</button>
+    <div id="trigger-list" class="scroll"></div>
+  </div>
+
+  <div id="center">
+    <div id="preview-stage" style="position:relative;width:800px;height:450px;flex-shrink:0">
+      <iframe id="sandbox" title="Live room preview" style="position:absolute;left:0;top:0;width:800px;height:450px;border:1px solid var(--border-hover);border-radius:var(--radius-md);box-shadow:var(--shadow-card);background:#000"></iframe>
+      <canvas id="trigger-overlay" width="800" height="450" style="position:absolute;left:0;top:0;width:800px;height:450px;cursor:default"></canvas>
+    </div>
+    <div id="scrub-wrap">
+      <label>Parallax Preview</label>
+      <input type="range" id="scrub" min="0" max="1000" value="0">
+    </div>
+    <div id="scrub-note">Drags the real player through the room (camera follows via the actual game's own camera-follow logic) so parallax speed differences between layers read correctly — a static frame can't show relative motion. Dashed rectangles are cutscene trigger zones — drag to move, drag a corner to resize.</div>
+  </div>
+
+  <div id="right" class="ds-sidebar">
+    <h3>Properties</h3>
+    <div id="props" class="scroll">
+      <div class="hint">Select a backdrop layer or the Region Style panel to edit its properties.</div>
+    </div>
+    <div id="exp">
+      <button id="exp-btn">⬇ Export Paste-Ready JS</button>
+      <textarea id="exp-out" readonly placeholder="Press Export to generate a snippet..."></textarea>
+      <button id="save-room-live-btn">💾 Save Room to Browser (Live)</button>
+      <button id="save-style-live-btn">💾 Save Region Style (Live)</button>
+      <div id="live-status" class="hint"></div>
+    </div>
+  </div>
+</div>
+
+<script src="../game/area.js"></script>
+<script src="../game/cutscene.js"></script>
+<script src="../game/devContext.js"></script>
+<script src="../game/unsavedGuard.js"></script>
+<script src="../game/roomImageStore.js"></script>
+<script src="room_scene_editor.js"></script>
+</body>
+</html>

@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Boss Phase Editor</title>
+<link rel="stylesheet" href="../styles/design-system.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-mono);font-size:12px;display:flex;height:100vh;overflow:hidden}
+
+#main{flex:1;display:flex;flex-direction:column;overflow-y:auto;padding:20px 24px}
+#bar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+#bar h1{font-family:var(--font-ui);font-size:16px;font-weight:600;color:var(--fg);margin-right:auto}
+
+h2{font-family:var(--font-ui);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--fg-faint);border-bottom:1px solid var(--border);margin:20px 0 8px;padding-bottom:3px}
+h2:first-of-type{margin-top:0}
+p.note{color:var(--fg-muted);font-size:10.5px;line-height:1.6;margin:0 0 8px}
+.row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.row label{color:var(--fg-muted);font-family:var(--font-ui);font-size:10.5px;flex:1}
+.row input,.row select{width:120px}
+input,select{font-family:var(--font-mono);font-size:11px;color:var(--fg);background:var(--bg-input);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:4px 6px;transition:border-color var(--dur-fast) var(--ease-out-expo),box-shadow var(--dur-fast) var(--ease-out-expo)}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow-soft)}
+button{background:var(--surface);border:1px solid var(--border-hover);color:var(--fg);font-family:var(--font-mono);font-size:11px;padding:7px 12px;border-radius:var(--radius-sm);cursor:pointer;margin:0 6px 6px 0;box-shadow:var(--shadow-inset-top);transition:background var(--dur-fast) var(--ease-out-expo),border-color var(--dur-fast) var(--ease-out-expo),transform var(--dur-fast) var(--ease-out-expo)}
+button:hover{background:var(--surface-hover);border-color:var(--border-hover)}
+button:active{transform:scale(0.98)}
+button.primary{border-color:var(--teal-border);color:var(--teal)}
+button.primary:hover{background:var(--teal-dim)}
+button.reset{border-color:var(--danger-border);color:var(--danger)}
+button.reset:hover{background:var(--danger-dim)}
+button.small{padding:3px 8px;font-size:10px}
+
+.card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:14px;margin-bottom:16px}
+.tabs{display:flex;gap:4px;margin-bottom:10px}
+.tabs button{margin:0;border-radius:var(--radius-sm)}
+.tabs button.active{background:var(--info-dim);border-color:var(--info-border);color:var(--info)}
+
+table{width:100%;border-collapse:collapse;margin-bottom:8px}
+th{text-align:left;color:var(--fg-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;padding:5px 6px;border-bottom:1px solid var(--border)}
+td{padding:5px 6px;border-bottom:1px solid var(--border)}
+td input[type=number]{width:70px}
+td select{width:100%}
+.pct{color:var(--info);font-size:10.5px}
+.pct.warn{color:var(--warn)}
+.sumrow{font-size:10.5px;color:var(--fg-muted);display:flex;align-items:center;gap:10px;margin-top:4px}
+.sumrow .bad{color:var(--danger)}
+.sumrow .good{color:var(--teal)}
+
+#exp-out{width:100%;height:180px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--info);font-size:9.5px;resize:vertical;font-family:var(--font-mono);padding:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
+</style>
+</head>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+<div id="main" class="ds-scroll">
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
+<div id="bar"><h1>👑 Boss Phase &amp; Attack-Weight Editor</h1></div>
+
+<p class="note">
+  Edits phase data for the Sovereign (<code>BOSS_PHASE_CONFIG</code>, game/boss.js) and for
+  every <code>ComposedEnemy</code>-based miniboss's <code>def.phases</code> array (game/enemy.js).
+  This is the same data <code>pickAttack()</code>/<code>_applyPhase()</code> read at runtime;
+  nothing here touches attack behavior itself (windup/hitboxes/telegraphs still live in
+  boss.js's <code>start*()</code> methods or game/enemy.js's <code>ATTACK_BEHAVIORS</code>).
+  Bespoke-class minibosses (Colossus Core, etc. — not built on <code>ComposedEnemy</code>) have
+  no phase data and don't appear in the target list below.
+</p>
+
+<h2>Target</h2>
+<div class="card">
+  <div class="row"><label>Editing</label><select id="targetSelect"></select></div>
+  <p class="note" id="targetNote"></p>
+</div>
+
+<div id="sovereignUI">
+
+<h2>Phase Thresholds</h2>
+<div class="card">
+  <p class="note">Health % above threshold 1 → Phase I. Above threshold 2 (and at/below threshold 1) → Phase II. At/below threshold 2 → Phase III.</p>
+  <div class="row"><label>Phase I → II at HP % below</label><input type="number" id="th1" min="1" max="99" step="1"></div>
+  <div class="row"><label>Phase II → III at HP % below</label><input type="number" id="th2" min="1" max="99" step="1"></div>
+</div>
+
+<h2>Reserved Slot — Phase III Stillpoint</h2>
+<div class="card">
+  <p class="note">Checked first, every idle tick, only in Phase III, on its own active/cooldown fields (not a table entry).</p>
+  <div class="row"><label>Chance per idle tick</label><input type="number" id="rsChance" min="0" max="1" step="0.01"></div>
+</div>
+
+<h2>Teleport</h2>
+<div class="card">
+  <div class="row"><label>Minimum phase</label>
+    <select id="tpPhase"><option value="2">II</option><option value="3">III</option></select>
+  </div>
+  <div class="row"><label>Chance per idle tick</label><input type="number" id="tpChance" min="0" max="1" step="0.01"></div>
+</div>
+
+<h2>Attack-Selection Table</h2>
+<div class="card">
+  <div class="tabs">
+    <button id="tabP1" class="active">Phase I</button>
+    <button id="tabP2">Phase II</button>
+    <button id="tabP3">Phase III</button>
+  </div>
+  <div class="row" id="p3ShareRow"><label>Phase III shares Phase II's table</label><input type="checkbox" id="p3Share" checked></div>
+
+  <div class="grid2">
+    <div class="row"><label>Prefers-ranged shift</label><input type="number" id="fRangedShift" step="0.01"></div>
+    <div class="row"><label>Prefers-melee shift</label><input type="number" id="fMeleeShift" step="0.01"></div>
+    <div class="row"><label>Adapt margin (hits)</label><input type="number" id="fMargin" step="1"></div>
+    <div class="row"><label>Distance bias</label><input type="number" id="fDistBias" step="0.01"></div>
+    <div class="row"><label>Far threshold (px)</label><input type="number" id="fDistFar" step="10"></div>
+    <div class="row"><label>Near threshold (px)</label><input type="number" id="fDistNear" step="10"></div>
+  </div>
+
+  <table>
+    <thead><tr><th>Attack</th><th>Weight</th><th>Effective %</th><th></th></tr></thead>
+    <tbody id="attackRows"></tbody>
+  </table>
+  <div class="sumrow">Weight sum: <span id="weightSum">1.000</span> <button class="small" id="normalizeBtn">Normalize to 1.0</button></div>
+  <select id="addAttackSelect"></select>
+  <button class="small" id="addAttackBtn">+ Add Attack</button>
+</div>
+
+</div>
+
+<div id="minibossUI" style="display:none">
+
+<h2>Base Stats <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--fg-muted)" id="mbBaseInfo"></span></h2>
+<div class="card">
+  <p class="note">Read-only — base health/movement/attacks live in the def itself (game/enemy.js). Edit those in <a href="enemy_designer.html" style="color:var(--fg-subtle)">Enemy Designer</a> if this miniboss's def is meant to be reusable; this tool only edits its phase escalations.</p>
+</div>
+
+<h2>Phases <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--fg-muted)">(ordered, one-way — applied in sequence as health crosses each threshold)</span></h2>
+<div class="card">
+  <div id="mbPhaseList"></div>
+  <div class="sumrow" id="mbOrderWarn"></div>
+  <button class="small" id="mbAddPhaseBtn">+ Add Phase</button>
+</div>
+
+</div>
+
+<h2>Save / Export</h2>
+<div class="card">
+  <button class="primary" id="saveBtn">💾 Save to game (localStorage)</button>
+  <button class="reset" id="clearBtn">↺ Reset to defaults</button>
+  <button id="exportBtn">⬇ Export JSON</button>
+  <button id="loadBtn">⬆ Load JSON (from box below)</button>
+  <textarea id="exp-out" placeholder="Export writes here. Paste JSON here then Load to apply without saving."></textarea>
+</div>
+
+</div>
+
+<script src="../game/boss.js"></script>
+<script src="../game/enemy.js"></script>
+<script src="../game/minibossRegistry.js"></script>
+<script src="../game/devContext.js"></script>
+<script src="../game/unsavedGuard.js"></script>
+<script>
+const ATTACK_LABELS = {
+  startMeleeSwing: 'Melee Swing',
+  startChargedHeavy: 'Charged Heavy',
+  startDashChain: 'Dash Chain',
+  startReversedVoidTether: 'Reversed Void Tether',
+  startShardShot: 'Shard Shot',
+  startBeamChannel: 'Beam Channel',
+  startWallBurst: 'Wall Burst',
+  startPhaseDash: 'Phase Dash',
+};
+
+let currentTarget = 'sovereign';
+
+function populateTargetSelect() {
+  const sel = document.getElementById('targetSelect');
+  sel.innerHTML = '';
+  const optSov = document.createElement('option');
+  optSov.value = 'sovereign';
+  optSov.textContent = 'The Sovereign (final boss)';
+  sel.appendChild(optSov);
+  const ids = Object.keys(COMPOSED_PHASE_DEFS).sort((a, b) => targetLabel(a).localeCompare(targetLabel(b)));
+  for (const id of ids) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = targetLabel(id) + ' (miniboss)';
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', () => selectTarget(sel.value));
+}
+
+function targetLabel(id) {
+  if (typeof MINIBOSS_REGISTRY !== 'undefined' && MINIBOSS_REGISTRY[id]) return MINIBOSS_REGISTRY[id];
+  return COMPOSED_PHASE_DEFS[id].displayName || id;
+}
+
+function selectTarget(target) {
+  currentTarget = target;
+  const isSov = target === 'sovereign';
+  document.getElementById('sovereignUI').style.display = isSov ? '' : 'none';
+  document.getElementById('minibossUI').style.display = isSov ? 'none' : '';
+  const note = document.getElementById('targetNote');
+  if (isSov) {
+    note.textContent = 'Standalone Boss class — reads BOSS_PHASE_CONFIG at runtime, not a ComposedEnemy def.';
+  } else {
+    const def = COMPOSED_PHASE_DEFS[target];
+    note.textContent = `ComposedEnemy def id "${def.id}" — reads def.phases via _applyPhase() at runtime.`;
+    renderMinibossUI();
+  }
+}
+
+function buildPhaseCard(def, phase, i) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.marginBottom = '10px';
+  const taStyle = 'width:100%;font-family:var(--font-mono);font-size:10.5px;background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);padding:6px;margin-bottom:6px';
+  card.innerHTML = `
+    <div class="row">
+      <label>Phase ${i + 1} triggers at HP % at/below</label>
+      <input type="number" min="1" max="99" step="1" class="mbHealthPct" value="${Math.round(phase.healthPct * 100)}">
+      <button class="small mbUp" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+      <button class="small mbDown" ${i === def.phases.length - 1 ? 'disabled' : ''}>&darr;</button>
+      <button class="small reset mbRemove">&#10005; Remove</button>
+    </div>
+    <div class="grid2">
+      <div class="row"><label>Speed &times;</label><input type="number" step="0.05" class="mbNum" data-mult="speedMult" placeholder="unset" value="${phase.statMultipliers?.speedMult ?? ''}"></div>
+      <div class="row"><label>Damage &times;</label><input type="number" step="0.05" class="mbNum" data-mult="damageMult" placeholder="unset" value="${phase.statMultipliers?.damageMult ?? ''}"></div>
+      <div class="row"><label>Cooldown &times;</label><input type="number" step="0.05" class="mbNum" data-mult="cooldownMult" placeholder="unset" value="${phase.statMultipliers?.cooldownMult ?? ''}"></div>
+      <div class="row"><label>Knockback resist &times;</label><input type="number" step="0.05" class="mbNum" data-mult="knockbackResistanceMult" placeholder="unset" value="${phase.statMultipliers?.knockbackResistanceMult ?? ''}"></div>
+    </div>
+    <p class="note" style="margin-bottom:4px">Flags (merged bag other code checks, e.g. <code>{"dotOnHit":true}</code>) — JSON object:</p>
+    <textarea class="mbJson" data-key="flags" rows="2" style="${taStyle}">${JSON.stringify(phase.flags ?? {}, null, 0)}</textarea>
+    <p class="note" style="margin-bottom:4px">Movement override (shallow-merged onto this enemy's movement) — JSON object, blank = unchanged:</p>
+    <textarea class="mbJson" data-key="movement" rows="2" style="${taStyle}">${phase.movement ? JSON.stringify(phase.movement, null, 0) : ''}</textarea>
+    <p class="note" style="margin-bottom:4px">Attack patches (matched by <code>type</code>, appended if no match) — JSON array, blank = none:</p>
+    <textarea class="mbJson" data-key="attacks" rows="3" style="${taStyle}">${phase.attacks ? JSON.stringify(phase.attacks, null, 0) : ''}</textarea>
+    <p class="note" style="margin-bottom:4px">Spawn adds (<code>{"def": {...}, "count": 3, "spread": 60}</code>) — JSON object, blank = none:</p>
+    <textarea class="mbJson" data-key="spawn" rows="2" style="${taStyle}">${phase.spawn ? JSON.stringify(phase.spawn, null, 0) : ''}</textarea>
+  `;
+
+  card.querySelector('.mbHealthPct').addEventListener('input', (e) => {
+    phase.healthPct = Number(e.target.value) / 100;
+    checkPhaseOrder(def);
+  });
+  card.querySelectorAll('.mbNum').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      const key = inp.dataset.mult;
+      if (inp.value === '') {
+        if (phase.statMultipliers) delete phase.statMultipliers[key];
+      } else {
+        phase.statMultipliers = phase.statMultipliers || {};
+        phase.statMultipliers[key] = Number(inp.value);
+      }
+    });
+  });
+  card.querySelectorAll('.mbJson').forEach((ta) => {
+    ta.addEventListener('change', () => {
+      const key = ta.dataset.key;
+      const raw = ta.value.trim();
+      if (raw === '') { delete phase[key]; ta.style.borderColor = ''; return; }
+      try {
+        phase[key] = JSON.parse(raw);
+        ta.style.borderColor = '';
+      } catch (e) {
+        ta.style.borderColor = 'var(--danger-border)';
+      }
+    });
+  });
+  card.querySelector('.mbUp').addEventListener('click', () => {
+    if (i === 0) return;
+    [def.phases[i - 1], def.phases[i]] = [def.phases[i], def.phases[i - 1]];
+    renderMinibossUI();
+  });
+  card.querySelector('.mbDown').addEventListener('click', () => {
+    if (i === def.phases.length - 1) return;
+    [def.phases[i + 1], def.phases[i]] = [def.phases[i], def.phases[i + 1]];
+    renderMinibossUI();
+  });
+  card.querySelector('.mbRemove').addEventListener('click', () => {
+    if (!confirm('Remove Phase ' + (i + 1) + '?')) return;
+    def.phases.splice(i, 1);
+    renderMinibossUI();
+  });
+  return card;
+}
+
+function checkPhaseOrder(def) {
+  const warn = document.getElementById('mbOrderWarn');
+  let ok = true;
+  for (let i = 1; i < def.phases.length; i++) {
+    if (def.phases[i].healthPct >= def.phases[i - 1].healthPct) ok = false;
+  }
+  warn.innerHTML = ok
+    ? '<span class="good">Thresholds strictly decrease top-to-bottom — OK.</span>'
+    : '<span class="bad">Warning: _applyPhase() fires these in array order regardless of value — thresholds should strictly decrease top-to-bottom or a later phase can fire before an earlier one\'s health point is reached.</span>';
+}
+
+function renderMinibossUI() {
+  const def = COMPOSED_PHASE_DEFS[currentTarget];
+  document.getElementById('mbBaseInfo').textContent =
+    `— health ${def.stats?.health ?? '?'}, movement "${def.movement?.type ?? '?'}", ${def.attacks?.length ?? 0} base attack(s)`;
+  const list = document.getElementById('mbPhaseList');
+  list.innerHTML = '';
+  def.phases.forEach((p, i) => list.appendChild(buildPhaseCard(def, p, i)));
+  checkPhaseOrder(def);
+}
+
+document.getElementById('mbAddPhaseBtn').addEventListener('click', () => {
+  const def = COMPOSED_PHASE_DEFS[currentTarget];
+  const lastPct = def.phases.length ? def.phases[def.phases.length - 1].healthPct : 1;
+  def.phases.push({ healthPct: Math.max(0.05, Math.round((lastPct - 0.25) * 100) / 100) });
+  renderMinibossUI();
+});
+
+let activePhase = 1;
+// Phase III starts out sharing Phase II's array by reference (same as
+// boss.js's own default: `BOSS_PHASE_CONFIG.phases[3] = BOSS_PHASE_CONFIG.phases[2]`).
+// The checkbox below breaks the reference into an independent deep copy.
+let p3Shares = BOSS_PHASE_CONFIG.phases[3] === BOSS_PHASE_CONFIG.phases[2];
+
+function phaseCfg(n) { return BOSS_PHASE_CONFIG.phases[n]; }
+
+function loadThresholdsIntoInputs() {
+  document.getElementById('th1').value = Math.round(BOSS_PHASE_CONFIG.phaseThresholds[0] * 100);
+  document.getElementById('th2').value = Math.round(BOSS_PHASE_CONFIG.phaseThresholds[1] * 100);
+  document.getElementById('rsChance').value = BOSS_PHASE_CONFIG.reservedSlot.chance;
+  document.getElementById('tpPhase').value = String(BOSS_PHASE_CONFIG.teleport.minPhase);
+  document.getElementById('tpChance').value = BOSS_PHASE_CONFIG.teleport.chance;
+}
+
+function readThresholdsFromInputs() {
+  BOSS_PHASE_CONFIG.phaseThresholds = [
+    Number(document.getElementById('th1').value) / 100,
+    Number(document.getElementById('th2').value) / 100,
+  ];
+  BOSS_PHASE_CONFIG.reservedSlot.chance = Number(document.getElementById('rsChance').value);
+  BOSS_PHASE_CONFIG.teleport.minPhase = Number(document.getElementById('tpPhase').value);
+  BOSS_PHASE_CONFIG.teleport.chance = Number(document.getElementById('tpChance').value);
+}
+
+function selectTab(n) {
+  activePhase = n;
+  document.getElementById('tabP1').classList.toggle('active', n === 1);
+  document.getElementById('tabP2').classList.toggle('active', n === 2);
+  document.getElementById('tabP3').classList.toggle('active', n === 3);
+  document.getElementById('p3ShareRow').style.display = n === 3 ? 'flex' : 'none';
+  document.getElementById('p3Share').checked = p3Shares;
+  renderPhaseFields();
+}
+
+function renderPhaseFields() {
+  const cfg = phaseCfg(activePhase);
+  const disabled = activePhase === 3 && p3Shares;
+  document.getElementById('fRangedShift').value = cfg.preferRangedShift;
+  document.getElementById('fMeleeShift').value = cfg.preferMeleeShift;
+  document.getElementById('fMargin').value = cfg.preferMargin;
+  document.getElementById('fDistBias').value = cfg.distanceBias;
+  document.getElementById('fDistFar').value = cfg.distanceFar;
+  document.getElementById('fDistNear').value = cfg.distanceNear;
+  for (const id of ['fRangedShift','fMeleeShift','fMargin','fDistBias','fDistFar','fDistNear']) {
+    document.getElementById(id).disabled = disabled;
+  }
+  renderAttackRows();
+  renderAddAttackOptions();
+}
+
+function readPhaseFieldsFromInputs() {
+  if (activePhase === 3 && p3Shares) return; // mirrors Phase II — nothing of its own to read
+  const cfg = phaseCfg(activePhase);
+  cfg.preferRangedShift = Number(document.getElementById('fRangedShift').value);
+  cfg.preferMeleeShift = Number(document.getElementById('fMeleeShift').value);
+  cfg.preferMargin = Number(document.getElementById('fMargin').value);
+  cfg.distanceBias = Number(document.getElementById('fDistBias').value);
+  cfg.distanceFar = Number(document.getElementById('fDistFar').value);
+  cfg.distanceNear = Number(document.getElementById('fDistNear').value);
+}
+
+function renderAttackRows() {
+  const cfg = phaseCfg(activePhase);
+  const disabled = activePhase === 3 && p3Shares;
+  const sum = cfg.attacks.reduce((s, e) => s + e.weight, 0);
+  document.getElementById('weightSum').textContent = sum.toFixed(3);
+  document.getElementById('weightSum').className = Math.abs(sum - 1) > 0.005 ? 'bad' : 'good';
+
+  const tbody = document.getElementById('attackRows');
+  tbody.innerHTML = '';
+  cfg.attacks.forEach((entry, i) => {
+    const tr = document.createElement('tr');
+    const pct = sum > 0 ? (entry.weight / sum * 100) : 0;
+    tr.innerHTML = `
+      <td>${ATTACK_LABELS[entry.method] || entry.method}</td>
+      <td><input type="number" step="0.01" min="0" value="${entry.weight}" data-i="${i}" class="weightInput" ${disabled ? 'disabled' : ''}></td>
+      <td class="pct ${Math.abs(sum-1) > 0.005 ? 'warn' : ''}">${pct.toFixed(1)}%</td>
+      <td><button class="small removeBtn" data-i="${i}" ${disabled ? 'disabled' : ''}>✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.weightInput').forEach(inp => {
+    // Update sum/percent displays only — NOT a full renderAttackRows(),
+    // which would replace this very input's DOM node mid-keystroke and
+    // drop focus/cursor position after every character typed.
+    inp.addEventListener('input', () => {
+      cfg.attacks[Number(inp.dataset.i)].weight = Number(inp.value) || 0;
+      updateAttackPercents();
+    });
+  });
+  tbody.querySelectorAll('.removeBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      cfg.attacks.splice(Number(btn.dataset.i), 1);
+      renderAttackRows();
+      renderAddAttackOptions();
+    });
+  });
+}
+
+// Lightweight re-render for the weight-sum and per-row percentage cells
+// only, used on every keystroke in a weight field — see the comment above.
+function updateAttackPercents() {
+  const cfg = phaseCfg(activePhase);
+  const sum = cfg.attacks.reduce((s, e) => s + e.weight, 0);
+  const sumEl = document.getElementById('weightSum');
+  sumEl.textContent = sum.toFixed(3);
+  sumEl.className = Math.abs(sum - 1) > 0.005 ? 'bad' : 'good';
+  const offSum = Math.abs(sum - 1) > 0.005;
+  const tbody = document.getElementById('attackRows');
+  const rows = tbody.querySelectorAll('tr');
+  cfg.attacks.forEach((entry, i) => {
+    const pctCell = rows[i] && rows[i].children[2];
+    if (!pctCell) return;
+    const pct = sum > 0 ? (entry.weight / sum * 100) : 0;
+    pctCell.textContent = pct.toFixed(1) + '%';
+    pctCell.className = 'pct' + (offSum ? ' warn' : '');
+  });
+}
+
+function renderAddAttackOptions() {
+  const cfg = phaseCfg(activePhase);
+  const used = new Set(cfg.attacks.map(e => e.method));
+  const sel = document.getElementById('addAttackSelect');
+  sel.innerHTML = '';
+  for (const method in ATTACK_LABELS) {
+    if (used.has(method)) continue;
+    const opt = document.createElement('option');
+    opt.value = method; opt.textContent = ATTACK_LABELS[method];
+    sel.appendChild(opt);
+  }
+  const disabled = activePhase === 3 && p3Shares;
+  sel.disabled = disabled;
+  document.getElementById('addAttackBtn').disabled = disabled || sel.options.length === 0;
+}
+
+document.getElementById('tabP1').addEventListener('click', () => selectTab(1));
+document.getElementById('tabP2').addEventListener('click', () => selectTab(2));
+document.getElementById('tabP3').addEventListener('click', () => selectTab(3));
+
+document.getElementById('p3Share').addEventListener('change', (e) => {
+  p3Shares = e.target.checked;
+  if (p3Shares) {
+    BOSS_PHASE_CONFIG.phases[3] = BOSS_PHASE_CONFIG.phases[2];
+  } else {
+    // Break the reference — Phase III gets its own independent deep copy,
+    // starting from Phase II's current values.
+    BOSS_PHASE_CONFIG.phases[3] = JSON.parse(JSON.stringify(BOSS_PHASE_CONFIG.phases[2]));
+  }
+  renderPhaseFields();
+});
+
+['fRangedShift','fMeleeShift','fMargin','fDistBias','fDistFar','fDistNear'].forEach(id => {
+  document.getElementById(id).addEventListener('input', readPhaseFieldsFromInputs);
+});
+
+document.getElementById('addAttackBtn').addEventListener('click', () => {
+  const method = document.getElementById('addAttackSelect').value;
+  if (!method) return;
+  phaseCfg(activePhase).attacks.push({ method, weight: 0.1 });
+  renderAttackRows();
+  renderAddAttackOptions();
+});
+
+document.getElementById('normalizeBtn').addEventListener('click', () => {
+  const cfg = phaseCfg(activePhase);
+  const sum = cfg.attacks.reduce((s, e) => s + e.weight, 0);
+  if (sum <= 0) return;
+  cfg.attacks.forEach(e => { e.weight = e.weight / sum; });
+  renderAttackRows();
+});
+
+['th1','th2','rsChance','tpPhase','tpChance'].forEach(id => {
+  document.getElementById(id).addEventListener('input', readThresholdsFromInputs);
+  document.getElementById(id).addEventListener('change', readThresholdsFromInputs);
+});
+
+function saveMinibossOverrides() {
+  const raw = localStorage.getItem(ENEMY_PHASE_OVERRIDES_KEY);
+  const all = raw ? JSON.parse(raw) : {};
+  all[currentTarget] = COMPOSED_PHASE_DEFS[currentTarget].phases;
+  localStorage.setItem(ENEMY_PHASE_OVERRIDES_KEY, JSON.stringify(all));
+}
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  try {
+    if (currentTarget === 'sovereign') {
+      readThresholdsFromInputs();
+      readPhaseFieldsFromInputs();
+      localStorage.setItem(BOSS_CONFIG_OVERRIDES_KEY, JSON.stringify(BOSS_PHASE_CONFIG));
+    } else {
+      saveMinibossOverrides();
+    }
+    alert('Saved. The game will use these on next load.');
+    if (typeof DevContext !== 'undefined') DevContext.log('Boss Phase Editor', 'Saved overrides', currentTarget);
+    if (typeof unsavedGuard !== 'undefined' && unsavedGuard) unsavedGuard.checkpoint();
+  } catch (e) {
+    alert('Save failed: ' + e.message);
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (currentTarget === 'sovereign') {
+    if (!confirm('Clear saved Sovereign overrides and reload defaults from boss.js?')) return;
+    localStorage.removeItem(BOSS_CONFIG_OVERRIDES_KEY);
+  } else {
+    if (!confirm('Clear saved phase overrides for ' + targetLabel(currentTarget) + '?')) return;
+    try {
+      const raw = localStorage.getItem(ENEMY_PHASE_OVERRIDES_KEY);
+      const all = raw ? JSON.parse(raw) : {};
+      delete all[currentTarget];
+      localStorage.setItem(ENEMY_PHASE_OVERRIDES_KEY, JSON.stringify(all));
+    } catch (e) { /* nothing to clear */ }
+  }
+  location.reload();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (currentTarget === 'sovereign') {
+    readThresholdsFromInputs();
+    readPhaseFieldsFromInputs();
+    document.getElementById('exp-out').value = JSON.stringify(BOSS_PHASE_CONFIG, null, 2);
+  } else {
+    document.getElementById('exp-out').value = JSON.stringify(
+      { id: currentTarget, phases: COMPOSED_PHASE_DEFS[currentTarget].phases }, null, 2
+    );
+  }
+});
+
+document.getElementById('loadBtn').addEventListener('click', () => {
+  try {
+    const parsed = JSON.parse(document.getElementById('exp-out').value);
+    if (currentTarget === 'sovereign') {
+      if (parsed.phaseThresholds) BOSS_PHASE_CONFIG.phaseThresholds = parsed.phaseThresholds;
+      if (parsed.reservedSlot) Object.assign(BOSS_PHASE_CONFIG.reservedSlot, parsed.reservedSlot);
+      if (parsed.teleport) Object.assign(BOSS_PHASE_CONFIG.teleport, parsed.teleport);
+      if (parsed.phases) {
+        for (const key in parsed.phases) BOSS_PHASE_CONFIG.phases[key] = parsed.phases[key];
+      }
+      p3Shares = BOSS_PHASE_CONFIG.phases[3] === BOSS_PHASE_CONFIG.phases[2];
+      loadThresholdsIntoInputs();
+      selectTab(activePhase);
+    } else {
+      if (!Array.isArray(parsed.phases)) throw new Error('expected {"phases": [...]}');
+      COMPOSED_PHASE_DEFS[currentTarget].phases = parsed.phases;
+      renderMinibossUI();
+    }
+    alert('Loaded into the live editor (not yet saved — click Save to persist).');
+  } catch (e) {
+    alert('Load failed — invalid JSON: ' + e.message);
+  }
+});
+
+populateTargetSelect();
+loadThresholdsIntoInputs();
+selectTab(1);
+selectTarget('sovereign');
+
+const unsavedGuard = (typeof UnsavedGuard !== 'undefined')
+  ? UnsavedGuard.watch(() => ({ boss: BOSS_PHASE_CONFIG, minibosses: COMPOSED_PHASE_DEFS }))
+  : null;
+</script>
+</body>
+</html>

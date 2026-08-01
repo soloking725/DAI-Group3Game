@@ -119,6 +119,10 @@ var VOID_TETHER_PULL_SPEED_BASE = 9;
 // (2026-07-16 — see game.js's whiff branch).
 const VOID_TETHER_WHIFF_COOLDOWN = 20;
 
+
+var CONSTRUCT_COOLDOWN = 600;
+
+
 // ── Ability levels (Lv0-4) ────────────────────────────────────────────────
 // Lv0-3 are lore-pip-funded via statUpgrades/INVENTORY_UPGRADES (game.js).
 // Lv4 (Limit Break) is the one-time endgame-region unlock (Rule 0 in the
@@ -149,6 +153,26 @@ function oldTier(key) {
 // per-ability bespoke VFX — see Player.draw()'s limitBreak glow.
 const LIMIT_BREAK_DURATION = 360; // 6s @ 60fps
 const LIMIT_BREAK_COST = 3; // Fracture Pips
+
+// Real-input activation (added 2026-07-27, user direction): hold the
+// ability's OWN button — the same one that casts it — for this many frames
+// once its Lv5 (Limit Break) unlock is owned. Hold-activated, not
+// release-based: this replaces Strength's previous full-charge-attack-
+// RELEASE trigger, and is the first real input for the other 5 abilities,
+// which previously had no way to start their Limit Break outside
+// enemy_test.html's force-toggle (roadmap.md's Phase 17 follow-up note).
+// A player below Lv5 for a given ability never reaches this at all —
+// canActivateLimitBreak() below still gates on the real level/cost, so
+// holding a button has zero effect for anyone who hasn't unlocked it.
+const LIMIT_BREAK_HOLD_THRESHOLD = 45; // 0.75s @ 60fps
+const LIMIT_BREAK_HOLD_TARGETS = [
+  ['strength', 'attack'],
+  ['phase_dash', 'dash'],
+  ['shard_shot', 'shardShot'],
+  ['stillpoint', 'stillpoint'],
+  ['graviton_surge', 'gravitonSurge'],
+  ['void_tether', 'voidTether'],
+];
 
 const limitBreak = {
   active: false,
@@ -251,6 +275,7 @@ const abilityState = {
   hasVoidTether: false,
   hasReach: false,
   hasParry: false,
+  hasConstruct: false,
   notifications: [], // { text, timer }
 };
 

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Cutscene Editor</title>
+<link rel="stylesheet" href="../styles/design-system.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+#bar{display:flex;gap:6px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#bar label{color:var(--fg-muted);font-family:var(--font-ui);font-size:10px}
+.sep{width:1px;height:20px;background:linear-gradient(var(--border) 0%,var(--border-hover) 50%,var(--border) 100%);flex-shrink:0}
+
+#main{display:flex;flex:1;overflow:hidden}
+
+#left{width:220px;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+#center{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#right{width:300px;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+
+.scroll{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.16) transparent}
+.hint{color:var(--fg-faint);font-size:10px;padding:9px;line-height:1.6}
+
+/* Cutscene list */
+.cs-row{display:flex;align-items:center;gap:6px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--dur-fast) var(--ease-out-expo),box-shadow var(--dur-fast) var(--ease-out-expo)}
+.cs-row:hover{background:var(--surface)}
+.cs-row.sel{background:var(--accent-glow-soft);box-shadow:inset 2px 0 0 var(--accent-bright)}
+.cs-row .cs-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px}
+.cs-row .cs-count{color:var(--fg-faint);font-size:9.5px}
+#add-cutscene-btn{width:calc(100% - 16px);margin:8px}
+
+/* Step list */
+#step-toolbar{display:flex;gap:6px;padding:8px;border-bottom:1px solid var(--border);flex-shrink:0}
+#step-list-wrap{flex:1;overflow-y:auto;padding:10px}
+.step-row{display:flex;align-items:center;gap:6px;padding:7px 9px;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--bg-panel);margin-bottom:5px;cursor:pointer;box-shadow:var(--shadow-inset-top);transition:background var(--dur-fast) var(--ease-out-expo),border-color var(--dur-fast) var(--ease-out-expo),transform var(--dur-fast) var(--ease-out-expo)}
+.step-row:hover{background:var(--bg-elevated);transform:translateY(-1px)}
+.step-row.sel{background:var(--accent-glow-soft);border-color:var(--border-accent)}
+.step-row .step-idx{color:var(--fg-faint);font-size:10px;width:16px;text-align:right;flex-shrink:0;font-family:var(--font-mono)}
+.step-row .step-summary{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-subtle);font-size:11px}
+.step-row .step-btns{display:flex;gap:3px;flex-shrink:0}
+.step-row .step-btns .ds-btn{padding:3px 7px;font-size:10px;line-height:1}
+.branch-block{margin:6px 0 6px 22px;padding-left:10px;border-left:2px solid var(--border-accent)}
+.branch-label{font-family:var(--font-ui);font-size:9.5px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:0.06em;margin:4px 0}
+
+/* Step-type badge color coding — scannability, not pass/fail semantics:
+   camera/movement = accent (primary interactive hue), progression flags =
+   ok (state actually changes), call = warn (arbitrary code, even preset-
+   built), choice = teal (structural/branching), text = info, wait = plain. */
+.badge-wait{color:var(--fg-muted)}
+.badge-text{color:var(--info);border-color:var(--info-border);background:var(--info-dim)}
+.badge-cameraPan,.badge-cameraReturn,.badge-movePlayer{color:var(--accent-bright);border-color:var(--border-accent);background:var(--accent-glow-soft)}
+.badge-setFlag{color:var(--ok);border-color:var(--ok-border);background:var(--ok-dim)}
+.badge-call{color:var(--warn);border-color:var(--warn-border);background:var(--warn-dim)}
+.badge-choice{color:var(--teal);border-color:var(--teal-border);background:var(--teal-dim)}
+
+/* Properties */
+#props{flex:1;overflow-y:auto;padding:10px}
+.field{margin-bottom:10px}
+.field label{display:block;color:var(--fg-muted);font-family:var(--font-ui);font-size:10px;margin-bottom:4px}
+.field .ds-input,.field .ds-select,.field .ds-textarea{width:100%}
+.field .ds-textarea{resize:vertical;min-height:60px;line-height:1.5}
+.field-row{display:flex;gap:8px}
+.field-row .field{flex:1}
+.warn-label{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-ui);font-size:9.5px;font-weight:600;color:var(--warn);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px}
+#pick-canvas-wrap{margin-bottom:10px}
+#pick-canvas{width:100%;height:140px;background:var(--bg-deep);border:1px solid var(--border-hover);border-radius:var(--radius-md);cursor:crosshair;display:block;box-shadow:var(--shadow-card)}
+#pick-hint{color:var(--fg-faint);font-size:9.5px;margin-top:4px;line-height:1.5}
+
+#exp{border-top:1px solid var(--border);padding:var(--space-3);flex-shrink:0}
+#exp-out{height:130px;color:var(--info)}
+#live-status{font-size:10px;padding:0 2px;line-height:1.6}
+#live-status .ok{color:var(--ok)}
+#live-status .bad{color:var(--danger)}
+
+/* Preview overlay (cheap mocked-up walkthrough, not the real game — see
+   Plans/cutscene_editor_plan.md §7's staged recommendation). Entrance is a
+   quick fade+scale-in (per the design system's "Scale in" pattern), never
+   a bounce — reduced-motion collapses --dur-med to 0 automatically. */
+#preview-overlay{position:fixed;inset:0;background:rgba(2,2,3,0.8);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:50}
+#preview-overlay.open{display:flex}
+#preview-card{width:640px;background:#000;border-radius:var(--radius-lg);box-shadow:var(--shadow-overlay);overflow:hidden;position:relative;--mx:50%;--my:50%;opacity:0;transform:scale(0.96);transition:opacity var(--dur-med) var(--ease-out-expo),transform var(--dur-med) var(--ease-out-expo)}
+#preview-overlay.open #preview-card{opacity:1;transform:scale(1)}
+#preview-card::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(320px circle at var(--mx) var(--my), var(--accent-glow-soft), transparent 70%);opacity:0;transition:opacity var(--dur-med) var(--ease-out-expo)}
+#preview-card:hover::before{opacity:1}
+#preview-screen{width:640px;height:360px;position:relative;background:radial-gradient(ellipse at center, #10101a 0%, #030304 100%)}
+#preview-bar-top,#preview-bar-bottom{position:absolute;left:0;width:100%;height:36px;background:#000}
+#preview-bar-top{top:0}
+#preview-bar-bottom{bottom:0}
+#preview-text{position:absolute;left:0;right:0;bottom:44px;text-align:center;color:#e2e8f0;font-family:var(--font-mono);font-size:13px;padding:0 20px}
+#preview-choice{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:none;justify-content:center;gap:14px;z-index:3}
+#preview-step-badge{position:absolute;top:44px;left:16px;color:var(--fg-faint);font-size:9.5px;font-family:var(--font-ui);text-transform:uppercase;letter-spacing:0.05em}
+#preview-controls{display:flex;gap:6px;padding:10px;border-top:1px solid var(--border);position:relative;z-index:3}
+#preview-controls .ds-btn{flex:1}
+</style>
+</head>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+
+<div id="bar" class="ds-topbar">
+  <a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
+  <div class="sep"></div>
+  <label>Cutscene:</label>
+  <span id="cs-title" class="ds-mono" style="color:var(--fg-subtle);font-size:11px">—</span>
+  <div class="sep"></div>
+  <button id="undo-btn" class="ds-btn ds-btn-ghost" title="Ctrl+Z">↶ Undo</button>
+  <button id="redo-btn" class="ds-btn ds-btn-ghost" title="Ctrl+Shift+Z / Ctrl+Y">↷ Redo</button>
+  <div class="sep"></div>
+  <button id="preview-btn" class="ds-btn ds-btn-primary">▶ Preview This Cutscene</button>
+</div>
+
+<div id="main">
+  <div id="left" class="ds-sidebar ds-sidebar-left">
+    <h3 class="ds-section-title" style="margin:0;padding:9px 8px">Cutscenes</h3>
+    <button id="add-cutscene-btn" class="ds-btn ds-btn-primary ds-btn-block">+ New Cutscene</button>
+    <div id="cutscene-list" class="scroll"></div>
+  </div>
+
+  <div id="center">
+    <div id="step-toolbar">
+      <button id="add-step-btn" class="ds-btn ds-btn-primary" disabled>+ Add Step</button>
+      <button id="rename-cs-btn" class="ds-btn ds-btn-ghost" disabled>Rename</button>
+      <button id="delete-cs-btn" class="ds-btn ds-btn-danger" disabled>Delete</button>
+    </div>
+    <div id="step-list-wrap" class="scroll">
+      <div class="hint">Select or create a cutscene on the left to author its step list.</div>
+    </div>
+  </div>
+
+  <div id="right" class="ds-sidebar">
+    <h3 class="ds-section-title" style="margin:0;padding:9px 8px">Step Properties</h3>
+    <div id="props" class="scroll">
+      <div class="hint">Select a step to edit its fields.</div>
+    </div>
+    <div id="exp">
+      <button id="exp-btn" class="ds-btn ds-btn-block">⬇ Export Paste-Ready JS</button>
+      <textarea id="exp-out" class="ds-textarea ds-mono" readonly placeholder="Press Export to generate a snippet for the selected cutscene..."></textarea>
+      <button id="save-live-btn" class="ds-btn ds-btn-ok ds-btn-block">💾 Save to Browser (Live)</button>
+      <div id="live-status" class="hint"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Cheap mocked-up preview: a static walkthrough of the step sequence, not
+     a real-game boot. See Plans/cutscene_editor_plan.md §4/§7 — the
+     real-game-iframe preview is staged for v2. -->
+<div id="preview-overlay">
+  <div id="preview-card">
+    <div id="preview-screen">
+      <div id="preview-bar-top"></div>
+      <div id="preview-step-badge"></div>
+      <div id="preview-text"></div>
+      <div id="preview-choice">
+        <button id="preview-choice-a" class="ds-btn ds-btn-primary"></button>
+        <button id="preview-choice-b" class="ds-btn ds-btn-primary"></button>
+      </div>
+      <div id="preview-bar-bottom"></div>
+    </div>
+    <div id="preview-controls">
+      <button id="preview-prev" class="ds-btn ds-btn-ghost">◀ Prev</button>
+      <span id="preview-pos" style="align-self:center;color:var(--fg-muted);font-size:10px;min-width:70px;text-align:center"></span>
+      <button id="preview-next" class="ds-btn ds-btn-ghost">Next ▶</button>
+      <button id="preview-close" class="ds-btn ds-btn-danger">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="../game/area.js"></script>
+<script src="../game/cutscene.js"></script>
+<script src="../game/devContext.js"></script>
+<script src="../game/unsavedGuard.js"></script>
+<script src="cutscene_editor.js"></script>
+</body>
+</html>

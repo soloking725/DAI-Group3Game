@@ -94,6 +94,11 @@ class Enemy {
     this.width = 28;
     this.height = 28;
     this.type = type;
+    // Base body color for draw()'s default (non-flash/windup) state — a
+    // plain field rather than a hardcoded literal so visualVariants.js's
+    // region/instance reskinning (see spawnAreaEnemies) can override it,
+    // same convention as ComposedEnemy's own `this.color`.
+    this.bodyColor = '#f87171';
     this.health = ENEMY_HEALTH;
     // Per-instance speed override (2026-07-16, user request — enemy_editor.html
     // control). Scales both chase and patrol movement below; currently only
@@ -736,7 +741,7 @@ class Enemy {
       const g = Math.round(113 * (1 - t));
       ctx.fillStyle = `rgb(${r}, ${g}, 40)`;
     } else {
-      ctx.fillStyle = '#f87171';
+      ctx.fillStyle = this.bodyColor;
     }
 
     ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -1112,9 +1117,24 @@ class ColossusCore {
     this.attackCooldown = 0;
     this.stunTimer = 0; // parry stun
     this.displayName = 'Crag Warden'; // game.js's generic defeat notification reads this
+
+    // Visual/hitbox bridge to game/animdata.js (2026-07-27) — additive, same
+    // fallback rule as Boss/ComposedEnemy: an authored `colossus_<state>` key
+    // (editor/anim_editor.html) overrides the procedural body art AND the
+    // hardcoded hitbox rects below; nothing authored means zero behavior
+    // change. `this.state` is already attack-specific here (charging vs
+    // swinging are two different states), unlike Boss, so it doubles as the
+    // per-attack key with no extra `_activeAttack` field needed.
+    this.animator = new Animator(this);
+    this._animKey = null;
   }
 
   getBounds() { return { x: this.x, y: this.y, width: this.width, height: this.height }; }
+
+  animStateKey() {
+    if (this.dead) return 'colossus_dead';
+    return `colossus_${this.state}`;
+  }
 
   // Whether a hit actually connects for life-steal/fracture-gain purposes —
   // queried by game.js's generalized miniboss combat block instead of
@@ -1124,6 +1144,20 @@ class ColossusCore {
   willConnect(isHeavy) { return !!isHeavy; }
 
   getAttackHitbox() {
+    // Anim-driven path (2026-07-27) — mirrors Boss's getAttackHitbox() bridge
+    // exactly. `this._animKey` was already set to this tick's correct value
+    // by update() before game.js calls this.
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      const hitboxes = this.animator.currentHitboxes();
+      if (hitboxes.length === 0) return null;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const hb of hitboxes) {
+        minX = Math.min(minX, hb.x); minY = Math.min(minY, hb.y);
+        maxX = Math.max(maxX, hb.x + hb.width); maxY = Math.max(maxY, hb.y + hb.height);
+      }
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    }
+
     if (this.state === 'charging') {
       return {
         x: this.facing === 1 ? this.x + this.width : this.x - 26,
@@ -1152,6 +1186,17 @@ class ColossusCore {
   // charge is a persistent shove down its charge lane, the swing is a single
   // big haymaker that launches the player up and away instead.
   getAttackDamageAndKnockback() {
+    // Anim-driven path — same authored-frame source as getAttackHitbox()
+    // above; first authored hitbox on the frame wins, falls through below
+    // when unauthored.
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      const hitboxes = this.animator.currentHitboxes();
+      if (hitboxes.length > 0) {
+        const hb = hitboxes[0];
+        return { damage: hb.damage, knockback: { vx: hb.knockbackX, vy: hb.knockbackY, hitStun: hb.hitStun } };
+      }
+    }
+
     if (this.state === 'swinging') {
       return { damage: COLOSSUS_DAMAGE, knockback: { vx: 5, vy: -9, hitStun: 18 } };
     }
@@ -1276,6 +1321,25 @@ class ColossusCore {
          this.x <= bounds.left || this.x + this.width >= bounds.right)) {
       this.state = 'idle'; this.stateTimer = 70; this.attackCooldown = 60; this.vx = 0;
     }
+
+    // Visual/hitbox bridge (see animStateKey()'s comment above). Frame
+    // events support cameraShake/sfx only — no spawnProjectile, ColossusCore
+    // has no ranged attack to author toward.
+    this._animKey = this.animStateKey();
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      this.animator.play(this._animKey);
+      this.animator.update(_ts);
+      for (const ev of this.animator.consumeFrameEvents()) {
+        if (ev.type === 'cameraShake') {
+          if (typeof screenShake !== 'undefined') {
+            screenShake = Math.max(screenShake, ev.shake ?? 10);
+            screenShakeIntensity = Math.max(screenShakeIntensity, ev.intensity ?? 5);
+          }
+        } else if (ev.type === 'sfx') {
+          if (typeof SFX !== 'undefined' && typeof SFX[ev.name] === 'function') SFX[ev.name]();
+        }
+      }
+    }
   }
 
   draw(ctx) {
@@ -1285,39 +1349,48 @@ class ColossusCore {
 
     const cx = this.x + this.width / 2;
     const cy = this.y + this.height / 2;
-
-    // Body — rust/stone shell, cracks appear as health drops
     const healthFrac = this.health / this.maxHealth;
-    ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : this.bounceFlash > 0 ? '#fbbf24' : '#c2703d';
-    ctx.fillRect(this.x, this.y, this.width, this.height);
-    ctx.strokeStyle = '#7a4322';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(this.x, this.y, this.width, this.height);
-    ctx.lineWidth = 1;
 
-    // Crack overlay — more cracks the lower the health
-    const crackCount = Math.round((1 - healthFrac) * 6);
-    ctx.strokeStyle = 'rgba(10, 5, 3, 0.6)';
-    for (let i = 0; i < crackCount; i++) {
-      const seed = i * 37.13 + Math.floor(this.x); // stable per-instance, not per-frame random
-      const sx = this.x + 8 + (seed % (this.width - 16));
-      const sy = this.y + 8 + ((seed * 1.7) % (this.height - 16));
+    // Body/core/eye — visual bridge to game/animdata.js. Additive: falls
+    // back to the original procedural body exactly as before when no
+    // `colossus_<state>` key is authored. Everything below (telegraph
+    // rings, swing flash, health bar) still draws regardless, same
+    // "overlays are separate from body art" rule Boss/ComposedEnemy use.
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      this.animator.draw(ctx);
+    } else {
+      // Body — rust/stone shell, cracks appear as health drops
+      ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : this.bounceFlash > 0 ? '#fbbf24' : '#c2703d';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+      ctx.strokeStyle = '#7a4322';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(this.x, this.y, this.width, this.height);
+      ctx.lineWidth = 1;
+
+      // Crack overlay — more cracks the lower the health
+      const crackCount = Math.round((1 - healthFrac) * 6);
+      ctx.strokeStyle = 'rgba(10, 5, 3, 0.6)';
+      for (let i = 0; i < crackCount; i++) {
+        const seed = i * 37.13 + Math.floor(this.x); // stable per-instance, not per-frame random
+        const sx = this.x + 8 + (seed % (this.width - 16));
+        const sy = this.y + 8 + ((seed * 1.7) % (this.height - 16));
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + 8 - (seed % 16), sy + 10 - (seed % 20));
+        ctx.stroke();
+      }
+
+      // Molten core, visible through the shell — glows brighter as it takes damage
+      ctx.fillStyle = `rgba(251, 146, 60, ${0.3 + (1 - healthFrac) * 0.5})`;
       ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(sx + 8 - (seed % 16), sy + 10 - (seed % 20));
-      ctx.stroke();
+      ctx.arc(cx, cy, 10 + (1 - healthFrac) * 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eye
+      ctx.fillStyle = '#0a0a0f';
+      const eyeX = this.facing === 1 ? this.x + this.width - 20 : this.x + 12;
+      ctx.fillRect(eyeX, this.y + 14, 10, 8);
     }
-
-    // Molten core, visible through the shell — glows brighter as it takes damage
-    ctx.fillStyle = `rgba(251, 146, 60, ${0.3 + (1 - healthFrac) * 0.5})`;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 10 + (1 - healthFrac) * 6, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eye
-    ctx.fillStyle = '#0a0a0f';
-    const eyeX = this.facing === 1 ? this.x + this.width - 20 : this.x + 12;
-    ctx.fillRect(eyeX, this.y + 14, 10, 8);
 
     // Telegraph — expanding ring + "!" before the charge
     if (this.state === 'telegraph') {
@@ -3113,8 +3186,18 @@ class ComposedEnemy extends Enemy {
           this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
         }
       } else {
-        MOVEMENT_BEHAVIORS[this.def.movement?.type]?.run(this, player, bounds, _ts, sight)
-          ?? MOVEMENT_BEHAVIORS.ground_chase.run(this, player, bounds, _ts, sight);
+        // `??` combines return VALUES, and run() never returns anything —
+        // `A?.run(...) ?? B.run(...)` was calling BOTH every frame (the left
+        // side's result is always undefined), not falling back to B only
+        // when A is missing. ground_chase.run() then unconditionally ran a
+        // second time on top of every enemy's real movement, and its patrol
+        // branch (enemy.patrolDir * p.patrolSpeed) went NaN for any 'hover'
+        // enemy — a hover-flavored `movement` object never has patrolSpeed
+        // (only ground_chase's own params include it) — corrupting vx for
+        // the rest of the enemy's life. Pick the BEHAVIOR OBJECT to fall
+        // back to instead, then call .run() exactly once.
+        (MOVEMENT_BEHAVIORS[this.def.movement?.type] ?? MOVEMENT_BEHAVIORS.ground_chase)
+          .run(this, player, bounds, _ts, sight);
         if (this.role && allies) applyRoleCoordination(this, player, allies);
       }
     }
@@ -4196,6 +4279,11 @@ const WARDEN_DEF = {
   defense: { block: { chance: 1.0, range: 100, guardFrames: 30, cooldown: 110 } },
   stats: { health: 20 },
   spawnOnStart: { def: HOLLOW_DEF, count: 1, spread: 140 },
+  // No real escalation authored yet — a no-op stub (fires immediately,
+  // changes nothing) so boss_phase_editor.html has a phases array to list
+  // and build real phases into, same convention as any other ComposedEnemy
+  // miniboss.
+  phases: [{ healthPct: 1 }],
 };
 class WardenAndHollow extends ComposedEnemy {
   constructor(x, y) { super(x, y, WARDEN_DEF); }
@@ -4232,6 +4320,10 @@ const ELECTROMAGNETIC_GOLEM_DEF = {
       damage: 3, chargeSpeed: 8, knockbackX: 10, knockbackY: -6, knockbackHitStun: 22, weight: 1 },
   ],
   stats: { health: 24, width: 72, height: 84 },
+  // The real phase 2 (faster magnetize recharge at ≤50% HP) is hand-checked
+  // in update() below against this.health directly, not read from here —
+  // this stub just gives boss_phase_editor.html a phases array to list.
+  phases: [{ healthPct: 1 }],
 };
 class ElectromagneticGolem extends ComposedEnemy {
   constructor(x, y) {
@@ -4386,9 +4478,23 @@ class TemporalWarden {
     // shared `gameTimeScale`.
     this._stillpointWasActive = false;
     this._stillpointUsesAgainstHim = 0;
+
+    // Visual bridge to game/animdata.js (2026-07-27) — visuals/frame-events
+    // only (cameraShake/sfx); no melee hitbox exists to author toward, see
+    // getAttackHitbox() below. Additive/fallback, same as every other bridge
+    // in this file.
+    this.animator = new Animator(this);
+    this._animKey = null;
   }
 
   getBounds() { return { x: this.x, y: this.y, width: this.width, height: this.height }; }
+
+  animStateKey() {
+    if (this.dead) return 'temporal_warden_dead';
+    if (this._flashActive) return 'temporal_warden_flash';
+    if (this.telegraph) return 'temporal_warden_telegraph';
+    return 'temporal_warden_idle';
+  }
 
   // No melee hitbox of his own — Shard Shot-style bolts are the only
   // offense, pushed through ComposedEnemy's shared projectile pool below.
@@ -4473,6 +4579,25 @@ class TemporalWarden {
     this.x += this.vx * myTS;
     if (bounds) this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
     this.y += Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.03) * 0.3;
+
+    // Visual bridge (see constructor's comment) — cameraShake/sfx frame
+    // events only, no spawnProjectile (the chrono bolt fire is still
+    // code-driven off telegraph.timer above, not frame-driven).
+    this._animKey = this.animStateKey();
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      this.animator.play(this._animKey);
+      this.animator.update(myTS);
+      for (const ev of this.animator.consumeFrameEvents()) {
+        if (ev.type === 'cameraShake') {
+          if (typeof screenShake !== 'undefined') {
+            screenShake = Math.max(screenShake, ev.shake ?? 10);
+            screenShakeIntensity = Math.max(screenShakeIntensity, ev.intensity ?? 5);
+          }
+        } else if (ev.type === 'sfx') {
+          if (typeof SFX !== 'undefined' && typeof SFX[ev.name] === 'function') SFX[ev.name]();
+        }
+      }
+    }
   }
 
   draw(ctx) {
@@ -4493,26 +4618,35 @@ class TemporalWarden {
       ctx.lineWidth = 1;
     }
 
-    // Robed body — cyan/violet, a hooded time-mage silhouette.
-    ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : '#2e2a4a';
-    ctx.beginPath();
-    ctx.moveTo(cx, this.y);
-    ctx.lineTo(this.x + this.width, this.y + this.height);
-    ctx.lineTo(this.x, this.y + this.height);
-    ctx.closePath();
-    ctx.fill();
+    // Robed body/hourglass core/eyes — visual bridge to game/animdata.js.
+    // Additive: falls back to the procedural silhouette below when no
+    // `temporal_warden_<state>` key is authored. The rewind-flash ring above
+    // and the telegraph glow below still draw regardless, same convention
+    // as every other bridge in this file.
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      this.animator.draw(ctx);
+    } else {
+      // Robed body — cyan/violet, a hooded time-mage silhouette.
+      ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : '#2e2a4a';
+      ctx.beginPath();
+      ctx.moveTo(cx, this.y);
+      ctx.lineTo(this.x + this.width, this.y + this.height);
+      ctx.lineTo(this.x, this.y + this.height);
+      ctx.closePath();
+      ctx.fill();
 
-    // Hourglass core — the visible "clock" motif, empties/fills with the cycle.
-    const cycleFrac = 1 - this._cycleTimer / TEMPORAL_WARDEN_REWIND_CYCLE;
-    ctx.fillStyle = 'rgba(103, 232, 249, 0.85)';
-    ctx.beginPath();
-    ctx.arc(cx, this.y + this.height * 0.55, 5, 0, Math.PI * 2 * Math.min(1, cycleFrac + 0.05));
-    ctx.fill();
+      // Hourglass core — the visible "clock" motif, empties/fills with the cycle.
+      const cycleFrac = 1 - this._cycleTimer / TEMPORAL_WARDEN_REWIND_CYCLE;
+      ctx.fillStyle = 'rgba(103, 232, 249, 0.85)';
+      ctx.beginPath();
+      ctx.arc(cx, this.y + this.height * 0.55, 5, 0, Math.PI * 2 * Math.min(1, cycleFrac + 0.05));
+      ctx.fill();
 
-    // Eyes — white during the flash window (a real tell, not just the ring).
-    ctx.fillStyle = this._flashActive ? '#ffffff' : '#67e8f9';
-    ctx.fillRect(this.x + this.width / 2 - 7, this.y + this.height * 0.35, 5, 4);
-    ctx.fillRect(this.x + this.width / 2 + 2, this.y + this.height * 0.35, 5, 4);
+      // Eyes — white during the flash window (a real tell, not just the ring).
+      ctx.fillStyle = this._flashActive ? '#ffffff' : '#67e8f9';
+      ctx.fillRect(this.x + this.width / 2 - 7, this.y + this.height * 0.35, 5, 4);
+      ctx.fillRect(this.x + this.width / 2 + 2, this.y + this.height * 0.35, 5, 4);
+    }
 
     // Telegraph — a small charging glow before the chrono bolt fires.
     if (this.telegraph) {
@@ -4613,6 +4747,136 @@ class StillpointRevenant extends ComposedEnemy {
   constructor(x, y) { super(x, y, STILLPOINT_REVENANT_DEF); }
 }
 
+// The Undertow — Void Expanse miniboss (`void_expanse_boss`), drafted
+// 2026-07-28 from lore.md's "open, not yet placed on the moral axis" entry:
+// the child of a scientist obsessed with darkness, now merged with it —
+// steals what people hold dearest (took the Temporal Warden's love, will
+// take the player's own companion/ally too if brought here) and moves
+// through the void at will. `teleport_blink`'s 'interval' mode is the same
+// "portal, at will" pattern The Assembler already uses — reused rather than
+// inventing a second teleport mechanic. `gravity_well` (no damage, just
+// pulls) stands in for "steals what you hold dear" as a literal pulling
+// current — no new companion-specific mechanic needed. Deliberately not
+// armored or knockback-heavy: a chase/pressure fight, not a brawler.
+const UNDERTOW_DEF = {
+  id: 'void_expanse_boss',
+  displayName: 'The Undertow',
+  color: '#1a0b2e',
+  movement: { type: 'teleport_blink', mode: 'interval', interval: 160, blinkDistance: 200, cooldown: 80 },
+  attacks: [
+    { type: 'ranged_projectile', range: 380, windupFrames: 32, activeFrames: 18, cooldown: 110,
+      damage: 2, projectileSpeed: 4, pattern: 'homing', homingDuration: 45, color: '#4c1d95', weight: 2 },
+    { type: 'ranged_projectile', range: 260, windupFrames: 40, activeFrames: 20, cooldown: 160,
+      damage: 0, pattern: 'gravity_well', wellRadius: 110, wellPull: 0.22, color: '#0f0620', weight: 1 },
+    { type: 'ranged_projectile', range: 340, windupFrames: 30, activeFrames: 16, cooldown: 140,
+      damage: 1, projectileSpeed: 3.5, pattern: 'spread', projectileCount: 5, spreadAngle: 60, color: '#6d28d9', weight: 1 },
+  ],
+  stats: { health: 30, knockbackResistance: 0.15 },
+  phases: [
+    {
+      healthPct: 0.5,
+      movement: { interval: 90, blinkDistance: 260, cooldown: 45 },
+      statMultipliers: { cooldownMult: 0.8, damageMult: 1.15 },
+      attacks: [
+        { type: 'ranged_projectile', pattern: 'gravity_well', wellRadius: 150, wellPull: 0.32 },
+      ],
+    },
+  ],
+};
+class Undertow extends ComposedEnemy {
+  constructor(x, y) { super(x, y, UNDERTOW_DEF); }
+}
+
+// The Child — Antechamber miniboss (`antechamber_child`), drafted 2026-07-28
+// per lore.md's now-resolved canon (user direction: this fight REPLACES
+// Abandoned Shell as the sole "lost the child" consequence — see
+// game_update.js's miniboss-death branch for the Absorb/Spare choice this
+// triggers instead of the usual +1 Max Health reward, and cutscene.js's
+// `antechamber_child_ending` script for that choice itself). Grown up among
+// escaped prisoners after being separated from the player during the
+// Stationmaster's prison break; fights with the exact scavenged-weapon set
+// `lore.md`/`expansion.md` name (tasers/flamethrowers/bombs/guns) — the
+// same gun/taser/flamethrower presets and `ranged_projectile` 'mine'
+// pattern WarScavenger already uses, not a new mechanic. Three phases per
+// the doc: alone; then calls other former prisoners to her aid (the exact
+// `PRISONER_ADD_DEF` add the Stationmaster already uses — same prisoners,
+// same person calling them); then a rage-boosted final phase (stronger
+// weapon variants + across-the-board multipliers). "Occasionally healing
+// them" has no direct heal-an-ally verb in the vocabulary, so it's
+// approximated as her own modest regen — reads as her patching herself
+// (and by extension the fight) up while she has allies to lean on.
+const ANTECHAMBER_CHILD_DEF = {
+  id: 'antechamber_child',
+  displayName: 'The Child',
+  color: '#e2b8a3',
+  movement: { type: 'ground_chase', speed: 1.1, patrolSpeed: 0.5 },
+  attacks: [
+    { type: 'gun', weight: 2, ...GUN_NORMAL },
+    { type: 'taser', weight: 1, ...TASER_NORMAL },
+    { type: 'flamethrower', weight: 1, ...FLAMETHROWER_NORMAL },
+    // Scavenged bomb — ranged_projectile's 'mine' pattern (arm, then AoE),
+    // same convention war_scavenger's `pattern: 'mine'` note describes.
+    { type: 'ranged_projectile', weight: 1, range: 300, windupFrames: 45, activeFrames: 10,
+      cooldown: 180, damage: 2, pattern: 'mine', armTimer: 60, mineRadius: 70, color: '#f59e0b' },
+  ],
+  regen: { amount: 1, interval: 150, interruptWindow: 120 },
+  stats: { health: 22, knockbackResistance: 0.1 },
+  phases: [
+    {
+      healthPct: 0.66,
+      spawn: { def: PRISONER_ADD_DEF, count: 2, spread: 100 }, // "calling other former prisoners to her aid"
+    },
+    {
+      healthPct: 0.33,
+      statMultipliers: { speedMult: 1.3, cooldownMult: 0.7, damageMult: 1.3 }, // rage-boosted final phase
+      attacks: [
+        { type: 'gun', ...GUN_STRONG },
+        { type: 'taser', ...TASER_STRONG },
+        { type: 'flamethrower', ...FLAMETHROWER_STRONG },
+      ],
+    },
+  ],
+};
+class TheChild extends ComposedEnemy {
+  constructor(x, y) { super(x, y, ANTECHAMBER_CHILD_DEF); }
+}
+
+// Abandoned Shell — Hollow Core miniboss (`abandoned_shell`), drafted
+// 2026-07-28. Per story.md §5's original design ("a ghostly, red-eyed boss
+// that copies your moves — dashes, shard shots, attack patterns"), user-
+// relocated 2026-07-28 from the final door to Hollow Core, and made
+// unconditional (fights every playthrough regardless of the child's fate,
+// decoupled from the losing-the-child narrative now that Antechamber
+// Child owns that role). HP ~48 = 60% of BOSS_MAX_HEALTH (80, boss.js),
+// matching story.md's original "~60% of the Sovereign" spec. A literal
+// dynamic move-mirror (reading the player's own unlocked abilities at
+// runtime) is real new engine work outside this pass's scope — approximated
+// instead via the existing vocabulary, same "read through what's already
+// there" convention every other fight in this file uses for a mechanic
+// that isn't a literal 1:1 build: `dash_charge` mirrors Phase Dash,
+// `ranged_projectile` (straight) mirrors Shard Shot, `melee_swing` mirrors
+// the player's own basic attack pattern.
+const ABANDONED_SHELL_DEF = {
+  id: 'abandoned_shell',
+  displayName: 'Abandoned Shell',
+  color: '#dc2626',
+  movement: { type: 'ground_chase', speed: 1.3, patrolSpeed: 0.6, canJump: true },
+  attacks: [
+    { type: 'melee_swing', damage: 2, cooldown: 90, weight: 2 },
+    { type: 'dash_charge', range: 300, windupFrames: 20, activeFrames: 16, cooldown: 110,
+      damage: 2, chargeSpeed: 12, knockbackX: 6, knockbackY: -5, knockbackHitStun: 14, weight: 2 },
+    { type: 'ranged_projectile', range: 360, windupFrames: 28, activeFrames: 14, cooldown: 130,
+      damage: 1, projectileSpeed: 5, pattern: 'straight', color: '#f87171', weight: 1 },
+  ],
+  stats: { health: 48, knockbackResistance: 0.15 },
+  phases: [
+    { healthPct: 0.5, statMultipliers: { speedMult: 1.2, cooldownMult: 0.8, damageMult: 1.15 } },
+  ],
+};
+class AbandonedShell extends ComposedEnemy {
+  constructor(x, y) { super(x, y, ABANDONED_SHELL_DEF); }
+}
+
 // Single source of truth for `area.enemies[].type` strings backed by a real
 // class (mirrors the branches in game.js spawnAreaEnemies). Tools that need
 // the full roster (e.g. the level editor's enemy dropdown) read this instead
@@ -4655,6 +4919,52 @@ const ENEMY_REGISTRY = {
 // enemies; both tools' separate Boss/Miniboss picker reads MINIBOSS_CLASSES
 // instead (see enemy_test.html's/difficulty_bot.html's generalized
 // MINIBOSS_CLASSES-driven spawn code, 2026-07-26).
+
+// ── Editor overrides (miniboss phases) ──────────────────────────────────
+// Composed-enemy minibosses (game_state.js's MINIBOSS_CLASSES entries that
+// are ComposedEnemy, not a bespoke class) keyed by def.id so
+// boss_phase_editor.html can list/edit their `phases` arrays the same way
+// it edits the Sovereign's BOSS_PHASE_CONFIG. Bespoke-class minibosses
+// (ColossusCore, ElectromagneticGolem's underlying class if any, etc.) have
+// no `def.phases` and are intentionally absent here.
+const COMPOSED_PHASE_DEFS = {
+  static_guardian: CONDUIT_DEF,
+  hollow_guardian: MIRROR_KING_DEF,
+  graviton_sentinel: GRAVITON_GUARD_DEF,
+  paradox_engine: ASSEMBLER_DEF,
+  timeline_keeper: STATIONMASTER_DEF,
+  abyss_guardian: QUANTUM_PURSUER_DEF,
+  warp_guardian: WARDEN_DEF,
+  polar_guardian: ELECTROMAGNETIC_GOLEM_DEF,
+  horizon_core: HORIZON_CORE_DEF,
+  void_expanse_boss: UNDERTOW_DEF,
+  antechamber_child: ANTECHAMBER_CHILD_DEF,
+  abandoned_shell: ABANDONED_SHELL_DEF,
+};
+
+// boss_phase_editor.html saves work-in-progress here; same pattern as
+// boss.js's BOSS_CONFIG_OVERRIDES_KEY. Keyed by def.id, each value is a
+// wholesale replacement of that def's `phases` array (unlike
+// BOSS_PHASE_CONFIG's per-phase-number merge — a miniboss phase list is
+// small enough that add/remove/reorder is common, so partial merging by
+// index would silently keep stale entries).
+const ENEMY_PHASE_OVERRIDES_KEY = 'stillpoint_enemy_phase_overrides_v1';
+function applyEnemyPhaseOverrides() {
+  try {
+    const raw = localStorage.getItem(ENEMY_PHASE_OVERRIDES_KEY);
+    if (!raw) return;
+    const overrides = JSON.parse(raw);
+    for (const id in overrides) {
+      if (COMPOSED_PHASE_DEFS[id]) COMPOSED_PHASE_DEFS[id].phases = overrides[id];
+    }
+  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+}
+applyEnemyPhaseOverrides();
+
+if (typeof window !== 'undefined') {
+  window.COMPOSED_PHASE_DEFS = COMPOSED_PHASE_DEFS;
+  window.ENEMY_PHASE_OVERRIDES_KEY = ENEMY_PHASE_OVERRIDES_KEY;
+}
 
 // Real per-enemy defaults, exported so tools like enemy_editor.html can read
 // the numbers straight off enemy.js instead of keeping a hand-copied

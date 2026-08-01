@@ -3,47 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <title>Stillpoint — Animation / Hitbox Editor</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
   /* Same dark editor theme family as levelEditor.html / enemy_editor.html */
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0a0a0f; color: #e2e8f0; font: 13px/1.5 "Courier New", monospace; display: flex; height: 100vh; overflow: hidden; }
-  h2 { font-size: 14px; color: #c4b5fd; margin-bottom: 8px; }
-  h3 { font-size: 12px; color: #94a3b8; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 1px; }
-  button { background: #1e1e32; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 4px 10px; font: inherit; cursor: pointer; border-radius: 3px; }
-  button:hover { background: #2a2a44; }
-  button.active { background: #4c3a8e; border-color: #a78bfa; }
-  button.danger { border-color: #7f1d1d; color: #fca5a5; }
-  input, select { background: #14141f; color: #e2e8f0; border: 1px solid #3a3a5e; padding: 3px 6px; font: inherit; border-radius: 3px; }
+  body { font: 13px/1.5 var(--font-mono); display: flex; height: 100vh; overflow: hidden; }
+  h2 { font-family: var(--font-ui); font-size: 15px; font-weight: 600; color: var(--fg); margin-bottom: 8px; }
+  h3 { font-family: var(--font-ui); font-size: 10px; font-weight: 600; color: var(--fg-faint); margin: var(--space-4) 0 6px; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+  button { background: var(--surface); color: var(--fg); border: 1px solid var(--border-hover); padding: 6px 12px; font: inherit; cursor: pointer; border-radius: var(--radius-sm); box-shadow: var(--shadow-inset-top); transition: background var(--dur-fast) var(--ease-out-expo), border-color var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo); }
+  button:hover { background: var(--surface-hover); border-color: var(--border-hover); }
+  button:active { transform: scale(0.98); }
+  button.active { background: var(--accent-glow-soft); border-color: var(--border-accent); color: var(--fg); }
+  button.danger { border-color: var(--danger-border); color: var(--danger); }
+  button.danger:hover { background: var(--danger-dim); }
+  input, select { background: var(--bg-input); color: var(--fg); border: 1px solid var(--border-hover); padding: 5px 7px; font: inherit; border-radius: var(--radius-sm); transition: border-color var(--dur-fast) var(--ease-out-expo), box-shadow var(--dur-fast) var(--ease-out-expo); }
+  input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow-soft); }
   input[type=number] { width: 62px; }
-  label { display: inline-flex; align-items: center; gap: 5px; margin: 2px 6px 2px 0; }
-  .panel { padding: 12px; overflow-y: auto; }
-  #left { width: 230px; border-right: 1px solid #26263c; flex-shrink: 0; }
+  label { display: inline-flex; align-items: center; gap: 5px; margin: 2px 6px 2px 0; font-family: var(--font-ui); font-size: 11.5px; color: var(--fg-muted); }
+  .panel { padding: var(--space-3); overflow-y: auto; }
+  #left { width: 230px; border-right: 1px solid var(--border); flex-shrink: 0; }
   #center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  #right { width: 300px; border-left: 1px solid #26263c; flex-shrink: 0; }
-  #animList div { padding: 4px 8px; cursor: pointer; border-radius: 3px; margin-bottom: 2px; }
-  #animList div:hover { background: #1e1e32; }
-  #animList div.sel { background: #4c3a8e; }
+  #right { width: 300px; border-left: 1px solid var(--border); flex-shrink: 0; }
+  #animList div { padding: 6px 10px; cursor: pointer; border-radius: var(--radius-sm); margin-bottom: 3px; color: var(--fg-muted); transition: background var(--dur-fast) var(--ease-out-expo), color var(--dur-fast) var(--ease-out-expo); }
+  #animList div:hover { background: var(--surface); color: var(--fg); }
+  #animList div.sel { background: var(--accent-glow-soft); color: var(--fg); box-shadow: inset 2px 0 0 var(--accent-bright); }
   #canvasWrap { flex: 1; position: relative; min-height: 0; }
   canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
-  #timeline { border-top: 1px solid #26263c; padding: 8px 12px; }
+  #timeline { border-top: 1px solid var(--border); padding: 8px 12px; }
   #frameStrip { display: flex; gap: 4px; overflow-x: auto; padding: 6px 0; }
-  .frameCell { min-width: 64px; border: 1px solid #3a3a5e; border-radius: 4px; padding: 4px 6px; cursor: pointer; text-align: center; flex-shrink: 0; background: #14141f; }
-  .frameCell.sel { border-color: #a78bfa; background: #2a2050; }
-  .frameCell .dur { color: #94a3b8; font-size: 11px; }
-  .frameCell .tag { font-size: 10px; color: #34d399; }
+  .frameCell { min-width: 64px; border: 1px solid var(--border-hover); border-radius: var(--radius-md); padding: 5px 7px; cursor: pointer; text-align: center; flex-shrink: 0; background: var(--bg-input); transition: border-color var(--dur-fast) var(--ease-out-expo), background var(--dur-fast) var(--ease-out-expo); }
+  .frameCell.sel { border-color: var(--border-accent); background: var(--accent-glow-soft); }
+  .frameCell .dur { color: var(--fg-muted); font-size: 11px; }
+  .frameCell .tag { font-size: 10px; color: var(--ok); }
   .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 4px 0; }
-  .hitboxEntry { border: 1px solid #3a3a5e; border-radius: 4px; padding: 6px; margin: 6px 0; }
-  .hint { color: #64748b; font-size: 11px; margin-top: 4px; }
-  textarea { width: 100%; height: 120px; background: #14141f; color: #a5f3c4; border: 1px solid #3a3a5e; font: 11px monospace; padding: 6px; }
-#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
-#back:hover{color:#e0d7ff}
+  .hitboxEntry { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-panel); padding: 8px; margin: 8px 0; }
+  .hint { color: var(--fg-faint); font-size: 11px; margin-top: 4px; line-height: 1.6; }
+  textarea { width: 100%; height: 120px; background: var(--bg-deep); color: var(--info); border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font: 11px var(--font-mono); padding: 8px; }
 </style>
 </head>
-<body>
-<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
 
 
-<div id="left" class="panel">
+<div id="left" class="panel ds-scroll">
   <h2>Animations</h2>
   <div id="animList"></div>
   <div class="row" style="margin-top:8px">
@@ -52,40 +57,20 @@
   </div>
   <div class="hint">Keys are free-form — convention is <b>entity_action</b> (player_run, child_heal, lancer_thrust).</div>
 
-  <h3>Dissect from current game</h3>
-  <div class="row">
-    <select id="dissectDir">
-      <optgroup label="Attacks">
-        <option value="attack:forward">Forward</option>
-        <option value="attack:up">Up</option>
-        <option value="attack:down">Down</option>
-        <option value="attack:forward_heavy">Forward (Heavy)</option>
-      </optgroup>
-      <optgroup label="Movement">
-        <option value="dash">Dash (all chain tiers)</option>
-        <option value="phasedash">Phase Dash Trail</option>
-        <option value="wallslide">Wall Slide</option>
-      </optgroup>
-      <optgroup label="Abilities">
-        <option value="echo">Echo (Phase Dash)</option>
-        <option value="stillpoint">Stillpoint</option>
-        <option value="shard_aim">Shard Shot Aim</option>
-        <option value="shard_beam">Shard Shot Beam</option>
-        <option value="gravball">Gravity Ball</option>
-        <option value="tether_beam">Void Tether Beam (style)</option>
-      </optgroup>
-    </select>
-    <button onclick="dissect()">🎬 Dissect</button>
-  </div>
-  <div class="hint">Auto-generates a real frame-by-frame breakdown of that ability's <i>actual</i> current in-game VFX — same shapes, same hitboxes (where applicable), same timing — as a faithful starting point. Overwrites existing key(s) if already present (asks first). Replace any frame's look with your own PNG (upload below) and drag its hitbox to match; everything else keeps working exactly as the game does today until you do. "Void Tether Beam" is different — it only carries color/width style, since its two endpoints are always computed live against whatever you're tethering to.</div>
-
-  <h3>Enemy</h3>
+  <h3>Entity</h3>
   <div class="row">
     <select id="enemyPick" style="width:100%">
-      <option value="">— pick a built-in enemy —</option>
+      <option value="">— pick an entity —</option>
     </select>
   </div>
   <div id="enemyPickHint" class="hint"></div>
+
+  <h3>Dissect this entity's attacks</h3>
+  <div class="row">
+    <select id="dissectDir" style="width:100%"></select>
+    <button onclick="dissect()">🎬 Dissect</button>
+  </div>
+  <div class="hint">Only shows the attacks/states that belong to whichever entity is picked above — no more digging through the Sovereign's list to find a regular enemy's, or vice versa. Auto-generates a real frame-by-frame breakdown from that attack's <i>actual</i> current in-game numbers (hitbox, damage, knockback, timing) as a faithful starting point — a 🎬 marker means it's a real dissection (numerically identical to what's on screen today), a + marker means it's just a blank starting frame (state has no combat data to pull from, e.g. idle/walk). Overwrites existing key(s) if already present (asks first). Replace any frame's look with your own PNG (upload below) and drag its hitbox to match; everything else keeps working exactly as the game does today until you do.</div>
 
   <h3>Entity mock</h3>
   <div class="row">
@@ -123,7 +108,7 @@
   </div>
 </div>
 
-<div id="right" class="panel">
+<div id="right" class="panel ds-scroll">
   <h2 id="frameTitle">Frame</h2>
 
   <h3>Timing</h3>
@@ -175,6 +160,11 @@
     <div id="hitboxList"></div>
     <button onclick="addHitbox()">+ Hitbox</button>
     <div class="hint">Drag boxes on the canvas too — yellow = hitbox, teal = hurtbox.</div>
+
+    <h3>Frame Events <span class="hint">(fire once, when this frame is first entered)</span></h3>
+    <div id="eventList"></div>
+    <button onclick="addEvent()">+ Event</button>
+    <div class="hint">Consumed by boss.js's Animator.consumeFrameEvents() bridge — camera shake, one-shot SFX, or a spawned projectile aimed at the player (or a fixed velocity). No effect on entities/attacks that don't call consumeFrameEvents().</div>
   </div>
 </div>
 
@@ -183,6 +173,7 @@
 <script src="../game/attackVFX.js"></script>
 <script src="../game/physics.js"></script>
 <script src="../game/enemy.js"></script>
+<script src="../game/boss.js"></script>
 <script src="../game/devContext.js"></script>
 <script src="../game/unsavedGuard.js"></script>
 <script src="../game/undoHistory.js"></script>
@@ -259,7 +250,21 @@ function saveDef(key, def) {
 
 function dissect() {
   const val = document.getElementById('dissectDir').value;
+  if (!val) return;
   if (val.startsWith('attack:')) dissectAttack(val.slice('attack:'.length));
+  else if (val.startsWith('boss:')) dissectBoss(val.slice('boss:'.length));
+  else if (val.startsWith('colossus:')) dissectColossus(val.slice('colossus:'.length));
+  else if (val.startsWith('temporalwarden:')) dissectTemporalWarden(val.slice('temporalwarden:'.length));
+  else if (val.startsWith('enemyattack:')) {
+    const [, category, key, idx] = val.split(':');
+    dissectEnemyAttack(category, key, Number(idx));
+  } else if (val.startsWith('state:')) {
+    // Not a real dissection — just idle/walk/death (or a bespoke class's
+    // non-attack states) where there's no combat data to pull numbers from.
+    const rest = val.slice('state:'.length);
+    const [key, w, h] = rest.split('|');
+    jumpToAnimKey(key, w !== undefined && w !== '' ? Number(w) : undefined, h !== undefined && h !== '' ? Number(h) : undefined);
+  }
   else if (val === 'dash') dissectDash();
   else if (val === 'phasedash') dissectPhaseDashTrail();
   else if (val === 'wallslide') dissectWallSlide();
@@ -300,6 +305,165 @@ function dissectAttack(dir) { // 'forward'|'up'|'down'|'forward_heavy'
 
   if (!saveDef(key, { entity: 'player', loop: false, frames })) return;
   currentKey = key; frameIdx = 0; selectedBox = null;
+  refresh();
+}
+
+// ── The Sovereign (boss.js) dissection (2026-07-27) ─────────────────────
+// Every number here is copied straight from boss.js's own attackDefs /
+// getAttackHitbox() switch / start*() telegraph durations — see
+// bossAnimStateKey()'s comment for why windup and active-hitbox are TWO
+// separate keys (the real fight literally calls Animator.play() twice,
+// once per phase of the attack), not one continuous timeline like the
+// player's dissectAttack() above. Body-as-hitbox attacks (dash_chain,
+// tether_arrival) use nominal active-window durations since their real
+// duration is dynamic (wall distance / tether-arrival distance) — still a
+// faithful STARTING point, not a live-computed one.
+const BOSS_ENTITY = { width: BOSS_WIDTH, height: BOSS_HEIGHT };
+const BOSS_WINDUPS = {
+  melee: 14, heavy: 40, dash_chain: 26, tether: 35,
+  shard: 22, beam_telegraph: 45, stillpoint_burst: 55,
+};
+// { activeDuration, hitbox: {x,y,w,h,noMirror}, damage, knockbackX, knockbackY, hitStun }
+const BOSS_ACTIVE_ATTACKS = {
+  melee_forward: { activeDuration: 10, hitbox: { x: BOSS_WIDTH, y: 3, w: 86, h: 50 },
+    damage: 1, knockbackX: 7, knockbackY: -4, hitStun: 10 },
+  melee_up: { activeDuration: 10, hitbox: { x: -10, y: -60, w: BOSS_WIDTH + 20, h: 64, noMirror: true },
+    damage: 1, knockbackX: 5, knockbackY: -8, hitStun: 10 },
+  melee_down: { activeDuration: 10, hitbox: { x: -10, y: BOSS_HEIGHT - 8, w: BOSS_WIDTH + 20, h: 64, noMirror: true },
+    damage: 1, knockbackX: 5, knockbackY: 4, hitStun: 10 },
+  heavy: { activeDuration: 14, hitbox: { x: BOSS_WIDTH - 10, y: -10, w: 120, h: BOSS_HEIGHT + 20 },
+    damage: 2, knockbackX: 18, knockbackY: -9, hitStun: 22 },
+  dash_chain: { activeDuration: 8, hitbox: { x: 0, y: 0, w: BOSS_WIDTH, h: BOSS_HEIGHT },
+    damage: 1, knockbackX: 10, knockbackY: -5, hitStun: 12 },
+  tether_arrival: { activeDuration: 10, hitbox: { x: 0, y: 0, w: BOSS_WIDTH, h: BOSS_HEIGHT },
+    damage: 2, knockbackX: 14, knockbackY: -8, hitStun: 18 },
+};
+
+function dissectBoss(part) {
+  if (part.startsWith('active_')) {
+    const attackKey = part.slice('active_'.length);
+    const a = BOSS_ACTIVE_ATTACKS[attackKey];
+    if (!a) return;
+    const key = `boss_active_${attackKey}`;
+    const frames = [{
+      duration: a.activeDuration,
+      pose: 'idle', // boss.js has no attack_swing-style pose yet — placeholder, replace with your own art
+      hitboxes: [{ x: a.hitbox.x, y: a.hitbox.y, w: a.hitbox.w, h: a.hitbox.h,
+        noMirror: a.hitbox.noMirror || false,
+        damage: a.damage, knockbackX: a.knockbackX, knockbackY: a.knockbackY, hitStun: a.hitStun }],
+      cancelableFrom: false,
+    }];
+    if (!saveDef(key, { entity: 'boss', loop: false, frames })) return;
+    document.getElementById('entW').value = BOSS_WIDTH;
+    document.getElementById('entH').value = BOSS_HEIGHT;
+    applyEntity();
+    currentKey = key; frameIdx = 0; selectedBox = null;
+    refresh();
+    return;
+  }
+
+  const duration = BOSS_WINDUPS[part];
+  if (duration === undefined) return;
+  const key = `boss_${part}`;
+  const frames = [{ duration, pose: 'idle', cancelableFrom: false }];
+  if (!saveDef(key, { entity: 'boss', loop: false, frames })) return;
+  document.getElementById('entW').value = BOSS_WIDTH;
+  document.getElementById('entH').value = BOSS_HEIGHT;
+  applyEntity();
+  currentKey = key; frameIdx = 0; selectedBox = null;
+  refresh();
+}
+
+// ── Colossus Core (ComposedEnemy-free bespoke class) dissection (2026-07-27)
+// Same philosophy as dissectBoss() — numbers copied straight from its own
+// getAttackHitbox()/getAttackDamageAndKnockback() and state-timer literals
+// in enemy.js. facing=1 convention (mirrored automatically for facing=-1).
+const COLOSSUS_WIDTH = 84, COLOSSUS_HEIGHT = 92;
+const COLOSSUS_WINDUPS = { telegraph: 40, swing_telegraph: 26 };
+const COLOSSUS_ACTIVE = {
+  charging: { activeDuration: 20, hitbox: { x: COLOSSUS_WIDTH, y: 10, w: 26, h: COLOSSUS_HEIGHT - 20 },
+    damage: 2, knockbackX: 6, knockbackY: -2, hitStun: 14 },
+  swinging: { activeDuration: 16, hitbox: { x: COLOSSUS_WIDTH - 10, y: -10, w: 56, h: Math.round(COLOSSUS_HEIGHT * 0.7) },
+    damage: 2, knockbackX: 5, knockbackY: -9, hitStun: 18 },
+};
+function dissectColossus(part) {
+  if (COLOSSUS_ACTIVE[part]) {
+    const a = COLOSSUS_ACTIVE[part];
+    const key = `colossus_${part}`;
+    const frames = [{ duration: a.activeDuration, pose: 'idle',
+      hitboxes: [{ x: a.hitbox.x, y: a.hitbox.y, w: a.hitbox.w, h: a.hitbox.h,
+        damage: a.damage, knockbackX: a.knockbackX, knockbackY: a.knockbackY, hitStun: a.hitStun }],
+      cancelableFrom: false }];
+    if (!saveDef(key, { entity: 'enemy', loop: false, frames })) return;
+  } else {
+    const duration = COLOSSUS_WINDUPS[part];
+    if (duration === undefined) return;
+    if (!saveDef(`colossus_${part}`, { entity: 'enemy', loop: false, frames: [{ duration, pose: 'idle', cancelableFrom: false }] })) return;
+  }
+  document.getElementById('entW').value = COLOSSUS_WIDTH;
+  document.getElementById('entH').value = COLOSSUS_HEIGHT;
+  applyEntity();
+  currentKey = `colossus_${part}`; frameIdx = 0; selectedBox = null;
+  refresh();
+}
+
+// ── Temporal Warden dissection ───────────────────────────────────────────
+// No melee hitbox exists in the real class (getAttackHitbox() always
+// returns null — its only offense is a chrono bolt projectile), so the
+// only honest dissection is the telegraph windup itself; there's no active-
+// hitbox key to generate because the game doesn't have one to copy from.
+const TEMPORAL_WARDEN_WIDTH = 32, TEMPORAL_WARDEN_HEIGHT_DISSECT = 40;
+function dissectTemporalWarden(part) {
+  if (part !== 'telegraph') return;
+  const key = 'temporal_warden_telegraph';
+  if (!saveDef(key, { entity: 'enemy', loop: false, frames: [{ duration: 34, pose: 'idle', cancelableFrom: false }] })) return;
+  document.getElementById('entW').value = TEMPORAL_WARDEN_WIDTH;
+  document.getElementById('entH').value = TEMPORAL_WARDEN_HEIGHT_DISSECT;
+  applyEntity();
+  currentKey = key; frameIdx = 0; selectedBox = null;
+  refresh();
+}
+
+// ── Generic ComposedEnemy / regular-enemy attack dissection (2026-07-27) ──
+// Unlike the Sovereign/Colossus above (hand-transcribed numbers), this pulls
+// the REAL hitbox live off ATTACK_BEHAVIORS[type].getHitbox(enemy, atkDef) —
+// the exact same function game.js's combat loop calls — by constructing a
+// real instance, forcing `attacking = true`/`facing = 1`, and reading its
+// result. Covers every attack of every regular enemy and ComposedEnemy
+// miniboss generically, with no per-type transcription needed; passive
+// types (contact_field, shield_reflect, shield_slip) and grab-style ones
+// (grab, command_grab, ranged_projectile) have no `getHitbox` at all — those
+// still get a windup key, just no hitbox on the active frame (there's
+// nothing to copy — the game itself has no melee-style hitbox for them).
+function dissectEnemyAttack(category, key, idx) {
+  const inst = constructEntity(category, key);
+  if (!inst) return;
+  const atkDef = inst.attacks && inst.attacks[idx];
+  if (!atkDef) return;
+  const behavior = ATTACK_BEHAVIORS[atkDef.type];
+  const id = (inst.def && inst.def.id) || key;
+
+  inst.x = 0; inst.y = 0; inst.facing = 1; inst.attacking = true;
+  const hb = (behavior && behavior.getHitbox) ? behavior.getHitbox(inst, atkDef) : null;
+
+  const windupKey = `enemy_${id}_windup_${atkDef.type}`;
+  const activeKey = `enemy_${id}_attack_${atkDef.type}`;
+  const windupFrames = atkDef.windupFrames ?? 20;
+  const activeFrames = atkDef.activeFrames ?? 15;
+
+  if (!saveDef(windupKey, { entity: 'enemy', loop: false, frames: [{ duration: windupFrames, pose: 'idle', cancelableFrom: false }] })) return;
+  const activeFrame = { duration: activeFrames, pose: 'idle', cancelableFrom: false };
+  if (hb) {
+    activeFrame.hitboxes = [{ x: hb.x, y: hb.y, w: hb.width, h: hb.height,
+      damage: atkDef.damage ?? 1, knockbackX: atkDef.knockbackX ?? 4, knockbackY: atkDef.knockbackY ?? -3,
+      hitStun: atkDef.knockbackHitStun ?? 10 }];
+  }
+  if (!saveDef(activeKey, { entity: 'enemy', loop: false, frames: [activeFrame] })) return;
+
+  document.getElementById('entW').value = inst.width;
+  document.getElementById('entH').value = inst.height;
+  applyEntity();
+  currentKey = activeKey; frameIdx = 0; selectedBox = null;
   refresh();
 }
 
@@ -488,41 +652,270 @@ const ENEMY_LABELS = {
   deflector_drone: 'Deflector Drone', mirror_sprite: 'Mirror Sprite', echo_stalker: 'Echo Stalker',
   blitz_guard: 'Blitz Guard',
 };
+
+// Miniboss roster (2026-07-27) — mirrors game.js's MINIBOSS_CLASSES id ->
+// class mapping, but references the classes directly (they're all defined
+// in enemy.js, already loaded above) instead of needing game.js itself —
+// game.js starts a real gameLoop()/init() the instant it's parsed, which
+// this editor's own canvas/DOM don't match, so it's deliberately never
+// loaded here. `kind: 'bespoke'` = a standalone class with hand-transcribed
+// dissection (like the Sovereign) instead of the generic ATTACK_BEHAVIORS
+// introspection `kind: 'composed'` gets. Colossus Core / Temporal Warden
+// got their Animator/ANIM_DEFS bridge added 2026-07-27 (see enemy.js).
+const MINIBOSS_INFO = {
+  static_guardian:   { label: 'The Conduit',            kind: 'composed', ctor: () => (typeof TheConduit !== 'undefined' ? TheConduit : null) },
+  hollow_guardian:   { label: 'Mirror King',             kind: 'composed', ctor: () => (typeof MirrorKing !== 'undefined' ? MirrorKing : null) },
+  graviton_sentinel: { label: "Sovereign's Guard",       kind: 'composed', ctor: () => (typeof GravitonGuard !== 'undefined' ? GravitonGuard : null) },
+  paradox_engine:    { label: 'The Assembler',           kind: 'composed', ctor: () => (typeof TheAssembler !== 'undefined' ? TheAssembler : null) },
+  timeline_keeper:   { label: 'The Stationmaster',       kind: 'composed', ctor: () => (typeof TheStationmaster !== 'undefined' ? TheStationmaster : null) },
+  abyss_guardian:    { label: 'Quantum Pursuer',         kind: 'composed', ctor: () => (typeof QuantumPursuer !== 'undefined' ? QuantumPursuer : null) },
+  warp_guardian:     { label: 'Warden & Hollow',         kind: 'composed', ctor: () => (typeof WardenAndHollow !== 'undefined' ? WardenAndHollow : null) },
+  polar_guardian:    { label: 'Electromagnetic Golem',   kind: 'composed', ctor: () => (typeof ElectromagneticGolem !== 'undefined' ? ElectromagneticGolem : null) },
+  horizon_core:      { label: 'Horizon Core',            kind: 'composed', ctor: () => (typeof HorizonCore !== 'undefined' ? HorizonCore : null) },
+  colossus_core:     { label: 'Colossus Core',           kind: 'bespoke', ctor: () => (typeof ColossusCore !== 'undefined' ? ColossusCore : null) },
+  chrono_ally:       { label: 'Temporal Warden',         kind: 'bespoke', ctor: () => (typeof TemporalWarden !== 'undefined' ? TemporalWarden : null) },
+};
+
 (function populateEnemyPick() {
   const sel = document.getElementById('enemyPick');
   if (typeof ENEMY_REGISTRY === 'undefined') {
     document.getElementById('enemyPickHint').textContent = 'enemy.js failed to load — enemy picker unavailable.';
     return;
   }
+
+  const playerGroup = document.createElement('optgroup');
+  playerGroup.label = 'Player';
+  const playerOpt = document.createElement('option');
+  playerOpt.value = 'player:player';
+  playerOpt.textContent = 'Player';
+  playerGroup.appendChild(playerOpt);
+  sel.appendChild(playerGroup);
+
+  const bossGroup = document.createElement('optgroup');
+  bossGroup.label = 'Boss';
+  const bossOpt = document.createElement('option');
+  bossOpt.value = 'boss:sovereign';
+  bossOpt.textContent = 'The Sovereign (final boss)';
+  bossGroup.appendChild(bossOpt);
+  sel.appendChild(bossGroup);
+
+  const mbGroup = document.createElement('optgroup');
+  mbGroup.label = 'Minibosses';
+  for (const id in MINIBOSS_INFO) {
+    const opt = document.createElement('option');
+    opt.value = `miniboss:${id}`;
+    opt.textContent = MINIBOSS_INFO[id].label;
+    mbGroup.appendChild(opt);
+  }
+  sel.appendChild(mbGroup);
+
+  const enemyGroup = document.createElement('optgroup');
+  enemyGroup.label = 'Regular Enemies';
   for (const key in ENEMY_REGISTRY) {
     if (key === 'composed') continue;
     const opt = document.createElement('option');
-    opt.value = key;
+    opt.value = `enemy:${key}`;
     opt.textContent = ENEMY_LABELS[key] || key;
-    sel.appendChild(opt);
+    enemyGroup.appendChild(opt);
   }
+  sel.appendChild(enemyGroup);
 })();
 
-function pickEnemy() {
-  const key = document.getElementById('enemyPick').value;
-  const hint = document.getElementById('enemyPickHint');
-  if (!key) { hint.textContent = ''; return; }
-  let inst;
+// Jumps straight to (creating if needed) a key with no combat data to
+// dissect — idle/walk/death and similar. Used by dissect()'s 'state:' case.
+function jumpToAnimKey(key, w, h) {
+  if (w !== undefined) {
+    document.getElementById('entW').value = w;
+    document.getElementById('entH').value = h;
+    applyEntity();
+  }
+  if (!ANIM_DEFS[key]) {
+    ANIM_DEFS[key] = { entity: 'enemy', loop: false, frames: [{ duration: 4, pose: 'idle', cancelableFrom: false }] };
+  }
+  currentKey = key; frameIdx = 0; selectedBox = null;
+  refresh();
+  if (typeof DevContext !== 'undefined') DevContext.set({ currentAnimationKey: key });
+  if (historyMgr) historyMgr.push();
+}
+
+// Constructs a live instance for dissection purposes only (never update()'d
+// or draw()'n) — shared by pickEnemy() and dissectEnemyAttack().
+function constructEntity(category, key) {
   try {
-    inst = new ENEMY_REGISTRY[key](0, 0);
-  } catch (e) {
-    hint.textContent = `Couldn't construct ${key}: ${e.message}`;
+    if (category === 'enemy') return new ENEMY_REGISTRY[key](0, 0);
+    if (category === 'miniboss') {
+      const info = MINIBOSS_INFO[key];
+      if (!info || !info.ctor) return null;
+      const Ctor = info.ctor();
+      return Ctor ? new Ctor(0, 0) : null;
+    }
+  } catch (e) { return null; }
+  return null;
+}
+
+// Appends one <optgroup> of dissect options. `entries`: [{value, text, key}]
+// — `key` (optional) is the exact ANIM_DEFS key this entry would produce,
+// used only to show ✓ (already authored) vs a type-appropriate marker.
+function addDissectGroup(sel, label, entries) {
+  const g = document.createElement('optgroup');
+  g.label = label;
+  for (const e of entries) {
+    const opt = document.createElement('option');
+    opt.value = e.value;
+    const marker = e.key !== undefined
+      ? (ANIM_DEFS[e.key] ? '✓ ' : (e.value.startsWith('state:') ? '+ ' : '🎬 '))
+      : '';
+    opt.textContent = marker + e.text;
+    g.appendChild(opt);
+  }
+  sel.appendChild(g);
+}
+
+// Rebuilds the "Dissect this entity's attacks" dropdown to show ONLY the
+// currently-picked entity's own attacks — the actual fix for "I shouldn't
+// still see player_attack_up when I've picked a boss." Regular enemies and
+// ComposedEnemy minibosses are enumerated fully/generically (every attack in
+// `inst.attacks`, real hitbox pulled live from ATTACK_BEHAVIORS); the
+// Sovereign and the two bespoke minibosses use hand-verified curated lists
+// since they're not data-driven the same way.
+function pickEnemy() {
+  const val = document.getElementById('enemyPick').value;
+  const hint = document.getElementById('enemyPickHint');
+  const dissectSel = document.getElementById('dissectDir');
+  dissectSel.innerHTML = '';
+  if (!val) { hint.innerHTML = ''; return; }
+  const [category, key] = val.split(/:(.*)/s);
+
+  if (category === 'player') {
+    hint.innerHTML = 'Player — every dissectable attack/ability the player has.';
+    addDissectGroup(dissectSel, 'Attacks', [
+      { value: 'attack:forward', text: 'Forward' }, { value: 'attack:up', text: 'Up' },
+      { value: 'attack:down', text: 'Down' }, { value: 'attack:forward_heavy', text: 'Forward (Heavy)' },
+    ]);
+    addDissectGroup(dissectSel, 'Movement', [
+      { value: 'dash', text: 'Dash (all chain tiers)' }, { value: 'phasedash', text: 'Phase Dash Trail' }, { value: 'wallslide', text: 'Wall Slide' },
+    ]);
+    addDissectGroup(dissectSel, 'Abilities', [
+      { value: 'echo', text: 'Echo (Phase Dash)' }, { value: 'stillpoint', text: 'Stillpoint' },
+      { value: 'shard_aim', text: 'Shard Shot Aim' }, { value: 'shard_beam', text: 'Shard Shot Beam' },
+      { value: 'gravball', text: 'Gravity Ball' }, { value: 'tether_beam', text: 'Void Tether Beam (style)' },
+    ]);
     return;
   }
+
+  if (category === 'boss') {
+    document.getElementById('entW').value = BOSS_WIDTH;
+    document.getElementById('entH').value = BOSS_HEIGHT;
+    applyEntity();
+    hint.innerHTML = 'The Sovereign — 13 real attacks (windup + active-hitbox keys), pulled straight from boss.js\'s own numbers.';
+    addDissectGroup(dissectSel, 'Melee Swing', [
+      { value: 'boss:melee', text: 'Windup', key: 'boss_melee' },
+      { value: 'boss:active_melee_forward', text: 'Active (forward)', key: 'boss_active_melee_forward' },
+      { value: 'boss:active_melee_up', text: 'Active (up)', key: 'boss_active_melee_up' },
+      { value: 'boss:active_melee_down', text: 'Active (down)', key: 'boss_active_melee_down' },
+    ]);
+    addDissectGroup(dissectSel, 'Charged Heavy', [
+      { value: 'boss:heavy', text: 'Windup', key: 'boss_heavy' },
+      { value: 'boss:active_heavy', text: 'Active', key: 'boss_active_heavy' },
+    ]);
+    addDissectGroup(dissectSel, 'Dash-Chain', [
+      { value: 'boss:dash_chain', text: 'Windup', key: 'boss_dash_chain' },
+      { value: 'boss:active_dash_chain', text: 'Active (body hitbox)', key: 'boss_active_dash_chain' },
+    ]);
+    addDissectGroup(dissectSel, 'Reversed Void Tether', [
+      { value: 'boss:tether', text: 'Windup', key: 'boss_tether' },
+      { value: 'boss:active_tether_arrival', text: 'Active (body hitbox)', key: 'boss_active_tether_arrival' },
+    ]);
+    addDissectGroup(dissectSel, 'Other', [
+      { value: 'boss:shard', text: 'Shard Shot — windup (spawns a projectile, no melee hitbox)', key: 'boss_shard' },
+      { value: 'boss:beam_telegraph', text: 'Beam Channel — windup', key: 'boss_beam_telegraph' },
+      { value: 'boss:stillpoint_burst', text: 'Phase III Stillpoint — windup', key: 'boss_stillpoint_burst' },
+    ]);
+    return;
+  }
+
+  if (category === 'miniboss') {
+    const info = MINIBOSS_INFO[key];
+    if (!info) { hint.textContent = `Unknown miniboss id: ${key}`; return; }
+
+    if (key === 'colossus_core') {
+      document.getElementById('entW').value = COLOSSUS_WIDTH;
+      document.getElementById('entH').value = COLOSSUS_HEIGHT;
+      applyEntity();
+      hint.innerHTML = `<b>${info.label}</b> — 2 real attacks (windup + active), pulled straight from its own hardcoded numbers.`;
+      addDissectGroup(dissectSel, 'Charge', [
+        { value: 'colossus:telegraph', text: 'Windup', key: 'colossus_telegraph' },
+        { value: 'colossus:charging', text: 'Active', key: 'colossus_charging' },
+      ]);
+      addDissectGroup(dissectSel, 'Swing', [
+        { value: 'colossus:swing_telegraph', text: 'Windup', key: 'colossus_swing_telegraph' },
+        { value: 'colossus:swinging', text: 'Active', key: 'colossus_swinging' },
+      ]);
+      addDissectGroup(dissectSel, 'Other', [
+        { value: `state:colossus_idle|${COLOSSUS_WIDTH}|${COLOSSUS_HEIGHT}`, text: 'Idle (blank, no combat data)', key: 'colossus_idle' },
+      ]);
+      return;
+    }
+    if (key === 'chrono_ally') {
+      document.getElementById('entW').value = TEMPORAL_WARDEN_WIDTH;
+      document.getElementById('entH').value = TEMPORAL_WARDEN_HEIGHT_DISSECT;
+      applyEntity();
+      hint.innerHTML = `<b>${info.label}</b> — no melee hitbox in the real class (its only offense is a chrono bolt projectile), so only the windup telegraph is dissectable.`;
+      addDissectGroup(dissectSel, 'Chrono Bolt', [
+        { value: 'temporalwarden:telegraph', text: 'Windup (telegraph)', key: 'temporal_warden_telegraph' },
+      ]);
+      addDissectGroup(dissectSel, 'Other', [
+        { value: `state:temporal_warden_idle|${TEMPORAL_WARDEN_WIDTH}|${TEMPORAL_WARDEN_HEIGHT_DISSECT}`, text: 'Idle (blank)', key: 'temporal_warden_idle' },
+        { value: `state:temporal_warden_flash|${TEMPORAL_WARDEN_WIDTH}|${TEMPORAL_WARDEN_HEIGHT_DISSECT}`, text: 'Rewind-flash (blank)', key: 'temporal_warden_flash' },
+      ]);
+      return;
+    }
+
+    // Composed miniboss — every attack, generic.
+    const inst = constructEntity('miniboss', key);
+    if (!inst) { hint.textContent = `Couldn't construct ${info.label}.`; return; }
+    document.getElementById('entW').value = inst.width;
+    document.getElementById('entH').value = inst.height;
+    applyEntity();
+    const id = (inst.def && inst.def.id) || key;
+    hint.innerHTML = `<b>${info.label}</b> (id: ${id}) — every real attack below, hitbox pulled live from ATTACK_BEHAVIORS (the same function the actual fight uses).`;
+    addDissectGroup(dissectSel, 'States', [
+      { value: `state:enemy_${id}_idle|${inst.width}|${inst.height}`, text: 'Idle', key: `enemy_${id}_idle` },
+      { value: `state:enemy_${id}_walk`, text: 'Walk', key: `enemy_${id}_walk` },
+      { value: `state:enemy_${id}_death`, text: 'Death', key: `enemy_${id}_death` },
+    ]);
+    (inst.attacks || []).forEach((a, i) => {
+      const hasHitbox = !!(ATTACK_BEHAVIORS[a.type] && ATTACK_BEHAVIORS[a.type].getHitbox);
+      addDissectGroup(dissectSel, a.type, [{
+        value: `enemyattack:miniboss:${key}:${i}`,
+        text: hasHitbox ? 'Windup + active (real hitbox)' : 'Windup only (this type has no melee hitbox in the real game)',
+        key: `enemy_${id}_attack_${a.type}`,
+      }]);
+    });
+    return;
+  }
+
+  // Regular enemy — same generic treatment.
+  const inst = constructEntity('enemy', key);
+  if (!inst) { hint.textContent = `Couldn't construct ${key}.`; return; }
   document.getElementById('entW').value = inst.width;
   document.getElementById('entH').value = inst.height;
   applyEntity();
   const id = (inst.def && inst.def.id) || key;
-  document.getElementById('newAnimName').value = `enemy_${id}_idle`;
-  const attackTypes = inst.attacks ? [...new Set(inst.attacks.map((a) => a.type))] : [];
-  hint.textContent = attackTypes.length
-    ? `States: idle, walk, death, windup_<type>, attack_<type> — this one's attack type(s): ${attackTypes.join(', ')}.`
-    : `States: idle, walk, death (no attacks of its own).`;
+  hint.innerHTML = `<b>${ENEMY_LABELS[key] || key}</b> — every real attack below, hitbox pulled live from ATTACK_BEHAVIORS (the same function the actual fight uses).`;
+  addDissectGroup(dissectSel, 'States', [
+    { value: `state:enemy_${id}_idle|${inst.width}|${inst.height}`, text: 'Idle', key: `enemy_${id}_idle` },
+    { value: `state:enemy_${id}_walk`, text: 'Walk', key: `enemy_${id}_walk` },
+    { value: `state:enemy_${id}_death`, text: 'Death', key: `enemy_${id}_death` },
+  ]);
+  (inst.attacks || []).forEach((a, i) => {
+    const hasHitbox = !!(ATTACK_BEHAVIORS[a.type] && ATTACK_BEHAVIORS[a.type].getHitbox);
+    addDissectGroup(dissectSel, a.type, [{
+      value: `enemyattack:enemy:${key}:${i}`,
+      text: hasHitbox ? 'Windup + active (real hitbox)' : 'Windup only (this type has no melee hitbox in the real game)',
+      key: `enemy_${id}_attack_${a.type}`,
+    }]);
+  });
 }
 document.getElementById('enemyPick').addEventListener('change', pickEnemy);
 
@@ -536,7 +929,7 @@ function renderStrip() {
     const cell = document.createElement('div');
     cell.className = 'frameCell' + (i === frameIdx ? ' sel' : '');
     cell.innerHTML = `#${i}<div class="dur">${f.duration || 4}f</div>` +
-      `<div class="tag">${f.hitboxes && f.hitboxes.length ? '⚔' : ''}${f.cancelableFrom ? ' ✓' : ''}${f.image ? ' 🖼' : ''}</div>`;
+      `<div class="tag">${f.hitboxes && f.hitboxes.length ? '⚔' : ''}${f.events && f.events.length ? ' 💥' : ''}${f.cancelableFrom ? ' ✓' : ''}${f.image ? ' 🖼' : ''}</div>`;
     cell.onclick = () => { frameIdx = i; selectedBox = null; refresh(); };
     strip.appendChild(cell);
   });
@@ -634,6 +1027,92 @@ function renderFramePanel() {
       </div>`;
     list.appendChild(div);
   });
+
+  renderEventList();
+}
+
+// ── Frame events (2026-07-27) ────────────────────────────────────────────
+// One-shot side effects (camera shake / sfx / spawn a projectile) fired by
+// game/animdata.js's Animator.consumeFrameEvents() the tick a frame is
+// first entered. Type-specific fields shown per row; see boss.js's
+// _consumeFrameEvents() for exactly which fields each type reads (and their
+// defaults when omitted here).
+const EVENT_TYPES = ['cameraShake', 'sfx', 'spawnProjectile'];
+function renderEventList() {
+  const f = frame(); if (!f) return;
+  const list = document.getElementById('eventList');
+  list.innerHTML = '';
+  (f.events || []).forEach((ev, i) => {
+    const div = document.createElement('div');
+    div.className = 'hitboxEntry';
+    const typeOpts = EVENT_TYPES.map(t => `<option value="${t}" ${ev.type === t ? 'selected' : ''}>${t}</option>`).join('');
+    let fieldsHtml = '';
+    if (ev.type === 'cameraShake') {
+      fieldsHtml = `<div class="row">
+        <label>shake <input type="number" value="${ev.shake ?? 10}" onchange="setEvent(${i},'shake',this.value,true)"></label>
+        <label>intensity <input type="number" value="${ev.intensity ?? 5}" onchange="setEvent(${i},'intensity',this.value,true)"></label>
+      </div>`;
+    } else if (ev.type === 'sfx') {
+      fieldsHtml = `<div class="row">
+        <label>SFX name <input type="text" value="${ev.name ?? ''}" placeholder="e.g. bossHit" onchange="setEvent(${i},'name',this.value,false)"></label>
+      </div>`;
+    } else if (ev.type === 'spawnProjectile') {
+      fieldsHtml = `<div class="row">
+        <label><input type="checkbox" ${ev.aimAtPlayer ? 'checked' : ''} onchange="setEventBool(${i},'aimAtPlayer',this.checked)"> aim at player</label>
+      </div>
+      <div class="row">
+        ${ev.aimAtPlayer
+          ? `<label>speed <input type="number" value="${ev.speed ?? 5}" onchange="setEvent(${i},'speed',this.value,true)"></label>`
+          : `<label>vx <input type="number" value="${ev.vx ?? 5}" onchange="setEvent(${i},'vx',this.value,true)"></label>
+             <label>vy <input type="number" value="${ev.vy ?? 0}" onchange="setEvent(${i},'vy',this.value,true)"></label>`}
+      </div>
+      <div class="row">
+        <label>dmg <input type="number" value="${ev.damage ?? 1}" step="0.5" onchange="setEvent(${i},'damage',this.value,true)"></label>
+        <label>kb-x <input type="number" value="${ev.knockbackX ?? 4}" onchange="setEvent(${i},'knockbackX',this.value,true)"></label>
+        <label>kb-y <input type="number" value="${ev.knockbackY ?? -3}" onchange="setEvent(${i},'knockbackY',this.value,true)"></label>
+      </div>`;
+    }
+    div.innerHTML = `<div class="row">
+        <label>Type <select onchange="setEventType(${i},this.value)">${typeOpts}</select></label>
+        <button class="danger" onclick="delEvent(${i})">✕</button>
+      </div>
+      ${fieldsHtml}`;
+    list.appendChild(div);
+  });
+}
+
+function addEvent() {
+  const f = frame(); if (!f) return;
+  f.events = f.events || [];
+  f.events.push({ type: 'cameraShake', shake: 10, intensity: 5 });
+  refresh();
+  if (historyMgr) historyMgr.push();
+}
+function delEvent(i) {
+  const f = frame(); if (!f || !f.events) return;
+  f.events.splice(i, 1);
+  refresh();
+  if (historyMgr) historyMgr.push();
+}
+// Switching type replaces the row's fields entirely — rebuild needed, unlike
+// plain value edits below (which only touch data + redraw, matching setHB()).
+function setEventType(i, type) {
+  const f = frame(); if (!f || !f.events || !f.events[i]) return;
+  f.events[i] = { type };
+  renderEventList();
+  if (historyMgr) historyMgr.push();
+}
+function setEvent(i, prop, val, numeric) {
+  const f = frame(); if (!f || !f.events || !f.events[i]) return;
+  f.events[i][prop] = numeric ? (+val || 0) : val;
+  draw(); renderStrip();
+  if (historyMgr) historyMgr.push();
+}
+function setEventBool(i, prop, checked) {
+  const f = frame(); if (!f || !f.events || !f.events[i]) return;
+  f.events[i][prop] = checked;
+  renderEventList(); // aimAtPlayer toggles which fields show — needs a rebuild
+  if (historyMgr) historyMgr.push();
 }
 
 function applyFrame() {
@@ -796,7 +1275,7 @@ function drawFrameAt(f, t, alpha) {
 function draw() {
   const wrap = document.getElementById('canvasWrap');
   cv.width = wrap.clientWidth; cv.height = wrap.clientHeight;
-  ctx.fillStyle = '#0e0e16';
+  ctx.fillStyle = '#050506'; // ambient base — canvas constraint: only this base fill may change
   ctx.fillRect(0, 0, cv.width, cv.height);
   const t = canvasTransform();
 

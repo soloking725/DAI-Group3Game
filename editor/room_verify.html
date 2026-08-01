@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Room Verification</title>
+<link rel="stylesheet" href="../styles/design-system.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+#topbar h1{font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--fg)}
+#status-banner .dot{width:6px;height:6px}
+#status-banner.idle{color:var(--fg-faint);border-color:var(--border-hover);background:var(--surface)}
+#runBtn{margin-left:auto}
+
+#content{flex:1;overflow-y:auto;padding:var(--space-4)}
+#stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:var(--space-4)}
+
+.hint{color:var(--fg-faint);font-size:11px;padding:var(--space-2)}
+
+.room-id{color:var(--fg);width:220px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono)}
+.room-counts{color:var(--fg-muted);flex:1}
+.room-actions{display:flex;gap:6px;flex-shrink:0}
+.room-actions a{background:var(--bg-input);border:1px solid var(--border-hover);color:var(--fg-muted);font-family:var(--font-mono);font-size:10px;padding:4px 8px;border-radius:var(--radius-sm);text-decoration:none;transition:background var(--dur-fast) var(--ease-out-expo),color var(--dur-fast) var(--ease-out-expo)}
+.room-actions a:hover{background:var(--surface-hover);color:var(--fg)}
+.issue-list{padding:4px 12px 10px 66px;font-size:10px;line-height:1.7;display:none}
+.issue-list.open{display:block}
+.issue{padding:2px 0}
+.issue.error{color:var(--danger)}
+.issue.warn{color:var(--warn)}
+.issue .type{color:inherit;font-weight:bold;margin-right:6px}
+</style>
+</head>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+
+<div id="topbar" class="ds-topbar">
+  <h1>◆ Room Verification — static linter</h1>
+  <div id="status-banner" class="ds-badge idle"><span class="ds-dot dot"></span><span id="status-text">Not yet run</span></div>
+  <button class="ds-btn ds-btn-toggle is-active filterBtn" data-filter="issues">Issues Only</button>
+  <button class="ds-btn ds-btn-toggle filterBtn" data-filter="all">All Rooms</button>
+  <button id="runBtn" class="ds-btn ds-btn-primary">▶ Run Static Linter</button>
+</div>
+
+<div id="content" class="ds-scroll">
+  <div id="stats-row"></div>
+  <div id="rooms-out"><div class="hint">Click "Run Static Linter" — checks reachability (via real jump/dash/phase-dash physics), continuous-floor gaps, embedded doors, and two-way door symmetry across every room in AREAS. See Plans/room_verification_tool_plan.md for what each check does and doesn't catch (it's a fast first pass, not a replacement for the planned bot-walker or for actually spawning in and looking — use the Spawn link on any row for that).</div></div>
+</div>
+
+<script src="../game/physics.js"></script>
+<script src="../game/attackVFX.js"></script>
+<script src="../game/area.js"></script>
+<script src="../game/ability.js"></script>
+<script src="../game/player.js"></script>
+<script src="../game/roomVerify.js"></script>
+<script>
+let lastResults = [];
+let filter = 'issues';
+
+document.querySelectorAll('.filterBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filterBtn').forEach(b => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
+    filter = btn.dataset.filter;
+    renderRooms();
+  });
+});
+
+function runLinter() {
+  const banner = document.getElementById('status-banner');
+  const statusText = document.getElementById('status-text');
+  statusText.textContent = 'Running…';
+  banner.className = 'ds-badge idle';
+
+  lastResults = RoomVerify.verifyAllRooms(AREAS);
+  lastResults.sort((a, b) => {
+    const rank = r => !r.ok ? 0 : r.issues.length ? 1 : 2;
+    return rank(a) - rank(b) || a.id.localeCompare(b.id);
+  });
+
+  const failCount = lastResults.filter(r => !r.ok).length;
+  const warnCount = lastResults.filter(r => r.ok && r.issues.length > 0).length;
+  const passCount = lastResults.length - failCount - warnCount;
+
+  document.getElementById('stats-row').innerHTML = [
+    { n: lastResults.length, l: 'Rooms Checked', cls: '' },
+    { n: passCount, l: 'Clean', cls: 'is-ok' },
+    { n: warnCount, l: 'Warnings Only', cls: 'is-warn' },
+    { n: failCount, l: 'Failing', cls: 'is-danger' },
+  ].map(c => `<div class="ds-stat ${c.cls}"><div class="ds-stat-n">${c.n}</div><div class="ds-stat-l">${c.l}</div></div>`).join('');
+
+  banner.className = 'ds-badge ' + (failCount === 0 ? 'is-ok' : 'is-danger');
+  statusText.textContent = failCount === 0
+    ? (warnCount === 0 ? 'All clear' : `All clear (${warnCount} room(s) with warnings-only, worth a look)`)
+    : `${failCount} room(s) failing`;
+
+  renderRooms();
+}
+
+function issueHtml(issue) {
+  return `<div class="issue ${issue.severity}"><span class="type">${issue.type}</span>${issue.detail}</div>`;
+}
+
+function renderRooms() {
+  const out = document.getElementById('rooms-out');
+  if (lastResults.length === 0) return;
+
+  const shown = filter === 'issues' ? lastResults.filter(r => r.issues.length > 0) : lastResults;
+  if (shown.length === 0) {
+    out.innerHTML = `<div class="hint">No rooms match this filter — every room is fully clean.</div>`;
+    return;
+  }
+
+  out.innerHTML = shown.map(r => {
+    const tagClass = !r.ok ? 'is-danger' : r.issues.length ? 'is-warn' : 'is-ok';
+    const tagText = !r.ok ? 'FAIL' : r.issues.length ? 'warn' : 'pass';
+    const errCount = r.issues.filter(i => i.severity === 'error').length;
+    const warnOnlyCount = r.issues.length - errCount;
+    const counts = r.issues.length === 0 ? 'no issues'
+      : [errCount ? `${errCount} error(s)` : '', warnOnlyCount ? `${warnOnlyCount} warning(s)` : ''].filter(Boolean).join(', ');
+    return `<div class="ds-list-row room-row">
+      <div class="ds-list-row-head room-head" data-room="${r.id}">
+        <span class="ds-badge ${tagClass}" style="width:44px;justify-content:center">${tagText}</span>
+        <span class="room-id">${r.id}</span>
+        <span class="room-counts">${counts}</span>
+        <span class="room-actions">
+          <a href="../index.html?spawnRoom=${encodeURIComponent(r.id)}&loadout=all" target="_blank" title="Boot the real game straight into this room, full loadout granted, no save touched">Spawn →</a>
+          <a href="levelEditor.html?room=${encodeURIComponent(r.id)}" target="_blank">Edit →</a>
+        </span>
+      </div>
+      <div class="issue-list" id="issues-${r.id}">${r.issues.map(issueHtml).join('') || '<div class="hint">No issues.</div>'}</div>
+    </div>`;
+  }).join('');
+
+  out.querySelectorAll('.room-head').forEach(head => {
+    head.addEventListener('click', () => {
+      document.getElementById('issues-' + head.dataset.room).classList.toggle('open');
+    });
+  });
+}
+
+document.getElementById('runBtn').addEventListener('click', runLinter);
+runLinter(); // run on load, same "live by default" convention as dev_hub.html's stats
+</script>
+</body>
+</html>

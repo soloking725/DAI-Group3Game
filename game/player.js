@@ -207,6 +207,11 @@ class Player {
     // Stillpoint / Fracture meter
     this.fractureMeter = 0;        // current pips, 0-fractureMax
     this.fractureMax = 0;          // cap on fractureMeter; starts at 0 (unusable) until Fracture Pips are found, up to FRACTURE_ABS_MAX
+    // Limit Break hold-activation (LIMIT_BREAK_HOLD_TARGETS, ability.js) —
+    // one independent counter per ability, frames its own button has been
+    // held continuously this press. Irrelevant (never reaches the
+    // threshold in practice) below Lv5 for that ability.
+    this.limitBreakHoldTimers = { strength: 0, phase_dash: 0, shard_shot: 0, stillpoint: 0, graviton_surge: 0, void_tether: 0 };
     // Which platform we're standing on this frame — set by the collision
     // loop. Used to carry the player on `moving` platforms and to know
     // whether a drop-through is legal.
@@ -266,6 +271,8 @@ class Player {
     // in the world is slowed, the same way a slowed enemy in the player's
     // own Stillpoint still "decides" instantly but moves slowly.
     this.timeScale = 1;
+
+    this.construct
   }
 
   // Strength Lv2+ (old Lv1+): attack speed +15% (18f cooldown -> 15f). Lv1
@@ -392,6 +399,27 @@ class Player {
       }
     }
 
+    // ── Limit Break — hold-activated (user direction 2026-07-27) ───────────
+    // Independent of each ability's own press/tap/hold handling above/below:
+    // this only WATCHES whether that ability's button is still held, so an
+    // instant-cast ability (Dash, Void Tether) still fires immediately on
+    // press exactly as before — holding the same key afterward can
+    // additionally trigger that ability's Limit Break once its Lv5 unlock
+    // is owned. Below Lv5, canActivateLimitBreak() is always false, so this
+    // loop has zero effect on ordinary play.
+    for (const [key, action] of LIMIT_BREAK_HOLD_TARGETS) {
+      if (isActionPressed(action)) {
+        const held = (this.limitBreakHoldTimers[key] || 0) + 1;
+        this.limitBreakHoldTimers[key] = held;
+        if (held >= LIMIT_BREAK_HOLD_THRESHOLD && canActivateLimitBreak(key, this.fractureMeter)) {
+          this.fractureMeter -= LIMIT_BREAK_COST;
+          startLimitBreak(key);
+        }
+      } else {
+        this.limitBreakHoldTimers[key] = 0;
+      }
+    }
+
     // ── Duck / Crouch + Parry — Down is tap/hold, same press/decide-on-
     // release shape as Stillpoint above. Holding past PARRY_TAP_MAX_HOLD
     // frames commits to Duck/Crawl; releasing before that instead opens a
@@ -508,6 +536,12 @@ class Player {
         this.dropThroughTimer = 12;
         this.grounded = false;
         this.standingPlat = null;
+        // This same jump press must not ALSO fire the buffered/coyote jump
+        // below next frame — coyoteTimer was already refreshed to full this
+        // frame (grounded was still true at the top of update()), so without
+        // this the player launches upward instead of dropping through.
+        this.jumpBufferTimer = 0;
+        this.coyoteTimer = 0;
       } else if ((jumpPressed || this.jumpBufferTimer > 0) && (this.grounded || this.coyoteTimer > 0)) {
         // ── Normal jump ── (flipped during Graviton Surge, or while
         // Gravity Collapse Core's room gravity points 'up' — both mean
@@ -791,10 +825,20 @@ class Player {
         this.charging = true;
         this.chargeTimer = 0;
         this.fullyCharged = false;
+        this.chargeAttackDirection = null;
       }
 
       // While holding, accumulate charge
       if (this.charging && isActionPressed('attack')) {
+        // Latch the aim direction as soon as it's pressed during the hold,
+        // instead of only sampling at release — a quick up-attack tap often
+        // releases the aim key fractionally before the attack key, which
+        // otherwise silently drops it to a forward attack.
+        if (isActionPressed('aimUp')) {
+          this.chargeAttackDirection = 'up';
+        } else if (isActionPressed('aimDown') && this.chargeAttackDirection !== 'up') {
+          this.chargeAttackDirection = 'down';
+        }
         this.chargeTimer++;
         if (this.chargeTimer >= CHARGE_FULL) {
           this.chargeTimer = CHARGE_FULL;
@@ -816,25 +860,23 @@ class Player {
       if (this.charging && !isActionPressed('attack')) {
         this.charging = false;
 
-        // Directional attack based on input
-        if (isActionPressed('aimUp')) {
-          this.attackDirection = 'up';
-        } else if (isActionPressed('aimDown')) {
-          this.attackDirection = 'down';
+        // Directional attack: use whichever aim direction was latched at any
+        // point during the hold (see above); only fall back to reach/forward
+        // if aimUp/aimDown was never pressed during this charge at all.
+        if (this.chargeAttackDirection) {
+          this.attackDirection = this.chargeAttackDirection;
         } else {
           this.attackDirection = this.findReachDirection() || 'forward';
         }
 
         if (this.chargeTimer >= CHARGE_TAP) {
           // ── Heavy attack ──
-          // Strength Lv4 Limit Break: a full-charge release activates the
-          // Enhanced State instead of just a bigger swing, per Rule 1's
-          // "Full Hold: if you have the Lv4 Strength unlock, this activates
-          // your Limit Break on release" (Enemy_Design.pdf).
-          if (this.fullyCharged && canActivateLimitBreak('strength', this.fractureMeter)) {
-            this.fractureMeter -= LIMIT_BREAK_COST;
-            startLimitBreak('strength');
-          }
+          // Strength Lv5 Limit Break now activates on HOLD, not on this
+          // release (see the hold-activation loop above, keyed off 'attack')
+          // — user direction 2026-07-27, superseding Rule 1's original
+          // "Full Hold ... activates your Limit Break on release"
+          // (Enemy_Design.pdf). A full-charge release still just fires the
+          // (now possibly Enhanced) heavy swing.
           this.attacking = true;
           this.attackTimer = ATTACK_DURATION + 4; // slightly longer animation
           this.attackCooldown = this.getAttackCooldown() + 8; // longer recovery

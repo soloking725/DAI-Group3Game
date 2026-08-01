@@ -9,38 +9,39 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Stillpoint — Live Debug Console</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
-  :root { --bg: #0d0d1a; --panel: #1a1a2e; --border: #2a2a4e; --text: #c4b5fd; --ok: #2dd4bf; --warn: #fbbf24; --err: #f87171; --dim: #6b6b8d; }
+  :root { --bg: var(--bg-base); --panel: var(--bg-panel); --text: var(--fg); --ok: var(--teal); --warn: var(--warn); --err: var(--danger); --dim: var(--fg-muted); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; line-height: 1.5; }
-  h1 { color: var(--text); font-size: 1.4em; margin-bottom: 4px; }
+  body { font-family: var(--font-mono); padding: 24px; line-height: 1.5; }
+  h1 { font-family: var(--font-ui); color: var(--fg); font-size: 1.4em; font-weight: 600; margin-bottom: 4px; }
   h2 { color: var(--ok); font-size: 1.05em; margin: 16px 0 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-  .subtitle { color: var(--dim); font-size: 0.8em; margin-bottom: 16px; max-width: 900px; }
+  .subtitle { color: var(--dim); font-size: 0.8em; margin-bottom: 16px; max-width: 900px; line-height: 1.6; }
   .status-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-  .stat { background: var(--panel); border: 1px solid var(--border); padding: 8px 14px; border-radius: 4px; font-size: 0.85em; }
+  .stat { background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow-inset-top); padding: 9px 16px; border-radius: var(--radius-md); font-size: 0.85em; }
   .stat .label { color: var(--dim); }
   .stat .value { font-weight: bold; } .stat .ok { color: var(--ok); } .stat .warn { color: var(--warn); } .stat .err { color: var(--err); }
-  .btn { background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 0.85em; margin: 4px 2px; }
-  .btn:hover { background: var(--border); } .btn.run { border-color: var(--ok); color: var(--ok); } .btn.clear { border-color: var(--warn); color: var(--warn); }
-  #log { background: #000; border: 1px solid var(--border); padding: 10px; border-radius: 4px; font-size: 0.8em; height: 320px; overflow-y: auto; margin: 12px 0; white-space: pre-wrap; }
+  .btn { background: var(--panel); border: 1px solid var(--border-hover); color: var(--text); padding: 7px 16px; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; font-size: 0.85em; margin: 4px 2px; transition: background var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo); }
+  .btn:hover { background: var(--surface-hover); } .btn:active { transform: scale(0.98); } .btn.run { border-color: var(--ok); color: var(--ok); } .btn.clear { border-color: var(--warn); color: var(--warn); }
+  #log { background: var(--bg-deep); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; font-size: 0.8em; height: 320px; overflow-y: auto; margin: 12px 0; white-space: pre-wrap; }
   #log .ok { color: var(--ok); } #log .warn { color: var(--warn); } #log .err { color: var(--err); } #log .dim { color: var(--dim); }
-  .progress { height: 4px; background: var(--border); border-radius: 2px; margin: 8px 0; }
-  .progress-fill { height: 100%; background: var(--ok); border-radius: 2px; transition: width 0.3s; }
+  .progress { height: 4px; background: var(--border); border-radius: var(--radius-full); margin: 8px 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--ok); border-radius: var(--radius-full); transition: width 0.3s var(--ease-out-expo); }
   .frame-wrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-  iframe#sandbox { width: 800px; height: 450px; border: 1px solid var(--border); background: #000; }
-  .note { color: var(--dim); font-size: 0.75em; max-width: 900px; margin-top: 4px; }
-#back{display:inline-block;margin-bottom:10px;color:#8a8ac0;text-decoration:none;font-size:11px}
-#back:hover{color:#e0d7ff}
+  iframe#sandbox { width: 800px; height: 450px; border: 1px solid var(--border-hover); border-radius: var(--radius-md); box-shadow: var(--shadow-card); background: #000; }
+  .note { color: var(--dim); font-size: 0.75em; max-width: 900px; margin-top: 4px; line-height: 1.6; }
 </style>
 </head>
-<body>
-<a id="back" href="dev_hub.html">&larr; Dev Hub</a>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
 
 <h1>⚙ Stillpoint — Live Debug Console</h1>
 <p class="subtitle">
   This actually runs the real game in a sandboxed iframe, simulates input, and checks the canvas
-  and frame timing for real problems — it doesn't just print a hardcoded list of "PASS". Every
-  check below either genuinely passes or genuinely fails based on what the game does.
+  and frame timing for real problems.
 </p>
 
 <div class="status-bar">

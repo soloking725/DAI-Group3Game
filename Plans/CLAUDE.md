@@ -105,13 +105,21 @@ Other design docs, read as needed for their specific topic:
 - `cave_design_plan.md` — "how to make rooms read as a cave, not a
   platform gauntlet" research notes; informed the Crag of the Colossus
   build. Largely superseded for new work by the Task 4 decoration system
-  (`REGION_STYLES`/`decorateRoomForRegion()` in game.js — see roadmap.md
+  (`REGION_STYLES`/`decorateRoomForRegion()` in game_entities.js — see roadmap.md
   Phase 9) for anything region-specific; still the right reference for
   cave-floor/no-fall-death philosophy generally.
-- `room_verification_tool_plan.md` — design for a not-yet-built
-  reachability/safety linter for rooms (static linter + headless bot
-  walker). `debug_v1.html`'s R09–R11 checks are a lightweight down-payment
-  on this, not the full tool.
+- `room_verification_tool_plan.md` — reachability/safety linter for rooms.
+  **Components 1 (static linter) and 3 (Spawn button) built, 2026-07-29**:
+  `game/roomVerify.js` (reachability flood-fill via real jump/dash/phase-
+  dash physics, floor-gap/embedded-door/one-sided-door checks), runnable
+  from `editor/room_verify.html` (live, in `dev_hub.html`'s Level Design
+  group) or `node Plans/room_verify_cli.js`. Clean across all 71 real
+  rooms (2 warnings-only, 0 failing). The Spawn button is
+  `applyDevSpawnOverride()` in `game_boot_save.js` — `?spawnRoom=<id>`
+  boots straight into any room, no save touched. **Component 2 (headless
+  bot walker) still not built** — `debug_v1.html`'s R09–R11 checks remain
+  the only down-payment on that piece. See `roadmap.md`'s tail entry for
+  full detail on what each check does and its known false-positive class.
 - `floor_plan.md` — **official, 2026-07-13**: the full-game room-to-room
   connection graph (origin spine + all 3 built regions + all 10 planned
   regions), as a mermaid flowchart. Topology only — door-by-door connections,
@@ -158,6 +166,17 @@ Other design docs, read as needed for their specific topic:
   generated `area.js`'s current room scaffolding from an SVG floor-plan
   export (roadmap.md Phase 20, 2026-07-17). **Do not re-run this once
   hand level-design starts** — it overwrites `area.js` wholesale.
+- `Plans/room_design_bible.md` — **NEW (2026-07-29)**: the single reference
+  to have open while hand-designing any of the 71 rooms or drawing art in
+  `anim_editor.html` — one section per region with a live, code-derived
+  room table (size/connections/enemies/pips) plus that region's mechanic,
+  miniboss, local tragedy, Hunt-thread one-liner, and hazard/puzzle ideas,
+  all cross-referenced back to `floor_plan.md`/`regions.md`/`lore.md`/
+  `expansion.md`/`story.md` rather than duplicating them. Also has the
+  full built-enemy/built-miniboss roster reference and the current pip-
+  economy counts (Fracture/Lore/Extra-Customization) in one place. Its
+  ground-truth tables go stale the moment `area.js` changes — regenerate
+  per its own §0 instructions rather than trusting a stale number in it.
 
 ## Where this project is right now (added 2026-07-24 — read before suggesting "build more tools" or "build more content")
 
@@ -213,7 +232,7 @@ shells (`node Plans/room_progress.js --full` for the live count).
   glow) over UI chrome.
 - **Browser/canvas is the platform.** No engine rewrite. An Electron/Tauri
   wrap is the agreed path *later* if an offline/desktop build is wanted.
-- **Lore is OFF** (`LORE_ENABLED = false` in `game.js`). The text-popup
+- **Lore is OFF** (`LORE_ENABLED = false` in `game_state.js`). The text-popup
   lore-fragment system is intentionally disabled pending a redesign as
   environmental storytelling. Data and code paths are left intact —
   don't delete them, and don't flip the flag without being asked.
@@ -243,9 +262,21 @@ The repo root used to be flat (every `.js`/dev-tool `.html` alongside
 `index.html`). Reorganized on user request into three folders — **only
 `index.html` itself stays at the root**:
 
-- `game/` — the 9 core runtime scripts (`audio.js` through `game.js`,
-  listed below) plus `style.css` (currently unused — `index.html`'s CSS is
-  inline; kept here anyway since it's thematically a game asset).
+- `game/` — the core runtime scripts (`audio.js` through the `game_*.js`
+  files, listed below) plus `style.css` (currently unused — `index.html`'s
+  CSS is inline; kept here anyway since it's thematically a game asset).
+  **`game.js` split into 6 files 2026-07-27** (`game_state.js`,
+  `game_entities.js`, `game_boot_save.js`, `game_update.js`,
+  `game_hud_menus.js`, `game_draw_loop.js` — see Architecture map below):
+  it had grown to ~6000 lines mixing camera/rendering, HUD/menu state,
+  save/load, the ~2000-line `update()`, and the ~800-line `draw()`. The
+  split is purely order-preserving (verified byte-for-byte: concatenating
+  the 6 files in order reproduces the original file exactly) — every
+  `<script src="game/game.js">` tag across `index.html` and the 5 editor
+  tools that loaded it became 6 tags in the same position/order, so
+  nothing about load order or global-scope semantics changed. It does
+  **not** modularize the state (see "Key global state" note below) —
+  it's the same shared globals, just spread across files textually.
 - `editor/` — every dev/debug tool (`debug_v1.html`, `debug_new.html`,
   `levelEditor.html`, `enemy_test.html`, `enemy_editor.html`,
   `enemy_designer.html`, `graph_analyzer.html`,
@@ -280,9 +311,27 @@ game/physics.js   → NEW shared collision: resolveEntityCollision()/resolveEnem
                     (velocity-scaled margins, prevBottom guard, walls/ceilings/bounce)
                     + nudgeOutOfPlatforms() spawn safety. EVERY enemy physics tail
                     calls this — never write a new inline platform loop.
+game/visualVariants.js → NEW (2026-08-01): generic getVisualVariant(category,
+                    region, instanceOverride) resolver for "same behavior,
+                    different look" content — instance override > REGION_STYLES
+                    [region][category+'Variant'] > null (caller's own default,
+                    unchanged). Two call sites today: drawPlatform()'s hazard
+                    color (game_entities.js) and spawnAreaEnemies()'s optional
+                    per-enemy tint (eDef.tint, editable in levelEditor.html's
+                    enemy inspector). Generic — reusable for any future category
+                    (destructibles, pickups, ...) with no new resolver code, just
+                    a new call site when an actual need shows up. See
+                    roadmap.md's tail entry / production_workflow_and_tool_gaps.md
+                    §1a for the full writeup.
 game/animdata.js  → NEW ANIM_DEFS frame/hitbox timelines + Animator + POSE_RENDERERS.
                     Edited by editor/anim_editor.html. The game does NOT yet render
-                    through it — migration is deliberate per-entity work.
+                    through it — migration is deliberate per-entity work. **Added
+                    2026-07-27**: frames can carry an `events` array
+                    (spawnProjectile/cameraShake/sfx), fired once via
+                    `Animator.consumeFrameEvents()` the tick a frame is first
+                    entered; consumed by boss.js (Boss + ColossusCore +
+                    TemporalWarden, same anim-driven hitbox bridge Boss already
+                    had). Hitboxes also gained a `hitStun` field.
 game/area.js      → AREAS{} data + compass graph (col/row/connections) + validateAreaGraph()
                     (+ per-room healingCrystals[]; enemy_test_arena is the dev-only room)
 game/map.js       → builds map overlay FROM area.js's compass graph (never hand-authored)
@@ -294,35 +343,88 @@ game/combo.js     → NEW COMBO_DEFS chains + action-event tracker (rising-edge 
                     off player flags — add new abilities in _detectActions(), one line)
 game/healing.js   → NEW vitality motes, maxHealthBonus/playerMaxHealth(), healing
                     crystals. Heal caps must use playerMaxHealth(), not MAX_HEALTH.
-game/boss.js      → Boss (The Fractured King) — 3-phase state machine
+game/boss.js      → Boss (The Fractured King) — 3-phase state machine. **Added
+                    2026-07-27**: `pickAttack()`'s attack-selection probability
+                    chains were pulled out into a data table, `BOSS_PHASE_CONFIG`
+                    (phase thresholds, per-phase weighted attack lists,
+                    distance/adaptation bias, the Phase 3 Stillpoint reserved
+                    slot, the teleport roll) — same numbers/behavior as before,
+                    now tunable from `editor/boss_phase_editor.html` (new tool,
+                    see below) via a `localStorage` overrides key, same pattern
+                    as animdata.js's `ANIM_OVERRIDES_KEY`.
 game/enemy.js     → all enemy classes + ComposedEnemy. Base-class AI: notice delay,
                     decision commit (updateMovementIntent), facing-cone detection;
                     opt-in defense verbs via this.defense (block/dodge/breakout/
                     dashPunish) + windupVariance/feintChance mix-ups.
 game/companion.js → NEW the Child (companionState + Child class) — follow/hide/heal/
-                    tether-assist; never dies, teleport failsafe only off-screen.
+                    found-weapon fight-assist (COMPANION_WEAPONS, 2026-07-27, replaced
+                    the original tether-only kit); never dies, teleport failsafe only
+                    off-screen. Only actually activates via cutscene.js's Echo Bridge
+                    meeting choice — see roadmap.md Phase 24.
 game/attackVFX.js → NEW (2026-07-19) shared player VFX/hitbox math, extracted out of
                     player.js/ability.js so anim_editor.html's "Dissect from current
                     game" button and animdata.js's POSE_RENDERERS reuse identical
                     shapes/hitboxes to the legacy fallback draw path. Self-contained
                     (plain numbers/ctx only, no other game/*.js dependency).
 game/player.js    → Player class — movement, combat, all physics constants
-game/game.js      → main loop, game state machine, HUD (HUD_LAYOUT data table),
-                    ABILITY_GRANTS pickup table, save/load, everything else
 ```
+
+`game.js` **split into 6 files, 2026-07-27** (order-preserving — see the
+File locations note above for how/why). Load order (must stay in this
+sequence, right after `player.js`):
+
+```
+game/game_state.js     → canvas/DOM setup, all top-level mutable game state
+                          (player, currentAreaId, particles, boss, camera,
+                          DEBUG_MODE, etc.), pause/menu-nav state,
+                          REMAPPABLE_ACTIONS, ABILITY_GRANTS, tryParryDeflect,
+                          Fracture Pip/upgrade economy, Limit Break, Tutorial,
+                          camera functions (getBounds/updateCamera/...)
+game/game_entities.js  → Projectile/Particle classes, shard shot/void tether
+                          damage helpers, particle/collision/area-enemy
+                          management (spawnAreaEnemies, switchArea, ...),
+                          platform/anchor/reward/lore-pip drawing, region
+                          decoration (REGION_STYLES/decorateRoomForRegion),
+                          area backdrop drawing
+game/game_boot_save.js → unstuckPlayer, init(), settings load/save,
+                          buildPauseMenu, saveGame()/loadGame()/deleteSave(),
+                          startNewGame/respawnPlayer/returnToAnchor/restartRoom
+game/game_update.js    → the main `update()` function (~2000 lines) — the
+                          per-frame game-state-machine tick, incl. pitDeathY
+                          death check and the boss/miniboss defeat gating
+game/game_hud_menus.js → HUD_LAYOUT data table + drawHUD() and friends
+                          (health/boss bar/cooldowns/tutorial banner/etc.),
+                          all drawMainMenu/drawPlayMenu/drawSettingsScreen/...
+game/game_draw_loop.js → the main `draw()` function (~800 lines), gameLoop(),
+                          and the file's closing `init(); requestAnimationFrame
+                          (gameLoop);` bootstrap
+```
+
+Key global state lives across these 6 files (not modularized/encapsulated
+— still one shared global namespace, e.g. `player`, `boss`, `miniboss`,
+`areaEnemies`, `camera`, `gameState` are top-level `let`s, now physically
+sitting in `game_state.js` but readable/writable from every other file the
+same as before the split). Enemy/boss classes read some of these directly
+(e.g. `gameTimeScale`, `getCurrentArea()`), so actually modularizing state
+behind real module boundaries would be a much bigger refactor than this
+split was — flag that before attempting it.
 
 New-ability checklist (2026-07-16): a grantable ability needs (1) an
 `abilityState.hasX` flag + reset in BOTH reset paths + save/load, (2) one
-line in game.js's `ABILITY_GRANTS` (the pickup grant is generic — the old
+line in game_state.js's `ABILITY_GRANTS` (the pickup grant is generic — the old
 if/else chain silently ignored unlisted abilities, which is exactly how
 Void Tether/Graviton Surge/max-health pickups were dead for a while),
 (3) optionally one line in combo.js's `_detectActions()` to be combo-able.
-
-Key global state lives in `game.js` (not modularized — `player`, `boss`,
-`miniboss`, `areaEnemies`, `camera`, `gameState`, etc. are top-level
-`let`s). Enemy/boss classes read some of these directly (e.g.
-`gameTimeScale`, `getCurrentArea()`), so moving state into modules would
-be a real refactor, not a mechanical one — flag this before attempting it.
+**Cautionary example, 2026-07-27**: a `Construct` ability got steps 1-2
+(flag, cooldown const, `ABILITY_GRANTS` entry with real popup/notification
+text, a keybind on `KeyQ`) plus a full save/load wire-up, with **no actual
+ability behavior built** — no aim/build/quickfire logic anywhere, just a
+stray `this.construct` (no assignment) in `player.js`'s constructor. The
+checklist covers the plumbing, not "is there a real feature behind the
+flag" — don't take a fully-wired `abilityState.hasX` as proof the ability
+itself exists; check for the actual input-handling/update/draw code too.
+Freeing `KeyQ` for it also **reassigned Stillpoint/Graviton Surge/Void
+Tether from Q/E/R to A/S/D** — a real, user-facing keybind change.
 
 ### World / rooms (`area.js`)
 
@@ -341,7 +443,7 @@ be a real refactor, not a mechanical one — flag this before attempting it.
   branching**, not many small single-gimmick rooms — see
   `expansion.md` §3.15. Reserve real doors (`transitions`/`connections`)
   for genuine region boundaries or pre-boss checkpoints.
-- `pitDeathY` is an explicit per-room override in `game.js`'s death check
+- `pitDeathY` is an explicit per-room override in `game_update.js`'s death check
   — don't rely on inferring it from `groundY` (a past bug: a hardcoded
   600px-kill-plane heuristic killed players in tall rooms with real
   floors below y:600; see `roadmap.md` Phase 7).
@@ -367,7 +469,7 @@ way the existing loops in `game.js` do — see `BUG-001` in
 true (it self-guards and just increments `deathTimer`), because the
 victory trigger checks `boss.deathTimer === 1`. Gating the *call site* on
 `boss && !boss.dead` means `deathTimer` gets stuck at 0 forever and
-victory can never fire — the King's block in `game.js` had exactly this
+victory can never fire — the King's block in `game_update.js` had exactly this
 bug and has since been fixed (it now gates on `boss` alone, with the
 damage-dealing checks individually gated on `!boss.dead`). Both the King
 and the miniboss (`ColossusCore`) now use the correct pattern — copy it
@@ -396,12 +498,21 @@ gate only the damage checks on `!dead`.
   "Validate This Room"/"Check All Rooms" linter (satisfies
   session_priorities.md's former #8), and a "Diff vs Saved" comparison —
   still no `region`-driven decoration *preview* (Task 4's palette/cave
-  styling only renders in the real game, not this editor's canvas), and
-  still no UI for hazards/switches/moving/one-way platforms since those
-  need new `game.js` runtime behavior first — see
+  styling only renders in the real game, not this editor's canvas) — see
   `roadmap.md`'s own "WHAT'S ACTUALLY NEXT"/tail section for the
   prioritized next-session list (`Plans/archive/level_editor_guide.md` is
   the older, now-superseded version of this same punch list).
+  **Correction, 2026-08-01**: this section previously claimed "still no UI
+  for hazards/switches/moving/one-way platforms" — false, verified against
+  the live file: hazard (+ damage), crumble (+ delay/respawn), moving
+  (+ target x/y/speed), and platform one-way all have working inspector
+  fields (`p-hazard`/`p-crumble`/`p-moving`/`p-plat-oneway` etc.) — that
+  claim was stale, not a real gap. Also gained a `tint` field on the enemy
+  inspector this session (`p-tint`, next to the type dropdown) — an
+  optional per-placement hex-color override consumed by the new
+  `game/visualVariants.js` resolver (see the Architecture map entry above),
+  stored as `eDef.tint` on the enemy placement, blank by default (no
+  behavior change for any enemy that doesn't set one).
 - **`enemy_test.html`** — spawns any real enemy/miniboss class in an
   isolated flat arena with a chosen ability loadout, for balance/behavior
   testing without playing through the full game.
@@ -433,8 +544,12 @@ gate only the damage checks on `!dead`.
   `COMBO_DEFS` (steps from the documented action vocabulary, per-step
   frame windows, rewards). Same save/export pattern.
 - **`hud_editor.html`** — NEW: drag/toggle the HUD elements `drawHUD()`
-  renders, via game.js's `HUD_LAYOUT` table. The editor keeps a DEFAULTS
+  renders, via game_hud_menus.js's `HUD_LAYOUT` table. The editor keeps a DEFAULTS
   copy of that table — if you change one, change the other.
+- **`boss_phase_editor.html`** — NEW (2026-07-27, untracked): tunes
+  `boss.js`'s `BOSS_PHASE_CONFIG` (phase health thresholds, per-phase attack
+  weights, distance/adaptation bias) without touching `boss.js` itself.
+  Added to `dev_hub.html`'s Combat & Enemies group.
 - **`companion_test.html`** — NEW: boots the real game into
   `enemy_test_arena` with the Child active (mode override, canFight
   toggle, wave spawner, player-teleport fuzzer, live tuning sliders).
@@ -446,7 +561,7 @@ gate only the damage checks on `!dead`.
   game against a customizable enemy/boss/miniboss roster in the new
   dev-only `bot_arena` room (`area.js`), producing a quantitative
   difficulty score instead of a guess. Fast-forwards by stubbing
-  `requestAnimationFrame` before `game.js` loads and calling the real
+  `requestAnimationFrame` before the game_*.js files load and calling the real
   `update()` directly; replays the best genome of each generation live
   (real `update()`+`draw()` at real speed) so training stays watchable.
   Net inputs include the target's real `.attacks[]`/`.defense` data (the
@@ -454,12 +569,156 @@ gate only the damage checks on `!dead`.
   in `Plans/difficulty_bot_and_combat_polish_plan.md` — that doc's Part 2
   (centralized hit-impact/hitstop, player attack → Animator migration,
   input buffering) is scoped but not built yet.
-- **`level_designer.html`** — PLANNED, not built (see roadmap.md's tail
-  end for the full spec). Would be a live visual tuning tool for the Task
-  4 decoration system (`REGION_STYLES` etc.) — palette/parameter controls
-  reusing the real game.js decoration functions, with a JSON export.
-  Explicitly scoped to NOT touch room geometry — that stays
-  `levelEditor.html`'s job.
+- **`level_designer.html`** — never built standalone; **superseded**, its
+  scope (REGION_STYLES color/numeric tuning) was folded into
+  `room_scene_editor.html` (below) per the user's 2026-07-29 confirmation
+  of `Plans/room_scene_editor_plan.md` §0.
+- **`room_scene_editor.html`** — **v1 built, 2026-07-29** (per
+  `Plans/room_scene_editor_plan.md`, scope confirmed with the user before
+  building: fold in `level_designer.html`'s scope, and add a per-room
+  `hideProceduralBackdrop` toggle rather than making custom art always
+  additive). Edits a room's `backdropLayers[]` (background/decoration PNG
+  layers — parallaxX/Y, offset, scale, repeat none/x/both, tint, opacity,
+  per-layer hidden toggle — genuinely new rendering capability;
+  `drawAreaBackdrop()` in `game_entities.js` now draws these before the
+  original procedural deep/mid nebula layers, skipping the procedural
+  layers entirely when `hideProceduralBackdrop` is set) and the current
+  room's `REGION_STYLES` entry (primary/secondary/glow colors, plus the
+  numeric knobs `decorateRoomForRegion()` was parametrized to expose —
+  `diamondSpacing`/`ringCount`+`ringSpacing`/`spokeCount` for
+  mirror_veil/event_horizon/chrono_rift respectively). Uploaded images
+  store in a new `game/roomImageStore.js` (IndexedDB, same shape as
+  `game/animImageStore.js` — see that file's own header for why: avoids
+  the `localStorage` quota crash a base64-inline approach hit before).
+  **The center preview is the real game, not an approximation**: a
+  sandboxed iframe boots `../index.html` into the exact room (same
+  fetch+srcdoc+path-rewrite technique as `debug_v1.html`'s
+  `loadSandbox()`; room selection goes through a new
+  `window.__editorSpawnRoom` hook on `applyDevSpawnOverride()` in
+  `game_boot_save.js` since a srcdoc document has no real query string for
+  `?spawnRoom=` to reach), and every property edit writes directly into
+  the running iframe's `win.AREAS[roomId]`/`win.REGION_STYLES[region]` —
+  no reload needed, since `draw()`/`update()` already read
+  `getCurrentArea()` fresh every frame. A parallax-preview scrubber drags
+  the real `player.x` through the room so the camera's own follow logic
+  shows relative layer speed in motion. Non-destructive export (paste-ready
+  JS snippet) + "Save to Browser (Live)" for both the room
+  (`stillpoint_area_overrides_v1`, same key `levelEditor.html` already
+  uses) and the region style (new `stillpoint_region_style_overrides_v1`
+  key), same pattern as every other editor in this family. **v2 built,
+  same day**: `area.cutsceneTriggers[]` — data-driven room-entry/on-load
+  plot triggers (`{id, x,y,w,h, cutsceneId, storyFlag, triggerType:
+  'enter'|'onRoomLoad'}`), replacing what used to only be hardcoded `if`
+  conditions scattered across `game_update.js`/`game_entities.js` (those 3
+  existing call sites are untouched — this is additive). Real runtime
+  wiring, not just editor tooling: `switchArea()` in `game_entities.js`
+  fires the first matching `onRoomLoad` trigger for the room being entered
+  (gated on `storyFlag`, same "skip once you've seen it" convention the
+  hardcoded `echo_bridge_intro` check already used); `update()` in
+  `game_update.js` checks `'enter'`-type zones every frame via the same
+  `rectsOverlap()` the transitions loop already uses. A new
+  `firedTriggersThisVisit` Set (`game_state.js`) debounces same-visit
+  re-firing for a trigger whose cutscene forgets to `setFlag` its own
+  gate — reset on every `switchArea()`/`applyDevSpawnOverride()` call.
+  Verified with standalone logic unit tests (not a full game boot) that
+  the fire-once/storyFlag-gate/same-visit-debounce/re-fire-on-new-visit
+  semantics all hold. Editor side: a left-panel trigger list (click to
+  select + jump the parallax scrubber to the zone), a `cutsceneId` field
+  autocompleted from the real `CUTSCENES` (`game/cutscene.js` now loaded
+  by this editor too, same `<datalist>` pattern `levelEditor.html`'s Lore
+  Pip panel uses), a `storyFlag` field with a live hint (recursively
+  scans every `CUTSCENES` script, including `choice` branches, for a
+  matching `setFlag` step, so a typo'd flag that will never actually gate
+  anything is visible immediately), and a "▶ Test Cutscene" button that
+  calls `win.playCutscene()` directly for a quick "does this scene even
+  play" check. **The zone itself is drawn/dragged/resized on a new
+  transparent `<canvas id="trigger-overlay">` stacked on top of the
+  preview iframe** (not inside the iframe — trigger zones are invisible
+  in real gameplay by design) — a small `requestAnimationFrame` loop
+  mirrors the iframe's live `win.camera` every tick and converts each
+  zone from world to screen space with the exact same transform
+  `applyCamera()` uses in `game_state.js` (`screen = (world - camera) *
+  zoom`), so the rectangles track correctly while the parallax scrubber
+  moves the camera. **Not built (still deferred, lower-value/lower-
+  urgency addendum items per the plan's §6.5)**: the `decorationSprites[]`
+  scattered-decal layer, and the live camera-bounds overlay. Ambient
+  one-shot SFX trigger zones were also left out of this pass — deliberately,
+  not an oversight: `game/audio.js`'s `SAMPLE_URLS` table is all combat
+  impact sounds (attack/hit/hurt/parry/etc.), there's no existing library
+  of positional ambient one-shots (a distant clang, a dripping echo) to
+  point a `sampleId` field at, so building this now would mean sourcing
+  new audio assets first, not just wiring up a dropdown — a separate
+  content task, not a coding continuation of this one.
+- **`Plans/production_workflow_and_tool_gaps.md`** — NEW (2026-07-29):
+  answers "does the full editor suite (built + planned) let this project
+  finish without more coding help, and if not, what's missing and in what
+  order should the remaining work happen." Full inventory table of every
+  existing tool's coverage, an honest gap list split into closeable-by-
+  tooling (a room reachability/safety bot-walker — already spec'd in
+  `Plans/room_verification_tool_plan.md`, still not built — and a unified
+  Project Progress Dashboard, newly proposed, extending `dev_hub.html`)
+  vs. inherently-creative-no-tool-removes-it (hazard/puzzle design
+  content, cutscene *step* writing, actual art, fun/pacing playtesting).
+  Research-backed (how Team Cherry actually built Hollow Knight, general
+  greybox-then-art indie pipeline practice, narrative/QA/audio-middleware
+  pipeline norms — sources in the doc) into a recommended region-by-region
+  production order tailored to this project's actual state (systems/
+  scaffolding already built, remaining work is a content pass, not
+  green-field production) — read before deciding what to work on next.
+- **`Plans/project_progress_dashboard_plan.md`** — **v1 built, 2026-07-29**:
+  extends `editor/dev_hub.html`'s stats panel into a full "what's left"
+  dashboard — room design-state (via the new shared
+  `game/roomDesignScore.js`, extracted out of `room_progress.js` so the two
+  can't drift apart on what counts as "designed"), Fracture Pips vs. a
+  hardcoded 5-target, live enemy/miniboss roster counts (19/35, 14/14 —
+  the latter via a new standalone `game/minibossRegistry.js`, a small
+  id→name table that deliberately does NOT load `game_state.js`, sidestepping
+  that file's unconditional `document.getElementById('game').getContext('2d')`
+  at its top), and enemy-anim-authored-vs-procedural coverage (currently
+  0/19 — `ANIM_DEFS` only has 2 player-attack entries so far). Plus a new
+  collapsible "Progress by Region" table, click-through to
+  `levelEditor.html` per region. **Corrected same session**: the first pass
+  wrongly claimed `loreFragments` had no `mode` field and reported Lore vs.
+  Extra/Customization Pips as unsplittable — a bad grep plus trusting
+  `regions.md`'s stale line over `room_design_bible.md`'s correct one. The
+  split is real and fully wired already: `game_update.js`'s pickup handler
+  and `levelEditor.html`'s pip inspector both branch live on
+  `loreFragments[].mode` (`'overlay'`/`'cutscene'` = Lore, `'none'` = Extra,
+  correctly skipping any cutscene/vignette for Extra pips), shipped Phase 28
+  (2026-07-29). The panel now reads the real field: 18/15 Lore Pips, 0/15
+  Extra Pips (0 only because none are placed yet, not because the field is
+  missing). `cosmeticUpgrades` (a separate rare/cosmetic mechanic, ~4
+  target) stays its own row. See `roadmap.md`'s tail entry for full detail.
+  **v2 (per-room drill-down + Spawn-button links, "suggested next"
+  heuristic) not built**, deferred per the plan's own scope staging.
+- **`Plans/cutscene_editor_plan.md`** — **v1 built, 2026-07-30**:
+  `editor/cutscene_editor.html`/`cutscene_editor.js`, a structured
+  list-and-form editor over `cutscene.js`'s `CUTSCENES` step format
+  (`wait`/`text`/`cameraPan`/`cameraReturn`/`movePlayer`/`setFlag`/`call`/
+  `choice` — all 8, `choice`'s nested `onA`/`onB` branch authoring included
+  a step early since 3 of the 4 real cutscenes use it) — a typed step list,
+  not a timeline/node-graph, per the plan's own research (§1). `call` steps
+  use the plan's safe-preset-library-plus-raw-code-escape-hatch split (§3):
+  3 templated presets (grant ability, companion active/canFight, Fracture
+  Max increment) plus a labeled raw-code textarea. Preview is the plan's
+  §7-recommended CHEAP version (a static mocked walkthrough), **not** the
+  real-game-iframe preview — that stays deferred to v2 exactly as the plan
+  staged it. `cameraPan`/`movePlayer` get a schematic to-scale room-outline
+  canvas (real `AREAS` platform extents) to click-place coordinates on,
+  cheaper than an iframe but solving the same "don't type blind" problem.
+  New `game/cutscene.js` piece: a `call` step's `fn` can't survive
+  `structuredClone`/JSON (functions), so working data carries a `_callCode`
+  source string instead, materialized back into a real `fn` via
+  `applyCutsceneOverrides()`/`new Function(...)` — new
+  `stillpoint_cutscene_overrides_v1` localStorage key, same live-override
+  pattern `animdata.js`'s `ANIM_OVERRIDES_KEY` uses, so `index.html` and
+  every other tool loading `cutscene.js` pick up edits with no code change.
+  Wired into `dev_hub.html` (Level Design group + Live Overrides panel).
+  Not tested in a browser per this repo's standing rule — see
+  `roadmap.md`'s tail entry for the full verification note. Complements,
+  doesn't overlap, `room_scene_editor_plan.md`'s cutscene-trigger placement
+  — that tool decides *where* a cutscene fires, this one authors *what's in
+  it*.
 
 If you touch input handling, area data shape, or add a new game state,
 run the relevant debug page manually — per `performanceInstructions.md`,
@@ -479,7 +738,7 @@ breaking these silently is treated as a regression.
 access wrapped in try/catch (private browsing / quota should degrade to
 "no persistence," never crash). Settings (screen shake, hitstop) are a
 separate key, `stillpoint_settings_v1`. See `saveGame()`/`loadGame()` in
-`game.js` for the exact shape if you add new persisted state — remember
+`game_boot_save.js` for the exact shape if you add new persisted state — remember
 to also update it in both the save and load functions, plus
 `startNewGame()`'s reset path.
 

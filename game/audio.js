@@ -1,21 +1,27 @@
-// Procedural sound design — synthesized entirely via Web Audio API, no audio files.
+// Sound design: recorded music/SFX samples where we have them, with procedural
+// Web Audio synthesis as a fallback for one-shot SFX that have no sample yet.
 // Browsers block audio until a user gesture, so SFX.init() must be called from a
 // click/keydown handler (game.js calls it when the player starts the game).
 //
-// Signal chain: every sound -> its own gain envelope -> master gain -> compressor -> destination.
-// The compressor acts as a safety limiter so overlapping sounds (e.g. attack + hit + hurt
-// all in one frame) never sum into a clipping peak. Master gain is the single "safe mode"
-// volume knob — everything is scaled relative to it.
+// Signal chain: two independent buses, each with its own gain + limiter, so a
+// burst of overlapping SFX (attack + hit + hurt in one frame) can never duck or
+// gate the music playing on the other bus:
+//   music/boss tracks -> musicBus gain -> musicCompressor -> destination
+//   one-shot SFX/samples -> sfxBus gain -> sfxCompressor -> destination
+// setMusicVolume()/setSfxVolume()/BASE_LEVEL scale each bus independently, so
+// the options menu can offer separate Music/SFX sliders (each 0..1).
 const SFX = (() => {
   let ctx = null;
-  let master = null;      // user-facing volume knob (safe mode multiplier)
-  let compressor = null;  // final safety limiter before destination
-  let droneNodes = null;  // { osc1, osc2, sub, filter, gain, lfo, lfoGain }
+  let musicBus = null;    // music-bus volume knob (musicVolumeMultiplier)
+  let sfxBus = null;      // sfx-bus volume knob (sfxVolumeMultiplier)
+  let musicCompressor = null; // safety limiter for the music bus only
+  let sfxCompressor = null;   // safety limiter for the sfx bus only
   let currentAreaId = null;
   let unlocked = false;
-  let volumeMultiplier = 1.0; // 0..1, exposed via setMasterVolume()
+  let musicVolumeMultiplier = 1.0; // 0..1, exposed via setMusicVolume()
+  let sfxVolumeMultiplier = 1.0;   // 0..1, exposed via setSfxVolume()
 
-  const BASE_LEVEL = 0.5; // master gain before the user multiplier; keeps headroom for compressor
+  const BASE_LEVEL = 0.5; // bus gain before the user multiplier; keeps headroom for compressors
 
   // Recorded hits/impacts/UI clicks (CC0, Kenney "Impact Sounds" / "Interface Sounds").
   // Loaded once as decoded AudioBuffers; each name below has a matching procedural
@@ -37,6 +43,11 @@ const SFX = (() => {
     taserZap: 'assets/audio/sfx/taserZap.ogg',
     flamethrower: 'assets/audio/sfx/flamethrower.ogg',
     bombExplode: 'assets/audio/sfx/bombExplode.ogg',
+    // CC0, reviewed from assets/audio/candidates/enemy_sfx/ (2026-07-28) —
+    // see assets/audio/sfx/CREDITS.md.
+    chargedAttack: 'assets/audio/sfx/chargedAttack.ogg',
+    phaseDash: 'assets/audio/sfx/phaseDash.ogg',
+    stillpoint: 'assets/audio/sfx/stillpoint.ogg',
   };
   const sampleBuffers = {}; // name -> decoded AudioBuffer, once loaded
 
@@ -76,6 +87,9 @@ const SFX = (() => {
     boss_warden_hollow: 'assets/audio/music/boss_warden_hollow.ogg',
     boss_timeline_crossroads: 'assets/audio/music/boss_timeline_crossroads.ogg',
     boss_conduit: 'assets/audio/music/boss_conduit.ogg',
+    boss_void_expanse: 'assets/audio/music/boss_void_expanse.ogg', // The Undertow — see BOSS_MUSIC_MAP
+    boss_antechamber_child: 'assets/audio/music/boss_antechamber_child.ogg', // The Child — see BOSS_MUSIC_MAP
+    boss_abandoned_shell: 'assets/audio/music/boss_abandoned_shell.ogg',     // Abandoned Shell — see BOSS_MUSIC_MAP
   };
   const musicBuffers = {}; // trackKey -> decoded AudioBuffer, once loaded
 
@@ -169,6 +183,9 @@ const SFX = (() => {
     graviton_sentinel: 'boss_graviton_guard',     // Graviton Core — Fractured Sovereign's Guard
     paradox_engine: 'boss_assembler',             // Paradox Engine — The Assembler
     sovereign: 'final_boss', // the Boss class (boss.js) — final Sovereign fight
+    void_expanse_boss: 'boss_void_expanse',       // Void Expanse — The Undertow
+    antechamber_child: 'boss_antechamber_child',  // The Antechamber — The Child
+    abandoned_shell: 'boss_abandoned_shell',      // Hollow Core — Abandoned Shell
   };
 
   let musicGainNode = null;     // region/hub track gain
@@ -197,10 +214,10 @@ const SFX = (() => {
     if (!c || musicGainNode) return;
     musicGainNode = c.createGain();
     musicGainNode.gain.value = 0;
-    musicGainNode.connect(master);
+    musicGainNode.connect(musicBus);
     bossMusicGainNode = c.createGain();
     bossMusicGainNode.gain.value = 0;
-    bossMusicGainNode.connect(master);
+    bossMusicGainNode.connect(musicBus);
   }
 
   // Starts a looping BufferSource on the given gain node, crossfading out
@@ -228,9 +245,9 @@ const SFX = (() => {
     return { src, gainNode: g };
   }
 
-  // Region/hub music track, keyed by area.js area id. Co-exists with the
-  // procedural drone (ducked quieter, not silenced) rather than replacing it
-  // — the drone still breathes under the recorded track for texture.
+  // Region/hub music track, keyed by area.js area id. Lives on its own music
+  // bus/compressor (see top of file) so one-shot SFX on the sfx bus never
+  // duck or gate it, no matter how many overlap in a frame.
   function setRegionMusic(areaId) {
     if (!unlocked) return;
     const key = AREA_MUSIC_MAP[areaId] || DEFAULT_MUSIC_KEY;
@@ -241,12 +258,6 @@ const SFX = (() => {
     ensureMusicGains();
     if (!musicBuffers[key]) return; // still loading — next call once it lands will pick it up
     musicSource = playLoopingTrack(key, musicGainNode, musicSource, 0.35);
-    // Duck the procedural drone under recorded music instead of killing it.
-    if (droneNodes) {
-      const t = c.currentTime;
-      droneNodes.gain.gain.cancelScheduledValues(t);
-      droneNodes.gain.gain.linearRampToValueAtTime(0.02, t + MUSIC_CROSSFADE);
-    }
   }
 
   // Boss/miniboss track, layered on top of (louder than) the region track —
@@ -314,7 +325,7 @@ const SFX = (() => {
     const gain = c.createGain();
     gain.gain.value = Math.min(0.5, volume !== undefined ? volume : 0.3);
     src.connect(gain);
-    gain.connect(master);
+    gain.connect(sfxBus);
     src.start();
     return true;
   }
@@ -324,17 +335,29 @@ const SFX = (() => {
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-      compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.value = -18;
-      compressor.knee.value = 24;
-      compressor.ratio.value = 6;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.25;
-      compressor.connect(ctx.destination);
+      musicCompressor = ctx.createDynamicsCompressor();
+      musicCompressor.threshold.value = -18;
+      musicCompressor.knee.value = 24;
+      musicCompressor.ratio.value = 6;
+      musicCompressor.attack.value = 0.003;
+      musicCompressor.release.value = 0.25;
+      musicCompressor.connect(ctx.destination);
 
-      master = ctx.createGain();
-      master.gain.value = BASE_LEVEL * volumeMultiplier;
-      master.connect(compressor);
+      sfxCompressor = ctx.createDynamicsCompressor();
+      sfxCompressor.threshold.value = -18;
+      sfxCompressor.knee.value = 24;
+      sfxCompressor.ratio.value = 6;
+      sfxCompressor.attack.value = 0.003;
+      sfxCompressor.release.value = 0.25;
+      sfxCompressor.connect(ctx.destination);
+
+      musicBus = ctx.createGain();
+      musicBus.gain.value = BASE_LEVEL * musicVolumeMultiplier;
+      musicBus.connect(musicCompressor);
+
+      sfxBus = ctx.createGain();
+      sfxBus.gain.value = BASE_LEVEL * sfxVolumeMultiplier;
+      sfxBus.connect(sfxCompressor);
     } catch (e) {
       ctx = null;
     }
@@ -349,22 +372,33 @@ const SFX = (() => {
       unlocked = true;
       loadSamples();
       loadMusic();
-      startDrone();
     }
   }
 
-  // Global "safe mode" volume control, 0..1. Ramped to avoid clicks.
-  function setMasterVolume(v) {
-    volumeMultiplier = Math.max(0, Math.min(1, v));
+  // Independent Music/SFX volume controls, each 0..1. Ramped to avoid clicks.
+  // Safe to call before ctx exists (e.g. applying saved settings on boot,
+  // before the first user-gesture unlock) — the multiplier is remembered
+  // and applied to the bus once ensureCtx() creates it.
+  function setMusicVolume(v) {
+    musicVolumeMultiplier = Math.max(0, Math.min(1, v));
     const c = ctx;
-    if (!c || !master) return;
+    if (!c || !musicBus) return;
     const t = c.currentTime;
-    master.gain.cancelScheduledValues(t);
-    master.gain.linearRampToValueAtTime(BASE_LEVEL * volumeMultiplier, t + 0.05);
+    musicBus.gain.cancelScheduledValues(t);
+    musicBus.gain.linearRampToValueAtTime(BASE_LEVEL * musicVolumeMultiplier, t + 0.05);
+  }
+
+  function setSfxVolume(v) {
+    sfxVolumeMultiplier = Math.max(0, Math.min(1, v));
+    const c = ctx;
+    if (!c || !sfxBus) return;
+    const t = c.currentTime;
+    sfxBus.gain.cancelScheduledValues(t);
+    sfxBus.gain.linearRampToValueAtTime(BASE_LEVEL * sfxVolumeMultiplier, t + 0.05);
   }
 
   function ready() {
-    return !!(ctx && unlocked && master);
+    return !!(ctx && unlocked && sfxBus);
   }
 
   // Small helper: randomize a value by +/- percent for per-call variety.
@@ -410,7 +444,7 @@ const SFX = (() => {
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
 
     node.connect(gain);
-    gain.connect(master);
+    gain.connect(sfxBus);
     osc.start(t0);
     osc.stop(t0 + duration + 0.05);
   }
@@ -446,90 +480,18 @@ const SFX = (() => {
 
     src.connect(filter);
     filter.connect(gain);
-    gain.connect(master);
+    gain.connect(sfxBus);
     src.start(t0);
     src.stop(t0 + duration + 0.02);
   }
 
-  // --- ambient drone, shifts per area ---
-  // Two detuned low oscillators + a sub-octave layer, run through a slowly
-  // wandering low-pass filter (LFO-modulated cutoff) so the drone breathes
-  // instead of sitting static. Kept quiet — it's a background bed, not a lead.
-  function startDrone() {
-    const c = ensureCtx();
-    if (!c) return;
-    const osc1 = c.createOscillator();
-    const osc2 = c.createOscillator();
-    const sub = c.createOscillator();
-    const filter = c.createBiquadFilter();
-    const gain = c.createGain();
-    const lfo = c.createOscillator();
-    const lfoGain = c.createGain();
-
-    osc1.type = 'sine';
-    osc2.type = 'triangle';
-    sub.type = 'sine';
-    osc1.frequency.value = 60;
-    osc2.frequency.value = 90.3;
-    sub.frequency.value = 30;
-
-    filter.type = 'lowpass';
-    filter.frequency.value = 400;
-    filter.Q.value = 0.5;
-
-    // Slow LFO wandering the filter cutoff (~20s cycle) for gentle evolution.
-    lfo.type = 'sine';
-    lfo.frequency.value = 0.05;
-    lfoGain.gain.value = 120;
-    lfo.connect(lfoGain);
-    lfoGain.connect(filter.frequency);
-
-    gain.gain.value = 0.05; // quiet, background-appropriate
-
-    osc1.connect(filter);
-    osc2.connect(filter);
-    sub.connect(filter);
-    filter.connect(gain);
-    gain.connect(master);
-
-    osc1.start();
-    osc2.start();
-    sub.start();
-    lfo.start();
-
-    droneNodes = { osc1, osc2, sub, filter, gain, lfo, lfoGain };
-  }
-
-  // Deterministic hash from area id -> stable per-area tone
-  function areaHash(id) {
-    let h = 0;
-    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-    return h;
-  }
-
+  // Called on spawn/area-transition to switch the recorded region track.
+  // No procedural ambient bed anymore — recorded music (setRegionMusic) is
+  // the only ambience layer now.
   function setAreaAmbient(areaId) {
     if (areaId === currentAreaId) return;
-    if (!unlocked || !droneNodes) return;
+    if (!unlocked) return;
     currentAreaId = areaId;
-    const h = areaHash(areaId);
-    const base = 48 + (h % 40); // 48-88 Hz drone root
-    const c = ensureCtx();
-    const t = c.currentTime;
-    const { osc1, osc2, sub, filter } = droneNodes;
-
-    osc1.frequency.cancelScheduledValues(t);
-    osc1.frequency.linearRampToValueAtTime(base, t + 3);
-    osc2.frequency.cancelScheduledValues(t);
-    osc2.frequency.linearRampToValueAtTime(base * 1.5 + 2, t + 3);
-    sub.frequency.cancelScheduledValues(t);
-    sub.frequency.linearRampToValueAtTime(base / 2, t + 3);
-
-    const cutoff = 250 + ((h >> 3) % 500);
-    filter.frequency.cancelScheduledValues(t);
-    filter.frequency.linearRampToValueAtTime(cutoff, t + 3);
-
-    // Swap the recorded region/hub track to match (drone above is ducked,
-    // not replaced, inside setRegionMusic itself).
     setRegionMusic(areaId);
   }
 
@@ -538,7 +500,8 @@ const SFX = (() => {
     setAreaAmbient,
     setRegionMusic,
     setBossMusic,
-    setMasterVolume,
+    setMusicVolume,
+    setSfxVolume,
 
     jump() { tone(420, 0.12, { type: 'sine', sweepTo: 620, volume: 0.16, filterFreq: 3000 }); },
     land() { noiseBurst(0.08, { filterFreq: 500, volume: 0.14 }); },
@@ -547,6 +510,7 @@ const SFX = (() => {
       tone(200, 0.12, { type: 'sawtooth', sweepTo: 60, volume: 0.1, filterFreq: 1200 });
     },
     phaseDash() {
+      if (playSample('phaseDash', 0.28)) return;
       noiseBurst(0.2, { filterFreq: 4000, volume: 0.16 });
       tone(800, 0.2, { type: 'sine', sweepTo: 200, volume: 0.12 });
     },
@@ -559,7 +523,10 @@ const SFX = (() => {
       tone(100, 0.15, { type: 'sawtooth', sweepTo: 40, volume: 0.22, filterFreq: 900 });
       noiseBurst(0.12, { filterFreq: 800, volume: 0.2 });
     },
-    chargeFull() { tone(440, 0.12, { type: 'sine', sweepTo: 880, volume: 0.14 }); },
+    chargeFull() {
+      if (playSample('chargedAttack', 0.26)) return;
+      tone(440, 0.12, { type: 'sine', sweepTo: 880, volume: 0.14 });
+    },
     attackHit() {
       if (playSample('attackHit', 0.3)) return;
       noiseBurst(0.1, { filterFreq: 1200, volume: 0.2 });
@@ -586,6 +553,7 @@ const SFX = (() => {
     },
     fractureGain() { tone(880, 0.12, { type: 'sine', sweepTo: 1100, volume: 0.1 }); },
     stillpointActivate() {
+      if (playSample('stillpoint', 0.3)) return;
       tone(440, 0.8, { type: 'sine', sweepTo: 880, volume: 0.16, attack: 0.05 });
       noiseBurst(0.3, { filterType: 'bandpass', filterFreq: 3000, volume: 0.08 });
     },

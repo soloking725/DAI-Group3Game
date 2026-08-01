@@ -240,6 +240,38 @@ to 15, same number as before but differently composed.
 Total: 15 Lore Pips across the 13 regions (11 x 1, 2 x 2), separate from the
 origin spine's own already-placed fragments and the Crag's 3.
 
+### Extra/Customization Pips — 15 total, added 2026-07-29 (proposal)
+
+Per the user's request: 15 more pips with **no vision/visual effect
+attached** (unlike the 15 Lore Pips above, which each trigger a specific
+`lorePipEffect` moment) — pure Fracture Pip/upgrade-economy currency, there
+so players have more of that economy to spend on customization. Combined
+with the 15 Lore Pips above: **30 pips total** in the world. Same caveat as
+the Lore Pip table — these are proposed placements, not locked, since most
+of the 13 regions aren't built yet.
+
+| Region | Extra Pips | Reasoning |
+|---|---|---|
+| Mirror Veil | 1 | Even spread |
+| Event Horizon | 1 | Even spread |
+| Chrono-Space Rift | 1 | Even spread |
+| Graviton Core | 1 | Even spread |
+| The Inverted Spire | 1 | Even spread |
+| The Observatory | 1 | Even spread |
+| The Void Expanse | 1 | Even spread |
+| Warp Gate Nexus | 1 | Even spread |
+| The Polar Shift | 1 | Even spread |
+| Paradox Engine | 1 | Even spread |
+| **Static Field** | 1 | Only region with 0 Lore Pips, but not over-weighted — see Crag below |
+| Timeline Crossroads | 1 | Even spread |
+| Echoing Abyss | 1 | Even spread |
+| **Crag of the Colossus** *(side-branch, not one of the 13)* | **2** | Already built and live (unlike most of the 13, which are unbuilt shells) — gives the customization economy somewhere actually reachable today. Separate from its existing 3 old-style `loreFragments` text fragments, same relationship the 15 Lore Pips have to those. |
+
+Total: 13 x 1 (across the 13 regions) + 2 (Crag) = 15 extra pips, bringing
+the grand total to 30 alongside the 15 Lore Pips. Not yet implemented in
+`area.js`/`game_entities.js` — these need a distinct pip type from the
+lore-fragment kind (no `lorePipEffect` trigger) once building starts.
+
 ### Cosmetic upgrades — NOT one per region, kept rare and hidden
 
 Per the "nice to collect, not another economy" discussion — these are

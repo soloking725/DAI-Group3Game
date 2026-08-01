@@ -45,6 +45,9 @@ CC-BY tracks instead — attribution for those is included in the table below.
 | boss_conduit.ogg | "Heavy Boss Battle 1" (bpm200) | MintoDog | CC0 | https://opengameart.org/content/heavy-boss-battle-1 | Static Field — The Conduit (`static_guardian`) |
 | boss_assembler.ogg | "Caustic Chip" | Jan125 | **CC-BY 4.0** — attribution required: "Caustic Chip" by Jan125, https://opengameart.org/content/caustic-chip | https://opengameart.org/content/caustic-chip | Paradox Engine — The Assembler (`paradox_engine`) |
 | boss_timeline_crossroads.ogg | "Chuggin' Through Columbia (Looping)" | Eric Matyas (soundimage.org) | **CC-BY 3.0** — attribution required: music by Eric Matyas, www.soundimage.org | https://opengameart.org/content/chuggin-through-columbia-looping | Timeline Crossroads — unnamed scientist miniboss (`timeline_keeper`) |
+| boss_void_expanse.ogg | "Dark Ambience Loop" | Iwan "qubodup" Gabovitch | **CC-BY 3.0** — attribution required: music by Iwan "qubodup" Gabovitch | https://opengameart.org/content/dark-ambience-loop | Void Expanse — The Undertow (`void_expanse_boss`), added 2026-07-28. Promoted from the candidate pool over the CC0 alternates (`sinister_boss_appears.ogg` etc.) because it's an actual ambience loop matching the fight's void-chase tone — the CC0 picks were either a one-shot "boss appears" stinger (wrong shape for a track that has to loop the whole fight) or generic boss-battle loops with no thematic fit. |
+| boss_antechamber_child.ogg | "Regret - Short Emotional Piano" | Wolfgang_ | CC0 | https://opengameart.org/content/regret-short-emotional-piano | The Antechamber — The Child (`antechamber_child`), added 2026-07-28 once the Abandoned Shell/Antechamber Child canon conflict was resolved (this fight now replaces Abandoned Shell as the sole "lost the child" consequence, per user direction — see game_update.js's Absorb/Spare choice). Matches the fight's intimate/tragic tone, not an industrial final-boss loop. |
+| boss_abandoned_shell.ogg | "Horror Theme 1" | Lasse Bührmann (embedded file metadata; candidate manifest listed "EmoPreben" as an OGA page attribution — flagging the discrepancy rather than picking silently) | CC0 | https://opengameart.org/content/oldschool-horror-theme | Hollow Core — Abandoned Shell (`abandoned_shell`), added 2026-07-28, relocated from the final door per user direction and made unconditional (fights every playthrough). Trimmed to a 75s loop (`ffmpeg -t 75`, same loudnorm/fade convention as every other live track) from the original ~3:18 candidate file. |
 
 No CC0 track was found for a "trains/industrial transit" theme (Timeline Crossroads) or a fast
 glitchy chiptune theme (The Assembler) — those two use CC-BY tracks with attribution above, per
@@ -70,8 +73,11 @@ named bosses had to share a track this pass.
 - `miniboss_a`/`miniboss_b` (the old two-tier boss pool) are no longer used by any named miniboss;
   they're kept only as the horde track for `sovereign_army_reserve` (Sovereign's Army Reserve —
   a repeated-clone horde, not a single named miniboss, via `AREA_MUSIC_MAP`).
-- **The Void Expanse's new unnamed miniboss** and **The Antechamber's Child fight** are both in
-  the authoritative boss roster but have no `area.miniboss` id or boss-spawn code in
-  `game/area.js`/`game/game.js` yet — there's nothing in `BOSS_MUSIC_MAP` to hang a unique track
-  on until that fight is actually implemented. Flagging so it isn't forgotten once those fights
-  exist in code.
+- **The Void Expanse's miniboss, The Undertow** (`void_expanse_boss`), was built 2026-07-28 as a
+  `ComposedEnemy` def (`game/enemy.js`) and wired into `void_expanse_room2` (now `roomType:
+  'miniboss'`) — see `boss_void_expanse.ogg` above for its now-live track.
+- **The Antechamber Child vs. Abandoned Shell conflict is resolved** (2026-07-28, user
+  direction): the Child fight replaces Abandoned Shell as the sole "lost the child"
+  consequence (carries the Absorb/Spare choice and Collapse/Loop endings); Abandoned Shell
+  itself was relocated to Hollow Core and made unconditional (every playthrough fights it
+  there, decoupled from the child's fate). Both now have live tracks, see the table above.

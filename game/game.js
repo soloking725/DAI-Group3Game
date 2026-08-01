@@ -20,7 +20,7 @@ function resizeCanvasToFit() {
   // Several editor/*.html dev tools (difficulty_bot.html, enemy_test.html,
   // companion_test.html, enemy_designer.html, ability_tester.html) lay the
   // canvas out next to a fixed-width `#side` sidebar instead of filling the
-  // whole window the way index.html does. Sizing against the full window
+  // whole window the wxay index.html does. Sizing against the full window
   // here (ignoring the sidebar) makes the canvas wider than the space
   // actually left for it, and since #stage/#side are flex-shrink:0 flex
   // items, the overflow gets clipped by body's `overflow:hidden` — the
@@ -83,6 +83,7 @@ let particles = [];
 // main enemy loop below for where these get pushed, and the update/draw
 // passes near the projectile ones for how they tick and render.
 let afterimageHazards = [];
+let constructs = [];
 let menuParticles = []; // ambient particles for start screen
 let menuClick = false; // canvas click for menu
 let gameRunning = true;
@@ -321,6 +322,8 @@ const ABILITY_GRANTS = {
                     notification: 'ABILITY: Void Tether — R pulls the enemy you face to you (or you to a wall)' },
   parry:          { flag: 'hasParry',         color: '#fbbf24', popup: 'PARRY',
                     notification: 'ABILITY: Parry — tap Down to deflect an attack (hold Down to duck/crawl)' },
+  construct:      { flag: 'hasConstruct',     color: '#fbbf24', popup: 'CONSTRUCT',
+                    notification: 'ABILITY: Construct - hold Q to aim and build a construct, tap for quickfire'},
 };
 
 // Parry deflect — player.parryTimer (opened by a quick Down-tap, see
@@ -2006,6 +2009,7 @@ function init() {
   abilityState.gravitonSurgeCooldown = 0;
   abilityState.voidTetherCooldown = 0;
   abilityState.parryCooldown = 0;
+  abilityState.constructCooldown = 0;
   abilityState.hasPhaseDash = false;
   abilityState.hasShardShot = false;
   abilityState.hasStillpoint = false;
@@ -2013,6 +2017,8 @@ function init() {
   abilityState.hasGravitonSurge = false;
   abilityState.hasVoidTether = false;
   abilityState.hasParry = false;
+  abilityState.hasConstruct = false;
+
   gameTimeScale = 1.0;
 
   // Spawn menu particles
@@ -2145,6 +2151,8 @@ function saveGame(slot) {
         gravitonSurgeCooldown: abilityState.gravitonSurgeCooldown,
         voidTetherCooldown: abilityState.voidTetherCooldown,
         parryCooldown: abilityState.parryCooldown,
+        hasConstruct: abilityState.hasConstruct,
+        constructCooldown: abilityState.constructCooldown,
       },
       anchorActivated,
       lastAnchor,
@@ -2190,6 +2198,7 @@ function loadGame(slot) {
     abilityState.hasGravitonSurge = !!(data.abilityState && data.abilityState.hasGravitonSurge);
     abilityState.hasVoidTether = !!(data.abilityState && data.abilityState.hasVoidTether);
     abilityState.hasParry = !!(data.abilityState && data.abilityState.hasParry);
+    abilityState.hasConstruct = !!(data.abilityState && data.abilityState.hasConstruct);
     // Cooldowns persisted (2026-07-24 fix) — clamp to the real max so a
     // hand-edited/corrupted save can't hand the player a stuck-forever
     // cooldown; missing/old-format saves fall back to 0 (ready), same as
@@ -2200,6 +2209,7 @@ function loadGame(slot) {
     abilityState.gravitonSurgeCooldown = Math.min(Math.max(0, savedCd.gravitonSurgeCooldown || 0), GRAVITON_SURGE_COOLDOWN);
     abilityState.voidTetherCooldown = Math.min(Math.max(0, savedCd.voidTetherCooldown || 0), VOID_TETHER_COOLDOWN);
     abilityState.parryCooldown = Math.min(Math.max(0, savedCd.parryCooldown || 0), PARRY_COOLDOWN);
+    abilityState.constructCooldown = Math.min(Math.max(0, savedCd.constructCooldown|| 0), CONSTRUCT_COOLDOWN);
     abilityState.notifications = [];
 
     anchorActivated = data.anchorActivated || {};
@@ -2326,11 +2336,13 @@ function startNewGame() {
   abilityState.hasGravitonSurge = false;
   abilityState.hasVoidTether = false;
   abilityState.hasParry = false;
+  abilityState.hasConstruct = false;
   abilityState.phaseDashCooldown = 0;
   abilityState.shardShotCooldown = 0;
   abilityState.gravitonSurgeCooldown = 0;
   abilityState.voidTetherCooldown = 0;
   abilityState.parryCooldown = 0;
+  abilityState.constructCooldown = 0;
   abilityState.notifications = [];
   resetTutorial();
   spawnAreaEnemies('spawn_area_1');
@@ -2929,7 +2941,7 @@ function update() {
   if (abilityState.gravitonSurgeCooldown > 0) abilityState.gravitonSurgeCooldown -= player.timeScale;
   if (abilityState.voidTetherCooldown > 0) abilityState.voidTetherCooldown -= player.timeScale;
   if (abilityState.parryCooldown > 0) abilityState.parryCooldown -= player.timeScale;
-
+  if (abilityState.constructCooldown > 0) abilityState.constructCooldown -= player.timeScale;
   // Player DoT (ComposedEnemy phase system's `dotOnHit` flag — see
   // applyPlayerDot() below) — same un-scaled-by-gameTimeScale, plain
   // per-frame countdown shape as `enemy.burning`'s tick (game.js:3424-3432),
@@ -3013,6 +3025,14 @@ function update() {
     if (!child) {
       child = new Child(player.x - player.facing * 50, player.y);
       nudgeOutOfPlatforms(child, area.platforms, 'Child spawn', true);
+    }
+    // story.md §2 point 2 — the Protect/Train choice is dramatized live, at
+    // the first real fight after meeting her, not pre-decided at Echo
+    // Bridge. Fires once (child_fight_choice_resolved), the first frame any
+    // enemy in the room goes aware.
+    if (!storyFlags.child_fight_choice_resolved &&
+        (areaEnemies[currentAreaId] || []).some((e) => !e.dead && e.aware)) {
+      playCutscene('child_first_fight_choice');
     }
     child.update(player, area, bounds, areaEnemies[currentAreaId] || [], gameTimeScale);
     if (wasActionJustPressed('callChild')) child.call(player);
@@ -4506,6 +4526,9 @@ function drawAbilityCooldownHUD(ctx) {
   }
   if (abilityState.hasParry && abilityState.parryCooldown > 0) {
     slots.push({ label: 'PA', frac: 1 - abilityState.parryCooldown / PARRY_COOLDOWN, color: '251, 191, 36' });
+  }
+  if (abilityState.hasConstruct && abilityState.constructCooldown > 0) {
+    slots.push({ label: 'PA', frac: 1 - abilityState.constructCooldown / CONSTRUCT_COOLDOWN, color: '251, 191, 36' });
   }
   if (slots.length === 0) return;
 

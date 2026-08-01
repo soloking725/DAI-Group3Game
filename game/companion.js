@@ -13,8 +13,10 @@
 //     player's movement, or soft-lock a room. Frustration kills attachment.
 //   * Enemies never target her (she's an anomaly outside the fracture).
 //   * Phase 1 kit: hide during combat, heal-by-touch after. Phase 2
-//     (companionState.canFight, the "teach her to fight" beat): a tether
-//     assist that sets up the PLAYER's combos — she never out-damages you.
+//     (companionState.canFight, the story.md §2 "let her fight" choice):
+//     she fights with a FOUND weapon (companionState.weapon), same as the
+//     player finds abilities — not a fixed kit. Real, modest damage (an
+//     assist, not a DPS race with the player) — see COMPANION_WEAPONS below.
 
 // ── Tuning constants ────────────────────────────────────────────────────────
 // The four `var`s below (not `const`) are reassigned live by
@@ -31,14 +33,27 @@ const CHILD_TELEPORT_MARGIN = 60;    // must ALSO be at least this far off-scree
 var CHILD_HEAL_COOLDOWN = 4200;      // 70s @ 60fps between touch-heals
 const CHILD_HEAL_RANGE = 34;         // touch distance
 const CHILD_HIDE_SEARCH_STEP = 40;   // spacing of candidate hide spots
-var CHILD_TETHER_INTERVAL = 540;     // 9s between fight-mode tether assists
+var CHILD_TETHER_INTERVAL = 540;     // 9s between fight-mode weapon assists
 const CHILD_TETHER_RANGE = 200;      // she assists on enemies near the player
-const CHILD_TETHER_PULL = 70;        // px the enemy gets dragged toward the player
+const CHILD_TETHER_PULL = 70;        // px the enemy gets dragged toward the player (knuckles only)
+
+// ── Found weapons (Phase 2 kit) ─────────────────────────────────────────────
+// She finds these the same way the player finds abilities — starts with one
+// (assigned at the story.md §2 "let her fight" choice) and can find a
+// different/upgraded one later from an enemy drop (see game.js's
+// COMPANION_WEAPON_DROP_CHANCE). Each is a flavor of the same assist slot —
+// one damage source, timed on CHILD_TETHER_INTERVAL — not a moveset.
+const COMPANION_WEAPONS = {
+  knuckles:    { label: 'Knuckles',    color: '#f9a8d4', damage: 3, pull: true,  guardBreak: false, ticks: 1 },
+  taser:       { label: 'Taser',       color: '#7dd3fc', damage: 2, pull: false, guardBreak: true,  ticks: 1 },
+  flamethrower:{ label: 'Flamethrower',color: '#fb923c', damage: 1, pull: false, guardBreak: false, ticks: 4 }, // 1 dmg x4 ticks, DoT-flavored
+};
 
 // ── State (flat-flags style, matching abilityState's convention) ───────────
 const companionState = {
   active: false,      // she exists and follows — the "kept the Child" branch
-  canFight: false,    // Phase 2 unlocked ("taught her to fight")
+  canFight: false,    // Phase 2 unlocked (story.md §2's "let her fight" choice)
+  weapon: null,        // 'knuckles' | 'taser' | 'flamethrower' — set when canFight flips true
   mode: 'follow',     // 'follow' | 'hiding' | 'fighting' | 'scripted'
   healCooldown: 0,    // frames until her touch-heal is ready again
   scriptTarget: null, // {x, y} waypoint while mode === 'scripted'
@@ -64,6 +79,9 @@ class Child {
     this.callChirp = 0;       // frames of "called" indicator
     this.tetherTimer = CHILD_TETHER_INTERVAL; // fight-mode assist countdown
     this.tetherBeam = null;   // { enemy, timer } — assist VFX
+    this.pendingTicks = 0;    // remaining flamethrower-style ticks
+    this.tickTimer = 0;
+    this.tickTarget = null;
   }
 
   // ── Per-frame update. game.js calls this during 'playing' when active. ──
@@ -220,6 +238,22 @@ class Child {
       if (d < nd) { nd = d; nearest = e; }
     }
     if (!nearest) return { x: player.x - player.facing * CHILD_FOLLOW_DIST, y: player.y };
+
+    // Authored hide spots (area.hideSpots: [{x, y}]) — real cover geometry
+    // (an alcove, behind a crate, a corner) placed by level design. Prefer
+    // the one farthest from the nearest enemy, within reach of the player,
+    // over the pure-computed fallback below (which just walks away along
+    // the ground — reads as "leaving" more than "hiding").
+    if (area && Array.isArray(area.hideSpots) && area.hideSpots.length) {
+      let best = null, bestD = -Infinity;
+      for (const spot of area.hideSpots) {
+        if (Math.abs(spot.x - player.x) > 400) continue; // too far to read as "hiding near the fight"
+        const d = Math.hypot(spot.x - nearest.x, spot.y - nearest.y);
+        if (d > bestD) { bestD = d; best = spot; }
+      }
+      if (best) return { x: best.x, y: best.y };
+    }
+
     // Sample a few spots on the player's side away from the enemy; take the
     // farthest within a sane radius.
     const away = player.x > nearest.x ? 1 : -1;
@@ -232,16 +266,34 @@ class Child {
     return best;
   }
 
-  // ── Phase 2: tether assist ─────────────────────────────────────────────
-  // Every CHILD_TETHER_INTERVAL frames, she tethers the enemy nearest the
-  // player's facing line, drags it toward the player and staggers it — a
-  // combo SETUP, not a damage source. (The keep-her branch's answer to the
-  // Void Tether the other branch chose — see the plan doc's symmetry note.)
+  // ── Phase 2: weapon assist ──────────────────────────────────────────────
+  // Every CHILD_TETHER_INTERVAL frames, her found weapon (COMPANION_WEAPONS)
+  // hits the enemy nearest the player's facing line — real, modest damage
+  // (an assist, not a DPS race with the player). Flavor varies by weapon:
+  // knuckles pulls+staggers, taser opens guards, flamethrower ticks damage
+  // over a few frames. this.pendingTicks/tickTimer carry a multi-tick
+  // weapon (flamethrower) across frames without a second timer field.
   _updateTetherAssist(player, enemies, _ts) {
     if (this.tetherBeam) {
       this.tetherBeam.timer -= _ts;
       if (this.tetherBeam.timer <= 0) this.tetherBeam = null;
     }
+
+    // Finish out a multi-tick weapon (flamethrower) independent of the main
+    // assist cooldown, as long as the target's still alive.
+    if (this.pendingTicks > 0) {
+      this.tickTimer -= _ts;
+      if (this.tickTimer <= 0 && this.tickTarget && !this.tickTarget.dead) {
+        const w = COMPANION_WEAPONS[companionState.weapon] || COMPANION_WEAPONS.knuckles;
+        this.tickTarget.takeDamage(w.damage, this.x);
+        this.tetherBeam = { enemy: this.tickTarget, timer: 14 };
+        this.pendingTicks--;
+        this.tickTimer = 10;
+      } else if (!this.tickTarget || this.tickTarget.dead) {
+        this.pendingTicks = 0;
+      }
+    }
+
     this.tetherTimer -= _ts;
     if (this.tetherTimer > 0) return;
 
@@ -256,12 +308,24 @@ class Child {
     if (!target) return;
 
     this.tetherTimer = CHILD_TETHER_INTERVAL;
-    const pull = (player.x > target.x) ? CHILD_TETHER_PULL : -CHILD_TETHER_PULL;
-    target.x += pull;
+    const w = COMPANION_WEAPONS[companionState.weapon] || COMPANION_WEAPONS.knuckles;
+
+    if (w.pull) {
+      const pull = (player.x > target.x) ? CHILD_TETHER_PULL : -CHILD_TETHER_PULL;
+      target.x += pull;
+    }
     target.hitStun = Math.max(target.hitStun || 0, 18);
-    if (target.blocking > 0) { target.blocking = 0; target.guardBroken = 40; } // her tether opens guards too
+    if (w.guardBreak && target.blocking > 0) { target.blocking = 0; target.guardBroken = 40; }
+    target.takeDamage(w.damage, this.x);
+
+    if (w.ticks > 1) {
+      this.pendingTicks = w.ticks - 1;
+      this.tickTarget = target;
+      this.tickTimer = 10;
+    }
+
     this.tetherBeam = { enemy: target, timer: 20 };
-    if (typeof spawnParticles === 'function') spawnParticles(target.x + target.width / 2, target.y + target.height / 2, '#f9a8d4', 8);
+    if (typeof spawnParticles === 'function') spawnParticles(target.x + target.width / 2, target.y + target.height / 2, w.color, 8);
     if (typeof SFX !== 'undefined') SFX.dash();
   }
 
@@ -273,13 +337,16 @@ class Child {
     // Tether-assist beam (fight mode VFX)
     if (this.tetherBeam && !this.tetherBeam.enemy.dead) {
       const e = this.tetherBeam.enemy;
-      ctx.strokeStyle = `rgba(249, 168, 212, ${this.tetherBeam.timer / 20 * 0.8})`;
+      const wCol = (COMPANION_WEAPONS[companionState.weapon] || COMPANION_WEAPONS.knuckles).color;
+      ctx.globalAlpha = this.tetherBeam.timer / 20 * 0.8;
+      ctx.strokeStyle = wCol;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(x + this.width / 2, y + 6);
       ctx.lineTo(e.x + e.width / 2, e.y + e.height / 2);
       ctx.stroke();
       ctx.lineWidth = 1;
+      ctx.globalAlpha = 1;
     }
 
     // Soft glow — she reads as an anomaly, not a combatant
@@ -337,8 +404,66 @@ class Child {
   }
 }
 
+// ── Companion weapon drops ───────────────────────────────────────────────
+// She finds new weapons the same way the player finds abilities — a rare
+// drop from an enemy kill (only once she's fighting at all; see game.js's
+// COMPANION_WEAPON_DROP_CHANCE at the melee-kill site). Self-contained,
+// same array/spawn/update/draw/clear shape as healing.js's vitality motes.
+const WEAPON_DROP_LIFETIME = 600; // 10s before an uncollected drop fades
+const WEAPON_DROP_COLLECT_DIST = 22;
+const COMPANION_WEAPON_DROP_CHANCE = 0.06; // per melee kill, only while companionState.canFight
+let weaponDrops = [];
+
+function spawnWeaponDrop(x, y) {
+  const pool = Object.keys(COMPANION_WEAPONS).filter((k) => k !== companionState.weapon);
+  const weapon = pool.length ? pool[Math.floor(Math.random() * pool.length)] : companionState.weapon;
+  weaponDrops.push({ x, y, vy: -3, weapon, life: WEAPON_DROP_LIFETIME, alive: true });
+}
+
+function updateWeaponDrops(player, timeScale = 1) {
+  const px = player.x + player.width / 2, py = player.y + player.height / 2;
+  for (const d of weaponDrops) {
+    if (!d.alive) continue;
+    d.life -= timeScale;
+    if (d.life <= 0) { d.alive = false; continue; }
+    d.vy = Math.min(2, d.vy + 0.25 * timeScale); // gentle drop, small bounce-settle feel
+    d.y += d.vy * timeScale;
+
+    if (Math.hypot(px - d.x, py - d.y) < WEAPON_DROP_COLLECT_DIST) {
+      d.alive = false;
+      companionState.weapon = d.weapon;
+      if (typeof spawnParticles === 'function') spawnParticles(d.x, d.y, COMPANION_WEAPONS[d.weapon].color, 12);
+      if (typeof addAbilityNotification === 'function') addAbilityNotification(`The Child found: ${COMPANION_WEAPONS[d.weapon].label}`);
+      if (typeof SFX !== 'undefined') SFX.abilityPickup();
+    }
+  }
+  for (let i = weaponDrops.length - 1; i >= 0; i--) {
+    if (!weaponDrops[i].alive) weaponDrops.splice(i, 1);
+  }
+}
+
+function drawWeaponDrops(ctx) {
+  for (const d of weaponDrops) {
+    const a = Math.min(1, d.life / 60);
+    const col = COMPANION_WEAPONS[d.weapon].color;
+    ctx.globalAlpha = a * (0.7 + Math.sin(d.life * 0.15) * 0.3);
+    ctx.fillStyle = col;
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillRect(-5, -5, 10, 10);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function clearWeaponDrops() {
+  weaponDrops.length = 0; // room change — drops are room-space, same as motes
+}
+
 // Debug-tool access (same pattern as area.js's window.AREAS)
 if (typeof window !== 'undefined') {
   window.companionState = companionState;
   window.Child = Child;
+  window.COMPANION_WEAPONS = COMPANION_WEAPONS;
 }
