@@ -197,12 +197,15 @@ canvas{display:block;flex-shrink:0;box-shadow:var(--shadow-card)}
   <span style="color:var(--fg-faint);font-size:9px;margin-left:auto">Keys: V P W E T A X L B R — tools | G — cycle grid | Home — fit &amp; center | Del — remove | Arrows — nudge | Ctrl+Z/Y — undo/redo | Ctrl+C/V — copy/paste</span>
 </div>
 
+<script src="../game/overrideStore.js"></script>
 <script src="../game/physics.js"></script>
 <script src="../game/area.js"></script>
+<script src="../game/roomVerify.js"></script>
 <script src="../game/enemy.js"></script>
 <script src="../game/cutscene.js"></script>
 <script src="../game/devContext.js"></script>
 <script src="../game/unsavedGuard.js"></script>
+<script src="../game/undoHistory.js"></script>
 <script>
 // ─── ENEMY ROSTER (auto-derived from enemy.js's ENEMY_REGISTRY — see the
 // comment above that registry for why this is the single source of truth) ──
@@ -250,33 +253,34 @@ function aC(v){ return v*SCALE; }
 function cA(v){ return v/SCALE; }
 
 // ─── HISTORY (undo/redo) ───────────────────────────────────────────────────
-let history = [clone(area)], historyIndex = 0;
-const HISTORY_MAX = 60;
+// Shared with anim_editor.html/hud_editor.html/inventory_editor.html —
+// see game/undoHistory.js. area is a reassignable `let` (unlike ANIM_DEFS's
+// const), so setState can just reassign it directly.
+const historyMgr = (typeof UndoHistory !== 'undefined') ? UndoHistory.create(
+  () => area,
+  (v) => { area = v; sel=null; selType=null; selList=[]; }
+) : null;
 function pushHistory(){
-  history = history.slice(0, historyIndex+1);
-  history.push(clone(area));
-  if (history.length > HISTORY_MAX) history.shift();
-  historyIndex = history.length-1;
+  if (!historyMgr) return;
+  historyMgr.push();
   updateUndoRedoButtons();
 }
 function resetHistory(){
-  history = [clone(area)]; historyIndex = 0; updateUndoRedoButtons();
+  if (!historyMgr) return;
+  historyMgr.reset();
+  updateUndoRedoButtons();
 }
 function undo(){
-  if (historyIndex<=0) return;
-  historyIndex--; area = clone(history[historyIndex]);
-  sel=null; selType=null; selList=[];
+  if (!historyMgr || !historyMgr.undo()) return;
   updateAreaFields(); updateSideProps(); render(); updateUndoRedoButtons();
 }
 function redo(){
-  if (historyIndex>=history.length-1) return;
-  historyIndex++; area = clone(history[historyIndex]);
-  sel=null; selType=null; selList=[];
+  if (!historyMgr || !historyMgr.redo()) return;
   updateAreaFields(); updateSideProps(); render(); updateUndoRedoButtons();
 }
 function updateUndoRedoButtons(){
-  document.getElementById('undo-btn').disabled = historyIndex<=0;
-  document.getElementById('redo-btn').disabled = historyIndex>=history.length-1;
+  document.getElementById('undo-btn').disabled = !historyMgr || !historyMgr.canUndo();
+  document.getElementById('redo-btn').disabled = !historyMgr || !historyMgr.canRedo();
 }
 
 // ─── CANVAS SETUP ────────────────────────────────────────────────────────
@@ -1130,6 +1134,39 @@ function edgeExitIsFlush(trans){
   return Math.abs(trans.x) <= tol || Math.abs((trans.x + trans.w) - w) <= tol;
 }
 
+// Room-object animation authoring (2026-08-01) — Option 2 from the design
+// discussion: level geometry editing and art/animation authoring stay
+// separate tools (this editor never embeds the frame-strip UI itself), so
+// this is just a text field for the key + a button that deep-links into
+// anim_editor.html's new "Room Objects" category. `kind` only picks the
+// id-prefix suggested when the field is empty — the actual field/storage
+// (`sel.animKey`) and runtime lookup (game_entities.js's
+// tryDrawRoomObjectAnim()/tryDrawPointObjectAnim()) don't care what
+// generated the name. 'plat'/'trans' have real w/h (a rect); the rest
+// (sp/ab/lore/pip/heal) are bare {x,y} pickups/markers — those go through
+// tryDrawPointObjectAnim()'s fixed-box adapter instead, but author the same
+// way, same field, same button, so this row doesn't distinguish the two —
+// the difference is purely which runtime helper the draw call site uses.
+const ANIM_KEY_PREFIXES = { plat: 'hazard', trans: 'door', sp: 'anchor', ab: 'reward', lore: 'lorepip', pip: 'fracturepip', heal: 'healcrystal' };
+function animKeyRow(kind){
+  return `<div class="row"><label>anim</label><input type="text" id="p-animkey" value="${(sel.animKey||'').replace(/"/g,'&quot;')}" placeholder="(none — procedural look)" style="width:150px"></div>
+  <div class="row"><button onclick="openAnimEditorFor('${kind}')">🎬 Edit Animation →</button></div>
+  <div class="hint" style="color:#5a9bd4;font-size:10px">Opens anim_editor.html in a new tab. Overrides this object's procedural draw once a matching key has real frames; blank = unchanged procedural look.</div>`;
+}
+function openAnimEditorFor(kind){
+  applyProps(); // make sure any just-typed field (esp. w/h) is on `sel` first
+  const input=document.getElementById('p-animkey');
+  let key=(input.value||'').trim();
+  if(!key){
+    key=(ANIM_KEY_PREFIXES[kind]||'obj')+'_'+Date.now().toString(36);
+    input.value=key;
+    applyProps();
+    pushHistory();
+  }
+  const w=sel.w||32, h=sel.h||32;
+  window.open(`anim_editor.html?anim=${encodeURIComponent(key)}&w=${w}&h=${h}`, '_blank');
+}
+
 function updateSideProps(){
   const el=document.getElementById('sel-props');
   if(selList.length>1){
@@ -1157,6 +1194,7 @@ function updateSideProps(){
     ${sel.crumble?pi('p-crumbledelay','delay(f)',sel.crumbleDelay!==undefined?sel.crumbleDelay:30,1)+pi('p-respawn','respawn(f)',sel.respawn!==undefined?sel.respawn:120,1):''}
     <div class="row"><label>moving</label><input type="checkbox" id="p-moving" ${sel.moving?'checked':''}><span style="color:#5a9bd4;font-size:10px"> Oscillates to (toX,toY), carries the player</span></div>
     ${sel.moving?pi('p-mvx','toX',sel.moving.toX!==undefined?sel.moving.toX:sel.x,10)+pi('p-mvy','toY',sel.moving.toY!==undefined?sel.moving.toY:sel.y,10)+pi('p-mvspeed','speed',sel.moving.speed||1,1):''}
+    ${animKeyRow('plat')}
     ${layerButtons('plat')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='enemy'){
@@ -1167,6 +1205,7 @@ function updateSideProps(){
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='sp'){
     h=`<div class="section-title">Anchor ◆</div>${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pi('p-idx','#',sel.index||0,1)}
+    ${animKeyRow('sp')}
     ${layerButtons('sp')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='trans'){
@@ -1181,6 +1220,7 @@ function updateSideProps(){
     <div class="row"><label>oneWay</label><input type="checkbox" id="p-oneway" ${sel.oneWay?'checked':''}></div>
     <div class="row"><label>edge exit</label><input type="checkbox" id="p-edgeexit" ${sel.edgeExit?'checked':''}><span style="color:#5a9bd4;font-size:10px"> Hollow Knight-style — no door art, camera holds at the room edge instead</span></div>
     ${sel.edgeExit && !edgeExitIsFlush(sel) ? '<div class="hint" style="color:var(--warn)">Not flush against a room edge (x=0 or x=roomWidth-w) — an edge exit needs to sit at the literal boundary or the camera-hold illusion breaks.</div>' : ''}
+    ${animKeyRow('trans')}
     ${layerButtons('trans')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='lore'){
@@ -1192,19 +1232,23 @@ function updateSideProps(){
     <div class="row"><label>vision</label><select id="p-mode">${modeOpts}</select></div>
     ${lmode==='cutscene'?`<div class="row"><label>cutsceneId</label><input list="cutscene-ids" id="p-cutsceneid" value="${(sel.cutsceneId||'').replace(/"/g,'&quot;')}"></div><datalist id="cutscene-ids">${cutsceneIds.map(k=>`<option value="${k}">`).join('')}</datalist>${cutsceneIds.length?'':'<div class="hint" style="color:var(--warn)">No CUTSCENES found (game/cutscene.js not loaded) — type the id anyway, it just won\'t autocomplete.</div>'}`:''}
     ${lmode!=='none'?pp('p-txt','txt',sel.text||''):'<div class="hint">Extra/customization pip — banks the same as any Lore Pip but plays no vision on pickup (see regions.md\'s Extra/Customization Pips table).</div>'}
+    ${animKeyRow('lore')}
     ${layerButtons('lore')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='ab'){
     h=`<div class="section-title">Ability ★</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}${pt('p-name','name',sel.name||'')}${pp('p-desc','desc',sel.desc||'')}
+    ${animKeyRow('ab')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='pip'){
     h=`<div class="section-title">Fracture Pip ✦</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}
     <div class="hint">Raises the player's max Fracture meter when collected. ids must be unique across all rooms.</div>
+    ${animKeyRow('pip')}
     ${layerButtons('pip')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='heal'){
     h=`<div class="section-title">Healing Crystal ✚</div>${pt('p-id','id',sel.id||'')}${pi('p-x','x',sel.x,10)}${pi('p-y','y',sel.y,10)}
     <div class="hint">Strike to full-heal; regrows on anchor rest or death.</div>
+    ${animKeyRow('heal')}
     ${layerButtons('heal')}
     <div class="row"><button class="del" onclick="deleteSel()">✕ Delete</button></div>`;
   }else if(selType==='cos'){
@@ -1220,7 +1264,7 @@ function updateSideProps(){
   el.innerHTML=h;
 
   // Wire inputs
-  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-wall p-ceiling p-to p-req p-oneway p-edgeexit p-manualspawn p-type p-tint p-id p-name p-txt p-desc p-plat-oneway p-hazard p-damage p-crumble p-crumbledelay p-respawn p-moving p-mvx p-mvy p-mvspeed p-mode p-cutsceneid'.split(' ').forEach(id=>{
+  'p-x p-y p-w p-h p-hp p-idx p-tox p-toy p-dest p-wall p-ceiling p-to p-req p-oneway p-edgeexit p-manualspawn p-type p-tint p-animkey p-id p-name p-txt p-desc p-plat-oneway p-hazard p-damage p-crumble p-crumbledelay p-respawn p-moving p-mvx p-mvy p-mvspeed p-mode p-cutsceneid'.split(' ').forEach(id=>{
     const e=document.getElementById(id);if(!e)return;
     e.addEventListener('input',applyProps);
     e.addEventListener('change',()=>{applyProps();pushHistory();});
@@ -1256,6 +1300,7 @@ function applyProps(){
     if(gb('p-hazard')){sel.hazard=true;sel.damage=gi('p-damage')||1;}else{delete sel.hazard;delete sel.damage;}
     if(gb('p-crumble')){sel.crumble=true;const d=gi('p-crumbledelay');sel.crumbleDelay=d!==null?d:30;const r=gi('p-respawn');sel.respawn=r!==null?r:120;}else{delete sel.crumble;delete sel.crumbleDelay;delete sel.respawn;}
     if(gb('p-moving')){const tx=gi('p-mvx'),ty=gi('p-mvy'),sp=gi('p-mvspeed');sel.moving={toX:tx!==null?tx:sel.x,toY:ty!==null?ty:sel.y,speed:sp||1};}else delete sel.moving;
+    {const ak=gs('p-animkey');if(ak&&ak.trim())sel.animKey=ak.trim();else delete sel.animKey;}
   }else if(selType==='enemy'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const t=gs('p-type');if(t)sel.type=t;
@@ -1263,6 +1308,7 @@ function applyProps(){
   }else if(selType==='sp'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     if(gi('p-idx')!==null)sel.index=gi('p-idx');
+    {const ak=gs('p-animkey');if(ak&&ak.trim())sel.animKey=ak.trim();else delete sel.animKey;}
   }else if(selType==='trans'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     if(gi('p-w')!==null)sel.w=gi('p-w');if(gi('p-h')!==null)sel.h=gi('p-h');
@@ -1271,21 +1317,25 @@ function applyProps(){
     const req=gs('p-req');if(req!==null){if(req)sel.requires=req;else delete sel.requires;}
     if(gb('p-oneway'))sel.oneWay=true;else delete sel.oneWay;
     if(gb('p-edgeexit'))sel.edgeExit=true;else delete sel.edgeExit;
+    {const ak=gs('p-animkey');if(ak&&ak.trim())sel.animKey=ak.trim();else delete sel.animKey;}
   }else if(selType==='lore'){
     const id=gs('p-id');if(id!==null)sel.id=id;
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const txt=gs('p-txt');if(txt!==null)sel.text=txt;
     const mode=gs('p-mode');if(mode!==null)sel.mode=mode;
     if((sel.mode||'overlay')==='cutscene'){const cs=gs('p-cutsceneid');if(cs!==null)sel.cutsceneId=cs;}else{delete sel.cutsceneId;}
+    {const ak=gs('p-animkey');if(ak&&ak.trim())sel.animKey=ak.trim();else delete sel.animKey;}
   }else if(selType==='ab'){
     const id=gs('p-id');if(id!==null)sel.id=id;
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     const n=gs('p-name');if(n!==null)sel.name=n;
     const d=gs('p-desc');if(d!==null)sel.desc=d;
+    {const ak=gs('p-animkey');if(ak&&ak.trim())sel.animKey=ak.trim();else delete sel.animKey;}
   }else if(selType==='pip'||selType==='heal'||selType==='cos'){
     const id=gs('p-id');if(id!==null)sel.id=id;
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
     if(selType==='cos'){const n=gs('p-name');if(n!==null)sel.name=n;}
+    if(selType!=='cos'){const ak=gs('p-animkey');if(ak&&ak.trim())sel.animKey=ak.trim();else delete sel.animKey;}
   }else if(selType==='bossspawn'){
     if(gi('p-x')!==null)sel.x=gi('p-x');if(gi('p-y')!==null)sel.y=gi('p-y');
   }
@@ -1379,7 +1429,7 @@ document.getElementById('save-live-btn').addEventListener('click',()=>{
   }
 });
 
-// ─── CHECK ALL ROOMS (uses the real validateRoomLayout() from area.js) ────
+// ─── CHECK ALL ROOMS (uses the real RoomVerify.verifyRoom() — game/roomVerify.js) ────
 document.getElementById('check-btn').addEventListener('click',()=>{
   const out=document.getElementById('check-out');
   let clean=0, lines=[];
@@ -1387,7 +1437,7 @@ document.getElementById('check-btn').addEventListener('click',()=>{
     const room=AREAS[id];
     if(typeof room.col!=='number'){ continue; } // dev-only rooms, same skip rule as area.js
     let failures=[];
-    try{ failures=validateRoomLayout(room).failures; }catch(err){ failures=['linter crashed: '+err.message]; }
+    try{ failures=RoomVerify.verifyRoom(room, AREAS).issues.map((iss)=>`[${iss.severity}] ${iss.type} — ${iss.detail}`); }catch(err){ failures=['linter crashed: '+err.message]; }
     if(failures.length===0){ clean++; }
     else { lines.push(`<div class="bad" data-room="${id}">✗ ${id}: ${failures.length} issue(s)<br>&nbsp;&nbsp;${failures.join('<br>&nbsp;&nbsp;')}</div>`); }
   }
@@ -1425,16 +1475,13 @@ function deepEqual(a,b){
 
 document.getElementById('validate-btn').addEventListener('click',()=>{
   const out=document.getElementById('validate-out');
-  let failures=[];
-  try{ failures=validateRoomLayout(area).failures; }
-  catch(err){ failures=['linter crashed: '+err.message]; }
-  validationFailures=failures.map(f=>{
-    const m=f.match(/\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)/);
-    return { msg:f, x:m?parseFloat(m[1]):null, y:m?parseFloat(m[2]):null };
-  });
-  out.innerHTML = failures.length===0
+  let issues=[];
+  try{ issues=RoomVerify.verifyRoom(area, AREAS).issues; }
+  catch(err){ issues=[{type:'CRASH',severity:'error',x:null,y:null,detail:'linter crashed: '+err.message}]; }
+  validationFailures=issues.map(iss=>({ msg:`[${iss.severity}] ${iss.type} — ${iss.detail}`, x:iss.x, y:iss.y }));
+  out.innerHTML = issues.length===0
     ? '<div class="ok">✓ this room passes layout checks</div>'
-    : failures.map(f=>`<div class="bad">✗ ${f}</div>`).join('');
+    : validationFailures.map(f=>`<div class="bad">✗ ${f.msg}</div>`).join('');
   render();
 });
 

@@ -384,6 +384,34 @@ let inventoryMessage = null; // { text, timer } — transient feedback line in t
 let inventorySelection = 0;  // selected row in the Inventory screen's upgrade list
 let inventoryReturnState = 'paused'; // gameState to restore on exit — 'paused' (via pause menu) or 'playing' (via direct I shortcut)
 
+// ── Multi-page Inventory (2026-08-01 redesign, see Plans/inventory_redesign.md) ──
+// Page 0 = Map (world map + player-placed pins), 1 = Character (abilities/
+// stats/story items/companion), 2 = Upgrades (the old single-page inventory
+// content, unchanged), 3 = Customization (idle anims/taunts/fashion, starts
+// with an empty catalog — filled in via editor/inventory_editor.html).
+// Layout/content of each page lives in inventory_ui.js; this file only owns
+// the persisted/session state that isn't view-layer.
+let inventoryPage = 1; // which of the 4 pages is showing
+const INVENTORY_PAGE_NAMES = ['MAP', 'CHARACTER', 'UPGRADES', 'CUSTOMIZATION'];
+
+// Page 0 (Map) — player-placed pins, freeform in map-canvas logical space
+// (same pre pan/zoom coordinate space drawMap() uses). Not tied to a room —
+// "scratched together from all sources" per the design brief, so pins can
+// land anywhere on the board, not just room centers.
+let mapPins = []; // { id, x, y, icon, note }
+let mapCursor = { x: W / 2, y: H / 2 }; // keyboard crosshair used to place/remove pins
+let nextMapPinId = 1;
+
+// Page 3 (Customization) — per-save unlock/equip state. The catalog of
+// *available* cosmetics (COSMETICS_CATALOG) lives in customization.js and
+// starts empty; it's authored content filled in via the editor, not game
+// state, so it isn't saved here — only which ones this save has
+// unlocked/equipped is.
+let unlockedCosmetics = {}; // cosmetic id -> true
+let equippedCosmetics = { idle_anim: null, taunt: null, fashion: null };
+let cosmeticsSlotIndex = 0; // which slot tab (idle_anim/taunt/fashion) is active
+let cosmeticsSelection = 0; // selected cell within that slot's grid
+
 // Transient feedback lines (same {text, timer} pattern as inventoryMessage above)
 let pauseMenuMessage = null;  // pause menu — Export Save feedback
 let saveSlotMessage = null;   // main menu "Select Save" screen — Export/Import feedback

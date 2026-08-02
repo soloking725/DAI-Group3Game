@@ -150,8 +150,10 @@ body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:col
   </div>
 </div>
 
+<script src="../game/overrideStore.js"></script>
 <script src="../game/physics.js"></script>
 <script src="../game/area.js"></script>
+<script src="../game/roomVerify.js"></script>
 <script src="../game/enemy.js"></script>
 <script src="../game/animdata.js"></script>
 <script src="../game/animImageStore.js"></script>
@@ -182,6 +184,7 @@ const TOOL_GROUPS = [
   { label: 'Systems', tools: [
     { name: 'Animation / Hitbox Editor', file: 'anim_editor.html', desc: 'ANIM_DEFS frames, hitboxes, onion skin', contextKey: 'currentAnimationKey', param: 'anim' },
     { name: 'HUD Layout Editor', file: 'hud_editor.html', desc: 'Position/size HUD elements' },
+    { name: 'Inventory Editor', file: 'inventory_editor.html', desc: 'Position the 4-page Inventory\'s elements, add freeform ones, author the Page-3 cosmetics catalog' },
     { name: 'Companion Test Arena', file: 'companion_test.html', desc: 'Tune the Child companion' },
   ]},
   { label: 'QA & Debug', tools: [
@@ -514,8 +517,10 @@ function renderRegionRollup(p) {
 
 // ─── RUN ALL VALIDATIONS ────────────────────────────────────────────────
 // Three checks, all static (no game loop, no iframe) so they run instantly:
-//  1. validateRoomLayout() per room — the same linter levelEditor.html's
-//     "Check All Rooms" button uses.
+//  1. RoomVerify.verifyRoom() per room (game/roomVerify.js — see its own
+//     header for the 2026-08-02 merge that made it the one canonical room
+//     linter) — the same linter levelEditor.html's "Check All Rooms" button
+//     uses.
 //  2. validateAreaGraph() — the same compass-graph validator debug_v1.html's
 //     R09 reuses. Called directly here rather than through
 //     graph_analyzer.html's own analyze(), which reads room.connections
@@ -537,7 +542,7 @@ function runAllValidations() {
     if (typeof room.col !== 'number') continue; // dev-only room, same skip rule as levelEditor
     roomsChecked++;
     let failures = [];
-    try { failures = validateRoomLayout(room).failures; }
+    try { failures = RoomVerify.verifyRoom(room, AREAS).issues.map((iss) => `[${iss.severity}] ${iss.type} — ${iss.detail}`); }
     catch (err) { failures = ['linter crashed: ' + err.message]; }
     if (failures.length === 0) roomsClean++;
     else roomIssues.push({ id, failures });

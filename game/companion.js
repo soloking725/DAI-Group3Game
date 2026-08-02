@@ -57,6 +57,17 @@ const companionState = {
   mode: 'follow',     // 'follow' | 'hiding' | 'fighting' | 'scripted'
   healCooldown: 0,    // frames until her touch-heal is ready again
   scriptTarget: null, // {x, y} waypoint while mode === 'scripted'
+  // Environment-interaction hook (2026-08-01) — 'scripted' mode today only
+  // ever carries a waypoint (scriptTarget); this is the room to grow that
+  // into "walk to X, THEN play an interaction pose" without a second state
+  // machine. A cutscene `call` step (or any future environment-trigger
+  // code) sets this to a Child animStateKey() suffix (see below) — e.g.
+  // 'point', 'examine', 'pull_lever' — once she arrives, and clears it
+  // (back to null) when the beat ends. No built-in meaning yet: it only
+  // does something once a matching `child_<name>` def exists in
+  // ANIM_DEFS (anim_editor.html) — same additive/no-op-until-authored
+  // contract every other animStateKey() in this codebase follows.
+  scriptAnim: null,
 };
 
 class Child {
@@ -82,6 +93,34 @@ class Child {
     this.pendingTicks = 0;    // remaining flamethrower-style ticks
     this.tickTimer = 0;
     this.tickTarget = null;
+
+    // Visual bridge to game/animdata.js (2026-08-01) — same additive,
+    // fallback-to-procedural convention as enemy.js's ComposedEnemy: an
+    // ANIM_DEFS key authored under `child_<state>` (see animStateKey()
+    // below, editable in anim_editor.html) overrides the procedural body
+    // draw; nothing authored means zero behavior change from today.
+    this.animator = new Animator(this);
+    this._animKey = null;
+  }
+
+  // One state key per frame, `child_<state>` convention (mirrors
+  // ComposedEnemy.animStateKey()'s `enemy_<id>_<state>` and player.js's
+  // playerBodyStateKey()). companionState.scriptAnim (see its own comment)
+  // takes priority over everything else — it's how a cutscene or future
+  // environment-interaction trigger asks for a specific pose ('point',
+  // 'examine', 'pull_lever', ...) regardless of what she'd otherwise be
+  // doing. She never takes damage (design rule, see file header), so
+  // unlike enemies there's no `_hurt`/`_death` state to cover.
+  animStateKey() {
+    if (companionState.mode === 'scripted' && companionState.scriptAnim) {
+      return `child_${companionState.scriptAnim}`;
+    }
+    if (this.healFlash > 0) return 'child_heal';
+    if (this.tetherBeam) return 'child_fight_assist';
+    if (this.cowering) return 'child_hide';
+    if (companionState.mode === 'fighting') return 'child_fight';
+    if (Math.abs(this.vx) > 0.3) return 'child_walk';
+    return 'child_idle';
   }
 
   // ── Per-frame update. game.js calls this during 'playing' when active. ──
@@ -140,6 +179,16 @@ class Child {
       if (typeof spawnParticles === 'function') spawnParticles(player.x + player.width / 2, player.y + 4, '#f9a8d4', 10);
       if (typeof addAbilityNotification === 'function') addAbilityNotification('The Child steadies you (+1)');
       if (typeof SFX !== 'undefined') SFX.abilityPickup();
+    }
+
+    // Visual bridge to game/animdata.js — see the constructor's comment.
+    // Guarded the same way ComposedEnemy/player.js guard their own
+    // animator: only play()s when a matching key actually exists, so an
+    // un-authored Child costs nothing extra per frame.
+    this._animKey = this.animStateKey();
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      this.animator.play(this._animKey);
+      this.animator.update(_ts);
     }
   }
 
@@ -355,19 +404,26 @@ class Child {
     ctx.arc(x + this.width / 2, y + this.height / 2, 18, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body — small silhouette, squashes when cowering
-    const squash = this.cowering ? 0.7 : 1;
-    const h = this.height * squash;
-    ctx.fillStyle = '#f9a8d4';
-    ctx.fillRect(x + 2, y + (this.height - h), this.width - 4, h);
-    // Head
-    ctx.beginPath();
-    ctx.arc(x + this.width / 2, y + (this.height - h) + 2, 6, 0, Math.PI * 2);
-    ctx.fill();
-    // Eye — looks where she faces (hidden while cowering: face buried)
-    if (!this.cowering) {
-      ctx.fillStyle = '#0a0a0f';
-      ctx.fillRect(x + this.width / 2 + (this.facing === 1 ? 1 : -4), y + (this.height - h), 3, 3);
+    // Body — visual bridge to game/animdata.js (see constructor comment):
+    // an authored `child_<state>` def overrides this exact silhouette;
+    // falls back to the original procedural body/head/eye draw unchanged
+    // when nothing's authored for the current state.
+    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
+      this.animator.draw(ctx);
+    } else {
+      const squash = this.cowering ? 0.7 : 1;
+      const h = this.height * squash;
+      ctx.fillStyle = '#f9a8d4';
+      ctx.fillRect(x + 2, y + (this.height - h), this.width - 4, h);
+      // Head
+      ctx.beginPath();
+      ctx.arc(x + this.width / 2, y + (this.height - h) + 2, 6, 0, Math.PI * 2);
+      ctx.fill();
+      // Eye — looks where she faces (hidden while cowering: face buried)
+      if (!this.cowering) {
+        ctx.fillStyle = '#0a0a0f';
+        ctx.fillRect(x + this.width / 2 + (this.facing === 1 ? 1 : -4), y + (this.height - h), 3, 3);
+      }
     }
 
     // Heal-ready pulse: gentle ring when her touch-heal is available and

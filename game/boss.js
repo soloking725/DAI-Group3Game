@@ -106,17 +106,14 @@ function resolveWeightedAttackName(attacks, r) {
 // per-phase-number), never a wholesale replace of BOSS_PHASE_CONFIG.
 const BOSS_CONFIG_OVERRIDES_KEY = 'stillpoint_boss_phase_overrides_v1';
 function applyBossConfigOverrides() {
-  try {
-    const raw = localStorage.getItem(BOSS_CONFIG_OVERRIDES_KEY);
-    if (!raw) return;
-    const overrides = JSON.parse(raw);
-    if (overrides.phaseThresholds) BOSS_PHASE_CONFIG.phaseThresholds = overrides.phaseThresholds;
-    if (overrides.reservedSlot) Object.assign(BOSS_PHASE_CONFIG.reservedSlot, overrides.reservedSlot);
-    if (overrides.teleport) Object.assign(BOSS_PHASE_CONFIG.teleport, overrides.teleport);
-    if (overrides.phases) {
-      for (const key in overrides.phases) BOSS_PHASE_CONFIG.phases[key] = overrides.phases[key];
-    }
-  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+  const overrides = readOverrideJSON(BOSS_CONFIG_OVERRIDES_KEY);
+  if (!overrides) return;
+  if (overrides.phaseThresholds) BOSS_PHASE_CONFIG.phaseThresholds = overrides.phaseThresholds;
+  if (overrides.reservedSlot) Object.assign(BOSS_PHASE_CONFIG.reservedSlot, overrides.reservedSlot);
+  if (overrides.teleport) Object.assign(BOSS_PHASE_CONFIG.teleport, overrides.teleport);
+  if (overrides.phases) {
+    for (const key in overrides.phases) BOSS_PHASE_CONFIG.phases[key] = overrides.phases[key];
+  }
 }
 applyBossConfigOverrides();
 

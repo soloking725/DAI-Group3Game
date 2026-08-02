@@ -129,6 +129,7 @@ function buildDifficultyCalculatorHtml(graph, startId, difficultyConfig) {
   <button id="runBtn">Run</button>
 </div>
 <div id="results"></div>
+<script src="../game/floorPlanWalkEngine.js"></script>
 <script>
 const GRAPH = ${graphJson};
 const ALL_ROOMS = ${roomsJson};
@@ -146,33 +147,11 @@ const keepProbInput = document.getElementById('keepProbInput');
 const keepProbLabel = document.getElementById('keepProbLabel');
 keepProbInput.addEventListener('input', () => { keepProbLabel.textContent = keepProbInput.value + '%'; });
 
-// ---- ported random-walk engine (see analyze_floor_plan.js's simulateRandomPlaythrough) ----
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function weightedPick(candidates, rng) {
-  const total = candidates.reduce((s, c) => s + c.weight, 0);
-  let r = rng() * total;
-  for (const c of candidates) { r -= c.weight; if (r <= 0) return c; }
-  return candidates[candidates.length - 1];
-}
-function maskToSet(mask, list) { const s = new Set(); list.forEach((v, i) => { if (mask & (1 << i)) s.add(v); }); return s; }
-function requirementSatisfied(node, abilities, flags) {
-  if (!node) return false;
-  for (const a of node.requires || []) if (!abilities.has(a)) return false;
-  for (const f of node.requiresFlags || []) if (!flags.has(f)) return false;
-  if (node.requiresOr && node.requiresOr.length) {
-    for (const group of node.requiresOr) if (group.every((a) => abilities.has(a))) return true;
-    return false;
-  }
-  return true;
-}
+// mulberry32/weightedPick/maskToSet/requirementSatisfied/unexploredReach/
+// getFastTravelIndex/chooseNextMove come from game/floorPlanWalkEngine.js —
+// shared with analyze_floor_plan.js's own engine and the one it generates
+// into floor_plan_simulation.html (this used to be a third hand-ported copy
+// of the whole thing).
 function nodeWeight(n) {
   const tw = GRAPH.timeWeights;
   let w = tw.baseRoom;
@@ -200,22 +179,6 @@ function difficultyMultiplier(node) {
   if (node.finalBoss && config.rooms.finalBoss !== undefined) return config.rooms.finalBoss;
   return config.default;
 }
-function unexploredReach(startId, byFrom, nodesById, visitCounts, abilitiesSet, flagsSet, maxDepth) {
-  const seen = new Set([startId]); let frontier = [startId]; let count = 0;
-  for (let d = 0; d < maxDepth && frontier.length; d++) {
-    const next = [];
-    for (const id of frontier) {
-      for (const e of byFrom.get(id) || []) {
-        if (seen.has(e.to)) continue;
-        if (!requirementSatisfied(e, abilitiesSet, flagsSet)) continue;
-        if (!requirementSatisfied(nodesById.get(e.to), abilitiesSet, flagsSet)) continue;
-        seen.add(e.to); if (!visitCounts.has(e.to)) count++; next.push(e.to);
-      }
-    }
-    frontier = next;
-  }
-  return count;
-}
 
 // Simulates ONE playthrough up to (and including) first arrival at
 // targetId, or until the step cap / a genuine dead end. Mirrors the
@@ -230,8 +193,7 @@ function simulateToRoom(targetId, keepChildProb, seed, maxSteps, mode) {
   const nodesById = new Map(GRAPH.nodes.map((n) => [n.id, n]));
   const byFrom = new Map();
   for (const e of GRAPH.edges) { if (!byFrom.has(e.from)) byFrom.set(e.from, []); byFrom.get(e.from).push(e); }
-  const ftList = GRAPH.nodes.filter((n) => n.fastTravelWaypoint).map((n) => n.id);
-  const ftIndex = new Map(ftList.map((id, i) => [id, i]));
+  const { list: ftList, indexOf: ftIndex } = getFastTravelIndex(nodesById);
 
   const rng = mulberry32(seed);
   const backtrackChance = mode === 'direct' ? 0 : 0.12;
@@ -278,79 +240,16 @@ function simulateToRoom(targetId, keepChildProb, seed, maxSteps, mode) {
       for (const otherId of ftList) { if (otherId !== cur && (ft & (1 << ftIndex.get(otherId)))) candidates.push({ to: otherId, edge: null }); }
     }
 
-    // Endgame rush: once a run has been back to the Antechamber more than
-    // once (already bounced off Hollow Core at least one retry) with Phase
-    // Dash in hand, stop rolling the dice and head for the Final Boss push
-    // — mirrors the same override in analyze_floor_plan.js.
-    let choice = null;
-    if (GRAPH.endgameRush && cur === GRAPH.endgameRush.antechamberId && (visitCounts.get(cur) || 0) > 1 && abilitiesSet.has('phase_dash')) {
-      const rush = candidates.find((c) => c.to === GRAPH.endgameRush.rushTargetId);
-      if (rush) choice = rush;
-    }
-    const canDeliberateBacktrack = !choice && history.length > 1 && rng() < backtrackChance;
-    if (choice) {
-      // handled above — fall through to the apply-move step below
-    } else if (!candidates.length) {
-      let backTo = null;
-      for (let i = history.length - 2; i >= 0; i--) {
-        const candId = history[i];
-        const hasOption = (byFrom.get(candId) || []).some((e) => e.to !== cur && requirementSatisfied(e, abilitiesSet, flagsSet) && requirementSatisfied(nodesById.get(e.to), abilitiesSet, flagsSet));
-        if (hasOption) { backTo = candId; break; }
-      }
-      if (backTo === null) return { reached: false, stuck: 'dead-end', childChoice, fracturePips, lorePips, cosmeticUpgrades, maxHealth, minibosses, abilities: [...abilitiesSet], flags: [...flagsSet], steps: stepsTaken };
-      choice = { to: backTo };
-    } else if (canDeliberateBacktrack) {
-      const backIdx = Math.max(0, history.length - 2 - Math.floor(rng() * Math.min(3, history.length - 1)));
-      choice = { to: history[backIdx] };
-    } else {
-      // Ported verbatim from analyze_floor_plan.js's simulateRandomPlaythrough
-      // — including the "stuck bouncing in a small pocket" escape hatch that
-      // an earlier version of this file omitted, which made runs stall far
-      // more often than the base engine (42% finish vs. its ~80%+).
-      const noProgressHere = candidates.every((c) => {
-        if ((visitCounts.get(c.to) || 0) === 0) return false;
-        return !(byFrom.get(c.to) || []).some((e2) => !visitCounts.has(e2.to));
-      });
-      const recentWindow = history.slice(-6);
-      const isOscillating = noProgressHere && history.length > 6 && new Set(recentWindow).size <= 2;
-      let escapedTo = null;
-      if (isOscillating) {
-        for (let i = history.length - 2; i >= 0; i--) {
-          const candId = history[i];
-          const hasFreshOption = (byFrom.get(candId) || []).some((e2) => !visitCounts.has(e2.to) && requirementSatisfied(e2, abilitiesSet, flagsSet) && requirementSatisfied(nodesById.get(e2.to), abilitiesSet, flagsSet));
-          if (hasFreshOption) { escapedTo = candId; break; }
-        }
-      }
-      if (escapedTo !== null) {
-        choice = { to: escapedTo };
-      } else {
-        const weighted = candidates.map((c) => {
-          const n = nodesById.get(c.to);
-          const visits = visitCounts.get(c.to) || 0;
-          let curiosity;
-          if (visits === 0) {
-            curiosity = 8;
-          } else {
-            const leadsSomewhereNew = (byFrom.get(c.to) || []).some((e2) => !visitCounts.has(e2.to));
-            const unexploredNearby = unexploredReach(c.to, byFrom, nodesById, visitCounts, abilitiesSet, flagsSet, 3);
-            // Diminishing returns on revisits: a hub room that gatekeeps a
-            // whole unexplored cluster (e.g. a "resolve the choice, then
-            // access everything past this point" node) kept scoring the
-            // same full "leads somewhere new" bonus on every single pass
-            // through, forever — no decay — so the walker treated routine
-            // thoroughfare traffic as permanently exciting and looped back
-            // through it dozens of times per run, burning the step budget.
-            // Divide by how many times it's already been visited (capped)
-            // so repeat passes taper off fast.
-            curiosity = ((leadsSomewhereNew ? 3 : 1) + Math.min(unexploredNearby, 4) * 0.5) / Math.min(visits, 5);
-          }
-          const mult = difficultyMultiplier(n) * (childChoice === 'keep' ? GRAPH.keepChildDifficultyMult : 1);
-          const wariness = mult > 1 ? 1 / mult : 1;
-          return { ...c, weight: Math.max(0.05, curiosity * wariness) };
-        });
-        choice = weightedPick(weighted, rng);
-      }
-    }
+    // Candidate selection (endgame rush, deliberate/dead-end/oscillation
+    // backtracking, curiosity-weighted pick) is the shared engine — see
+    // game/floorPlanWalkEngine.js's chooseNextMove.
+    const choice = chooseNextMove({
+      cur, candidates, byFrom, nodesById, visitCounts,
+      abilitiesSet, flagsSet, history, rng, backtrackChance,
+      endgameRush: GRAPH.endgameRush,
+      getDifficultyMult: (n) => difficultyMultiplier(n) * (childChoice === 'keep' ? GRAPH.keepChildDifficultyMult : 1),
+    });
+    if (!choice) return { reached: false, stuck: 'dead-end', childChoice, fracturePips, lorePips, cosmeticUpgrades, maxHealth, minibosses, abilities: [...abilitiesSet], flags: [...flagsSet], steps: stepsTaken };
 
     cur = choice.to;
     visitCounts.set(cur, (visitCounts.get(cur) || 0) + 1);
@@ -418,6 +317,10 @@ function renderBranch(container, label, runs) {
 
 document.getElementById('runBtn').addEventListener('click', () => {
   const targetId = roomSelect.value;
+  if (!GRAPH.nodes.find((n) => n.id === targetId)) {
+    document.getElementById('results').innerHTML = '<div class="panel">No room selected (or the selection is stale — reload and pick a room again).</div>';
+    return;
+  }
   const runsN = Math.max(1, parseInt(document.getElementById('runsInput').value, 10) || 200);
   const keepChildProb = parseInt(keepProbInput.value, 10) / 100;
   const mode = document.getElementById('modeSelect').value;
@@ -431,7 +334,7 @@ document.getElementById('runBtn').addEventListener('click', () => {
   const failed = results.filter((r) => !r.reached);
 
   const summary = document.createElement('div'); summary.className = 'panel';
-  const roomLabel = ALL_ROOMS.find((r) => r.id === targetId).label;
+  const roomLabel = (ALL_ROOMS.find((r) => r.id === targetId) || {}).label || targetId;
   summary.innerHTML = '<h2>' + roomLabel + '</h2><div class="sub" style="margin-bottom:0">' + (mode === 'direct' ? 'Direct walk (only backtracks when stuck)' : 'Thorough explorer walk') + ' — ' + runsN + ' runs</div>';
   const overallStats = document.createElement('div'); overallStats.className = 'stats';
   const mk2 = (n, l) => { const d = document.createElement('div'); d.className = 'stat'; d.innerHTML = '<div class="n">' + n + '</div><div class="l">' + l + '</div>'; return d; };

@@ -512,7 +512,18 @@ gate only the damage checks on `!dead`.
   optional per-placement hex-color override consumed by the new
   `game/visualVariants.js` resolver (see the Architecture map entry above),
   stored as `eDef.tint` on the enemy placement, blank by default (no
-  behavior change for any enemy that doesn't set one).
+  behavior change for any enemy that doesn't set one). Also gained an
+  `animKey` field + "🎬 Edit Animation →" button on the Platform and
+  Transition (door) inspectors, deep-linking to `anim_editor.html` (Option
+  2 from the design discussion — geometry and animation authoring stay
+  separate tools/tabs, no embedded frame-strip UI here). Consumed by
+  `game_entities.js`'s new `getRoomObjectAnimator()`/
+  `tryDrawRoomObjectAnim()` bridge. **Same day, extended to Anchor/Ability
+  Reward/Lore Pip/Fracture Pip/Healing Crystal inspectors too** (a sibling
+  `tryDrawPointObjectAnim()` bridge, since those are bare `{x,y}` with no
+  `w`/`h`) — deliberately NOT added to Cosmetic Upgrade (no runtime draw
+  function exists for those yet, so the field would be dead). See
+  `roadmap.md`'s tail entry for full detail.
 - **`enemy_test.html`** — spawns any real enemy/miniboss class in an
   isolated flat arena with a chosen ability loadout, for balance/behavior
   testing without playing through the full game.
@@ -539,7 +550,13 @@ gate only the damage checks on `!dead`.
   editor over `game/animdata.js`'s `ANIM_DEFS` — durations, drag-resize
   hitboxes/hurtbox, per-frame image upload (data URLs, self-contained),
   cancelableFrom combo windows, onion skin, localStorage save (the game
-  applies overrides on load) + paste-ready JSON export.
+  applies overrides on load) + paste-ready JSON export. **2026-08-01**:
+  gained a Companion entity category (`child:child`, The Child — see
+  `companion.js`'s new `Animator` bridge) and a fixed `?anim=` deep-link
+  handler that now auto-creates a sized placeholder for a brand-new key
+  (previously only worked for already-authored keys) — the latter is what
+  makes `levelEditor.html`'s new per-object "Edit Animation →" buttons a
+  real one-click flow. See `roadmap.md`'s tail entry for full detail.
 - **`combo_editor.html`** — NEW: visual editor for `game/combo.js`'s
   `COMBO_DEFS` (steps from the documented action vocabulary, per-step
   frame windows, rewards). Same save/export pattern.
@@ -649,6 +666,17 @@ gate only the damage checks on `!dead`.
   point a `sampleId` field at, so building this now would mean sourcing
   new audio assets first, not just wiring up a dropdown — a separate
   content task, not a coding continuation of this one.
+  **2026-08-01**: `backdropLayers[]` entries can now optionally be animated
+  — a new `frames: [{imageId, duration}]` array (stateless, driven by the
+  existing `frameCount` global, always loops), authored via a new
+  per-layer "Animation (optional)" section in the layer inspector
+  (thumbnail + duration + reorder/delete + "+ Add Frame", reusing
+  `RoomImageStore` exactly like the existing single-image upload). A layer
+  with no `frames` (every layer before this) is untouched — falls straight
+  back to the original single-`imageId` path. See `roadmap.md`'s tail
+  entry for the full writeup, including a real `stripPreview()`/
+  `pushFullLiveState()` gotcha this caught (per-frame preview blobs needed
+  the same strip/re-prime treatment the layer-level image already had).
 - **`Plans/production_workflow_and_tool_gaps.md`** — NEW (2026-07-29):
   answers "does the full editor suite (built + planned) let this project
   finish without more coding help, and if not, what's missing and in what

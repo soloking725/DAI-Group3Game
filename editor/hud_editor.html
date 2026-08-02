@@ -14,6 +14,7 @@
   button:active { transform: scale(0.98); }
   button.danger { border-color: var(--danger-border); color: var(--danger); }
   button.danger:hover { background: var(--danger-dim); }
+  button.small { padding: 3px 8px; font-size: 11px; }
   input, select { background: var(--bg-input); color: var(--fg); border: 1px solid var(--border-hover); padding: 4px 7px; font: inherit; border-radius: var(--radius-sm); transition: border-color var(--dur-fast) var(--ease-out-expo), box-shadow var(--dur-fast) var(--ease-out-expo); }
   input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow-soft); }
   input[type=number] { width: 62px; }
@@ -37,8 +38,21 @@
 
 <div id="side" class="ds-scroll">
   <h2>HUD Layout</h2>
-  <div class="hint" style="margin-bottom:8px">Drag elements on the mock screen, or type exact values. Coordinates are anchored (top-left / top-center / bottom-…) so layouts survive any canvas size.</div>
+  <div class="hint" style="margin-bottom:8px">Drag elements on the mock screen, or type exact values. Coordinates are anchored (top-left / top-center / bottom-…) so layouts survive any canvas size. Every element has a "tooltip" field — the game has no mouse, so it renders as a persistent caption rather than a hover popup.</div>
   <div id="elements"></div>
+
+  <h3>Add a new element</h3>
+  <div class="hint" style="margin-bottom:6px">Freeform elements have no built-in game logic — they're positioned labels/icons/pip-rows for decoration or callouts.</div>
+  <label>Kind
+    <select id="newKind">
+      <option value="text">Text label</option>
+      <option value="icon">Icon (diamond)</option>
+      <option value="pipRow">Pip row</option>
+    </select>
+  </label>
+  <label>Label/text <input type="text" id="newLabel" value="New Element" style="flex:1"></label>
+  <label>Color <input type="color" id="newColor" value="#c4b5fd"></label>
+  <button class="small" onclick="addCustomElement()" style="width:100%; margin-top:4px">+ Add element</button>
 
   <h3>Save / export</h3>
   <button onclick="save()" style="width:100%; margin-bottom:4px">💾 Save to game (localStorage)</button>
@@ -53,6 +67,7 @@
 <script src="../game/devContext.js"></script>
 <script src="../game/unsavedGuard.js"></script>
 <script src="../game/undoHistory.js"></script>
+<script src="anchoredDrag.js"></script>
 <script>
 'use strict';
 // ─────────────────────────────────────────────────────────────────────────────
@@ -97,13 +112,7 @@ const W = cv.width, H = cv.height;
 let selected = null;
 
 function resolve(el) {
-  switch (el.anchor) {
-    case 'top-center':    return { x: W / 2 + el.x, y: el.y };
-    case 'bottom-left':   return { x: el.x, y: H - el.y };
-    case 'bottom-right':  return { x: W - el.x, y: H - el.y };
-    case 'bottom-center': return { x: W / 2 + el.x, y: H - el.y };
-    default:              return { x: el.x, y: el.y };
-  }
+  return resolveAnchored(el, W, H);
 }
 
 // Approximate on-screen bounds per element, for drawing + hit-testing.
@@ -112,6 +121,11 @@ function resolve(el) {
 function boundsFor(key) {
   const el = layout[key];
   const p = resolve(el);
+  if (el.custom) {
+    if (el.kind === 'icon') return { x: p.x - (el.size || 16) / 2, y: p.y - (el.size || 16) / 2, w: el.size || 16, h: (el.size || 16) + 16 };
+    if (el.kind === 'pipRow') return { x: p.x - 8, y: p.y - 8, w: (el.count || 4) * (el.gap || 20), h: 16 };
+    return { x: p.x, y: p.y - 11, w: Math.max(60, (el.label || '').length * 7), h: 14 };
+  }
   switch (key) {
     case 'healthHearts':  return { x: p.x, y: p.y, w: 6 * (el.size + el.gap), h: el.size + 4 };
     case 'areaLabel':     return { x: p.x, y: p.y - 11, w: 150, h: 14 };
@@ -143,8 +157,20 @@ function draw() {
     if (!el.visible) continue;
     const p = resolve(el);
     ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
 
-    if (key === 'healthHearts') {
+    if (el.custom) {
+      if (el.kind === 'icon') {
+        drawDiamond(p.x, p.y, el.color || '#c4b5fd', (el.size || 16) / 2);
+      } else if (el.kind === 'pipRow') {
+        const n = el.count || 4;
+        for (let i = 0; i < n; i++) drawDiamond(p.x + i * (el.gap || 20), p.y, el.color || '#c4b5fd', (el.size || 14) / 2);
+      } else {
+        ctx.font = `${el.fontSize || 11}px "Courier New", monospace`;
+        ctx.fillStyle = el.color || '#b0a8d0';
+        ctx.fillText(el.label || key, p.x, p.y);
+      }
+    } else if (key === 'healthHearts') {
       ctx.font = `${el.size}px "Courier New", monospace`;
       ctx.textBaseline = 'top'; ctx.textAlign = 'left';
       ctx.fillStyle = '#c4b5fd';
@@ -209,6 +235,13 @@ function draw() {
       ctx.textAlign = 'left';
     }
 
+    if (el.tooltip) {
+      ctx.font = 'italic 9px "Courier New", monospace';
+      ctx.fillStyle = 'rgba(224, 215, 255, 0.6)';
+      ctx.textAlign = 'left';
+      ctx.fillText(el.tooltip, p.x, p.y - 4);
+    }
+
     // selection / hover outline
     const b = boundsFor(key);
     if (key === selected) {
@@ -220,6 +253,17 @@ function draw() {
   }
 }
 
+function drawDiamond(x, y, color, half) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = color;
+  ctx.fillRect(-half, -half, half * 2, half * 2);
+  ctx.strokeStyle = '#ffffffaa';
+  ctx.strokeRect(-half, -half, half * 2, half * 2);
+  ctx.restore();
+}
+
 // ── Side panel ──────────────────────────────────────────────────────────────
 function renderPanel() {
   const holder = document.getElementById('elements');
@@ -228,7 +272,7 @@ function renderPanel() {
     const el = layout[key];
     const card = document.createElement('div');
     card.className = 'elCard' + (key === selected ? ' sel' : '');
-    card.innerHTML = `<b onclick="select('${key}')">${DESCRIPTIONS[key]}</b>
+    card.innerHTML = `<b onclick="select('${key}')">${el.custom ? (el.label || key) + ' (custom)' : DESCRIPTIONS[key]}</b>
       <label><input type="checkbox" ${el.visible ? 'checked' : ''} onchange="setProp('${key}','visible',this.checked)"> visible</label>
       <label>anchor <select onchange="setProp('${key}','anchor',this.value)">
         ${['top-left','top-center','bottom-left','bottom-right','bottom-center'].map((a) => `<option ${a === el.anchor ? 'selected' : ''}>${a}</option>`).join('')}
@@ -238,39 +282,48 @@ function renderPanel() {
       ${el.w !== undefined ? `<label>w <input type="number" value="${el.w}" onchange="setProp('${key}','w',+this.value)">
              h <input type="number" value="${el.h}" onchange="setProp('${key}','h',+this.value)"></label>` : ''}
       ${el.size !== undefined ? `<label>size <input type="number" value="${el.size}" onchange="setProp('${key}','size',+this.value)"></label>` : ''}
-      ${el.gap !== undefined ? `<label>gap <input type="number" value="${el.gap}" onchange="setProp('${key}','gap',+this.value)"></label>` : ''}`;
+      ${el.gap !== undefined ? `<label>gap <input type="number" value="${el.gap}" onchange="setProp('${key}','gap',+this.value)"></label>` : ''}
+      <label>tooltip <input type="text" value="${el.tooltip || ''}" onchange="setProp('${key}','tooltip',this.value)" style="flex:1" placeholder="micro-copy shown in-game"></label>
+      ${el.custom ? `<label>label <input type="text" value="${el.label || ''}" onchange="setProp('${key}','label',this.value)" style="flex:1"></label>
+        <label>color <input type="color" value="${el.color || '#c4b5fd'}" onchange="setProp('${key}','color',this.value)"></label>
+        <button class="small danger" onclick="removeCustom('${key}')" style="width:100%;margin-top:4px">Remove</button>` : ''}`;
     holder.appendChild(card);
   }
 }
 function select(key) { selected = key; renderPanel(); draw(); }
 function setProp(key, prop, val) { layout[key][prop] = val; renderPanel(); draw(); if (historyMgr) historyMgr.push(); }
+function removeCustom(key) { delete layout[key]; selected = null; renderPanel(); draw(); if (historyMgr) historyMgr.push(); }
+
+// ── Add a new freeform element ───────────────────────────────────────────
+let nextCustomId = 1;
+function addCustomElement() {
+  const kind = document.getElementById('newKind').value;
+  const label = document.getElementById('newLabel').value || 'Element';
+  const color = document.getElementById('newColor').value;
+  const key = `custom_${kind}_${nextCustomId++}`;
+  layout[key] = {
+    anchor: 'top-left', x: 100, y: 100, custom: true, kind, label, color,
+    visible: true,
+    ...(kind === 'icon' ? { size: 16 } : {}),
+    ...(kind === 'pipRow' ? { size: 14, gap: 20, count: 4 } : {}),
+    ...(kind === 'text' ? { fontSize: 11, bold: false } : {}),
+  };
+  selected = key;
+  renderPanel(); draw();
+  if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Added custom element', key);
+  if (historyMgr) historyMgr.push();
+}
 
 // ── Dragging ────────────────────────────────────────────────────────────────
-let drag = null;
-cv.addEventListener('mousedown', (e) => {
-  const mx = e.offsetX, my = e.offsetY;
-  for (const key of Object.keys(layout).reverse()) {
-    if (!layout[key].visible) continue;
-    const b = boundsFor(key);
-    if (mx >= b.x - 4 && mx <= b.x + b.w + 4 && my >= b.y - 4 && my <= b.y + b.h + 4) {
-      selected = key;
-      drag = { key, startMx: mx, startMy: my, origX: layout[key].x, origY: layout[key].y };
-      renderPanel(); draw();
-      return;
-    }
-  }
-  selected = null; renderPanel(); draw();
+makeAnchoredDragController({
+  canvas: cv,
+  getDraggableKeys: () => Object.keys(layout).reverse(),
+  getElement: (key) => layout[key],
+  boundsFor,
+  onSelect: (key) => { selected = key; renderPanel(); draw(); },
+  onChange: draw,
+  onDragEnd: () => { renderPanel(); if (historyMgr) historyMgr.push(); },
 });
-cv.addEventListener('mousemove', (e) => {
-  if (!drag) return;
-  const el = layout[drag.key];
-  const dx = e.offsetX - drag.startMx, dy = e.offsetY - drag.startMy;
-  // convert screen delta into the element's anchored coordinate space
-  el.x = Math.round(drag.origX + (el.anchor === 'bottom-right' ? -dx : dx));
-  el.y = Math.round(drag.origY + (el.anchor.startsWith('bottom') ? -dy : dy));
-  draw();
-});
-window.addEventListener('mouseup', () => { if (drag) { drag = null; renderPanel(); if (historyMgr) historyMgr.push(); } });
 
 // ─── UNDO/REDO (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y) ────────────────────────────
 document.addEventListener('keydown', (e) => {

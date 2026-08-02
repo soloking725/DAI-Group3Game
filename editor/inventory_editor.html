@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Inventory Editor</title>
+<link rel="stylesheet" href="../styles/design-system.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font: 13px/1.5 var(--font-mono); display: flex; height: 100vh; overflow: hidden; }
+  h2 { font-family: var(--font-ui); font-size: 15px; font-weight: 600; color: var(--fg); margin-bottom: 8px; }
+  h3 { font-family: var(--font-ui); font-size: 10px; font-weight: 600; color: var(--fg-faint); margin: var(--space-4) 0 6px; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+  button { background: var(--surface); color: var(--fg); border: 1px solid var(--border-hover); padding: 6px 12px; font: inherit; cursor: pointer; border-radius: var(--radius-sm); box-shadow: var(--shadow-inset-top); transition: background var(--dur-fast) var(--ease-out-expo), border-color var(--dur-fast) var(--ease-out-expo), transform var(--dur-fast) var(--ease-out-expo); }
+  button:hover { background: var(--surface-hover); border-color: var(--border-hover); }
+  button:active { transform: scale(0.98); }
+  button.danger { border-color: var(--danger-border); color: var(--danger); }
+  button.danger:hover { background: var(--danger-dim); }
+  button.small { padding: 3px 8px; font-size: 11px; }
+  input, select, textarea { background: var(--bg-input); color: var(--fg); border: 1px solid var(--border-hover); padding: 4px 7px; font: inherit; border-radius: var(--radius-sm); transition: border-color var(--dur-fast) var(--ease-out-expo), box-shadow var(--dur-fast) var(--ease-out-expo); }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow-soft); }
+  input[type=number] { width: 60px; }
+  input[type=color] { width: 40px; padding: 1px; }
+  label { display: flex; align-items: center; gap: 5px; margin: 4px 0; font-family: var(--font-ui); font-size: 11.5px; color: var(--fg-muted); flex-wrap: wrap; }
+  #side { width: 320px; border-right: 1px solid var(--border); padding: var(--space-3); overflow-y: auto; flex-shrink: 0; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--bg-deep); }
+  canvas { border-radius: var(--radius-md); box-shadow: var(--shadow-card); cursor: grab; image-rendering: pixelated; }
+  .elCard { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-panel); padding: 8px 10px; margin-bottom: 6px; transition: border-color var(--dur-fast) var(--ease-out-expo); }
+  .elCard.sel { border-color: var(--border-accent); box-shadow: 0 0 0 1px var(--border-accent); }
+  .elCard b { color: var(--fg); font-weight: 600; cursor: pointer; font-size: 12px; }
+  .hint { color: var(--fg-faint); font-size: 11px; margin-top: 4px; line-height: 1.6; }
+  .pageTabs { display: flex; gap: 4px; margin-bottom: 10px; }
+  .pageTabs button { flex: 1; padding: 6px 4px; font-size: 11px; }
+  .pageTabs button.active { border-color: var(--accent); color: var(--accent); }
+  textarea#exportBox { width: 100%; height: 100px; background: var(--bg-deep); color: var(--info); border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font: 11px var(--font-mono); padding: 8px; margin-top: 6px; }
+  .cosCard { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px 8px; margin-bottom: 6px; font-size: 11px; }
+  .cosCard .row { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 4px; border: 1px solid rgba(255,255,255,0.3); }
+</style>
+</head>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+<a id="back" class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
+
+<div id="side" class="ds-scroll">
+  <h2>Inventory Editor</h2>
+  <div class="hint" style="margin-bottom:8px">Drag elements on the mock screen, or type exact values. Page 0 (Map) has no fixed layout — pins are placed freely in-game. Pages 1-3 share the panel/tab-strip chrome plus their own elements below. Every element has a "tooltip" field — the game has no mouse, so it renders as a persistent caption rather than a hover popup. Ability/Cosmetics grids also get "locked fill"/"locked border" fields to author the dimmed/silhouette look for not-yet-unlocked items.</div>
+
+  <div class="pageTabs">
+    <button id="ptab1" onclick="setPage(1)">1 Character</button>
+    <button id="ptab2" onclick="setPage(2)">2 Upgrades</button>
+    <button id="ptab3" onclick="setPage(3)">3 Customize</button>
+  </div>
+
+  <h3>Shared chrome</h3>
+  <div id="sharedElements"></div>
+  <h3 id="pageHeading">Page elements</h3>
+  <div id="elements"></div>
+
+  <h3>Add a new element</h3>
+  <div class="hint" style="margin-bottom:6px">Freeform elements have no built-in game logic — they're positioned labels/icons/pip-rows for decoration or callouts (e.g. a caption, a divider icon). Added to the CURRENT page tab.</div>
+  <label>Kind
+    <select id="newKind">
+      <option value="text">Text label</option>
+      <option value="icon">Icon (diamond)</option>
+      <option value="pipRow">Pip row</option>
+    </select>
+  </label>
+  <label>Label/text <input type="text" id="newLabel" value="New Element" style="flex:1"></label>
+  <label>Color <input type="color" id="newColor" value="#c4b5fd"></label>
+  <button class="small" onclick="addCustomElement()" style="width:100%; margin-top:4px">+ Add to page</button>
+
+  <h3>Save / export layout</h3>
+  <button onclick="save()" style="width:100%; margin-bottom:4px">💾 Save layout to game (localStorage)</button>
+  <button onclick="exportJSON()" style="width:100%; margin-bottom:4px">📋 Export JSON</button>
+  <button class="danger" onclick="resetAll()" style="width:100%">Reset layout to defaults</button>
+  <textarea id="exportBox" placeholder="Export appears here…"></textarea>
+
+  <h3>Customization catalog (Page 3)</h3>
+  <div class="hint" style="margin-bottom:6px">Page 3 starts EMPTY in-game — every idle anim / taunt / fashion look the player can equip comes from entries added here.</div>
+  <div id="cosmeticsList"></div>
+  <label>Slot
+    <select id="cosSlot"><option value="idle_anim">Idle Anim</option><option value="taunt">Taunt</option><option value="fashion">Fashion</option></select>
+  </label>
+  <label>Name <input type="text" id="cosName" placeholder="e.g. Sunburst Cloak" style="flex:1"></label>
+  <label>Color <input type="color" id="cosColor" value="#c4b5fd"></label>
+  <label>Unlock
+    <select id="cosUnlockKind" onchange="renderUnlockArg()">
+      <option value="always">Always available</option>
+      <option value="lore_pip">Lore Pips collected ≥</option>
+      <option value="flag">Story flag set</option>
+      <option value="boss">Miniboss/boss defeated</option>
+    </select>
+  </label>
+  <label id="cosUnlockArgRow" style="display:none"><span id="cosUnlockArgLabel"></span><input type="text" id="cosUnlockArg" style="flex:1"></label>
+  <label>Tooltip <input type="text" id="cosTooltip" style="flex:1" placeholder="short line, floats over the selected swatch"></label>
+  <label>Desc <textarea id="cosDesc" rows="2" style="width:100%" placeholder="Shown in the detail pane"></textarea></label>
+  <button class="small" onclick="addCosmetic()" style="width:100%; margin-top:4px">+ Add to catalog</button>
+  <button class="small" onclick="saveCosmetics()" style="width:100%; margin-top:4px">💾 Save catalog to game</button>
+</div>
+
+<div id="stage"><canvas id="cv" width="800" height="450"></canvas></div>
+
+<script src="../game/devContext.js"></script>
+<script src="../game/unsavedGuard.js"></script>
+<script src="../game/undoHistory.js"></script>
+<script src="anchoredDrag.js"></script>
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────
+// Multi-page Inventory layout + cosmetics-catalog editor. Mirrors
+// editor/hud_editor.html's drag/persist pattern for game/inventory_ui.js's
+// INVENTORY_LAYOUT (localStorage key below), and additionally lets you
+// ADD new freeform elements (not just reposition existing ones) plus
+// author the Page-3 cosmetics catalog from scratch — see
+// Plans/inventory_redesign.md. The mock canvas is exactly 800x450, the
+// SAME internal resolution the real game uses, so positions here match
+// 1:1 with no scale-conversion (unlike hud_editor.html's blown-up mock).
+// ─────────────────────────────────────────────────────────────────────────
+
+const INVENTORY_LAYOUT_KEY = 'stillpoint_inventory_layout_v1';
+const COSMETICS_CATALOG_KEY = 'stillpoint_cosmetics_catalog_v1';
+
+// Keep in sync with game/inventory_ui.js's INVENTORY_LAYOUT — this IS that
+// table's defaults, duplicated here the same way hud_editor.html duplicates
+// HUD_LAYOUT's DEFAULTS (game/inventory_ui.js stays authoritative).
+const DEFAULTS = {
+  panel:    { anchor: 'top-left', x: 80,  y: 45,  w: 640, h: 370, visible: true },
+  tabStrip: { anchor: 'top-center', x: 0, y: 26,  visible: true },
+
+  portrait:          { anchor: 'top-left', x: 96,  y: 110, size: 56, visible: true, page: 1 },
+  healthLabel:       { anchor: 'top-left', x: 68,  y: 152, visible: true, page: 1 },
+  fracturePipsRow:   { anchor: 'top-left', x: 76,  y: 178, gap: 22, visible: true, page: 1 },
+  abilityGrid:       { anchor: 'top-left', x: 76,  y: 216, size: 24, gap: 34, cols: 5, visible: true, page: 1, lockedColor: 'rgba(255,255,255,0.06)', lockedBorderColor: '#2a2a4e' },
+  companionPortrait: { anchor: 'top-left', x: 224, y: 110, size: 40, visible: true, page: 1 },
+  storyListHeader:   { anchor: 'top-left', x: 340, y: 95,  visible: true, page: 1 },
+  storyList:         { anchor: 'top-left', x: 340, y: 118, w: 260, rowH: 16, visible: true, page: 1 },
+  storyDetail:       { anchor: 'top-left', x: 340, y: 300, w: 260, visible: true, page: 1 },
+
+  pipsHeader:   { anchor: 'top-left', x: 76,  y: 95,  visible: true, page: 2 },
+  pipsRow2:     { anchor: 'top-left', x: 96,  y: 122, gap: 26, visible: true, page: 2 },
+  lorePipsInfo: { anchor: 'top-left', x: 76,  y: 165, visible: true, page: 2 },
+  upgradesList: { anchor: 'top-left', x: 356, y: 95,  w: 250, rowH: 48, visible: true, page: 2 },
+
+  slotTabs:        { anchor: 'top-left', x: 76, y: 95,  gap: 90, visible: true, page: 3 },
+  cosmeticsGrid:   { anchor: 'top-left', x: 76, y: 130, cellW: 160, cellH: 50, cols: 3, visible: true, page: 3, lockedColor: 'rgba(255,255,255,0.08)', lockedBorderColor: '#2a2a4e' },
+  cosmeticsDetail: { anchor: 'top-left', x: 76, y: 330, w: 560, visible: true, page: 3 },
+};
+
+const DESCRIPTIONS = {
+  panel: 'Panel background box',
+  tabStrip: 'Page tab strip (MAP / CHARACTER / UPGRADES / CUSTOMIZATION)',
+  portrait: 'Player portrait box',
+  healthLabel: 'HP text',
+  fracturePipsRow: 'Fracture Pip diamonds',
+  abilityGrid: 'Ability icon grid (5 cols, dims until unlocked)',
+  companionPortrait: 'Companion ("The Child") portrait box',
+  storyListHeader: 'Lore & Story list header',
+  storyList: 'Lore & Story list rows',
+  storyDetail: 'Selected lore entry — full text',
+  pipsHeader: 'Fracture Pips header',
+  pipsRow2: 'Fracture Pip diamonds',
+  lorePipsInfo: 'Lore Pips found/banked readout',
+  upgradesList: 'Upgrade rows list',
+  slotTabs: 'Cosmetic slot tabs (Idle/Taunt/Fashion)',
+  cosmeticsGrid: 'Cosmetics grid cells',
+  cosmeticsDetail: 'Selected cosmetic — description text',
+};
+
+const SHARED_KEYS = ['panel', 'tabStrip'];
+
+let layout = JSON.parse(JSON.stringify(DEFAULTS));
+try {
+  const saved = JSON.parse(localStorage.getItem(INVENTORY_LAYOUT_KEY) || 'null');
+  if (saved) for (const k in saved) {
+    if (layout[k]) Object.assign(layout[k], saved[k]);
+    else layout[k] = saved[k]; // a custom element saved by a previous session
+  }
+} catch (e) { /* defaults */ }
+
+let catalog = [];
+try {
+  const savedCat = JSON.parse(localStorage.getItem(COSMETICS_CATALOG_KEY) || 'null');
+  if (Array.isArray(savedCat)) catalog = savedCat;
+} catch (e) { /* empty catalog */ }
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height; // 800x450 — identical to the real game canvas
+let selected = null;
+let currentPage = 1;
+
+function resolve(el) {
+  return resolveAnchored(el, W, H);
+}
+
+function visibleKeys() {
+  return Object.keys(layout).filter(k => SHARED_KEYS.includes(k) || layout[k].page === currentPage);
+}
+
+// Approximate on-screen bounds per element, for drawing + hit-testing —
+// mock shapes only; real rendering lives in game/inventory_ui.js.
+function boundsFor(key) {
+  const el = layout[key];
+  const p = resolve(el);
+  if (el.custom) {
+    if (el.kind === 'icon') return { x: p.x - (el.size || 16) / 2, y: p.y - (el.size || 16) / 2, w: el.size || 16, h: (el.size || 16) + 16 };
+    if (el.kind === 'pipRow') return { x: p.x - 8, y: p.y - 8, w: (el.count || 4) * (el.gap || 20), h: 16 };
+    return { x: p.x, y: p.y - 11, w: Math.max(60, (el.label || '').length * 7), h: 14 };
+  }
+  switch (key) {
+    case 'panel':              return { x: p.x, y: p.y, w: el.w, h: el.h };
+    case 'tabStrip':            return { x: p.x - 260, y: p.y - 12, w: 520, h: 16 };
+    case 'portrait':            return { x: p.x - el.size / 2, y: p.y - el.size / 2, w: el.size, h: el.size + 14 };
+    case 'healthLabel':         return { x: p.x, y: p.y - 11, w: 100, h: 14 };
+    case 'fracturePipsRow':     return { x: p.x, y: p.y - 8, w: 4 * el.gap, h: 16 };
+    case 'abilityGrid':         return { x: p.x - el.size / 2, y: p.y - el.size / 2, w: el.cols * el.gap, h: 2 * el.gap + 12 };
+    case 'companionPortrait':   return { x: p.x - el.size / 2, y: p.y - el.size / 2, w: el.size, h: el.size + 22 };
+    case 'storyListHeader':     return { x: p.x, y: p.y - 11, w: 220, h: 14 };
+    case 'storyList':           return { x: p.x, y: p.y - 12, w: el.w, h: 8 * el.rowH };
+    case 'storyDetail':         return { x: p.x, y: p.y, w: el.w, h: 60 };
+    case 'pipsHeader':          return { x: p.x, y: p.y - 11, w: 120, h: 14 };
+    case 'pipsRow2':            return { x: p.x, y: p.y - 8, w: 4 * el.gap, h: 16 };
+    case 'lorePipsInfo':        return { x: p.x, y: p.y - 11, w: 150, h: 60 };
+    case 'upgradesList':        return { x: p.x, y: p.y - 12, w: el.w, h: 6 * el.rowH };
+    case 'slotTabs':            return { x: p.x, y: p.y - 11, w: 2 * el.gap + 70, h: 14 };
+    case 'cosmeticsGrid':       return { x: p.x, y: p.y - 12, w: el.cols * el.cellW, h: 2 * el.cellH };
+    case 'cosmeticsDetail':     return { x: p.x, y: p.y, w: el.w, h: 40 };
+    default:                    return { x: p.x - 20, y: p.y - 10, w: 40, h: 20 };
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#050506';
+  ctx.fillRect(0, 0, W, H);
+
+  for (const key of visibleKeys()) {
+    const el = layout[key];
+    if (!el.visible) continue;
+    const p = resolve(el);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+
+    if (el.custom) {
+      if (el.kind === 'icon') {
+        drawDiamond(p.x, p.y, el.color || '#c4b5fd', (el.size || 16) / 2);
+      } else if (el.kind === 'pipRow') {
+        const n = el.count || 4;
+        for (let i = 0; i < n; i++) drawDiamond(p.x + i * (el.gap || 20), p.y, el.color || '#c4b5fd', (el.size || 14) / 2);
+      } else {
+        ctx.font = `${el.fontSize || 11}px "Courier New", monospace`;
+        ctx.fillStyle = el.color || '#b0a8d0';
+        ctx.fillText(el.label || key, p.x, p.y);
+      }
+    } else if (key === 'panel') {
+      ctx.fillStyle = 'rgba(9, 9, 16, 0.95)';
+      ctx.fillRect(p.x, p.y, el.w, el.h);
+      ctx.strokeStyle = '#3a3a6e'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(p.x, p.y, el.w, el.h);
+    } else if (key === 'tabStrip') {
+      const names = ['MAP', 'CHARACTER', 'UPGRADES', 'CUSTOMIZATION'];
+      const gap = 130;
+      const startX = p.x - gap * 1.5;
+      ctx.textAlign = 'center'; ctx.font = 'bold 12px "Courier New", monospace';
+      for (let i = 0; i < names.length; i++) {
+        ctx.fillStyle = (i + 1) === currentPage ? '#e0d7ff' : '#4a4a6e';
+        ctx.fillText(names[i], startX + i * gap, p.y);
+      }
+      ctx.textAlign = 'left';
+    } else if (key === 'portrait' || key === 'companionPortrait') {
+      ctx.fillStyle = key === 'portrait' ? 'rgba(196,181,253,0.12)' : 'rgba(249,168,212,0.12)';
+      ctx.fillRect(p.x - el.size / 2, p.y - el.size / 2, el.size, el.size);
+      ctx.strokeStyle = key === 'portrait' ? '#c4b5fd' : '#f9a8d4';
+      ctx.strokeRect(p.x - el.size / 2, p.y - el.size / 2, el.size, el.size);
+      ctx.textAlign = 'center'; ctx.font = '9px "Courier New", monospace'; ctx.fillStyle = '#8a8aae';
+      ctx.fillText(key === 'portrait' ? 'YOU' : 'THE CHILD', p.x, p.y + el.size / 2 + 12);
+      ctx.textAlign = 'left';
+    } else if (key === 'healthLabel') {
+      ctx.font = '12px "Courier New", monospace'; ctx.fillStyle = '#f87171';
+      ctx.fillText('HP  8 / 10', p.x, p.y);
+    } else if (key === 'fracturePipsRow' || key === 'pipsRow2') {
+      for (let i = 0; i < 4; i++) drawDiamond(p.x + i * el.gap, p.y, '#67e8f9', 8, i < 3);
+    } else if (key === 'abilityGrid') {
+      const cols = el.cols;
+      for (let i = 0; i < 8; i++) {
+        const col = i % cols, row = Math.floor(i / cols);
+        drawDiamond(p.x + col * el.gap, p.y + row * el.gap, '#a78bfa', el.size / 2, i < 3, el.lockedColor, el.lockedBorderColor);
+      }
+    } else if (key === 'storyListHeader' || key === 'pipsHeader') {
+      ctx.font = 'bold 12px "Courier New", monospace'; ctx.fillStyle = key === 'pipsHeader' ? '#67e8f9' : '#fbbf24';
+      ctx.fillText(key === 'pipsHeader' ? 'FRACTURE PIPS' : 'LORE & STORY (n)', p.x, p.y);
+    } else if (key === 'storyList') {
+      ctx.font = '11px "Courier New", monospace'; ctx.fillStyle = '#8a8060';
+      for (let i = 0; i < 4; i++) ctx.fillText('▸ sample story entry', p.x, p.y + i * el.rowH);
+    } else if (key === 'storyDetail' || key === 'cosmeticsDetail') {
+      ctx.font = 'italic 10px "Courier New", monospace'; ctx.fillStyle = '#7a7a9e';
+      ctx.fillText('Selected item description wraps here…', p.x, p.y);
+    } else if (key === 'lorePipsInfo') {
+      ctx.font = 'bold 13px "Courier New", monospace'; ctx.fillStyle = '#fbbf24';
+      ctx.fillText('LORE PIPS', p.x, p.y);
+      ctx.font = '12px "Courier New", monospace'; ctx.fillStyle = '#c9b98a';
+      ctx.fillText('Found: 6', p.x, p.y + 22);
+      ctx.fillStyle = '#fde68a';
+      ctx.fillText('Banked: 2', p.x, p.y + 42);
+    } else if (key === 'upgradesList') {
+      ctx.font = 'bold 13px "Courier New", monospace'; ctx.fillStyle = '#c4b5fd';
+      ctx.fillText('UPGRADES', p.x, p.y);
+      ctx.font = '13px "Courier New", monospace';
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = '#b0a8d0';
+        ctx.fillText('  Strength', p.x, p.y + 24 + i * el.rowH);
+      }
+    } else if (key === 'slotTabs') {
+      const labels = ['Idle Anim', 'Taunt', 'Fashion'];
+      ctx.font = 'bold 12px "Courier New", monospace';
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = i === 0 ? '#e0d7ff' : '#5a5a7e';
+        ctx.fillText(labels[i], p.x + i * el.gap, p.y);
+      }
+    } else if (key === 'cosmeticsGrid') {
+      for (let i = 0; i < 6; i++) {
+        const col = i % el.cols, row = Math.floor(i / el.cols);
+        const cx = p.x + col * el.cellW, cy = p.y + row * el.cellH;
+        const locked = i >= 3; // mock: last half shown locked, to preview the dim style
+        ctx.fillStyle = locked ? (el.lockedColor || 'rgba(255,255,255,0.08)') : 'rgba(196,181,253,0.3)';
+        ctx.fillRect(cx, cy, 22, 22);
+        ctx.strokeStyle = locked ? (el.lockedBorderColor || '#2a2a4e') : '#ffffff44';
+        ctx.strokeRect(cx, cy, 22, 22);
+      }
+    }
+
+    if (el.tooltip) {
+      ctx.font = 'italic 9px "Courier New", monospace';
+      ctx.fillStyle = 'rgba(224, 215, 255, 0.6)';
+      ctx.textAlign = 'left';
+      ctx.fillText(el.tooltip, p.x, p.y - 4);
+    }
+
+    const b = boundsFor(key);
+    if (key === selected) {
+      ctx.strokeStyle = '#a78bfa';
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+function drawDiamond(x, y, color, half, filled, lockedFill, lockedBorder) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = filled === false ? (lockedFill || 'rgba(255,255,255,0.06)') : color;
+  ctx.fillRect(-half, -half, half * 2, half * 2);
+  ctx.strokeStyle = filled === false ? (lockedBorder || '#2a2a4e') : '#ffffffaa';
+  ctx.strokeRect(-half, -half, half * 2, half * 2);
+  ctx.restore();
+}
+
+// ── Page tabs ───────────────────────────────────────────────────────────
+function setPage(n) {
+  currentPage = n;
+  selected = null;
+  for (let i = 1; i <= 3; i++) document.getElementById('ptab' + i).classList.toggle('active', i === n);
+  document.getElementById('pageHeading').textContent = `Page ${n} elements`;
+  document.getElementById('newKind').dataset.page = n;
+  renderPanel(); draw();
+}
+
+// ── Side panel ──────────────────────────────────────────────────────────
+function fieldsFor(key, el) {
+  let html = `<label><input type="checkbox" ${el.visible ? 'checked' : ''} onchange="setProp('${key}','visible',this.checked)"> visible</label>
+    <label>anchor <select onchange="setProp('${key}','anchor',this.value)">
+      ${['top-left','top-center','bottom-left','bottom-right','bottom-center'].map((a) => `<option ${a === el.anchor ? 'selected' : ''}>${a}</option>`).join('')}
+    </select></label>
+    <label>x <input type="number" value="${el.x}" onchange="setProp('${key}','x',+this.value)">
+           y <input type="number" value="${el.y}" onchange="setProp('${key}','y',+this.value)"></label>`;
+  if (el.w !== undefined) html += `<label>w <input type="number" value="${el.w}" onchange="setProp('${key}','w',+this.value)">
+           h <input type="number" value="${el.h !== undefined ? el.h : ''}" onchange="setProp('${key}','h',+this.value)"></label>`;
+  if (el.size !== undefined) html += `<label>size <input type="number" value="${el.size}" onchange="setProp('${key}','size',+this.value)"></label>`;
+  if (el.gap !== undefined) html += `<label>gap <input type="number" value="${el.gap}" onchange="setProp('${key}','gap',+this.value)"></label>`;
+  if (el.cols !== undefined) html += `<label>cols <input type="number" value="${el.cols}" onchange="setProp('${key}','cols',+this.value)"></label>`;
+  if (el.rowH !== undefined) html += `<label>row height <input type="number" value="${el.rowH}" onchange="setProp('${key}','rowH',+this.value)"></label>`;
+  if (el.cellW !== undefined) html += `<label>cell w <input type="number" value="${el.cellW}" onchange="setProp('${key}','cellW',+this.value)">
+           cell h <input type="number" value="${el.cellH}" onchange="setProp('${key}','cellH',+this.value)"></label>`;
+  if (el.lockedColor !== undefined) html += `<label>locked fill <input type="text" value="${el.lockedColor}" onchange="setProp('${key}','lockedColor',this.value)" style="flex:1" placeholder="rgba(255,255,255,0.06)"></label>
+    <label>locked border <input type="text" value="${el.lockedBorderColor || ''}" onchange="setProp('${key}','lockedBorderColor',this.value)" style="flex:1" placeholder="#2a2a4e"></label>`;
+  html += `<label>tooltip <input type="text" value="${el.tooltip || ''}" onchange="setProp('${key}','tooltip',this.value)" style="flex:1" placeholder="micro-copy shown in-game"></label>`;
+  if (el.custom) {
+    html += `<label>label <input type="text" value="${el.label || ''}" onchange="setProp('${key}','label',this.value)" style="flex:1"></label>
+      <label>color <input type="color" value="${el.color || '#c4b5fd'}" onchange="setProp('${key}','color',this.value)"></label>
+      <button class="small danger" onclick="removeCustom('${key}')" style="width:100%;margin-top:4px">Remove</button>`;
+  }
+  return html;
+}
+
+function renderPanel() {
+  const shared = document.getElementById('sharedElements');
+  shared.innerHTML = SHARED_KEYS.map(renderCard).join('');
+  const holder = document.getElementById('elements');
+  holder.innerHTML = Object.keys(layout).filter(k => !SHARED_KEYS.includes(k) && layout[k].page === currentPage).map(renderCard).join('');
+}
+function renderCard(key) {
+  const el = layout[key];
+  return `<div class="elCard ${key === selected ? 'sel' : ''}">
+    <b onclick="select('${key}')">${el.custom ? (el.label || key) + ' (custom)' : (DESCRIPTIONS[key] || key)}</b>
+    ${fieldsFor(key, el)}
+  </div>`;
+}
+function select(key) { selected = key; renderPanel(); draw(); }
+function setProp(key, prop, val) { layout[key][prop] = val; renderPanel(); draw(); if (historyMgr) historyMgr.push(); }
+function removeCustom(key) { delete layout[key]; selected = null; renderPanel(); draw(); if (historyMgr) historyMgr.push(); }
+
+// ── Add a new freeform element ─────────────────────────────────────────
+let nextCustomId = 1;
+function addCustomElement() {
+  const kind = document.getElementById('newKind').value;
+  const label = document.getElementById('newLabel').value || 'Element';
+  const color = document.getElementById('newColor').value;
+  const key = `custom_${kind}_${nextCustomId++}`;
+  layout[key] = {
+    anchor: 'top-left', x: 100, y: 100, custom: true, kind, label, color,
+    visible: true, page: currentPage,
+    ...(kind === 'icon' ? { size: 16 } : {}),
+    ...(kind === 'pipRow' ? { size: 14, gap: 20, count: 4 } : {}),
+    ...(kind === 'text' ? { fontSize: 11, bold: false } : {}),
+  };
+  selected = key;
+  renderPanel(); draw();
+  if (typeof DevContext !== 'undefined') DevContext.log('Inventory Editor', 'Added custom element', key);
+  if (historyMgr) historyMgr.push();
+}
+
+// ── Dragging ────────────────────────────────────────────────────────────
+makeAnchoredDragController({
+  canvas: cv,
+  getDraggableKeys: () => visibleKeys().reverse(),
+  getElement: (key) => layout[key],
+  boundsFor,
+  onSelect: (key) => { selected = key; renderPanel(); draw(); },
+  onChange: draw,
+  onDragEnd: () => { renderPanel(); if (historyMgr) historyMgr.push(); },
+});
+
+// ─── UNDO/REDO (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y) ────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  if (!historyMgr) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey ? historyMgr.redo() : historyMgr.undo()) { renderPanel(); draw(); }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    if (historyMgr.redo()) { renderPanel(); draw(); }
+  }
+});
+
+// ── Save / export layout ────────────────────────────────────────────────
+function save() {
+  try {
+    localStorage.setItem(INVENTORY_LAYOUT_KEY, JSON.stringify(layout));
+    alert('Saved. The game applies this layout on next load.');
+    if (typeof DevContext !== 'undefined') DevContext.log('Inventory Editor', 'Saved layout', '');
+    if (unsavedGuard) unsavedGuard.checkpoint();
+  } catch (e) { alert('Save failed (storage unavailable). Use Export instead.'); }
+}
+function resetAll() {
+  localStorage.removeItem(INVENTORY_LAYOUT_KEY);
+  layout = JSON.parse(JSON.stringify(DEFAULTS));
+  selected = null;
+  renderPanel(); draw();
+  if (typeof DevContext !== 'undefined') DevContext.log('Inventory Editor', 'Reset layout to defaults', '');
+  if (unsavedGuard) unsavedGuard.checkpoint();
+  if (historyMgr) historyMgr.push();
+}
+function exportJSON() {
+  const box = document.getElementById('exportBox');
+  box.value = `// Paste over the defaults in game/inventory_ui.js's INVENTORY_LAYOUT\n// (and update editor/inventory_editor.html's DEFAULTS to match).\nconst INVENTORY_LAYOUT = ${JSON.stringify(layout, null, 2)};`;
+  box.select();
+  if (typeof DevContext !== 'undefined') DevContext.log('Inventory Editor', 'Exported layout', '');
+}
+
+// ── Cosmetics catalog (Page 3) ──────────────────────────────────────────
+function slugify(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'cosmetic';
+}
+function renderUnlockArg() {
+  const kind = document.getElementById('cosUnlockKind').value;
+  const row = document.getElementById('cosUnlockArgRow');
+  const label = document.getElementById('cosUnlockArgLabel');
+  if (kind === 'always') { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  if (kind === 'lore_pip') { label.textContent = 'count '; document.getElementById('cosUnlockArg').placeholder = 'e.g. 5'; }
+  else if (kind === 'flag') { label.textContent = 'storyFlags key '; document.getElementById('cosUnlockArg').placeholder = 'e.g. child_choice_resolved'; }
+  else { label.textContent = 'miniboss id '; document.getElementById('cosUnlockArg').placeholder = 'e.g. colossus_core'; }
+}
+function renderCosmeticsList() {
+  const holder = document.getElementById('cosmeticsList');
+  if (catalog.length === 0) {
+    holder.innerHTML = '<div class="hint">No entries yet — the in-game Customization page will show "Nothing here yet" until you add some.</div>';
+    return;
+  }
+  const slotLabel = { idle_anim: 'Idle', taunt: 'Taunt', fashion: 'Fashion' };
+  holder.innerHTML = catalog.map((c, i) => `<div class="cosCard">
+    <div class="row"><span><span class="swatch" style="background:${c.color || '#c4b5fd'}"></span><b>${c.name}</b> <span style="color:var(--fg-faint)">[${slotLabel[c.slot] || c.slot}]</span></span>
+    <button class="small danger" onclick="removeCosmetic(${i})">×</button></div>
+    <div style="color:var(--fg-faint)">unlock: ${c.unlock}</div>
+    ${c.tooltip ? `<div style="color:var(--fg-faint)">tooltip: "${c.tooltip}"</div>` : ''}
+  </div>`).join('');
+}
+function addCosmetic() {
+  const name = document.getElementById('cosName').value.trim();
+  if (!name) { alert('Name a look first.'); return; }
+  const slot = document.getElementById('cosSlot').value;
+  const color = document.getElementById('cosColor').value;
+  const kind = document.getElementById('cosUnlockKind').value;
+  const arg = document.getElementById('cosUnlockArg').value.trim();
+  const unlock = kind === 'always' ? 'always' : `${kind}:${arg}`;
+  const tooltip = document.getElementById('cosTooltip').value.trim();
+  const desc = document.getElementById('cosDesc').value.trim();
+  let id = slugify(name);
+  let n = 1;
+  while (catalog.some(c => c.id === id)) id = `${slugify(name)}_${n++}`;
+  catalog.push({ id, slot, name, color, unlock, tooltip, desc });
+  document.getElementById('cosName').value = '';
+  document.getElementById('cosTooltip').value = '';
+  document.getElementById('cosDesc').value = '';
+  renderCosmeticsList();
+  if (typeof DevContext !== 'undefined') DevContext.log('Inventory Editor', 'Added cosmetic', id);
+}
+function removeCosmetic(i) { catalog.splice(i, 1); renderCosmeticsList(); }
+function saveCosmetics() {
+  try {
+    localStorage.setItem(COSMETICS_CATALOG_KEY, JSON.stringify(catalog));
+    alert('Saved. The game reads this catalog on next load.');
+    if (typeof DevContext !== 'undefined') DevContext.log('Inventory Editor', 'Saved cosmetics catalog', catalog.length + ' entries');
+  } catch (e) { alert('Save failed (storage unavailable).'); }
+}
+
+setPage(1);
+renderCosmeticsList();
+renderPanel();
+draw();
+
+// ─── UNSAVED-CHANGES GUARD & UNDO/REDO ─────────────────────────────────────
+const unsavedGuard = (typeof UnsavedGuard !== 'undefined') ? UnsavedGuard.watch(() => layout) : null;
+const historyMgr = (typeof UndoHistory !== 'undefined') ? UndoHistory.create(() => layout, (v) => { layout = v; }) : null;
+</script>
+</body>
+</html>

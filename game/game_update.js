@@ -379,9 +379,9 @@ function update() {
     return;
   }
 
-  // Inventory screen (roadmap 1.9) — sub-menu off pause. Navigate the
-  // upgrade list (data-driven, see INVENTORY_UPGRADES) and spend banked
-  // Lore Pips on the selected row; everything else is display-only.
+  // Inventory screen (2026-08-01 multi-page redesign, see
+  // Plans/inventory_redesign.md and inventory_ui.js) — sub-menu off pause.
+  // Q/E cycle the 4 pages; each page owns its own ↑↓/Enter handling below.
   if (gameState === 'inventory') {
     if (inventoryMessage) {
       inventoryMessage.timer--;
@@ -391,21 +391,46 @@ function update() {
       gameState = inventoryReturnState;
       if (gameState === 'paused') buildPauseMenu();
       SFX.uiSelect();
-    } else if (wasJustPressed('ArrowUp')) {
-      inventorySelection = (inventorySelection - 1 + INVENTORY_UPGRADES.length) % INVENTORY_UPGRADES.length;
+    } else if (wasJustPressed('KeyQ')) {
+      inventoryPage = (inventoryPage + INVENTORY_PAGE_NAMES.length - 1) % INVENTORY_PAGE_NAMES.length;
+      inventorySelection = 0; cosmeticsSelection = 0;
       SFX.uiSelect();
-    } else if (wasJustPressed('ArrowDown')) {
-      inventorySelection = (inventorySelection + 1) % INVENTORY_UPGRADES.length;
+    } else if (wasJustPressed('KeyE')) {
+      inventoryPage = (inventoryPage + 1) % INVENTORY_PAGE_NAMES.length;
+      inventorySelection = 0; cosmeticsSelection = 0;
       SFX.uiSelect();
-    } else if (wasJustPressed('Enter') || wasJustPressed('Space')) {
-      const def = INVENTORY_UPGRADES[inventorySelection];
-      if (tryUpgrade(def.key)) {
-        SFX.abilityPickup();
-        inventoryMessage = { text: `${def.label} upgraded!`, timer: 90 };
-      } else {
+    } else if (inventoryPage === 0) {
+      updateInventoryMapPage();
+    } else if (inventoryPage === 1) {
+      // Character page: ↑↓ browse the re-readable Lore & Story list.
+      const entries = collectedLoreEntries();
+      if (entries.length && wasJustPressed('ArrowUp')) {
+        inventorySelection = (inventorySelection - 1 + entries.length) % entries.length;
         SFX.uiSelect();
-        inventoryMessage = { text: 'Not enough Lore Pips', timer: 90 };
+      } else if (entries.length && wasJustPressed('ArrowDown')) {
+        inventorySelection = (inventorySelection + 1) % entries.length;
+        SFX.uiSelect();
       }
+    } else if (inventoryPage === 2) {
+      // Upgrades page: unchanged behavior from the old single-page inventory.
+      if (wasJustPressed('ArrowUp')) {
+        inventorySelection = (inventorySelection - 1 + INVENTORY_UPGRADES.length) % INVENTORY_UPGRADES.length;
+        SFX.uiSelect();
+      } else if (wasJustPressed('ArrowDown')) {
+        inventorySelection = (inventorySelection + 1) % INVENTORY_UPGRADES.length;
+        SFX.uiSelect();
+      } else if (wasJustPressed('Enter') || wasJustPressed('Space')) {
+        const def = INVENTORY_UPGRADES[inventorySelection];
+        if (tryUpgrade(def.key)) {
+          SFX.abilityPickup();
+          inventoryMessage = { text: `${def.label} upgraded!`, timer: 90 };
+        } else {
+          SFX.uiSelect();
+          inventoryMessage = { text: 'Not enough Lore Pips', timer: 90 };
+        }
+      }
+    } else if (inventoryPage === 3) {
+      updateInventoryCustomizationPage();
     }
     clearJustPressed();
     return;

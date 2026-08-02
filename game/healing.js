@@ -160,7 +160,9 @@ function updateHealingCrystals(player, area) {
 
 function drawHealingCrystals(ctx, area, frameCount) {
   if (!area || !area.healingCrystals) return;
+  const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1;
   for (const c of area.healingCrystals) {
+    if (typeof tryDrawPointObjectAnim === 'function' && tryDrawPointObjectAnim(ctx, c, _ts, 20)) continue;
     const consumed = consumedHealCrystals[c.id];
     const pulse = Math.sin(frameCount * 0.06) * 0.15;
     const baseX = c.x, baseY = c.y;

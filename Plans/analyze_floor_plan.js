@@ -34,6 +34,10 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const {
+  mulberry32, weightedPick, maskToSet, requirementSatisfied,
+  unexploredReach, getFastTravelIndex, chooseNextMove,
+} = require(path.join(__dirname, '..', 'game', 'floorPlanWalkEngine.js'));
 
 const PLANS_DIR = __dirname;
 const MD_PATH = path.join(PLANS_DIR, 'floor_plan.md');
@@ -487,11 +491,7 @@ const TIME_WEIGHTS = {
 // tagged room the current path has already physically visited. (Assumes
 // warps launch FROM a waypoint, not from anywhere via a menu — flag if the
 // real design allows the latter, it's a one-line change below.)
-function getFastTravelIndex(nodes) {
-  const list = [...nodes.values()].filter((n) => n.fastTravelWaypoint).map((n) => n.id);
-  const indexOf = new Map(list.map((id, i) => [id, i]));
-  return { list, indexOf };
-}
+// (getFastTravelIndex is shared, see game/floorPlanWalkEngine.js.)
 
 function nodeWeight(n) {
   let w = TIME_WEIGHTS.baseRoom;
@@ -572,54 +572,8 @@ function difficultyMultiplier(node, config) {
 // occasionally forces a deliberate backtrack even when new content is
 // available (models "player got turned around"), and simulates extra
 // retries/time on hard rooms. Stops at the Final Boss or a step cap.
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function weightedPick(candidates, rng) {
-  const total = candidates.reduce((s, c) => s + c.weight, 0);
-  let r = rng() * total;
-  for (const c of candidates) {
-    r -= c.weight;
-    if (r <= 0) return c;
-  }
-  return candidates[candidates.length - 1];
-}
-
-// Counts unvisited rooms within `maxDepth` hops of `startId` that are
-// actually enterable with the abilities/flags currently held — a player's
-// "there's more map that way" sense is bounded by what they can actually
-// walk through right now, not by rooms sitting behind a door they haven't
-// unlocked yet (an earlier version ignored gating entirely and it made the
-// walk orbit locked doors, chasing unreachable "unexplored" territory it
-// could see but not enter). Bounded-radius BFS, cheap enough to run
-// per-candidate per-step on a ~80-room graph.
-function unexploredReach(startId, byFrom, nodes, visitCounts, abilitiesSet, flagsSet, maxDepth) {
-  const seen = new Set([startId]);
-  let frontier = [startId];
-  let count = 0;
-  for (let d = 0; d < maxDepth && frontier.length; d++) {
-    const next = [];
-    for (const id of frontier) {
-      for (const e of byFrom.get(id) || []) {
-        if (seen.has(e.to)) continue;
-        if (!requirementSatisfied(e, abilitiesSet, flagsSet)) continue;
-        if (!requirementSatisfied(nodes.get(e.to), abilitiesSet, flagsSet)) continue;
-        seen.add(e.to);
-        if (!visitCounts.has(e.to)) count++;
-        next.push(e.to);
-      }
-    }
-    frontier = next;
-  }
-  return count;
-}
+// (mulberry32/weightedPick/unexploredReach are shared, see
+// game/floorPlanWalkEngine.js.)
 
 function simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, opts) {
   const { nodes, edges } = graph;
@@ -691,116 +645,16 @@ function simulateRandomPlaythrough(graph, startId, goalId, difficultyConfig, opt
       }
     }
 
-    // Endgame rush: once a run has been back to the Antechamber more than
-    // once (i.e. already bounced off Hollow Core at least one retry) with
-    // Phase Dash in hand, stop rolling the dice — a real player who's
-    // already poked at the optional lore room would just go finish it.
-    let choice = null;
-    if (endgameRush && cur === endgameRush.antechamberId && (visitCounts.get(cur) || 0) > 1 && abilitiesSet.has('phase_dash')) {
-      const rush = candidates.find((c) => c.to === endgameRush.rushTargetId);
-      if (rush) choice = rush;
-    }
-
-    // Deliberate backtrack: sometimes retreat to an earlier room instead of
-    // taking a "forward" option, even if forward options exist — but only
-    // if we actually have somewhere to retreat to.
-    const canDeliberateBacktrack = !choice && history.length > 1 && rng() < backtrackChance;
-    if (choice) {
-      // handled above — fall through to the apply-move step at the bottom of the loop
-    } else if (!candidates.length) {
-      // A true dead end (e.g. the "Teleport from Static Field" trap this
-      // caught): don't just hop to the immediately-previous room, since if
-      // THAT room's only way forward is back into this dead end, we'd
-      // ping-pong forever. Walk backward through history for the nearest
-      // room that still has at least one legal move other than back into
-      // here, and jump straight there.
-      let backTo = null;
-      for (let i = history.length - 2; i >= 0; i--) {
-        const candId = history[i];
-        const hasOption = (byFrom.get(candId) || []).some((e) => {
-          if (e.to === cur) return false;
-          if (!requirementSatisfied(e, abilitiesSet, flagsSet)) return false;
-          return requirementSatisfied(nodes.get(e.to), abilitiesSet, flagsSet);
-        });
-        if (hasOption) { backTo = candId; break; }
-      }
-      if (backTo === null) break; // genuinely nowhere left to go — real design bug, not a simulator artifact
-      choice = { to: backTo, edge: null, forcedBacktrack: true };
-    } else if (canDeliberateBacktrack) {
-      const backIdx = Math.max(0, history.length - 2 - Math.floor(rng() * Math.min(3, history.length - 1)));
-      const backTo = history[backIdx];
-      choice = { to: backTo, edge: null, forcedBacktrack: false };
-    } else {
-      // Detect a small pocket with no missing-ability escape (e.g. Static
-      // Field Room 1 <-> Paradox Engine Room 2 when Phase Dash hasn't been
-      // picked up yet, so Static Field Room 2's requirement can never be
-      // met from here): every legal move from `cur` leads only to rooms
-      // that are themselves already-seen AND don't lead anywhere fresh
-      // either, and the last few steps have only bounced between 1-2
-      // rooms. A real player would eventually give up and backtrack much
-      // further looking for the ability/route they're missing, rather
-      // than coin-flipping the same two doors forever — so do that:
-      // search the WHOLE history (not just the immediate neighborhood)
-      // for the nearest room with a currently-legal move into unvisited
-      // territory, and jump straight there.
-      const noProgressHere = candidates.every((c) => {
-        if ((visitCounts.get(c.to) || 0) === 0) return false;
-        return !(byFrom.get(c.to) || []).some((e2) => !visitCounts.has(e2.to));
-      });
-      const recentWindow = history.slice(-6);
-      const isOscillating = noProgressHere && history.length > 6 && new Set(recentWindow).size <= 2;
-      let escapedTo = null;
-      if (isOscillating) {
-        for (let i = history.length - 2; i >= 0; i--) {
-          const candId = history[i];
-          const hasFreshOption = (byFrom.get(candId) || []).some((e2) => {
-            if (visitCounts.has(e2.to)) return false;
-            if (!requirementSatisfied(e2, abilitiesSet, flagsSet)) return false;
-            return requirementSatisfied(nodes.get(e2.to), abilitiesSet, flagsSet);
-          });
-          if (hasFreshOption) { escapedTo = candId; break; }
-        }
-      }
-      if (escapedTo !== null) {
-        choice = { to: escapedTo, edge: null, forcedBacktrack: true, note: 'stuck bouncing with no new options nearby (likely missing an ability held further back) — backtracking further to find one' };
-      } else {
-        const weighted = candidates.map((c) => {
-          const n = nodes.get(c.to);
-          const visits = visitCounts.get(c.to) || 0;
-          // Curiosity: strong pull if this room itself is new. If it's
-          // already-seen, weight it by how much unexplored territory sits
-          // within a few hops of it (a bounded-radius sense of "there's
-          // still a whole unexplored region that way" — a player who's
-          // played a while has a rough mental map of where they haven't
-          // been, without knowing the exact route or which doors are
-          // locked). Flat low weight for a dead-end-into-known-territory
-          // option so pure backtracking still happens but can't out-
-          // compete real unexplored pulls.
-          let curiosity;
-          if (visits === 0) {
-            curiosity = 8;
-          } else {
-            // Keep the original 1-hop "leads somewhere new" as the primary
-            // signal (it's what actually kept the walk from stalling), and
-            // add a small bonus for sensing more unexplored territory a
-            // few hops out — a nudge toward the right general direction,
-            // not a score that can outweigh a real fresh-room option.
-            const leadsSomewhereNew = (byFrom.get(c.to) || []).some((e2) => !visitCounts.has(e2.to));
-            const unexploredNearby = unexploredReach(c.to, byFrom, nodes, visitCounts, abilitiesSet, flagsSet, 3);
-            // Diminishing returns on revisits — see room_difficulty_calculator.js's
-            // matching comment. A hub node gatekeeping a whole unexplored
-            // cluster kept scoring the same full bonus on every pass through
-            // forever, so the walker looped back through it dozens of times
-            // per run instead of treating repeat traffic as routine.
-            curiosity = ((leadsSomewhereNew ? 3 : 1) + Math.min(unexploredNearby, 4) * 0.5) / Math.min(visits, 5);
-          }
-          const mult = difficultyMultiplier(n, difficultyConfig);
-          const wariness = mult > 1 ? 1 / mult : 1; // avoid re-entering known-hard rooms, doesn't block mandatory ones since they're often the only candidate
-          return { ...c, weight: Math.max(0.05, curiosity * wariness) };
-        });
-        choice = weightedPick(weighted, rng);
-      }
-    }
+    // Candidate selection (endgame-rush override, deliberate backtrack,
+    // dead-end backtrack, oscillation escape, curiosity-weighted pick) is
+    // the shared engine — see game/floorPlanWalkEngine.js's chooseNextMove
+    // for the full algorithm and its per-branch reasoning.
+    const choice = chooseNextMove({
+      cur, candidates, byFrom, nodesById: nodes, visitCounts,
+      abilitiesSet, flagsSet, history, rng, backtrackChance, endgameRush,
+      getDifficultyMult: (n) => difficultyMultiplier(n, difficultyConfig),
+    });
+    if (!choice) break; // genuinely nowhere left to go — real design bug, not a simulator artifact
 
     const viaLabel = choice.edge && choice.edge.label ? choice.edge.label : null;
     if (choice.to !== cur) {
@@ -851,17 +705,7 @@ function flagDelta(oldMask, newMask) {
   return ALL_FLAGS.filter((f, i) => (newMask & (1 << i)) && !(oldMask & (1 << i)));
 }
 
-function requirementSatisfied(node_or_edge, abilities, flags) {
-  for (const a of node_or_edge.requires) if (!abilities.has(a)) return false;
-  for (const f of node_or_edge.requiresFlags) if (!flags.has(f)) return false;
-  if (node_or_edge.requiresOr && node_or_edge.requiresOr.length) {
-    for (const group of node_or_edge.requiresOr) {
-      if (group.every((a) => abilities.has(a))) return true;
-    }
-    return false;
-  }
-  return true;
-}
+// (requirementSatisfied is shared, see game/floorPlanWalkEngine.js.)
 
 function findStart(nodes) {
   for (const n of nodes.values()) {
@@ -949,11 +793,7 @@ function flagBitmask(set) {
   ALL_FLAGS.forEach((f, i) => { if (set.has(f)) mask |= (1 << i); });
   return mask;
 }
-function maskToSet(mask, list) {
-  const s = new Set();
-  list.forEach((x, i) => { if (mask & (1 << i)) s.add(x); });
-  return s;
-}
+// (maskToSet is shared, see game/floorPlanWalkEngine.js.)
 
 const WARP_EDGE = { label: 'fast travel warp', requires: [], requiresOr: [], requiresFlags: [], oneWay: false, isWarp: true };
 
@@ -1890,55 +1730,16 @@ function buildSimulationHtml(runs, graph, startId, goalId, difficultyConfig) {
 </div>
 <div id="batchSummary"></div>
 <div id="runs"></div>
+<script src="../game/floorPlanWalkEngine.js"></script>
 <script>
 const DATA = ${dataJson};
 const GRAPH = ${graphJson};
 
-// ---- ported simulation engine (mirrors analyze_floor_plan.js server-side) ----
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function unexploredReach(startId, byFrom, nodesById, visitCounts, abilitiesSet, flagsSet, maxDepth) {
-  const seen = new Set([startId]);
-  let frontier = [startId];
-  let count = 0;
-  for (let d = 0; d < maxDepth && frontier.length; d++) {
-    const next = [];
-    for (const id of frontier) {
-      for (const e of byFrom.get(id) || []) {
-        if (seen.has(e.to)) continue;
-        if (!requirementSatisfied(e, abilitiesSet, flagsSet)) continue;
-        if (!requirementSatisfied(nodesById.get(e.to), abilitiesSet, flagsSet)) continue;
-        seen.add(e.to);
-        if (!visitCounts.has(e.to)) count++;
-        next.push(e.to);
-      }
-    }
-    frontier = next;
-  }
-  return count;
-}
-function weightedPick(candidates, rng) {
-  const total = candidates.reduce((s, c) => s + c.weight, 0);
-  let r = rng() * total;
-  for (const c of candidates) { r -= c.weight; if (r <= 0) return c; }
-  return candidates[candidates.length - 1];
-}
-function requirementSatisfied(thing, abilities, flags) {
-  for (const a of thing.requires) if (!abilities.has(a)) return false;
-  for (const f of thing.requiresFlags) if (!flags.has(f)) return false;
-  if (thing.requiresOr && thing.requiresOr.length) {
-    for (const group of thing.requiresOr) if (group.every((a) => abilities.has(a))) return true;
-    return false;
-  }
-  return true;
-}
+// mulberry32/weightedPick/maskToSet/requirementSatisfied/unexploredReach/
+// getFastTravelIndex/chooseNextMove come from game/floorPlanWalkEngine.js
+// (shared with analyze_floor_plan.js's own server-side engine and
+// room_difficulty_calculator.html — this used to be a third hand-ported
+// copy of the whole thing).
 function applyNodeGrants(nodeId, am, fm, nodesById) {
   const n = nodesById.get(nodeId);
   for (const a of n.grants) am |= (1 << GRAPH.allAbilities.indexOf(a));
@@ -1949,7 +1750,6 @@ function applyNodeGrants(nodeId, am, fm, nodesById) {
   }
   return [am, fm];
 }
-function maskToSet(mask, list) { const s = new Set(); list.forEach((x, i) => { if (mask & (1 << i)) s.add(x); }); return s; }
 function nodeWeight(n) {
   const tw = GRAPH.timeWeights;
   let w = tw.baseRoom;
@@ -1976,11 +1776,6 @@ function difficultyMultiplier(node) {
   if (node.miniboss && config.rooms.miniboss !== undefined) return config.rooms.miniboss;
   if (node.finalBoss && config.rooms.finalBoss !== undefined) return config.rooms.finalBoss;
   return config.default;
-}
-function getFastTravelIndex(nodesById) {
-  const list = [...nodesById.values()].filter((n) => n.fastTravelWaypoint).map((n) => n.id);
-  const indexOf = new Map(list.map((id, i) => [id, i]));
-  return { list, indexOf };
 }
 function runSimulation(seed, mode) {
   const nodesById = new Map(GRAPH.nodes.map((n) => [n.id, n]));
@@ -2037,78 +1832,13 @@ function runSimulation(seed, mode) {
       }
     }
 
-    let choice = null;
-    if (GRAPH.endgameRush && cur === GRAPH.endgameRush.antechamberId && (visitCounts.get(cur) || 0) > 1 && abilitiesSet.has('phase_dash')) {
-      const rush = candidates.find((c) => c.to === GRAPH.endgameRush.rushTargetId);
-      if (rush) choice = rush;
-    }
-    const canDeliberateBacktrack = !choice && history.length > 1 && rng() < backtrackChance;
-    if (choice) {
-      // handled above — fall through to the apply-move step below
-    } else if (!candidates.length) {
-      let backTo = null;
-      for (let i = history.length - 2; i >= 0; i--) {
-        const candId = history[i];
-        const hasOption = (byFrom.get(candId) || []).some((e2) => {
-          if (e2.to === cur) return false;
-          if (!requirementSatisfied(e2, abilitiesSet, flagsSet)) return false;
-          return requirementSatisfied(nodesById.get(e2.to), abilitiesSet, flagsSet);
-        });
-        if (hasOption) { backTo = candId; break; }
-      }
-      if (backTo === null) break;
-      choice = { to: backTo, edge: null, forcedBacktrack: true };
-    } else if (canDeliberateBacktrack) {
-      const backIdx = Math.max(0, history.length - 2 - Math.floor(rng() * Math.min(3, history.length - 1)));
-      choice = { to: history[backIdx], edge: null, forcedBacktrack: false };
-    } else {
-      // Oscillation escape: a small pocket (e.g. two rooms connected only
-      // to each other, the rest of the world locked behind a missing
-      // ability) has no legal move that's fresh or leads to fresh
-      // territory. Rather than coin-flip the same two doors forever,
-      // search the whole history for the nearest room with a currently-
-      // legal move into unvisited territory and jump straight there.
-      const noProgressHere = candidates.every((c) => {
-        if ((visitCounts.get(c.to) || 0) === 0) return false;
-        return !(byFrom.get(c.to) || []).some((e2) => !visitCounts.has(e2.to));
-      });
-      const recentWindow = history.slice(-6);
-      const isOscillating = noProgressHere && history.length > 6 && new Set(recentWindow).size <= 2;
-      let escapedTo = null;
-      if (isOscillating) {
-        for (let i = history.length - 2; i >= 0; i--) {
-          const candId = history[i];
-          const hasFreshOption = (byFrom.get(candId) || []).some((e2) => {
-            if (visitCounts.has(e2.to)) return false;
-            if (!requirementSatisfied(e2, abilitiesSet, flagsSet)) return false;
-            return requirementSatisfied(nodesById.get(e2.to), abilitiesSet, flagsSet);
-          });
-          if (hasFreshOption) { escapedTo = candId; break; }
-        }
-      }
-      if (escapedTo !== null) {
-        choice = { to: escapedTo, edge: null, forcedBacktrack: true, note: 'stuck bouncing with no new options nearby — backtracking further to find one' };
-      } else {
-        const weighted = candidates.map((c) => {
-          const n = nodesById.get(c.to);
-          const visits = visitCounts.get(c.to) || 0;
-          let curiosity;
-          if (visits === 0) curiosity = 8;
-          else {
-            const leadsSomewhereNew = (byFrom.get(c.to) || []).some((e2) => !visitCounts.has(e2.to));
-            const unexploredNearby = unexploredReach(c.to, byFrom, nodesById, visitCounts, abilitiesSet, flagsSet, 3);
-            // Diminishing returns on revisits — see the server-side engine's
-            // matching comment (a hub node was scoring the same full bonus
-            // forever, causing dozens of redundant passes through it).
-            curiosity = ((leadsSomewhereNew ? 3 : 1) + Math.min(unexploredNearby, 4) * 0.5) / Math.min(visits, 5);
-          }
-          const mult = difficultyMultiplier(n);
-          const wariness = mult > 1 ? 1 / mult : 1;
-          return { ...c, weight: Math.max(0.05, curiosity * wariness) };
-        });
-        choice = weightedPick(weighted, rng);
-      }
-    }
+    const choice = chooseNextMove({
+      cur, candidates, byFrom, nodesById, visitCounts,
+      abilitiesSet, flagsSet, history, rng, backtrackChance,
+      endgameRush: GRAPH.endgameRush,
+      getDifficultyMult: (n) => difficultyMultiplier(n),
+    });
+    if (!choice) break;
 
     const viaLabel = choice.edge && choice.edge.label ? choice.edge.label : null;
     if (choice.to !== cur) {
@@ -2130,7 +1860,6 @@ function runSimulation(seed, mode) {
     uniqueRooms: visitCounts.size, totalVisits: log.length,
     backtrackSteps: log.filter((s) => s.isRevisit).length };
 }
-// ---- end ported engine ----
 
 function stat(n, l) {
   const d = document.createElement('div'); d.className = 'stat';

@@ -69,6 +69,67 @@ work today with zero new code — but no draw call site reads it for destructibl
 platforms/pickups yet; add call sites opportunistically as the actual need comes up,
 per this doc's own "don't build ahead of a real need" framing elsewhere).
 
+## 1b. Custom art/animation authoring — 3 of 6 targets built (2026-08-01)
+
+Follow-up conversation to §1a: can custom art be *animated*, not just recolored, and
+across every category that might want it (hazards, platforms, doors, anchors/pips/
+rewards/cosmetics, cutscene visuals, the Child, HUD/world-map icons, particles/
+projectiles)? Researched `Animator`'s real implementation before answering (not
+assumed) — it only hard-needs `x/y/width/height/facing` on its target, so reuse is
+genuinely cheap, with one real catch: `area.js` objects use `w`/`h`, not `width`/
+`height`. Landed on a 3-tier plan by weight (full `Animator` for entity-like things;
+a lightweight frames-only flipbook for room-attached static art; no persistent state
+at all for pooled/transient VFX, since a full `Animator` per particle would be new
+per-frame overhead `debug_v2.html`'s test X03 doesn't budget for today) rather than
+one bespoke editor per category — extends existing tool owners instead of building
+new ones, per this doc's own §0 principle.
+
+Built, user's explicit choice of **Option 2** (`levelEditor.html` links out to
+`anim_editor.html` per object rather than embedding its frame-strip UI — geometry
+editing and art authoring stay deliberately separate tools/workflows):
+
+1. **The Child** — full `Animator` bridge in `game/companion.js`
+   (`child_<state>` keys: idle/walk/hide/fight/fight_assist/heal), added to
+   `anim_editor.html`'s entity picker. Plus, per explicit request, a genuine
+   **environment-interaction hook** (not a full interaction system — that needs
+   real lever/environment-object triggers that don't exist yet): a new
+   `companionState.scriptAnim` field that `animStateKey()` reads first, ahead of
+   everything else, whenever `mode === 'scripted'` — a future cutscene step or
+   trigger sets it to any name (`point`/`examine`/`pull_lever` suggested as
+   starting points) and a matching `child_<name>` def just works, no new plumbing.
+2. **Room backdrop layer animation** — `backdropLayers[].frames[]` in
+   `game_entities.js`/`room_scene_editor.html`, a stateless flipbook driven by the
+   existing `frameCount` global (not a mutated per-layer timer). Direct answer to
+   the original "can room_scene_editor do animated custom art" question.
+3. **Hazards, platforms, doors** — new `getRoomObjectAnimator()`/
+   `tryDrawRoomObjectAnim()` bridge in `game_entities.js` (a cached, in-place-
+   mutated adapter solving the `w`/`h` vs `width`/`height` mismatch), a new
+   `animKey` field + "🎬 Edit Animation →" link-out button in `levelEditor.html`'s
+   Platform/Transition inspectors, and a real fix in `anim_editor.html`'s
+   `?anim=` deep-link handler (previously only worked for already-authored keys —
+   now auto-creates a sized placeholder for a brand-new key so the link-out is
+   genuinely one-click).
+
+All three verified without a browser (`node --check`, and real Node/`vm`-sandboxed
+functional tests against the actual shipped code, not reimplementations — 8+8+11
+assertions across the three) plus a `room_verify_cli.js` re-run after each step
+confirming zero regression (same 69-clean/2-warnings/0-failing result throughout).
+
+**Follow-up, same day: anchors, ability rewards, Fracture/Lore Pips, healing
+crystals — also built.** These are bare `{x,y}` pickups with no `w`/`h`, so a
+sibling helper (`tryDrawPointObjectAnim()`, a fixed-box adapter bottom-anchored at
+`y`) was added alongside `getRoomObjectAnimator()` rather than reusing it directly
+— same opt-in/zero-regression contract, same `levelEditor.html` link-out pattern.
+Cosmetic upgrades were explicitly **not** given this (verified there's no runtime
+draw function for them at all yet — data-only today — so an `animKey` field would
+be speculative dead code).
+
+**Still not built** (2 of the original 6): cutscene visuals (needs a real design
+decision — a new `CUTSCENES` step type) and particles/projectiles (needs a lighter,
+non-`Animator` mechanism given the performance boundary above) — both genuinely
+open, not just unscheduled. HUD/world-map icons also not revisited. See
+`roadmap.md`'s tail entry for full per-item implementation detail.
+
 ## 1. Addendum to `Plans/room_scene_editor_plan.md` — what else it should cover
 
 Three things that plan didn't scope, worth folding in before building it:

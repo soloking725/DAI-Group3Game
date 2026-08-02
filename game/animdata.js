@@ -238,12 +238,9 @@ function primeAnimImage(id, dataUrl) {
 // dance and no code edits. Overrides merge per-key (whole animation
 // replaced), never per-frame.
 function applyAnimOverrides() {
-  try {
-    const raw = localStorage.getItem(ANIM_OVERRIDES_KEY);
-    if (!raw) return;
-    const overrides = JSON.parse(raw);
-    for (const key in overrides) ANIM_DEFS[key] = overrides[key];
-  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+  const overrides = readOverrideJSON(ANIM_OVERRIDES_KEY);
+  if (!overrides) return;
+  for (const key in overrides) ANIM_DEFS[key] = overrides[key];
 }
 applyAnimOverrides();
 

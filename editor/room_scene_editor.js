@@ -46,6 +46,17 @@ function stripPreview(layers) {
   return (layers || []).map((l) => {
     const copy = Object.assign({}, l);
     delete copy._previewDataUrl;
+    // Animated layers (layer.frames[], 2026-08-01) carry the same
+    // live-preview-only _previewDataUrl per frame as the single-image case
+    // above — strip it here too so it never leaks into export/save, same
+    // reason as the layer-level delete just above.
+    if (Array.isArray(copy.frames)) {
+      copy.frames = copy.frames.map((f) => {
+        const fc = Object.assign({}, f);
+        delete fc._previewDataUrl;
+        return fc;
+      });
+    }
     return copy;
   });
 }
@@ -104,7 +115,7 @@ function pushHistory() {
   if (history.length > HISTORY_MAX) history.shift();
   historyIndex = history.length - 1;
   updateUndoRedoButtons();
-  if (unsavedGuard) { /* baseline stays at load/save time on purpose — this just enables the buttons */ }
+  // baseline (unsavedGuard) stays at load/save time on purpose — this only enables the undo/redo buttons
 }
 function resetHistory() { history = [snapshot()]; historyIndex = 0; updateUndoRedoButtons(); }
 function restoreSnapshot(snap) {
@@ -201,6 +212,11 @@ function pushFullLiveState() {
   if (typeof win.primeRoomImage === 'function') {
     for (const layer of area.backdropLayers) {
       if (layer.imageId && layer._previewDataUrl) win.primeRoomImage(layer.imageId, layer._previewDataUrl);
+      if (Array.isArray(layer.frames)) {
+        for (const f of layer.frames) {
+          if (f.imageId && f._previewDataUrl) win.primeRoomImage(f.imageId, f._previewDataUrl);
+        }
+      }
     }
   }
 }
@@ -364,6 +380,114 @@ function addRow(parent, labelText, inputEl, readoutEl) {
   return row;
 }
 
+// Animated backdrop layer authoring (2026-08-01) — layer.frames[], a small
+// flipbook (frame.imageId + frame.duration in ticks) cycled by
+// game_entities.js's pickBackdropFrame(), same {imageId, duration} shape
+// anim_editor.html's ANIM_DEFS frames use, kept separate from that system
+// (not routed through Animator) since a backdrop layer has no entity
+// x/y/width/height/facing — it's screen-space parallax art, not something
+// attached to a game object. Empty/absent frames[] (every layer before this
+// feature, and any layer that never adds one) means "static," handled
+// entirely by the single-image path above — this section is purely
+// additive.
+function renderLayerFramesSection(el, layer) {
+  const title = document.createElement('div');
+  title.className = 'section-title';
+  title.textContent = 'Animation (optional)';
+  el.appendChild(title);
+
+  const hint = document.createElement('div');
+  hint.className = 'hint';
+  hint.textContent = (layer.frames && layer.frames.length)
+    ? 'Cycles through the frames below, in order, looping — the single image above is ignored while any frames exist.'
+    : 'No frames yet — this layer is a plain static image (the one above). Add a frame to make it a flipbook.';
+  el.appendChild(hint);
+
+  (layer.frames || []).forEach((f, i) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.style.alignItems = 'center';
+
+    if (f._previewDataUrl) {
+      const thumb = document.createElement('img');
+      thumb.src = f._previewDataUrl;
+      thumb.style.width = '32px';
+      thumb.style.height = '32px';
+      thumb.style.objectFit = 'cover';
+      thumb.style.border = '1px solid #2a2a4e';
+      thumb.style.borderRadius = '3px';
+      row.appendChild(thumb);
+    }
+
+    const durLabel = document.createElement('label');
+    durLabel.textContent = 'Frame ' + (i + 1) + ' dur';
+    durLabel.style.marginLeft = '6px';
+    const durInput = document.createElement('input');
+    durInput.type = 'number';
+    durInput.min = '1';
+    durInput.style.width = '50px';
+    durInput.value = f.duration || 8;
+    durInput.addEventListener('change', () => {
+      f.duration = Math.max(1, Number(durInput.value) || 8);
+      onLiveEdit(); pushHistory();
+    });
+
+    const upBtn = document.createElement('button');
+    upBtn.textContent = '↑';
+    upBtn.disabled = i === 0;
+    upBtn.addEventListener('click', () => {
+      [layer.frames[i - 1], layer.frames[i]] = [layer.frames[i], layer.frames[i - 1]];
+      onLiveEdit(); pushHistory(); renderInspector();
+    });
+    const downBtn = document.createElement('button');
+    downBtn.textContent = '↓';
+    downBtn.disabled = i === layer.frames.length - 1;
+    downBtn.addEventListener('click', () => {
+      [layer.frames[i + 1], layer.frames[i]] = [layer.frames[i], layer.frames[i + 1]];
+      onLiveEdit(); pushHistory(); renderInspector();
+    });
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => {
+      layer.frames.splice(i, 1);
+      onLiveEdit(); pushHistory(); renderInspector();
+    });
+
+    row.appendChild(durLabel); row.appendChild(durInput);
+    row.appendChild(upBtn); row.appendChild(downBtn); row.appendChild(delBtn);
+    el.appendChild(row);
+  });
+
+  const addRow = document.createElement('div');
+  addRow.className = 'row';
+  const addLabel = document.createElement('label');
+  addLabel.textContent = '+ Add Frame';
+  const addInput = document.createElement('input');
+  addInput.type = 'file';
+  addInput.accept = 'image/*';
+  addInput.style.flex = '1';
+  addInput.addEventListener('change', async () => {
+    const file = addInput.files[0];
+    if (!file) return;
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const id = RoomImageStore.generateId();
+    if (!Array.isArray(layer.frames)) layer.frames = [];
+    layer.frames.push({ imageId: id, duration: 8, _previewDataUrl: dataUrl });
+    try { await RoomImageStore.put(id, dataUrl); } catch (e) { /* IndexedDB unavailable — still primed live below */ }
+    addInput.value = '';
+    onLiveEdit(); pushHistory();
+    renderLayerList(); renderInspector();
+  });
+  addRow.appendChild(addLabel); addRow.appendChild(addInput);
+  el.appendChild(addRow);
+}
+
 function renderLayerInspector(el, layer) {
   el.innerHTML = '';
 
@@ -410,6 +534,8 @@ function renderLayerInspector(el, layer) {
     prevRow.appendChild(img);
     el.appendChild(prevRow);
   }
+
+  renderLayerFramesSection(el, layer);
 
   // ParallaxX
   addRangeField(el, 'Parallax X', layer, 'parallaxX', -1, 1, 0.01);
@@ -862,11 +988,8 @@ window.addEventListener('mousemove', (e) => {
     t.x = Math.max(0, o.x + dxWorld);
     t.y = Math.max(0, o.y + dyWorld);
   } else {
-    const c = triggerDrag.corner;
-    if (c === 'se') { t.w = Math.max(MIN_TRIGGER_SIZE, o.w + dxWorld); t.h = Math.max(MIN_TRIGGER_SIZE, o.h + dyWorld); }
-    else if (c === 'nw') { const nw = Math.max(MIN_TRIGGER_SIZE, o.w - dxWorld), nh = Math.max(MIN_TRIGGER_SIZE, o.h - dyWorld); t.x = o.x + (o.w - nw); t.y = o.y + (o.h - nh); t.w = nw; t.h = nh; }
-    else if (c === 'ne') { const nw = Math.max(MIN_TRIGGER_SIZE, o.w + dxWorld), nh = Math.max(MIN_TRIGGER_SIZE, o.h - dyWorld); t.y = o.y + (o.h - nh); t.w = nw; t.h = nh; }
-    else if (c === 'sw') { const nw = Math.max(MIN_TRIGGER_SIZE, o.w - dxWorld), nh = Math.max(MIN_TRIGGER_SIZE, o.h + dyWorld); t.x = o.x + (o.w - nw); t.w = nw; t.h = nh; }
+    const r = resizeRectByCorner(o, triggerDrag.corner, dxWorld, dyWorld, MIN_TRIGGER_SIZE);
+    t.x = r.x; t.y = r.y; t.w = r.w; t.h = r.h;
   }
   if (selMode === 'trigger') renderInspector(); // keep the numeric x/y/w/h fields live in sync while dragging
 });

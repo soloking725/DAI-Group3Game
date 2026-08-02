@@ -29,7 +29,7 @@ const args = process.argv.slice(2);
 const FULL = args.includes('--full');
 const TODO = args.includes('--todo');
 
-const ctx = { window: { addEventListener() {} }, console: { log() {}, warn() {}, error() {} } };
+const ctx = { window: { addEventListener() {} }, console: { log() {}, warn() {}, error() {} }, readOverrideJSON() { return null; } };
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(AREA_PATH, 'utf8'), ctx, { filename: 'area.js' });
 const AREAS = ctx.window.AREAS;

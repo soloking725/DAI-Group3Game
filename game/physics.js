@@ -501,8 +501,7 @@ function nudgeOutOfPlatforms(entity, platforms, label = 'entity', quiet = false)
     let overlapping = null;
     for (const plat of platforms) {
       if (plat.destructible && plat.hp <= 0) continue;
-      if (entity.x + entity.width > plat.x && entity.x < plat.x + plat.w &&
-          entity.y + entity.height > plat.y && entity.y < plat.y + plat.h) {
+      if (rectsOverlap(entity, { x: plat.x, y: plat.y, width: plat.w, height: plat.h })) {
         overlapping = plat;
         break;
       }

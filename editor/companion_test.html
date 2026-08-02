@@ -97,6 +97,7 @@
 <div id="stage"><canvas id="game" width="960" height="540"></canvas></div>
 
 <!-- Real game scripts — same load order as index.html -->
+<script src="../game/overrideStore.js"></script>
 <script src="../game/audio.js"></script>
 <script src="../game/input.js"></script>
 <script src="../game/physics.js"></script>
@@ -104,6 +105,7 @@
 <script src="../game/animdata.js"></script>
 <script src="../game/animImageStore.js"></script>
 <script src="../game/area.js"></script>
+<script src="../game/roomVerify.js"></script>
 <script src="../game/map.js"></script>
 <script src="../game/ability.js"></script>
 <script src="../game/cutscene.js"></script>
@@ -120,6 +122,7 @@
 <script src="../game/game_update.js"></script>
 <script src="../game/game_hud_menus.js"></script>
 <script src="../game/game_draw_loop.js"></script>
+<script src="canvasFit.js"></script>
 
 <script>
 'use strict';
@@ -130,14 +133,6 @@
 
 // Canvas fit (same override enemy_test.html uses — game.js sizes against
 // the full window and doesn't know about the sidebar).
-function fitCanvasToStage() {
-  const sideWidth = document.getElementById('side').offsetWidth;
-  const availW = window.innerWidth - sideWidth;
-  const availH = window.innerHeight;
-  const scale = Math.min(availW / W, availH / H);
-  canvas.style.width = Math.floor(W * scale) + 'px';
-  canvas.style.height = Math.floor(H * scale) + 'px';
-}
 window.addEventListener('resize', fitCanvasToStage);
 fitCanvasToStage();
 

@@ -16,8 +16,8 @@
     <key id="d_shortcut" for="edge" attr.name="shortcut" attr.type="boolean"/>
     <key id="d_egraphics" for="edge" yfiles.type="edgegraphics"/>
   <graph id="stillpoint_world" edgedefault="directed">
-    <node id="tutorial_area">
-      <data key="d_label">Threshold</data>
+    <node id="spawn_area_1">
+      <data key="d_label">Spawn Area</data>
       <data key="d_region">origin</data>
       <data key="d_roomType">room</data>
       <data key="d_ability"></data>
@@ -28,161 +28,93 @@
           <y:Geometry height="60" width="140" x="0" y="0"/>
           <y:Fill color="#ED93B1" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Threshold</y:NodeLabel>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Spawn Area</y:NodeLabel>
           <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>
     </node>
-    <node id="the_fracture">
-      <data key="d_label">The Fracture</data>
+    <node id="tutorial_area">
+      <data key="d_label">Tutorial Area</data>
       <data key="d_region">origin</data>
       <data key="d_roomType">room</data>
-      <data key="d_ability">Phase Dash</data>
+      <data key="d_ability"></data>
       <data key="d_miniboss"></data>
-      <data key="d_enemies">fractured</data>
+      <data key="d_enemies"></data>
       <data key="d_ngraphics">
         <y:ShapeNode>
           <y:Geometry height="60" width="140" x="220" y="0"/>
           <y:Fill color="#ED93B1" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Fracture</y:NodeLabel>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Tutorial Area</y:NodeLabel>
           <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>
     </node>
-    <node id="echo_bridge">
-      <data key="d_label">Echo Bridge</data>
+    <node id="the_fracture_part1">
+      <data key="d_label">The Fracture, part 1</data>
       <data key="d_region">origin</data>
       <data key="d_roomType">room</data>
       <data key="d_ability"></data>
-      <data key="d_miniboss"></data>
-      <data key="d_enemies">fractured</data>
-      <data key="d_ngraphics">
-        <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="440" y="0"/>
-          <y:Fill color="#ED93B1" transparent="false"/>
-          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Echo Bridge</y:NodeLabel>
-          <y:Shape type="rectangle"/>
-        </y:ShapeNode>
-      </data>
-    </node>
-    <node id="upper_ruins">
-      <data key="d_label">Upper Ruins</data>
-      <data key="d_region">origin</data>
-      <data key="d_roomType">room</data>
-      <data key="d_ability"></data>
-      <data key="d_miniboss"></data>
-      <data key="d_enemies">fractured</data>
-      <data key="d_ngraphics">
-        <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="440" y="-220"/>
-          <y:Fill color="#ED93B1" transparent="false"/>
-          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Upper Ruins</y:NodeLabel>
-          <y:Shape type="rectangle"/>
-        </y:ShapeNode>
-      </data>
-    </node>
-    <node id="crystal_cavern">
-      <data key="d_label">Crystal Cavern</data>
-      <data key="d_region">origin</data>
-      <data key="d_roomType">room</data>
-      <data key="d_ability">Shard Shot</data>
       <data key="d_miniboss"></data>
       <data key="d_enemies">fractured, stutterer</data>
       <data key="d_ngraphics">
         <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="660" y="0"/>
+          <y:Geometry height="60" width="140" x="220" y="220"/>
           <y:Fill color="#ED93B1" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crystal Cavern</y:NodeLabel>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Fracture, part 1</y:NodeLabel>
           <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>
     </node>
-    <node id="the_forge">
-      <data key="d_label">The Forge</data>
+    <node id="the_fracture_part2">
+      <data key="d_label">The Fracture, part 2</data>
       <data key="d_region">origin</data>
       <data key="d_roomType">room</data>
       <data key="d_ability"></data>
       <data key="d_miniboss"></data>
-      <data key="d_enemies">fractured, stutterer, crystal_sentinel</data>
+      <data key="d_enemies">fractured, stutterer</data>
       <data key="d_ngraphics">
         <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="880" y="0"/>
+          <y:Geometry height="60" width="140" x="440" y="220"/>
           <y:Fill color="#ED93B1" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Forge</y:NodeLabel>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Fracture, part 2</y:NodeLabel>
           <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>
     </node>
-    <node id="the_vault">
-      <data key="d_label">The Vault</data>
-      <data key="d_region">origin</data>
-      <data key="d_roomType">room</data>
-      <data key="d_ability">Stillpoint</data>
-      <data key="d_miniboss"></data>
-      <data key="d_enemies"></data>
-      <data key="d_ngraphics">
-        <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="1100" y="0"/>
-          <y:Fill color="#ED93B1" transparent="false"/>
-          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Vault</y:NodeLabel>
-          <y:Shape type="rectangle"/>
-        </y:ShapeNode>
-      </data>
-    </node>
-    <node id="the_rift">
-      <data key="d_label">The Rift</data>
+    <node id="the_fracture_part3">
+      <data key="d_label">The Fracture, part 3</data>
       <data key="d_region">origin</data>
       <data key="d_roomType">room</data>
       <data key="d_ability"></data>
       <data key="d_miniboss"></data>
-      <data key="d_enemies">fractured</data>
+      <data key="d_enemies">fractured, stutterer</data>
       <data key="d_ngraphics">
         <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="1320" y="0"/>
+          <y:Geometry height="60" width="140" x="0" y="220"/>
           <y:Fill color="#ED93B1" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Rift</y:NodeLabel>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Fracture, part 3</y:NodeLabel>
           <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>
     </node>
-    <node id="antechamber">
-      <data key="d_label">Antechamber</data>
+    <node id="the_fracture_part4">
+      <data key="d_label">The Fracture, part 4</data>
       <data key="d_region">origin</data>
       <data key="d_roomType">room</data>
       <data key="d_ability"></data>
       <data key="d_miniboss"></data>
-      <data key="d_enemies"></data>
+      <data key="d_enemies">fractured, stutterer</data>
       <data key="d_ngraphics">
         <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="1540" y="0"/>
+          <y:Geometry height="60" width="140" x="0" y="440"/>
           <y:Fill color="#ED93B1" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Antechamber</y:NodeLabel>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Fracture, part 4</y:NodeLabel>
           <y:Shape type="rectangle"/>
-        </y:ShapeNode>
-      </data>
-    </node>
-    <node id="boss_arena">
-      <data key="d_label">The Fractured King</data>
-      <data key="d_region">origin</data>
-      <data key="d_roomType">boss</data>
-      <data key="d_ability"></data>
-      <data key="d_miniboss"></data>
-      <data key="d_enemies"></data>
-      <data key="d_ngraphics">
-        <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="1760" y="0"/>
-          <y:Fill color="#E24B4A" transparent="false"/>
-          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Fractured King</y:NodeLabel>
-          <y:Shape type="octagon"/>
         </y:ShapeNode>
       </data>
     </node>
@@ -192,10 +124,10 @@
       <data key="d_roomType">room</data>
       <data key="d_ability"></data>
       <data key="d_miniboss"></data>
-      <data key="d_enemies">fractured, stutterer</data>
+      <data key="d_enemies">fractured, blitz_guard, ruin_stalker</data>
       <data key="d_ngraphics">
         <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="220" y="-220"/>
+          <y:Geometry height="60" width="140" x="440" y="220"/>
           <y:Fill color="#FAC775" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crag Entrance</y:NodeLabel>
@@ -209,10 +141,10 @@
       <data key="d_roomType">room</data>
       <data key="d_ability"></data>
       <data key="d_miniboss"></data>
-      <data key="d_enemies">fractured, stutterer, crystal_sentinel</data>
+      <data key="d_enemies">fractured, blitz_guard</data>
       <data key="d_ngraphics">
         <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="220" y="-440"/>
+          <y:Geometry height="60" width="140" x="660" y="220"/>
           <y:Fill color="#FAC775" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crag Breach</y:NodeLabel>
@@ -226,10 +158,10 @@
       <data key="d_roomType">room</data>
       <data key="d_ability">Charged Attack</data>
       <data key="d_miniboss"></data>
-      <data key="d_enemies">fractured</data>
+      <data key="d_enemies">fractured, blitz_guard</data>
       <data key="d_ngraphics">
         <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="220" y="-660"/>
+          <y:Geometry height="60" width="140" x="440" y="220"/>
           <y:Fill color="#FAC775" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crag Altar</y:NodeLabel>
@@ -246,11 +178,1048 @@
       <data key="d_enemies"></data>
       <data key="d_ngraphics">
         <y:ShapeNode>
-          <y:Geometry height="60" width="140" x="220" y="-880"/>
+          <y:Geometry height="60" width="140" x="440" y="440"/>
           <y:Fill color="#EF9F27" transparent="false"/>
           <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crag Warden</y:NodeLabel>
           <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="mirror_veil_gate">
+      <data key="d_label">Mirror Veil — Gate</data>
+      <data key="d_region">mirror_veil</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">mirror_sprite, echo_stalker, null_sentinel</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="440"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Mirror Veil — Gate</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="mirror_veil_reflection">
+      <data key="d_label">Mirror Veil — Reflection</data>
+      <data key="d_region">mirror_veil</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">mirror_sprite, echo_stalker, null_sentinel</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="440"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Mirror Veil — Reflection</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="mirror_veil_hollow">
+      <data key="d_label">Mirror Veil — Hollow</data>
+      <data key="d_region">mirror_veil</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">hollow_guardian</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="660"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Mirror Veil — Hollow</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="mirror_veil_sanctum">
+      <data key="d_label">Mirror Veil — Sanctum</data>
+      <data key="d_region">mirror_veil</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Phase Dash</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="660"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Mirror Veil — Sanctum</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="mirror_corridor">
+      <data key="d_label">Mirror Corridor</data>
+      <data key="d_region">mirror_veil</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">mirror_sprite, echo_stalker, null_sentinel</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-660" y="220"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Mirror Corridor</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="echo_bridge_part1">
+      <data key="d_label">Echo Bridge, part 1</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Max Health +1</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured, stutterer</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="660"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Echo Bridge, part 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="echo_bridge_prison">
+      <data key="d_label">Echo Bridge Prison</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Parry</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured_knight, stutterer</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="660"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Echo Bridge Prison</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="upper_ruins">
+      <data key="d_label">Upper Ruins</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured, stutterer</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="660"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Upper Ruins</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="pacifist_region">
+      <data key="d_label">Pacifist Region</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="440"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Pacifist Region</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="crystal_cavern">
+      <data key="d_label">Crystal Cavern</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Shard Shot</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured, crystal_sentinel, stutterer</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="660"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Crystal Cavern</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="echoing_abyss_room1">
+      <data key="d_label">Echoing Abyss Room 1</data>
+      <data key="d_region">abyss</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">echo_stalker, timeworn_husk, pulse_warden</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="660"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Echoing Abyss Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="echoing_abyss_room2">
+      <data key="d_label">Echoing Abyss Room 2</data>
+      <data key="d_region">abyss</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">abyss_guardian</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="880"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Echoing Abyss Room 2</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="timeline_x_roads_room1">
+      <data key="d_label">Timeline X Roads, Room 1</data>
+      <data key="d_region">timeline</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">stutterer, void_lancer, shard_spitter</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="660"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Timeline X Roads, Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="timeline_x_roads_room2">
+      <data key="d_label">Timeline X Roads, Room 2</data>
+      <data key="d_region">timeline</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability">Void Tether</data>
+      <data key="d_miniboss">timeline_keeper</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="880"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Timeline X Roads, Room 2</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="timeline_x_roads_room3">
+      <data key="d_label">Timeline X Roads, Room 3</data>
+      <data key="d_region">timeline</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">stutterer, void_lancer, shard_spitter</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="880"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Timeline X Roads, Room 3</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="puppet_strings_part1">
+      <data key="d_label">Puppet Strings / Tether Part 1</data>
+      <data key="d_region">timeline</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">stutterer, void_lancer, shard_spitter</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="880"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Puppet Strings / Tether Part 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="puppet_strings_part2">
+      <data key="d_label">Puppet Strings / Tether Part 2</data>
+      <data key="d_region">timeline</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Max Health +1</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">stutterer, void_lancer, shard_spitter</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="880"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Puppet Strings / Tether Part 2</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="observatory_room1">
+      <data key="d_label">Observatory, Room 1</data>
+      <data key="d_region">observatory</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">crystal_sentinel, deflector_drone, pulse_warden</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="880"/>
+          <y:Fill color="#F0997B" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Observatory, Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="observatory_room2">
+      <data key="d_label">Observatory, Room 2</data>
+      <data key="d_region">observatory</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">crystal_sentinel, deflector_drone, pulse_warden</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="660"/>
+          <y:Fill color="#F0997B" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Observatory, Room 2</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="observatory_room3">
+      <data key="d_label">Observatory, Room 3</data>
+      <data key="d_region">observatory</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">crystal_sentinel, deflector_drone, pulse_warden</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-440" y="660"/>
+          <y:Fill color="#F0997B" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Observatory, Room 3</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="sovereign_observatory">
+      <data key="d_label">Sovereign’s Observatory</data>
+      <data key="d_region">observatory</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">crystal_sentinel, deflector_drone, pulse_warden</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="660"/>
+          <y:Fill color="#F0997B" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Sovereign’s Observatory</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="the_forge">
+      <data key="d_label">The Forge</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured_knight, void_juggernaut, timeworn_husk, stillpoint_revenant</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="880"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Forge</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="chrono_rift_gate">
+      <data key="d_label">Chrono Space Rift, Gate</data>
+      <data key="d_region">chrono_rift</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">stutterer, stillpoint_revenant, timeworn_husk</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="440"/>
+          <y:Fill color="#5DCAA5" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Chrono Space Rift, Gate</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="chrono_rift_loop1">
+      <data key="d_label">Chrono Space Rift, Loop, Part 1</data>
+      <data key="d_region">chrono_rift</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">stutterer, stillpoint_revenant, timeworn_husk</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-440" y="440"/>
+          <y:Fill color="#5DCAA5" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Chrono Space Rift, Loop, Part 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="chrono_rift_loop2">
+      <data key="d_label">Chrono Space Rift, Loop, Part 2</data>
+      <data key="d_region">chrono_rift</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">stutterer, stillpoint_revenant, timeworn_husk</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-440" y="220"/>
+          <y:Fill color="#5DCAA5" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Chrono Space Rift, Loop, Part 2</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="chrono_rift_echo">
+      <data key="d_label">Chrono Space Rift, Echo</data>
+      <data key="d_region">chrono_rift</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">stutterer, stillpoint_revenant, timeworn_husk</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="220"/>
+          <y:Fill color="#5DCAA5" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Chrono Space Rift, Echo</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="chrono_rift_sanctum">
+      <data key="d_label">Chrono Space Rift, Sanctum</data>
+      <data key="d_region">chrono_rift</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability">Stillpoint</data>
+      <data key="d_miniboss">chrono_ally</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="220"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Chrono Space Rift, Sanctum</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="event_horizon_gate">
+      <data key="d_label">Event Horizon - Gate</data>
+      <data key="d_region">event_horizon</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">crystal_sentinel, void_lancer, anchor_wraith</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-440" y="220"/>
+          <y:Fill color="#F0997B" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Event Horizon - Gate</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="event_horizon_pull">
+      <data key="d_label">Event Horizon - Pull</data>
+      <data key="d_region">event_horizon</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">crystal_sentinel, void_lancer, anchor_wraith</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="220"/>
+          <y:Fill color="#F0997B" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Event Horizon - Pull</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="event_horizon_drift">
+      <data key="d_label">Event Horizon - Drift</data>
+      <data key="d_region">event_horizon</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">crystal_sentinel, void_lancer, anchor_wraith</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="220"/>
+          <y:Fill color="#F0997B" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Event Horizon - Drift</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="event_horizon_core">
+      <data key="d_label">Event Horizon - Core</data>
+      <data key="d_region">event_horizon</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">horizon_core</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="440"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Event Horizon - Core</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="void_expanse_room1">
+      <data key="d_label">The Void Expanse, Room 1</data>
+      <data key="d_region">void_expanse</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">void_juggernaut, anchor_wraith, null_sentinel</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="440"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Void Expanse, Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="void_expanse_room2">
+      <data key="d_label">The Void Expanse, Room 2</data>
+      <data key="d_region">void_expanse</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">void_expanse_boss</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="440"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Void Expanse, Room 2</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="one_way_teleport_gate_to_paradox_engine">
+      <data key="d_label">One Way Teleport Gate to Paradox Engine</data>
+      <data key="d_region">teleport</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="220"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">One Way Teleport Gate to Paradox Engine</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="warp_gate_nexus_room1">
+      <data key="d_label">Warp Gate Nexus Room 1</data>
+      <data key="d_region">warp</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="660"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Warp Gate Nexus Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="warp_gate_nexus_room2">
+      <data key="d_label">Warp Gate Nexus Room 2</data>
+      <data key="d_region">warp</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">warp_guardian</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="880"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Warp Gate Nexus Room 2</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="one_way_warp_gate_to_inverted_spire">
+      <data key="d_label">One Way Warp Gate to Inverted Spire</data>
+      <data key="d_region">teleport</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="1100"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">One Way Warp Gate to Inverted Spire</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="inverted_spire">
+      <data key="d_label">Inverted Spire</data>
+      <data key="d_region">spire</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">crystal_sentinel, pulse_warden, deflector_drone</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="880"/>
+          <y:Fill color="#C4B5FD" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Inverted Spire</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="graviton_core_room1">
+      <data key="d_label">Graviton Core, Room 1</data>
+      <data key="d_region">graviton</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">void_juggernaut, fractured_knight, deflector_drone</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="1100"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Graviton Core, Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="graviton_core_room2">
+      <data key="d_label">Graviton Core, Room 2</data>
+      <data key="d_region">graviton</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Graviton Surge</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">void_juggernaut, fractured_knight, deflector_drone</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="1100"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Graviton Core, Room 2</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="graviton_core_room3">
+      <data key="d_label">Graviton Core, Room 3</data>
+      <data key="d_region">graviton</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">graviton_sentinel</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="1320"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Graviton Core, Room 3</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="the_vault_room1">
+      <data key="d_label">The Vault, Room 1</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured_knight, void_juggernaut, timeworn_husk, stillpoint_revenant</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="1100"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Vault, Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="the_vault_room2">
+      <data key="d_label">The Vault, Room 2</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured_knight, void_juggernaut, timeworn_husk, stillpoint_revenant</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="880"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Vault, Room 2</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="the_rift">
+      <data key="d_label">The Rift</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">fractured_knight, void_juggernaut, timeworn_husk, stillpoint_revenant</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="880"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Rift</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="polar_shift_room1">
+      <data key="d_label">Polar Shift, Room 1</data>
+      <data key="d_region">polar</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Max Health +1</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">kinetic_striker, blitz_guard, shard_spitter</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="880"/>
+          <y:Fill color="#97C459" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Polar Shift, Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="polar_shift_room2">
+      <data key="d_label">Polar Shift, Room 2</data>
+      <data key="d_region">polar</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">polar_guardian</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="880"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Polar Shift, Room 2</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="paradox_engine_room1">
+      <data key="d_label">Paradox Engine, Room 1</data>
+      <data key="d_region">paradox</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">void_juggernaut, timeworn_husk, kinetic_striker</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-440" y="660"/>
+          <y:Fill color="#FAC775" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Paradox Engine, Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="paradox_engine_room2">
+      <data key="d_label">Paradox Engine, Room 2</data>
+      <data key="d_region">paradox</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">paradox_engine</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="660"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Paradox Engine, Room 2</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="teleport_from_paradox_engine_to_upper_ruins_1">
+      <data key="d_label">Teleport from Paradox Engine to Upper Ruins</data>
+      <data key="d_region">teleport</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="440"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Teleport from Paradox Engine to Upper Ruins</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="static_field_room1">
+      <data key="d_label">Static Field, Room 1</data>
+      <data key="d_region">static</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">kinetic_striker, anchor_wraith, deflector_drone</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="880"/>
+          <y:Fill color="#97C459" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Static Field, Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="static_field_room2">
+      <data key="d_label">Static Field, Room 2</data>
+      <data key="d_region">static</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">static_guardian</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="0" y="880"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Static Field, Room 2</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="antechamber">
+      <data key="d_label">The Antechamber</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">antechamber_child</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="1100"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">The Antechamber</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="hollow_core">
+      <data key="d_label">Hollow Core</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">miniboss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss">abandoned_shell</data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="1100"/>
+          <y:Fill color="#EF9F27" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Hollow Core</y:NodeLabel>
+          <y:Shape type="diamond"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="spawn_area_2">
+      <data key="d_label">Spawn Area?</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="1320"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Spawn Area?</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="tutorial_final">
+      <data key="d_label">Tutorial Area? Final Boss Fight</data>
+      <data key="d_region">origin</data>
+      <data key="d_roomType">boss</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="1320"/>
+          <y:Fill color="#E24B4A" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Tutorial Area? Final Boss Fight</y:NodeLabel>
+          <y:Shape type="octagon"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="sovereign_room1">
+      <data key="d_label">Sovereign Room 1</data>
+      <data key="d_region">sovereign</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">war_scavenger, fractured_knight, stillpoint_revenant</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="660" y="220"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Sovereign Room 1</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="sovereign_room2">
+      <data key="d_label">Sovereign Room 2</data>
+      <data key="d_region">sovereign</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">war_scavenger, fractured_knight, stillpoint_revenant</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="440" y="1100"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Sovereign Room 2</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="sovereign_room3">
+      <data key="d_label">Sovereign Room 3</data>
+      <data key="d_region">sovereign</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">war_scavenger, fractured_knight, stillpoint_revenant</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="220" y="440"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Sovereign Room 3</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="sovereign_room4">
+      <data key="d_label">Sovereign Room 4</data>
+      <data key="d_region">sovereign</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-220" y="440"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Sovereign Room 4</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="sovereign_army_reserve">
+      <data key="d_label">Sovereign Army Reserve</data>
+      <data key="d_region">sovereign</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies">war_scavenger, blitz_guard, kinetic_striker</data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="880" y="1320"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Sovereign Army Reserve</y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="try_out_region">
+      <data key="d_label">Try out region</data>
+      <data key="d_region">sovereign</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability">Level 4 Limit Break</data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="1100" y="1320"/>
+          <y:Fill color="#85B7EB" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Try out region</y:NodeLabel>
+          <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>
     </node>
@@ -271,19 +1240,24 @@
         </y:ShapeNode>
       </data>
     </node>
-    <edge id="e0" source="tutorial_area" target="the_fracture" directed="true">
-      <data key="d_erequires">tutorial_complete</data>
-      <data key="d_oneway">true</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#5DCAA5" type="dashed" width="1.5"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:EdgeLabel alignment="center" fontSize="9">tutorial_complete</y:EdgeLabel>
-        </y:PolyLineEdge>
+    <node id="bot_arena">
+      <data key="d_label">Difficulty Bot Arena (dev only)</data>
+      <data key="d_region">unassigned</data>
+      <data key="d_roomType">room</data>
+      <data key="d_ability"></data>
+      <data key="d_miniboss"></data>
+      <data key="d_enemies"></data>
+      <data key="d_ngraphics">
+        <y:ShapeNode>
+          <y:Geometry height="60" width="140" x="-660" y="220"/>
+          <y:Fill color="#ED93B1" transparent="false"/>
+          <y:BorderStyle color="#2C2C2A" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" fontSize="11" modelName="internal" modelPosition="c">Difficulty Bot Arena (dev only)</y:NodeLabel>
+          <y:Shape type="roundrectangle"/>
+        </y:ShapeNode>
       </data>
-    </edge>
-    <edge id="e1" source="the_fracture" target="echo_bridge" directed="false">
+    </node>
+    <edge id="e0" source="spawn_area_1" target="tutorial_area" directed="false">
       <data key="d_erequires"></data>
       <data key="d_oneway">false</data>
       <data key="d_shortcut">false</data>
@@ -295,127 +1269,7 @@
         </y:PolyLineEdge>
       </data>
     </edge>
-    <edge id="e2" source="the_fracture" target="crag_entrance" directed="true">
-      <data key="d_erequires">phase_dash</data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#BA7517" type="line" width="1.5"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:EdgeLabel alignment="center" fontSize="9">phase_dash</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e3" source="crag_entrance" target="the_fracture" directed="true">
-      <data key="d_erequires"></data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#639922" type="line" width="1.5"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e4" source="echo_bridge" target="crystal_cavern" directed="false">
-      <data key="d_erequires"></data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#639922" type="line" width="1.5"/>
-          <y:Arrows source="none" target="none"/>
-          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e5" source="echo_bridge" target="upper_ruins" directed="true">
-      <data key="d_erequires">phase_dash</data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#BA7517" type="line" width="1.5"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:EdgeLabel alignment="center" fontSize="9">phase_dash</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e6" source="upper_ruins" target="echo_bridge" directed="true">
-      <data key="d_erequires"></data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#639922" type="line" width="1.5"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e7" source="crystal_cavern" target="the_forge" directed="false">
-      <data key="d_erequires"></data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#639922" type="line" width="1.5"/>
-          <y:Arrows source="none" target="none"/>
-          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e8" source="the_forge" target="the_vault" directed="false">
-      <data key="d_erequires"></data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#639922" type="line" width="1.5"/>
-          <y:Arrows source="none" target="none"/>
-          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e9" source="the_vault" target="the_rift" directed="true">
-      <data key="d_erequires">stillpoint</data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#7F77DD" type="line" width="1.5"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:EdgeLabel alignment="center" fontSize="9">stillpoint</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e10" source="the_rift" target="the_vault" directed="true">
-      <data key="d_erequires"></data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#639922" type="line" width="1.5"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e11" source="the_rift" target="antechamber" directed="false">
-      <data key="d_erequires"></data>
-      <data key="d_oneway">false</data>
-      <data key="d_shortcut">false</data>
-      <data key="d_egraphics">
-        <y:PolyLineEdge>
-          <y:LineStyle color="#639922" type="line" width="1.5"/>
-          <y:Arrows source="none" target="none"/>
-          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="e12" source="antechamber" target="boss_arena" directed="true">
+    <edge id="e1" source="tutorial_area" target="the_fracture_part1" directed="true">
       <data key="d_erequires"></data>
       <data key="d_oneway">true</data>
       <data key="d_shortcut">false</data>
@@ -427,7 +1281,19 @@
         </y:PolyLineEdge>
       </data>
     </edge>
-    <edge id="e13" source="crag_entrance" target="crag_breach" directed="false">
+    <edge id="e2" source="the_fracture_part1" target="tutorial_area" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e3" source="the_fracture_part1" target="the_fracture_part3" directed="false">
       <data key="d_erequires"></data>
       <data key="d_oneway">false</data>
       <data key="d_shortcut">false</data>
@@ -439,7 +1305,7 @@
         </y:PolyLineEdge>
       </data>
     </edge>
-    <edge id="e14" source="crag_breach" target="crag_altar" directed="false">
+    <edge id="e4" source="the_fracture_part1" target="the_fracture_part2" directed="false">
       <data key="d_erequires"></data>
       <data key="d_oneway">false</data>
       <data key="d_shortcut">false</data>
@@ -451,7 +1317,31 @@
         </y:PolyLineEdge>
       </data>
     </edge>
-    <edge id="e15" source="crag_altar" target="crag_warden" directed="false">
+    <edge id="e5" source="the_fracture_part1" target="crag_entrance" directed="true">
+      <data key="d_erequires">phase_dash</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#BA7517" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">phase_dash</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e6" source="crag_entrance" target="the_fracture_part1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e7" source="the_fracture_part2" target="mirror_veil_gate" directed="false">
       <data key="d_erequires"></data>
       <data key="d_oneway">false</data>
       <data key="d_shortcut">false</data>
@@ -463,7 +1353,115 @@
         </y:PolyLineEdge>
       </data>
     </edge>
-    <edge id="e16" source="crag_warden" target="the_fracture" directed="true">
+    <edge id="e8" source="the_fracture_part2" target="sovereign_room1" directed="true">
+      <data key="d_erequires">post_game</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">post_game</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e9" source="sovereign_room1" target="the_fracture_part2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e10" source="the_fracture_part3" target="the_fracture_part4" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e11" source="the_fracture_part3" target="chrono_rift_echo" directed="true">
+      <data key="d_erequires">void_tether</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">void_tether</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e12" source="chrono_rift_echo" target="the_fracture_part3" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e13" source="the_fracture_part4" target="echo_bridge_part1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e14" source="crag_entrance" target="crag_breach" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e15" source="crag_breach" target="crag_altar" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e16" source="crag_altar" target="crag_warden" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e17" source="crag_warden" target="echo_bridge_part1" directed="true">
       <data key="d_erequires"></data>
       <data key="d_oneway">true</data>
       <data key="d_shortcut">true</data>
@@ -472,6 +1470,1530 @@
           <y:LineStyle color="#639922" type="dashed" width="1.5"/>
           <y:Arrows source="none" target="standard"/>
           <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e18" source="crag_warden" target="sovereign_room3" directed="true">
+      <data key="d_erequires">post_game</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">post_game</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e19" source="sovereign_room3" target="crag_warden" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e20" source="mirror_veil_gate" target="mirror_veil_reflection" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e21" source="mirror_veil_gate" target="timeline_x_roads_room1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e22" source="mirror_veil_reflection" target="mirror_veil_hollow" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e23" source="mirror_veil_hollow" target="mirror_veil_sanctum" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e24" source="mirror_veil_sanctum" target="mirror_corridor" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e25" source="mirror_corridor" target="mirror_veil_sanctum" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e26" source="mirror_corridor" target="event_horizon_gate" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e27" source="echo_bridge_part1" target="upper_ruins" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e28" source="echo_bridge_part1" target="void_expanse_room1" directed="true">
+      <data key="d_erequires">prison_sequence_finished</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">prison_sequence_finished</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e29" source="void_expanse_room1" target="echo_bridge_part1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e30" source="echo_bridge_part1" target="observatory_room2" directed="true">
+      <data key="d_erequires">void_tether</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">void_tether</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e31" source="observatory_room2" target="echo_bridge_part1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e32" source="echo_bridge_part1" target="crystal_cavern" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e33" source="echo_bridge_part1" target="timeline_x_roads_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e34" source="timeline_x_roads_room1" target="echo_bridge_part1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e35" source="echo_bridge_prison" target="timeline_x_roads_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e36" source="timeline_x_roads_room2" target="echo_bridge_prison" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e37" source="echo_bridge_prison" target="event_horizon_pull" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e38" source="event_horizon_pull" target="echo_bridge_prison" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e39" source="echo_bridge_prison" target="timeline_x_roads_room1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e40" source="upper_ruins" target="pacifist_region" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e41" source="crystal_cavern" target="echoing_abyss_room1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e42" source="crystal_cavern" target="timeline_x_roads_room3" directed="true">
+      <data key="d_erequires">void_tether</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">void_tether</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e43" source="timeline_x_roads_room3" target="crystal_cavern" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e44" source="crystal_cavern" target="timeline_x_roads_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e45" source="timeline_x_roads_room1" target="crystal_cavern" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e46" source="echoing_abyss_room1" target="echoing_abyss_room2" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e47" source="timeline_x_roads_room1" target="timeline_x_roads_room2" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e48" source="timeline_x_roads_room2" target="timeline_x_roads_room3" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e49" source="timeline_x_roads_room3" target="timeline_x_roads_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e50" source="timeline_x_roads_room2" target="puppet_strings_part1" directed="true">
+      <data key="d_erequires">void_tether</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">void_tether</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e51" source="puppet_strings_part1" target="timeline_x_roads_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e52" source="timeline_x_roads_room2" target="observatory_room1" directed="true">
+      <data key="d_erequires">charged_attack</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#EF9F27" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">charged_attack</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e53" source="observatory_room1" target="timeline_x_roads_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e54" source="timeline_x_roads_room2" target="sovereign_room2" directed="true">
+      <data key="d_erequires">post_game</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">post_game</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e55" source="sovereign_room2" target="timeline_x_roads_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e56" source="timeline_x_roads_room2" target="graviton_core_room1" directed="true">
+      <data key="d_erequires">shard_shot</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#378ADD" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shard_shot</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e57" source="graviton_core_room1" target="timeline_x_roads_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e58" source="timeline_x_roads_room2" target="the_rift" directed="true">
+      <data key="d_erequires">stillpoint,phase_dash,timeline_x_roads_2_visited</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">stillpoint,phase_dash,timeline_x_roads_2_visited</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e59" source="the_rift" target="timeline_x_roads_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e60" source="timeline_x_roads_room2" target="puppet_strings_part2" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e61" source="timeline_x_roads_room2" target="inverted_spire" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e62" source="timeline_x_roads_room3" target="chrono_rift_gate" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e63" source="chrono_rift_gate" target="timeline_x_roads_room3" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e64" source="timeline_x_roads_room3" target="the_forge" directed="true">
+      <data key="d_erequires">stillpoint</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#7F77DD" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">stillpoint</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e65" source="the_forge" target="timeline_x_roads_room3" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e66" source="puppet_strings_part1" target="puppet_strings_part2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e67" source="puppet_strings_part2" target="puppet_strings_part1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e68" source="observatory_room1" target="observatory_room2" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e69" source="observatory_room1" target="the_forge" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e70" source="observatory_room2" target="observatory_room3" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e71" source="observatory_room3" target="sovereign_observatory" directed="true">
+      <data key="d_erequires">graviton_surge</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">graviton_surge</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e72" source="sovereign_observatory" target="observatory_room3" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e73" source="sovereign_observatory" target="void_expanse_room1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e74" source="the_forge" target="chrono_rift_gate" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e75" source="chrono_rift_gate" target="the_forge" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e76" source="the_forge" target="the_vault_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e77" source="the_vault_room1" target="the_forge" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e78" source="chrono_rift_gate" target="chrono_rift_loop1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e79" source="chrono_rift_loop1" target="chrono_rift_loop2" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e80" source="chrono_rift_loop1" target="void_expanse_room1" directed="true">
+      <data key="d_erequires">void_tether</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">void_tether</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e81" source="void_expanse_room1" target="chrono_rift_loop1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e82" source="chrono_rift_loop1" target="sovereign_room4" directed="true">
+      <data key="d_erequires">post_game</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">post_game</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e83" source="sovereign_room4" target="chrono_rift_loop1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e84" source="chrono_rift_loop2" target="chrono_rift_echo" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e85" source="chrono_rift_loop2" target="event_horizon_pull" directed="true">
+      <data key="d_erequires">void_tether</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">void_tether</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e86" source="event_horizon_pull" target="chrono_rift_loop2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e87" source="chrono_rift_echo" target="chrono_rift_sanctum" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e88" source="chrono_rift_echo" target="void_expanse_room1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e89" source="chrono_rift_sanctum" target="echoing_abyss_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e90" source="event_horizon_gate" target="event_horizon_pull" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e91" source="event_horizon_pull" target="event_horizon_drift" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e92" source="event_horizon_drift" target="event_horizon_core" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e93" source="event_horizon_core" target="inverted_spire" directed="true">
+      <data key="d_erequires">graviton_surge</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">graviton_surge</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e94" source="inverted_spire" target="event_horizon_core" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e95" source="void_expanse_room1" target="void_expanse_room2" directed="true">
+      <data key="d_erequires">shard_shot</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#378ADD" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shard_shot</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e96" source="void_expanse_room2" target="void_expanse_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e97" source="void_expanse_room2" target="one_way_teleport_gate_to_paradox_engine" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e98" source="void_expanse_room2" target="warp_gate_nexus_room1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e99" source="one_way_teleport_gate_to_paradox_engine" target="paradox_engine_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e100" source="paradox_engine_room1" target="one_way_teleport_gate_to_paradox_engine" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e101" source="warp_gate_nexus_room1" target="warp_gate_nexus_room2" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e102" source="warp_gate_nexus_room2" target="one_way_warp_gate_to_inverted_spire" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e103" source="one_way_warp_gate_to_inverted_spire" target="inverted_spire" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e104" source="inverted_spire" target="graviton_core_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e105" source="graviton_core_room2" target="inverted_spire" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e106" source="graviton_core_room1" target="graviton_core_room2" directed="true">
+      <data key="d_erequires">shard_shot</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#378ADD" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shard_shot</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e107" source="graviton_core_room2" target="graviton_core_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e108" source="graviton_core_room1" target="the_vault_room1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e109" source="graviton_core_room2" target="graviton_core_room3" directed="true">
+      <data key="d_erequires">shard_shot</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#378ADD" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shard_shot</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e110" source="graviton_core_room3" target="graviton_core_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e111" source="graviton_core_room3" target="the_vault_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e112" source="the_vault_room1" target="graviton_core_room3" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e113" source="graviton_core_room3" target="the_vault_room2" directed="true">
+      <data key="d_erequires">void_tether</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">void_tether</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e114" source="the_vault_room2" target="graviton_core_room3" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e115" source="graviton_core_room3" target="sovereign_army_reserve" directed="true">
+      <data key="d_erequires">four_fracture_pips,ten_lore_pips</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">four_fracture_pips,ten_lore_pips</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e116" source="sovereign_army_reserve" target="graviton_core_room3" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e117" source="the_vault_room1" target="polar_shift_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e118" source="polar_shift_room1" target="the_vault_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e119" source="the_vault_room1" target="the_rift" directed="true">
+      <data key="d_erequires">timeline_x_roads_2_visited</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#E24B4A" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">timeline_x_roads_2_visited</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e120" source="the_rift" target="the_vault_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e121" source="the_vault_room1" target="the_vault_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e122" source="the_vault_room2" target="the_vault_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e123" source="the_vault_room2" target="the_rift" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e124" source="the_rift" target="polar_shift_room1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e125" source="the_rift" target="antechamber" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e126" source="the_rift" target="static_field_room2" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e127" source="polar_shift_room1" target="polar_shift_room2" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e128" source="polar_shift_room2" target="paradox_engine_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e129" source="paradox_engine_room1" target="polar_shift_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e130" source="paradox_engine_room1" target="paradox_engine_room2" directed="true">
+      <data key="d_erequires">shard_shot</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#378ADD" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shard_shot</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e131" source="paradox_engine_room2" target="paradox_engine_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e132" source="paradox_engine_room2" target="teleport_from_paradox_engine_to_upper_ruins_1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e133" source="paradox_engine_room2" target="static_field_room1" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e134" source="teleport_from_paradox_engine_to_upper_ruins_1" target="pacifist_region" directed="true">
+      <data key="d_erequires">shard_shot</data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#378ADD" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shard_shot</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e135" source="static_field_room1" target="static_field_room2" directed="true">
+      <data key="d_erequires">phase_dash</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#BA7517" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">phase_dash</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e136" source="static_field_room2" target="static_field_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e137" source="static_field_room1" target="void_expanse_room2" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e138" source="static_field_room1" target="graviton_core_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e139" source="static_field_room2" target="graviton_core_room1" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">true</data>
+      <data key="d_shortcut">true</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="dashed" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">shortcut</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e140" source="antechamber" target="hollow_core" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e141" source="antechamber" target="spawn_area_2" directed="true">
+      <data key="d_erequires">phase_dash</data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#BA7517" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">phase_dash</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e142" source="spawn_area_2" target="antechamber" directed="true">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e143" source="spawn_area_2" target="tutorial_final" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e144" source="sovereign_army_reserve" target="try_out_region" directed="false">
+      <data key="d_erequires"></data>
+      <data key="d_oneway">false</data>
+      <data key="d_shortcut">false</data>
+      <data key="d_egraphics">
+        <y:PolyLineEdge>
+          <y:LineStyle color="#639922" type="line" width="1.5"/>
+          <y:Arrows source="none" target="none"/>
+          <y:EdgeLabel alignment="center" fontSize="9">open</y:EdgeLabel>
         </y:PolyLineEdge>
       </data>
     </edge>

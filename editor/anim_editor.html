@@ -168,6 +168,7 @@
   </div>
 </div>
 
+<script src="../game/overrideStore.js"></script>
 <script src="../game/animdata.js"></script>
 <script src="../game/animImageStore.js"></script>
 <script src="../game/attackVFX.js"></script>
@@ -175,6 +176,7 @@
 <script src="../game/enemy.js"></script>
 <script src="../game/boss.js"></script>
 <script src="../game/devContext.js"></script>
+<script src="boxResize.js"></script>
 <script src="../game/unsavedGuard.js"></script>
 <script src="../game/undoHistory.js"></script>
 <script>
@@ -699,6 +701,14 @@ const MINIBOSS_INFO = {
   bossGroup.appendChild(bossOpt);
   sel.appendChild(bossGroup);
 
+  const companionGroup = document.createElement('optgroup');
+  companionGroup.label = 'Companion';
+  const childOpt = document.createElement('option');
+  childOpt.value = 'child:child';
+  childOpt.textContent = 'The Child';
+  companionGroup.appendChild(childOpt);
+  sel.appendChild(companionGroup);
+
   const mbGroup = document.createElement('optgroup');
   mbGroup.label = 'Minibosses';
   for (const id in MINIBOSS_INFO) {
@@ -799,6 +809,33 @@ function pickEnemy() {
       { value: 'echo', text: 'Echo (Phase Dash)' }, { value: 'stillpoint', text: 'Stillpoint' },
       { value: 'shard_aim', text: 'Shard Shot Aim' }, { value: 'shard_beam', text: 'Shard Shot Beam' },
       { value: 'gravball', text: 'Gravity Ball' }, { value: 'tether_beam', text: 'Void Tether Beam (style)' },
+    ]);
+    return;
+  }
+
+  if (category === 'child') {
+    document.getElementById('entW').value = 16;
+    document.getElementById('entH').value = 24;
+    applyEntity();
+    hint.innerHTML = 'The Child (companion.js) — no combat data to dissect (she never takes damage), '
+      + 'so every entry below just jumps to a placeholder def, same as Player/enemy idle-walk states.';
+    addDissectGroup(dissectSel, 'Core states (companionState.mode)', [
+      { value: 'state:child_idle|16|24', text: 'Idle', key: 'child_idle' },
+      { value: 'state:child_walk|16|24', text: 'Walk', key: 'child_walk' },
+      { value: 'state:child_hide|16|24', text: 'Hide (cowering)', key: 'child_hide' },
+      { value: 'state:child_fight|16|24', text: 'Fight stance', key: 'child_fight' },
+      { value: 'state:child_fight_assist|16|24', text: 'Fight — weapon assist', key: 'child_fight_assist' },
+      { value: 'state:child_heal|16|24', text: 'Heal (touch-heal moment)', key: 'child_heal' },
+    ]);
+    // Environment-interaction hook (companionState.scriptAnim — see
+    // companion.js) — these three are just suggested starting names, NOT a
+    // fixed enum: any `child_<name>` key works the instant something sets
+    // companionState.scriptAnim = '<name>' while mode is 'scripted'. Use
+    // "+ New Animation" above to author a different name from scratch.
+    addDissectGroup(dissectSel, 'Environment interaction (scripted, suggested)', [
+      { value: 'state:child_point|16|24', text: 'Point at something', key: 'child_point' },
+      { value: 'state:child_examine|16|24', text: 'Examine/inspect', key: 'child_examine' },
+      { value: 'state:child_pull_lever|16|24', text: 'Pull lever', key: 'child_pull_lever' },
     ]);
     return;
   }
@@ -1353,7 +1390,7 @@ cv.addEventListener('mousemove', (e) => {
   const b = drag.entry.box;
   const dx = Math.round(m.x - drag.startX), dy = Math.round(m.y - drag.startY);
   if (drag.mode === 'move') { b.x = drag.orig.x + dx; b.y = drag.orig.y + dy; }
-  else { b.w = Math.max(4, drag.orig.w + dx); b.h = Math.max(4, drag.orig.h + dy); }
+  else { const r = resizeRectByCorner(drag.orig, 'se', dx, dy, 4); b.w = r.w; b.h = r.h; }
   draw();
 });
 window.addEventListener('mouseup', () => { if (drag) { drag = null; renderFramePanel(); if (historyMgr) historyMgr.push(); } });
@@ -1406,9 +1443,27 @@ function exportJSON() {
 function refresh() { renderAnimList(); renderStrip(); renderFramePanel(); draw(); }
 window.addEventListener('resize', draw);
 
-// Deep link from dev_hub.html (?anim=<key>).
+// Deep link from dev_hub.html (?anim=<key>), and from levelEditor.html's
+// per-object "Edit Animation →" buttons (2026-08-01) — those link to a key
+// that's usually brand new (a level designer just typed a name and clicked
+// through), so unlike the dev_hub.html case this auto-creates a placeholder
+// def when the key doesn't exist yet instead of silently landing on nothing
+// selected — same placeholder shape jumpToAnimKey() uses for idle/walk
+// states, entity:'roomobj' so a level object's default width/height (set
+// via levelEditor.html's own animKey link, which also passes ?w=&h=) shows
+// correctly rather than the player-sized default.
 const deepLinkAnim = new URLSearchParams(location.search).get('anim');
-if (deepLinkAnim && ANIM_DEFS[deepLinkAnim]) { currentKey = deepLinkAnim; frameIdx = 0; }
+if (deepLinkAnim) {
+  if (!ANIM_DEFS[deepLinkAnim]) {
+    const dw = Number(new URLSearchParams(location.search).get('w')) || undefined;
+    const dh = Number(new URLSearchParams(location.search).get('h')) || undefined;
+    ANIM_DEFS[deepLinkAnim] = { entity: 'roomobj', loop: true, frames: [{ duration: 8, pose: 'idle', cancelableFrom: false }] };
+    if (dw !== undefined) document.getElementById('entW').value = dw;
+    if (dh !== undefined) document.getElementById('entH').value = dh;
+    applyEntity();
+  }
+  currentKey = deepLinkAnim; frameIdx = 0;
+}
 
 refresh();
 tick();

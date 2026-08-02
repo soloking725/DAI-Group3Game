@@ -284,7 +284,10 @@ function addStepAt(path, index, type) {
 function deleteStep(path, index) {
   const list = resolveList(currentSteps(), path);
   list.splice(index, 1);
-  if (selection && selection.path.length === path.length && selection.index === index) selection = null;
+  if (selection && samePath(selection.path, path)) {
+    if (selection.index === index) selection = null;
+    else if (selection.index > index) selection.index -= 1;
+  }
   pushHistory();
   renderAll();
 }
@@ -295,7 +298,11 @@ function moveStep(path, index, dir) {
   if (j < 0 || j >= list.length) return;
   const [s] = list.splice(index, 1);
   list.splice(j, 0, s);
-  if (selection && selection.path.length === path.length && selection.index === index) selection.index = j;
+  if (selection && samePath(selection.path, path)) {
+    if (selection.index === index) selection.index = j;
+    else if (dir > 0 && selection.index > index && selection.index <= j) selection.index -= 1;
+    else if (dir < 0 && selection.index < index && selection.index >= j) selection.index += 1;
+  }
   pushHistory();
   renderAll();
 }

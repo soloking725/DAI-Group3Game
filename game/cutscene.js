@@ -173,15 +173,12 @@ function materializeCallSteps(steps) {
 }
 
 function applyCutsceneOverrides() {
-  try {
-    const raw = localStorage.getItem(CUTSCENE_OVERRIDES_KEY);
-    if (!raw) return;
-    const overrides = JSON.parse(raw);
-    for (const key in overrides) {
-      materializeCallSteps(overrides[key].steps);
-      CUTSCENES[key] = overrides[key];
-    }
-  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+  const overrides = readOverrideJSON(CUTSCENE_OVERRIDES_KEY);
+  if (!overrides) return;
+  for (const key in overrides) {
+    materializeCallSteps(overrides[key].steps);
+    CUTSCENES[key] = overrides[key];
+  }
 }
 applyCutsceneOverrides();
 

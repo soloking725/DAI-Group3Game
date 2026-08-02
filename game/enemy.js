@@ -4950,14 +4950,11 @@ const COMPOSED_PHASE_DEFS = {
 // index would silently keep stale entries).
 const ENEMY_PHASE_OVERRIDES_KEY = 'stillpoint_enemy_phase_overrides_v1';
 function applyEnemyPhaseOverrides() {
-  try {
-    const raw = localStorage.getItem(ENEMY_PHASE_OVERRIDES_KEY);
-    if (!raw) return;
-    const overrides = JSON.parse(raw);
-    for (const id in overrides) {
-      if (COMPOSED_PHASE_DEFS[id]) COMPOSED_PHASE_DEFS[id].phases = overrides[id];
-    }
-  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+  const overrides = readOverrideJSON(ENEMY_PHASE_OVERRIDES_KEY);
+  if (!overrides) return;
+  for (const id in overrides) {
+    if (COMPOSED_PHASE_DEFS[id]) COMPOSED_PHASE_DEFS[id].phases = overrides[id];
+  }
 }
 applyEnemyPhaseOverrides();
 

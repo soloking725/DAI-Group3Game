@@ -170,6 +170,7 @@
 </div>
 
 <!-- ─── Real game scripts — same as enemy_test.html ─────────────────────── -->
+<script src="../game/overrideStore.js"></script>
 <script src="../game/audio.js"></script>
 <script src="../game/input.js"></script>
 <script src="../game/physics.js"></script>
@@ -177,6 +178,7 @@
 <script src="../game/animdata.js"></script>
 <script src="../game/animImageStore.js"></script>
 <script src="../game/area.js"></script>
+<script src="../game/roomVerify.js"></script>
 <script src="../game/map.js"></script>
 <script src="../game/ability.js"></script>
 <script src="../game/cutscene.js"></script>
@@ -196,6 +198,7 @@
 <script src="../game/devContext.js"></script>
 <script src="../game/unsavedGuard.js"></script>
 <script src="../game/undoHistory.js"></script>
+<script src="canvasFit.js"></script>
 
 <script>
 // ─── Parameter schemas (UI metadata only — defaults live in enemy.js's
@@ -498,14 +501,6 @@ let def = freshDef();
 let currentEnemy = null;
 
 // ─── Canvas sizing (same override enemy_test.html uses) ───
-function fitCanvasToStage() {
-  const sideWidth = document.getElementById('side').offsetWidth;
-  const availW = window.innerWidth - sideWidth;
-  const availH = window.innerHeight;
-  const scale = Math.min(availW / W, availH / H);
-  canvas.style.width = Math.floor(W * scale) + 'px';
-  canvas.style.height = Math.floor(H * scale) + 'px';
-}
 window.addEventListener('resize', fitCanvasToStage);
 fitCanvasToStage();
 

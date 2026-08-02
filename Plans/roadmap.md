@@ -4290,3 +4290,168 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     generic — `getVisualVariant('destructible', region, ...)` works today —
     but no draw call site reads it yet; add on real need, not speculatively).
     See `Plans/production_workflow_and_tool_gaps.md` §1a for the full writeup.
+
+[x] **Custom art/animation authoring, first 3 of 6 planned targets — built,
+    2026-08-01.** Follow-up to the visual variants entry above: user asked
+    whether custom *animated* art (not just color) could be authored per
+    category (hazards, platforms, doors, pips, cutscene visuals, the Child,
+    HUD, world-map icons, particles/projectiles). Researched `Animator`'s
+    real implementation first (`game/animdata.js`) rather than assuming reuse
+    would just work — found a real gotcha (area.js objects use `w`/`h`, not
+    `width`/`height`, which `Animator` hardcodes) and a real performance
+    boundary (particles/projectiles are plain pooled objects, bounded by
+    `debug_v2.html`'s test X03 — a full `Animator` instance per particle
+    would be new per-object overhead that doesn't exist today). Landed on a
+    3-tier plan (full `Animator` for entity-like things / lightweight
+    frames-only flipbook for room-attached static-ish art / no persistent
+    object state at all for pooled VFX) and built the 3 highest-leverage
+    items, user's explicit choice of **Option 2** (link out to
+    `anim_editor.html` per object, not embed its frame-strip UI inside
+    `levelEditor.html`) for the third:
+    1. **The Child** (`game/companion.js`) — full `Animator` bridge, same
+       additive/fallback-to-procedural contract as `enemy.js`'s
+       `ComposedEnemy`: `this.animator = new Animator(this)` in the
+       constructor, a new `animStateKey()` (`child_idle`/`walk`/`hide`/
+       `fight`/`fight_assist`/`heal`, `child_<state>` convention matching
+       `enemy_<id>_<state>`), called from `update()`/`draw()` the same
+       guarded way every other bridge in this codebase is. She never takes
+       damage (design rule) so there's no `_hurt`/`_death` state, unlike
+       enemies. **Environment-interaction hook, per explicit user request**
+       ("make sure the child has room for interacting with environment
+       animations too"): `companionState.scriptAnim` (new field) — when set
+       while `mode === 'scripted'`, `animStateKey()` returns
+       `child_${scriptAnim}` ahead of everything else. Not a full
+       interaction *system* (no lever/environment-object triggers exist
+       yet) — deliberately just the hook, so a future cutscene `call` step
+       or environment trigger can request a specific pose
+       (`point`/`examine`/`pull_lever`, — three added to `anim_editor.html`'s
+       new Companion category as suggested starting names, not a fixed
+       enum) without new Animator plumbing. Added to `anim_editor.html`'s
+       entity picker (`child:child`, 16×24, no dissection — she has no
+       combat data to pull numbers from, so every entry just jumps to a
+       placeholder via the same `state:` mechanism idle/walk states
+       already use). Verified without a browser: a vm-sandboxed Node test
+       of `animStateKey()`'s full priority chain (8 assertions — idle/walk/
+       hide/heal-beats-hide/fight_assist-beats-fight/scripted-scriptAnim-
+       beats-everything/scripted-with-no-scriptAnim-falls-back), all pass.
+    2. **Room backdrop layer animation** (`room_scene_editor.html` +
+       `game_entities.js`) — `backdropLayers[]` entries gained an optional
+       `frames: [{imageId, duration}]` (same shape as `ANIM_DEFS` frames,
+       kept deliberately separate from the `Animator` system since a
+       backdrop layer has no entity x/y/width/height/facing — it's
+       screen-space parallax art). New `pickBackdropFrame()` in
+       `game_entities.js` is fully **stateless** — derives the current
+       frame purely from the existing global `frameCount` (same convention
+       as this file's other pulse effects), not a mutated per-layer timer,
+       so draw() stays read-only. Always loops (no `loop` flag — a
+       backdrop that "finishes" doesn't make sense, so the field would
+       never do anything else; skipped per the "don't add flags for
+       scenarios that can't happen" rule). `drawBackdropLayer()` resolves
+       `imageId` from the picked frame when `layer.frames` exists,
+       otherwise falls straight back to the original single-`imageId`
+       path unchanged. Editor gained a per-layer "Animation (optional)"
+       section (`renderLayerFramesSection()`): thumbnail + duration input +
+       reorder/delete per frame, "+ Add Frame" upload reusing
+       `RoomImageStore` exactly like the existing single-image upload.
+       **Real gotcha caught before it shipped**: the existing
+       `stripPreview()` (strips the live-preview-only `_previewDataUrl`
+       blob before export/save/live-push, so huge base64 strings never
+       leak into `AREAS`) only stripped the layer-level field — extended it
+       to also strip each frame's own `_previewDataUrl`, and
+       `pushFullLiveState()`'s image-repriming loop to also re-prime each
+       frame, or animated layers would've either bloated every export with
+       raw image data or gone blank after an iframe reboot. Verified
+       without a browser: 11 Node assertions on `pickBackdropFrame()`
+       (empty/single/multi-frame cycling, default-duration fallback,
+       exact frame-boundary ticks, multi-cycle wraparound), all pass.
+    3. **Hazards, platforms, and doors** (`game_entities.js` +
+       `levelEditor.html` + `anim_editor.html`) — **Option 2**: level
+       geometry editing and animation authoring stay separate tools, no
+       embedded frame-strip widget in `levelEditor.html`. New shared
+       `getRoomObjectAnimator()`/`tryDrawRoomObjectAnim()` in
+       `game_entities.js`: a persistent adapter object (`{x,y,width,height,
+       facing}`, aliasing the room object's own `w`/`h`) is cached directly
+       on the platform/transition (`obj._animAdapter`/`obj._roomObjAnimator`)
+       and mutated in place every call — not reallocated per frame, per
+       `performanceInstructions.md`. `obj.animKey` (new optional field) is
+       checked once at the top of both `drawPlatform()` (overrides hazard,
+       destructible, AND the regular/crumble/moving/oneWay/polarity tint
+       branch alike — one check instead of patching every branch
+       separately, since a platform is exactly one visual thing at a time)
+       and `drawDoor()` (checked *after* the existing `edgeExit` "draw
+       nothing" guard, deliberately — an edge exit's invisibility is a
+       real design invariant, not something a custom animKey should be
+       able to silently defeat). No key set (every platform/door in the
+       game today) means zero behavior change. `levelEditor.html` gained a
+       shared `animKeyRow()`/`openAnimEditorFor()` (a text field + "🎬 Edit
+       Animation →" button) on both the Platform and Transition inspector
+       panels — auto-generates a `hazard_<timestamp>`/`door_<timestamp>`
+       key if the field is empty before opening
+       `anim_editor.html?anim=<key>&w=<w>&h=<h>` in a new tab. That deep
+       link needed a real fix in `anim_editor.html`, not just a new query
+       param: the existing `?anim=` handler (built for `dev_hub.html`,
+       which only ever links to *already-authored* keys) silently did
+       nothing for a brand-new key. Extended it to auto-create a
+       placeholder def (`entity:'roomobj'`, same `pose:'idle'` generic
+       colored-rectangle placeholder `jumpToAnimKey()` already uses
+       elsewhere) sized from the new `w`/`h` query params when the key
+       doesn't exist yet, so the link-out is a true one-click flow. Verified
+       without a browser: 8 Node assertions against the real shipped
+       `Animator` class (loaded via `vm`, not reimplemented) — no-animKey
+       and unauthored-animKey both correctly draw nothing, a valid animKey
+       correctly aliases `w`→`width`/`h`→`height` and mirrors live x/y, and
+       the cached adapter is proven reused (not reallocated) across calls
+       including after the object's position changes (moving-platform
+       support). `node Plans/room_verify_cli.js` re-run after every step
+       above — same 69-clean/2-warnings/0-failing result throughout,
+       confirming zero regression at each stage.
+    **Follow-up, same day: anchors, ability rewards, Fracture Pips, Lore
+    Pips, healing crystals** — the predicted "small follow-up" above,
+    confirmed. These are all bare `{x, y}` pickups/markers with no `w`/`h`
+    of their own (unlike platforms/doors), so `getRoomObjectAnimator()`
+    itself didn't fit directly — added a sibling,
+    `tryDrawPointObjectAnim(ctx, obj, timeScale, defaultSize)`, which
+    builds a square box (`obj.animSize` if authored, else a per-category
+    `defaultSize`) horizontally centered on `x` with its **bottom** at `y`
+    — matching how the anchor/healing-crystal procedural art already
+    treats `y` as a base point art extends upward from. Ability reward/
+    Fracture Pip/Lore Fragment procedural art instead centers ON `y`, so
+    authored art via this path sits slightly higher than those exact orbs
+    — a deliberate, documented simplification (one shared convention
+    across 5 differently-anchored procedural styles beats 5 bespoke
+    adapters), not a precision guarantee; `animSize` or padding in the
+    authored art itself compensates if it matters for a given pickup.
+    Same "authored key fully overrides the procedural look, no partial
+    per-state blending" rule as `drawPlatform()` established — an anchor's
+    activated/dormant glow difference, a healing crystal's consumed dimming,
+    a Lore Pip's overlay/cutscene/none tinting all stop applying once an
+    `animKey` is set; state-aware animated variants are a possible future
+    layer, not built now. Wired into `drawAnchor()`/`drawAbilityReward()`/
+    `drawLoreFragment()`/`drawFracturePip()` (`game_entities.js`) and
+    `drawHealingCrystals()` (`healing.js` — guarded with a `typeof`
+    check since that file loads before `game_entities.js`, same
+    cross-file-optional-call convention used elsewhere in this codebase).
+    `levelEditor.html` gained the same `animKeyRow()`/`🎬 Edit Animation →`
+    button (now a shared `ANIM_KEY_PREFIXES` lookup table picks a sensible
+    suggested key prefix per object kind — `anchor_`/`reward_`/`lorepip_`/
+    `fracturepip_`/`healcrystal_`) on all 5 of these inspector panels.
+    **Cosmetic upgrades explicitly skipped**: verified there is no runtime
+    draw function for `cosmeticUpgrades` at all yet (confirmed via CLAUDE.md's
+    own note and a repo-wide grep — it's editor-authored data only, no
+    gameplay rendering) — adding an `animKey` field with nothing to read it
+    would be speculative dead code, so it wasn't added. Verified without a
+    browser: 7 Node assertions on `tryDrawPointObjectAnim()` against the
+    real shipped `Animator` (box centering math, bottom-anchor-at-y math,
+    the `animSize` override, the no-op/false-return path), all pass;
+    `room_verify_cli.js` re-run, same 69-clean/2-warnings/0-failing result.
+
+    **Still not built (2 of the original 6 — cutscene visuals, HUD/
+    world-map icons, particles/projectiles)**: cutscene visuals and
+    particles/projectiles both need a real design decision first (a new
+    `CUTSCENES` step type; a lighter non-`Animator` mechanism for pooled
+    objects, per the performance boundary noted above) — see
+    `Plans/production_workflow_and_tool_gaps.md`'s companion entry for the
+    full remaining-scope breakdown. HUD/world-map icons weren't
+    revisited this pass either. No authoring UI was built for
+    `REGION_STYLES`-level animated variants (an animated hazard that also
+    varies by region) — out of scope for this pass, not attempted.

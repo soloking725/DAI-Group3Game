@@ -81,6 +81,10 @@ function init() {
   mapOpen = false;
   collectedLore = {};
   loreOverlay = null;
+  mapPins = [];
+  nextMapPinId = 1;
+  unlockedCosmetics = {};
+  equippedCosmetics = { idle_anim: null, taunt: null, fashion: null };
   resetTutorial();
 
   // Reset destructible platforms in all areas
@@ -210,16 +214,16 @@ function applyDevSpawnOverride() {
 const SETTINGS_KEY = 'stillpoint_settings_v1';
 
 function loadSettings() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) {
-      const s = JSON.parse(raw);
-      screenShakeEnabled = s.screenShake !== undefined ? s.screenShake : true;
-      hitstopEnabled = s.hitstop !== undefined ? s.hitstop : true;
-      musicVolume = typeof s.musicVolume === 'number' ? Math.max(0, Math.min(1, s.musicVolume)) : 1.0;
-      sfxVolume = typeof s.sfxVolume === 'number' ? Math.max(0, Math.min(1, s.sfxVolume)) : 1.0;
-    }
-  } catch (e) { /* degrade silently */ }
+  // readOverrideJSON (overrideStore.js) already owns the shared
+  // getItem→JSON.parse→try/catch shell; this keeps its own field-by-field
+  // default-application on top, same as every applyXOverrides() does.
+  const s = (typeof readOverrideJSON === 'function') ? readOverrideJSON(SETTINGS_KEY) : null;
+  if (s) {
+    screenShakeEnabled = s.screenShake !== undefined ? s.screenShake : true;
+    hitstopEnabled = s.hitstop !== undefined ? s.hitstop : true;
+    musicVolume = typeof s.musicVolume === 'number' ? Math.max(0, Math.min(1, s.musicVolume)) : 1.0;
+    sfxVolume = typeof s.sfxVolume === 'number' ? Math.max(0, Math.min(1, s.sfxVolume)) : 1.0;
+  }
   // Apply regardless of whether a save existed (defaults still need to reach
   // the audio buses) — safe to call before SFX.init()/ctx exists, see audio.js.
   SFX.setMusicVolume(musicVolume);
@@ -414,6 +418,9 @@ function saveGame(slot) {
       lastAnchor,
       discoveredAreas,
       collectedLore,
+      mapPins,                // Page 0 (Map) — player-placed pins, see inventory_ui.js
+      unlockedCosmetics,      // Page 3 (Customization) — per-save unlocks; catalog itself is authored data (customization.js)
+      equippedCosmetics,
       bossDefeated,
       defeatedMinibosses,
       tutorialState,
@@ -503,6 +510,10 @@ function loadGame(slot) {
     lastAnchor = data.lastAnchor || null;
     discoveredAreas = data.discoveredAreas || { [currentAreaId]: true };
     collectedLore = data.collectedLore || {};
+    mapPins = Array.isArray(data.mapPins) ? data.mapPins : [];
+    nextMapPinId = mapPins.reduce((max, p) => Math.max(max, (p.id || 0) + 1), 1);
+    unlockedCosmetics = data.unlockedCosmetics || {};
+    equippedCosmetics = data.equippedCosmetics || { idle_anim: null, taunt: null, fashion: null };
     bossDefeated = !!data.bossDefeated;
     defeatedMinibosses = data.defeatedMinibosses || {};
     tutorialState = data.tutorialState || { moved: true, jumped: true, attacked: true, dashed: true };
@@ -676,6 +687,10 @@ function startNewGame() {
   anchorActivated = {};
   lastAnchor = null;
   collectedLore = {};
+  mapPins = [];
+  nextMapPinId = 1;
+  unlockedCosmetics = {};
+  equippedCosmetics = { idle_anim: null, taunt: null, fashion: null };
   fracturePipsFound = {};
   statUpgrades = { strength: 0 };
   limitBreakChosen = null;

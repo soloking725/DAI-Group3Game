@@ -34,14 +34,15 @@ const HUD_LAYOUT = {
 };
 
 (function applyHudLayoutOverrides() {
-  try {
-    const raw = localStorage.getItem(HUD_LAYOUT_KEY);
-    if (!raw) return;
-    const saved = JSON.parse(raw);
-    for (const key in saved) {
-      if (HUD_LAYOUT[key]) Object.assign(HUD_LAYOUT[key], saved[key]);
-    }
-  } catch (e) { /* private browsing / bad JSON — use defaults */ }
+  const saved = readOverrideJSON(HUD_LAYOUT_KEY);
+  if (!saved) return;
+  for (const key in saved) {
+    // Editor-added elements (not one of the built-in keys above) get
+    // created outright — mirrors editor/inventory_editor.html's palette
+    // pattern, see drawCustomHudElements() below.
+    if (HUD_LAYOUT[key]) Object.assign(HUD_LAYOUT[key], saved[key]);
+    else HUD_LAYOUT[key] = saved[key];
+  }
 })();
 
 // Resolve a layout entry to absolute screen coordinates for the current
@@ -72,6 +73,58 @@ function drawHUD(ctx) {
   if (HUD_LAYOUT.controlsHint.visible) drawControlsHint(ctx);
   if (HUD_LAYOUT.limitBreakBar.visible) drawLimitBreakBar(ctx);
   if (HUD_LAYOUT.abilityCooldowns.visible) drawAbilityCooldownHUD(ctx);
+  drawCustomHudElements(ctx);
+  drawHudTooltips(ctx);
+}
+
+// ── Editor-added custom elements (drag-placed via editor/hud_editor.html's
+// palette, same freeform text/icon/pipRow primitives as
+// game/inventory_ui.js's drawCustomLayoutElements — no built-in game logic,
+// purely positioned decoration/callouts) ──────────────────────────────────
+function drawCustomHudElements(ctx) {
+  for (const key in HUD_LAYOUT) {
+    const el = HUD_LAYOUT[key];
+    if (!el.custom || el.visible === false) continue;
+    const pos = hudResolve(el);
+    if (el.kind === 'icon') {
+      if (typeof drawDiamondPip === 'function') drawDiamondPip(ctx, pos.x, pos.y, true, el.color || '#c4b5fd', (el.size || 16) / 2);
+      if (el.label) {
+        ctx.textAlign = 'center';
+        ctx.font = '8px "Courier New", monospace';
+        ctx.fillStyle = '#8a8aae';
+        ctx.fillText(el.label, pos.x, pos.y + (el.size || 16) / 2 + 12);
+      }
+    } else if (el.kind === 'pipRow') {
+      if (typeof drawDiamondPip === 'function') {
+        const n = el.count || 4;
+        for (let i = 0; i < n; i++) drawDiamondPip(ctx, pos.x + i * (el.gap || 20), pos.y, true, el.color || '#c4b5fd', (el.size || 14) / 2);
+      }
+    } else { // 'text' (default)
+      ctx.textAlign = 'left';
+      ctx.font = `${el.bold ? 'bold ' : ''}${el.fontSize || 11}px "Courier New", monospace`;
+      ctx.fillStyle = el.color || '#b0a8d0';
+      ctx.fillText(el.label || key, pos.x, pos.y);
+    }
+  }
+  ctx.textAlign = 'left';
+}
+
+// Editor-authored per-element tooltip captions (editor/hud_editor.html's
+// "tooltip" field). The game has no mouse, so — same adaptation as the
+// Inventory screen — this is persistent micro-copy, not a hover popup.
+// Opt-in: only elements with a non-empty el.tooltip render anything, so a
+// stock HUD is unaffected until a designer actually authors one.
+function drawHudTooltips(ctx) {
+  ctx.textAlign = 'left';
+  ctx.font = 'italic 9px "Courier New", monospace';
+  ctx.fillStyle = 'rgba(224, 215, 255, 0.55)';
+  for (const key in HUD_LAYOUT) {
+    const el = HUD_LAYOUT[key];
+    if (!el.tooltip || el.visible === false) continue;
+    const pos = hudResolve(el);
+    ctx.fillText(el.tooltip, pos.x, pos.y - 4);
+  }
+  ctx.textAlign = 'left';
 }
 
 // Fixed-position ability cooldown strip (bottom-center, Dead Cells-style) —

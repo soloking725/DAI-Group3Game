@@ -561,10 +561,87 @@ function platformEdgeCovered(plat, edge, allPlatforms) {
   return false;
 }
 
+// Shared adapter (2026-08-01) letting Animator — built for entities with
+// `width`/`height`/`facing` (player/enemy/Child) — drive plain room objects
+// that use area.js's `w`/`h` convention instead (platforms, hazards, doors).
+// Cached on the object itself and mutated in place every call rather than
+// reallocated (performanceInstructions.md's no-per-frame-allocation rule) —
+// safe because a room object's own x/y/w/h are themselves already mutated
+// in place elsewhere (e.g. a `moving` platform), never replaced wholesale.
+// `obj.animKey` (optional, editable in levelEditor.html next to that
+// object's other fields) is what a level designer actually authors; nothing
+// set means the caller never uses this at all — the object's usual
+// procedural draw stays exactly as before this existed.
+function getRoomObjectAnimator(obj) {
+  if (!obj._roomObjAnimator) {
+    obj._animAdapter = { x: obj.x, y: obj.y, width: obj.w, height: obj.h, facing: 1 };
+    obj._roomObjAnimator = new Animator(obj._animAdapter);
+  }
+  const adapter = obj._animAdapter;
+  adapter.x = obj.x; adapter.y = obj.y; adapter.width = obj.w; adapter.height = obj.h;
+  return obj._roomObjAnimator;
+}
+
+// True + draws the current frame if `obj.animKey` names a real ANIM_DEFS
+// entry; false (draws nothing) otherwise, so every call site's existing
+// procedural drawing stays an untouched fallback — same "additive, opt-in,
+// zero regression until authored" contract as every other animdata.js bridge
+// in this codebase (enemy.js's ComposedEnemy, companion.js's Child).
+function tryDrawRoomObjectAnim(ctx, obj, timeScale) {
+  if (!obj.animKey || typeof ANIM_DEFS === 'undefined' || !ANIM_DEFS[obj.animKey]) return false;
+  const animator = getRoomObjectAnimator(obj);
+  animator.play(obj.animKey);
+  animator.update(timeScale);
+  animator.draw(ctx);
+  return true;
+}
+
+// Point-anchored sibling of tryDrawRoomObjectAnim (2026-08-01) — for pickups/
+// markers authored as a bare `{x, y}` with no `w`/`h` of their own (anchors,
+// ability rewards, Fracture/Lore pips, healing crystals). Builds a square
+// box (`obj.animSize` if set, else `defaultSize`) horizontally centered on
+// x with its BOTTOM at y — matches how the anchor/healing-crystal procedural
+// art already treats y (a base point the art extends upward from). Ability
+// reward/Fracture pip/Lore fragment procedural art instead centers ON y, so
+// authored art here sits slightly higher than those exact orbs would — one
+// shared, simple convention across 5 differently-anchored procedural
+// styles is a deliberate simplification, not a precision guarantee; a
+// level designer can compensate with `animSize` or padding in the art
+// itself. Same rule as drawPlatform()'s animKey check: an authored key
+// overrides the ENTIRE procedural look (activated/consumed/mode tinting
+// included) rather than blending with it — consistent with that precedent,
+// not a partial per-state override system.
+function tryDrawPointObjectAnim(ctx, obj, timeScale, defaultSize) {
+  if (!obj.animKey || typeof ANIM_DEFS === 'undefined' || !ANIM_DEFS[obj.animKey]) return false;
+  const size = obj.animSize || defaultSize || 24;
+  if (!obj._roomObjAnimator) {
+    obj._animAdapter = { x: obj.x - size / 2, y: obj.y - size, width: size, height: size, facing: 1 };
+    obj._roomObjAnimator = new Animator(obj._animAdapter);
+  }
+  const adapter = obj._animAdapter;
+  adapter.x = obj.x - size / 2; adapter.y = obj.y - size; adapter.width = size; adapter.height = size;
+  const animator = obj._roomObjAnimator;
+  animator.play(obj.animKey);
+  animator.update(timeScale);
+  animator.draw(ctx);
+  return true;
+}
+
 // Draw a platform
 function drawPlatform(ctx, plat, allPlatforms, region) {
   if (plat.destructible && plat.hp <= 0) return;
   if (plat.crumble && plat.crumbleGone) return; // fallen away this frame
+
+  // Authored animation (levelEditor.html's `animKey` field, anim_editor.html's
+  // "Room Objects" category) overrides EVERY procedural variant below —
+  // hazard, destructible, and the regular/crumble/moving/oneWay/polarity
+  // tint branch alike — one check up front instead of patching each branch,
+  // since a platform is exactly one visual thing at a time regardless of
+  // which behavior flags it also carries. No-op (falls through to the
+  // existing procedural draw) for every platform that doesn't set animKey —
+  // every platform in the game today.
+  const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1;
+  if (tryDrawRoomObjectAnim(ctx, plat, _ts)) return;
 
   // ── hazard — spikes/energy field; color resolved via visualVariants.js
   // so a region can opt into its own look (REGION_STYLES[region].hazardVariant,
@@ -657,6 +734,9 @@ function drawPlatform(ctx, plat, allPlatforms, region) {
 
 // Draw Anchor checkpoint
 function drawAnchor(ctx, sp, area, activated) {
+  const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1;
+  if (tryDrawPointObjectAnim(ctx, sp, _ts, 32)) return;
+
   const pulse = Math.sin(frameCount * 0.04) * 0.3 + 0.7;
   const x = sp.x;
   const y = sp.y;
@@ -716,6 +796,9 @@ function drawAbilityReward(ctx, ability) {
   if (ability.id === 'phase_dash' && abilityState.hasPhaseDash) return;
   if (ability.id === 'shard_shot' && abilityState.hasShardShot) return;
 
+  const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1;
+  if (tryDrawPointObjectAnim(ctx, ability, _ts, 28)) return;
+
   const pulse = Math.sin(frameCount * 0.06) * 0.3 + 0.7;
   const x = ability.x;
   const y = ability.y;
@@ -765,6 +848,9 @@ function drawAbilityReward(ctx, ability) {
 // reads as slate instead of amber, and a 'cutscene' pip gets a thin outer
 // ring marking it as plot-critical.
 function drawLoreFragment(ctx, lf) {
+  const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1;
+  if (tryDrawPointObjectAnim(ctx, lf, _ts, 22)) return;
+
   const pulse = Math.sin(frameCount * 0.05) * 0.3 + 0.7;
   const x = lf.x, y = lf.y;
   const mode = lf.mode || 'overlay';
@@ -801,6 +887,9 @@ function drawLoreFragment(ctx, lf) {
 
 // Draw a Fracture Pip pickup (violet diamond, echoes the HUD fracture-pip glyph)
 function drawFracturePip(ctx, fp) {
+  const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1;
+  if (tryDrawPointObjectAnim(ctx, fp, _ts, 26)) return;
+
   const pulse = Math.sin(frameCount * 0.07) * 0.3 + 0.7;
   const x = fp.x, y = fp.y;
 
@@ -918,12 +1007,9 @@ if (typeof window !== 'undefined') window.REGION_STYLES = REGION_STYLES;
 // copy-paste round trip.
 const REGION_STYLE_OVERRIDES_KEY = 'stillpoint_region_style_overrides_v1';
 (function applyRegionStyleOverrides() {
-  try {
-    const raw = localStorage.getItem(REGION_STYLE_OVERRIDES_KEY);
-    if (!raw) return;
-    const overrides = JSON.parse(raw);
-    for (const region in overrides) REGION_STYLES[region] = overrides[region];
-  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+  const overrides = readOverrideJSON(REGION_STYLE_OVERRIDES_KEY);
+  if (!overrides) return;
+  for (const region in overrides) REGION_STYLES[region] = overrides[region];
 })();
 
 // Room-wide ambient effect — called once per frame, drawn under the
@@ -1044,6 +1130,15 @@ function drawDoor(ctx, trans, area, blocked) {
   // edge exit, so that one case keeps the glowing-portal treatment; a
   // plain or shortcut edge exit draws nothing at all.
   if (trans.edgeExit && !trans.requires) return;
+
+  // Authored animation (same tryDrawRoomObjectAnim() bridge drawPlatform()
+  // uses) overrides the procedural arch/portal/shortcut-arrow shapes below.
+  // Checked after the edgeExit guard above, not before — an edge exit's
+  // "draw nothing" is a deliberate design invariant (Hollow Knight-style,
+  // see the comment above), not something a custom animKey should be able
+  // to silently defeat.
+  const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1;
+  if (tryDrawRoomObjectAnim(ctx, trans, _ts)) return;
 
   const tint = area.mapAccent || area.ambientColor || '#c4b5fd';
   const color = blocked ? '#946060' : tint;
@@ -1203,6 +1298,31 @@ function primeRoomImage(id, dataUrl) {
   return img;
 }
 
+// Optional per-layer animation (2026-08-01) — `layer.frames`, an array of
+// `{imageId, duration}` (duration in ticks, same unit as animdata.js's
+// ANIM_DEFS frames), always loops (no one-shot backdrop makes sense — a
+// waterfall, a torch, a pulsing rift don't "finish"). Deliberately stateless
+// (derived purely from the global `frameCount`, same convention as this
+// file's other frameCount-driven pulses) rather than mutating per-layer
+// timer state during draw — draw() staying read-only keeps this safe to
+// call from anywhere (including editor previews) without a matching
+// update() tick to drive it. A layer with no `frames` (every layer today)
+// isn't touched by this at all — drawBackdropLayer() falls straight back to
+// its original single `imageId` path below.
+function pickBackdropFrame(layer) {
+  const frames = layer.frames;
+  if (!frames || !frames.length) return null;
+  if (frames.length === 1) return frames[0];
+  const total = frames.reduce((sum, f) => sum + (f.duration || 8), 0);
+  let t = frameCount % total;
+  for (const f of frames) {
+    const d = f.duration || 8;
+    if (t < d) return f;
+    t -= d;
+  }
+  return frames[frames.length - 1];
+}
+
 // Draw one backdropLayers[] entry (see the schema comment on AREAS in
 // area.js) — parallax offset, base position, uniform scale, optional
 // horizontal/both-axis tiling for seamless scroll art, a tint overlay, and
@@ -1210,7 +1330,10 @@ function primeRoomImage(id, dataUrl) {
 // deep/mid layers below.
 function drawBackdropLayer(ctx, layer, cam) {
   if (layer.hidden) return;
-  const img = getRoomImage(layer.imageId);
+  const frame = pickBackdropFrame(layer);
+  const imageId = frame ? frame.imageId : layer.imageId;
+  if (!imageId) return;
+  const img = getRoomImage(imageId);
   if (!img.complete || !img.naturalWidth) return;
 
   const scale = layer.scale || 1;

@@ -2945,7 +2945,7 @@ const AREAS = {
       // 60px+ margin either side. No `pitDeathY` — a sealed 4-wall arena
       // needs no down-axis-specific fall-death override. Verified
       // reachable under ordinary down-gravity via a headless
-      // `validateRoomLayout(AREAS.event_horizon_core)` run (zero
+      // `RoomVerify.verifyRoom(AREAS.event_horizon_core, AREAS)` run (zero
       // failures) before commit.
       platforms: [
         { x: 0, y: 1254, w: 1383, h: 60 },   // floor — always standable
@@ -4099,9 +4099,9 @@ const AREAS = {
       // their own charge (see the `polarity` force loop in
       // `player.js`'s physics block). All four sit at y:770 — a single
       // ~83px rise from the floor (jump height caps at ~114px per
-      // `validateRoomLayout`'s own linter physics), each independently
+      // `RoomVerify`'s own linter physics), each independently
       // reachable straight from the floor with no dash needed, verified via
-      // `node -e` headlessly (`validateRoomLayout(AREAS.polar_shift_room2)`
+      // `node -e` headlessly (`RoomVerify.verifyRoom(AREAS.polar_shift_room2, AREAS)`
       // returns zero failures — an earlier 620/480/380 draft didn't and was
       // corrected before commit). Positions clear both transition doors
       // (x:664 and x:1351, both y:781) and the anchor (x:140,y:833).
@@ -5119,12 +5119,9 @@ const AREAS = {
 // post-override AREAS so a bad saved room still gets caught).
 const AREA_OVERRIDES_KEY = 'stillpoint_area_overrides_v1';
 (function applyAreaOverrides() {
-  try {
-    const raw = localStorage.getItem(AREA_OVERRIDES_KEY);
-    if (!raw) return;
-    const overrides = JSON.parse(raw);
-    for (const id in overrides) AREAS[id] = overrides[id];
-  } catch (e) { /* private browsing / bad JSON — run with built-ins */ }
+  const overrides = readOverrideJSON(AREA_OVERRIDES_KEY);
+  if (!overrides) return;
+  for (const id in overrides) AREAS[id] = overrides[id];
 })();
 
 // =====================================================================
@@ -5342,362 +5339,48 @@ validateAreaGraph();
 if (typeof window !== 'undefined') window.AREAS = AREAS;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ROOM LAYOUT LINTER — static reachability/safety checks per room.
-// See Plans/room_verification_tool_plan.md ("static layout linter"). This is
-// the tool that catches the Crag bug class BEFORE a human plays the room:
-// unreachable platforms/pickups, uncrossable gaps, doors embedded in solid
-// geometry or floating out of reach, and missing physical return doors.
-//
-// Pure data analysis: no DOM, no simulation — callable from Node (see
-// export_graph.js's vm sandbox) and from any of the debug pages. It runs
-// automatically once per page load (window 'load' hook at the bottom, AFTER
-// player.js has defined the real physics constants), wrapped in try/catch so
-// a linter bug can never take the game down with it.
-//
-// Known model limitations (under-flagging, never false-crashing):
-//   - Wall jumps aren't modeled. A room that REQUIRES wall-jumping to
-//     traverse will show false "unreachable" failures — none exist today;
-//     if one is built, extend _linterReach() rather than ignoring the report.
-//   - A wall standing ON a platform doesn't split that platform into two
-//     nodes, so items behind an on-floor barrier (the_forge) count as
-//     reachable on the first pass. Gated-secret verification still works via
-//     the second (all-abilities, walls-broken) pass.
+// ROOM LAYOUT LINTER — delegates to game/roomVerify.js.
+// See Plans/room_verification_tool_plan.md ("static layout linter") and
+// Plans/engineering_todo.md item 10. This used to be its own independent
+// ~360-line flood-fill reachability linter, built separately from
+// game/roomVerify.js's "Component 1" linter (the one with the actual plan
+// doc, editor/room_verify.html, and Plans/room_verify_cli.js behind it) —
+// the two had evolved apart, each catching real bugs the other missed
+// (roomVerify.js has since absorbed this file's checks — real entry-point
+// seeding, the two-pass ability-loadout model, entry-void detection — see
+// roomVerify.js's own header for the merge writeup). Every HTML page that
+// loads this file now also loads game/roomVerify.js, so the auto-run below
+// just calls into it — same "runs automatically on window 'load', wrapped
+// in try/catch so a linter bug can never take the game down with it" 
+// behavior as before, same console.error report format.
 // ═══════════════════════════════════════════════════════════════════════════
-
-// Movement abilities assumed on a first pass through a room that doesn't
-// declare its own `expectedLoadout: { onEntry: [...] }`. Default = the full
-// current movement kit, so rooms built before the field existed don't
-// false-fail; declare the field on new rooms to lint them strictly.
-const ROOM_LINTER_DEFAULT_LOADOUT = ['phase_dash'];
-
-// Physics constants come from player.js/ability.js, which load AFTER area.js
-// — read them lazily with fallbacks matching those files' current values, so
-// standalone tools that only load area.js (worldmap.html, export_graph.js)
-// still get correct-enough numbers.
-function _linterPhysics() {
-  return {
-    gravity: (typeof GRAVITY !== 'undefined') ? GRAVITY : 0.6,
-    jump: Math.abs((typeof JUMP_FORCE !== 'undefined') ? JUMP_FORCE : -12),
-    moveSpeed: (typeof MOVE_SPEED !== 'undefined') ? MOVE_SPEED : 4,
-    dashSpeed: (typeof DASH_SPEED !== 'undefined') ? DASH_SPEED : 12,
-    dashFrames: (typeof DASH_DURATION !== 'undefined') ? DASH_DURATION : 8,
-    phaseDashSpeed: (typeof PHASE_DASH_SPEED !== 'undefined') ? PHASE_DASH_SPEED : 14,
-    phaseDashFrames: (typeof PHASE_DASH_DURATION !== 'undefined') ? PHASE_DASH_DURATION : 8,
-    playerW: 24,
-    playerH: 32,
-  };
-}
-
-function _linterJumpHeight(phys) {
-  // Apex height of a full jump: v^2 / 2g, minus a few px of clearance so the
-  // linter never approves a pixel-perfect-only ascent.
-  return (phys.jump * phys.jump) / (2 * phys.gravity) - 6;
-}
-
-// Max horizontal distance coverable while changing height by `dy`
-// (dy = targetTop - sourceTop; negative = climbing). Returns -1 if the rise
-// is beyond jump height. Adds the extra distance of one mid-air dash (core
-// kit) and one phase dash when the loadout has it.
-function _linterReach(phys, dy, loadout) {
-  const disc = phys.jump * phys.jump + 2 * phys.gravity * dy;
-  if (disc < 0) return -1; // target higher than a full jump can reach
-  const airFrames = (phys.jump + Math.sqrt(disc)) / phys.gravity;
-  let reach = phys.moveSpeed * airFrames;
-  reach += (phys.dashSpeed - phys.moveSpeed) * phys.dashFrames;
-  if (loadout.indexOf('phase_dash') !== -1) {
-    reach += (phys.phaseDashSpeed - phys.moveSpeed) * phys.phaseDashFrames;
-  }
-  return reach;
-}
-
-// Horizontal distance between two x-intervals (0 when they overlap).
-function _linterXGap(ax, aw, bx, bw) {
-  if (bx >= ax + aw) return bx - (ax + aw);
-  if (ax >= bx + bw) return ax - (bx + bw);
-  return 0;
-}
-
-// Can the player travel from standing on platform `a` to standing on `b`?
-// `blockers` = wall platforms that are solid on this pass.
-function _linterEdge(phys, a, b, loadout, blockers) {
-  const dy = b.y - a.y;
-  const reach = _linterReach(phys, dy, loadout);
-  if (reach < 0) return false;
-  const gap = _linterXGap(a.x, a.w, b.x, b.w);
-  if (gap > reach) return false;
-
-  // Wall in the corridor between the two platforms that can't be jumped
-  // over from the takeoff side and can't be walked under?
-  const jumpH = _linterJumpHeight(phys);
-  const corridorLo = Math.min(a.x + a.w / 2, b.x + b.w / 2);
-  const corridorHi = Math.max(a.x + a.w / 2, b.x + b.w / 2);
-  for (const w of blockers) {
-    if (w.x + w.w < corridorLo || w.x > corridorHi) continue;
-    const riseOverWall = a.y - w.y;              // feet must gain this much
-    const clearable = riseOverWall <= jumpH;
-    const walkUnder = (w.y + w.h) <= Math.min(a.y, b.y) - phys.playerH;
-    if (!clearable && !walkUnder) return false;
-  }
-  return true;
-}
-
-// Standable platforms only — walls and destructible panels aren't floors the
-// route may rely on (destructibles can be gone; thin walls aren't routes),
-// and ceiling pieces (`ceiling: true` — a cave-top boundary that blocks
-// upward jumps but is never meant to be landed on, see player.js) aren't
-// real standable surfaces either, so they shouldn't be checked for
-// reachability the way an actual floor/ledge is.
-// Standable = something the player can actually come to rest on.
-//   • wall / ceiling / destructible — excluded (pre-existing rules).
-//   • hazard — excluded: it's a trigger volume, never solid, and treating it
-//     as ground would let the linter "prove" a route that actually damages
-//     you or drops you into a pit.
-//   • oneWay — INCLUDED: you land on top of it normally.
-//   • crumble — INCLUDED: it holds you long enough to be a real route (it's
-//     a timing challenge, not an absence of floor).
-// Moving platforms are measured at their authored anchor position, which is
-// the conservative choice — the linter can't simulate them over time.
-// `rotatedGravityOnly` (2026-07-26, Gravity Collapse Core): a platform only
-// ever standable once `roomGravityDir` points somewhere other than 'down'
-// (a ceiling or side wall meant to become a floor when the boss flips
-// gravity) — real, ordinary, fully-standable platform data at runtime
-// (nothing in physics.js reads this flag; it has zero gameplay effect),
-// excluded here for the same reason `ceiling`/`hazard` already are: this
-// linter has no concept of rotated gravity, so under its own
-// always-down-gravity simulation these platforms are genuinely unreachable
-// and would otherwise read as a false-positive bug on every page load.
-function _linterStandable(room) {
-  return (room.platforms || []).filter((p) => !p.wall && !p.destructible && !p.ceiling && !p.hazard && !p.rotatedGravityOnly);
-}
-
-// The platform a body dropped at (cx, fromY) lands on, or null (= void).
-function _linterDropTo(platforms, cx, fromY) {
-  let best = null;
-  for (const p of platforms) {
-    if (cx < p.x || cx > p.x + p.w) continue;
-    if (p.y < fromY - 2) continue; // platform is above the drop point
-    if (!best || p.y < best.y) best = p;
-  }
-  return best;
-}
-
-// Is point (px, py) touchable from standing on / jumping off platform `p`?
-// Used for doors, pickups, and lore positions. `h` extends the point into a
-// rect (0 for true points).
-function _linterPointReachable(phys, p, px, py, w, h, loadout) {
-  const bottom = py + h;
-  if (bottom < p.y - phys.playerH - _linterJumpHeight(phys)) return false; // too high above
-  if (py > p.y + 4) return false; // entirely below the standing surface
-  const dx = _linterXGap(p.x, p.w, px, w);
-  if (dx === 0) return true;
-  const reach = _linterReach(phys, Math.max(py - p.y, -_linterJumpHeight(phys)), loadout);
-  return reach >= 0 && dx <= reach;
-}
-
-// Flood-fill the set of reachable standable platforms from the given entry
-// platforms. O(n^2) over a room's platforms, run once — fine at 10-25
-// platforms/room; revisit with an x-sorted sweep if rooms ever get huge.
-function _linterFloodFill(phys, platforms, entrySet, loadout, blockers) {
-  const reachable = new Set(entrySet);
-  let grew = true;
-  while (grew) {
-    grew = false;
-    for (const a of platforms) {
-      if (!reachable.has(a)) continue;
-      for (const b of platforms) {
-        if (reachable.has(b)) continue;
-        if (_linterEdge(phys, a, b, loadout, blockers)) {
-          reachable.add(b);
-          grew = true;
-        }
-      }
-    }
-  }
-  return reachable;
-}
-
-// Entry points into `room`: every transition anywhere in AREAS that targets
-// it (toX/toY), tagged with where it comes from for readable reports.
-function _linterEntryPoints(roomId) {
-  const entries = [];
-  for (const otherId in AREAS) {
-    for (const t of (AREAS[otherId].transitions || [])) {
-      if (t.to === roomId) entries.push({ x: t.toX, y: t.toY, from: otherId });
-    }
-  }
-  return entries;
-}
-
-function validateRoomLayout(room) {
-  const phys = _linterPhysics();
-  const failures = [];
-  const loadout = (room.expectedLoadout && room.expectedLoadout.onEntry)
-    ? room.expectedLoadout.onEntry
-    : ROOM_LINTER_DEFAULT_LOADOUT;
-
-  const standable = _linterStandable(room);
-  const walls = (room.platforms || []).filter((p) => p.wall || p.destructible);
-  const permanentWalls = walls.filter((p) => !p.destructible);
-
-  // ── 1. Entry points land on real ground ────────────────────────────────
-  const entries = _linterEntryPoints(room.id);
-  const entryPlatforms = new Set();
-  for (const e of entries) {
-    const landing = _linterDropTo(standable, e.x + phys.playerW / 2, e.y);
-    if (!landing) {
-      failures.push(`entry from '${e.from}' spawns at (${e.x},${e.y}) with NO platform beneath — player falls into the void on arrival`);
-    } else {
-      entryPlatforms.add(landing);
-    }
-  }
-  // Start room / dev rooms: fall back to anchors, then the first platform.
-  if (entryPlatforms.size === 0 && entries.length === 0) {
-    for (const a of (room.anchors || [])) {
-      const landing = _linterDropTo(standable, a.x, a.y);
-      if (landing) entryPlatforms.add(landing);
-    }
-    if (entryPlatforms.size === 0 && standable.length) entryPlatforms.add(standable[0]);
-  }
-
-  // ── 2. Reachability flood fill — two passes ─────────────────────────────
-  // Pass 1: declared first-pass loadout, walls solid. Pass 2: everything
-  // unlocked, destructible walls broken. Unreachable in pass 1 but reachable
-  // in pass 2 = a legitimate gated secret; unreachable in BOTH = a bug.
-  const pass1 = _linterFloodFill(phys, standable, entryPlatforms, loadout, walls);
-  const pass2 = _linterFloodFill(phys, standable, entryPlatforms, ['phase_dash'], permanentWalls);
-
-  for (const p of standable) {
-    if (!pass1.has(p) && !pass2.has(p)) {
-      failures.push(`platform at (${p.x},${p.y}) ${p.w}x${p.h} is unreachable even with all abilities and destructible walls broken`);
-    }
-  }
-
-  // Things that must sit on/above a reachable platform.
-  const checkPoint = (label, px, py, w, h) => {
-    let firstPass = false, anyPass = false;
-    for (const p of standable) {
-      if (!_linterPointReachable(phys, p, px, py, w, h, ['phase_dash'])) continue;
-      if (pass2.has(p)) anyPass = true;
-      if (pass1.has(p) && _linterPointReachable(phys, p, px, py, w, h, loadout)) firstPass = true;
-      if (firstPass) break;
-    }
-    if (!anyPass) failures.push(`${label} at (${px},${py}) is unreachable even with all abilities and destructible walls broken`);
-    return firstPass;
-  };
-
-  if (room.abilityReward) {
-    // Ability pickups are critical-path — must be reachable on the FIRST pass.
-    const ok = checkPoint(`ability reward '${room.abilityReward.id}'`, room.abilityReward.x, room.abilityReward.y, 0, 0);
-    if (!ok && !failures[failures.length - 1]?.startsWith('ability reward')) {
-      failures.push(`ability reward '${room.abilityReward.id}' at (${room.abilityReward.x},${room.abilityReward.y}) is not reachable with the room's first-pass loadout [${loadout.join(', ')}]`);
-    }
-  }
-  for (const a of (room.anchors || [])) checkPoint(`anchor #${a.index}`, a.x, a.y, 0, 0);
-  for (const l of (room.loreFragments || [])) checkPoint(`lore fragment '${l.id}'`, l.x, l.y, 0, 0);
-  for (const fp of (room.fracturePipRewards || [])) checkPoint(`fracture pip '${fp.id}'`, fp.x, fp.y, 0, 0);
-  for (const e of (room.enemies || [])) checkPoint(`enemy '${e.type}'`, e.x, e.y, 28, 28);
-
-  // ── 3. Door checks: embedded in geometry / floating out of reach ───────
-  (room.transitions || []).forEach((t, i) => {
-    // Embedded: the door's entire vertical span sits at/below a solid
-    // platform's top surface (the exact Crag Entrance bug — see
-    // debug_v1.html R11, which this check supersedes but keeps passing).
-    for (const p of (room.platforms || [])) {
-      if (p.destructible) continue;
-      const xOverlap = t.x < p.x + p.w && t.x + t.w > p.x;
-      if (xOverlap && t.y >= p.y - 2 && t.y + t.h > p.y + 5 && t.y < p.y + p.h) {
-        failures.push(`transitions[${i}] (to '${t.to}') at (${t.x},${t.y}) ${t.w}x${t.h} is embedded inside the solid platform at (${p.x},${p.y}) — move it up so it overlaps the player's standing box (y: platformTop-${phys.playerH} to platformTop)`);
-        return;
-      }
-    }
-    // Touchable: overlaps the standing box of, or is jump-reachable from,
-    // at least one platform that is itself reachable.
-    let touchable = false;
-    for (const p of standable) {
-      if (pass2.has(p) && _linterPointReachable(phys, p, t.x, t.y, t.w, t.h, ['phase_dash'])) { touchable = true; break; }
-    }
-    if (!touchable) {
-      failures.push(`transitions[${i}] (to '${t.to}') at (${t.x},${t.y}) ${t.w}x${t.h} doesn't overlap any reachable player standing box and is beyond jump reach — physically untouchable`);
-    }
-  });
-
-  // ── 4. Gap coverage along the floor — every hole must be crossable ─────
-  // Union the standable platforms' x-intervals; every interior gap in that
-  // union is a column of pure void, which is only OK if some platform pair
-  // spans it within jump/dash range. In rooms without an explicit hazard
-  // (pitDeathY < groundY) this is exactly the fall-death class of bug.
-  if (standable.length > 1) {
-    const byX = standable.slice().sort((a, b) => a.x - b.x);
-    let coveredTo = byX[0].x + byX[0].w;
-    for (const p of byX) {
-      if (p.x > coveredTo) {
-        const g0 = coveredTo, g1 = p.x;
-        let crossable = false;
-        for (const a of byX) {
-          if (a.x + a.w < g0 - 1 || a.x + a.w > g0 + 1) continue; // touches gap's left lip
-          for (const b of byX) {
-            if (b.x < g1 - 1 || b.x > g1 + 1) continue;           // touches gap's right lip
-            if (_linterEdge(phys, a, b, loadout, walls) || _linterEdge(phys, b, a, loadout, walls)) { crossable = true; break; }
-          }
-          if (crossable) break;
-        }
-        if (!crossable) {
-          failures.push(`floor gap x:${g0}-${g1} (${g1 - g0}px) has zero platform coverage and no platform pair can cross it with loadout [${loadout.join(', ')}]`);
-        }
-      }
-      coveredTo = Math.max(coveredTo, p.x + p.w);
-    }
-  }
-
-  // ── 5. Two-way connections have a physical door back ────────────────────
-  // validateAreaGraph() checks the declared connection records; this checks
-  // the actual door hitboxes, which is what the player touches.
-  for (const conn of (room.connections || [])) {
-    if (conn.oneWay) continue;
-    const target = AREAS[conn.to];
-    if (!target) continue; // validateAreaGraph already errors on this
-    const hasBack = (target.transitions || []).some((t) => t.to === room.id);
-    if (!hasBack) {
-      failures.push(`two-way connection '${conn.direction}' to '${conn.to}' has no physical return door — '${conn.to}' has no transitions[] entry back to '${room.id}'`);
-    }
-  }
-
-  return { id: room.id, failures };
-}
-
-// Lint every real room (dev-only rooms without a compass position are
-// skipped, same rule the graph validator and debug tools use). Logs a plain
-// per-room report; returns true when every room passes.
-function validateAllRoomLayouts() {
-  let clean = 0, dirty = 0;
-  for (const roomId in AREAS) {
-    const room = AREAS[roomId];
-    if (typeof room.col !== 'number') continue;
-    const result = validateRoomLayout(room);
-    if (result.failures.length === 0) {
-      clean++;
-    } else {
-      dirty++;
-      console.error(`[room linter] ${roomId}: ${result.failures.length} issue(s)`);
-      for (const f of result.failures) console.error(`[room linter]   ✗ ${f}`);
-    }
-  }
-  if (dirty === 0) {
-    console.log(`[room linter] all ${clean} rooms passed layout checks`);
-  } else {
-    console.error(`[room linter] ${dirty} room(s) with layout issues, ${clean} clean`);
-  }
-  return dirty === 0;
-}
-
-// Auto-run once per page load, AFTER every script has loaded so the real
-// physics constants from player.js/ability.js are in scope. try/catch so a
-// linter defect can never crash the game; guarded for Node (export_graph.js
-// runs this file in a vm sandbox with no window).
 if (typeof window !== 'undefined') {
   window.addEventListener('load', () => {
     try {
-      validateAllRoomLayouts();
+      if (typeof RoomVerify === 'undefined') {
+        console.error('[room linter] RoomVerify not loaded — add <script src="game/roomVerify.js"> alongside area.js');
+        return;
+      }
+      const results = RoomVerify.verifyAllRooms(AREAS);
+      let clean = 0, warnOnly = 0, dirty = 0;
+      for (const r of results) {
+        if (r.ok && r.issues.length === 0) { clean++; continue; }
+        if (r.ok) {
+          warnOnly++;
+          console.warn(`[room linter] ${r.id}: ${r.issues.length} warning(s)`);
+          for (const iss of r.issues) console.warn(`[room linter]   ⚠ ${iss.type} — ${iss.detail}`);
+          continue;
+        }
+        dirty++;
+        const errors = r.issues.filter((i) => i.severity === 'error');
+        console.error(`[room linter] ${r.id}: ${errors.length} issue(s)`);
+        for (const iss of errors) console.error(`[room linter]   ✗ ${iss.type} — ${iss.detail}`);
+      }
+      if (dirty === 0) {
+        console.log(`[room linter] all ${clean + warnOnly} rooms passed layout checks${warnOnly ? ` (${warnOnly} with warnings only)` : ''}`);
+      } else {
+        console.error(`[room linter] ${dirty} room(s) with layout issues, ${clean} clean, ${warnOnly} warnings only`);
+      }
     } catch (e) {
       console.error('[room linter] crashed (game unaffected):', e);
     }

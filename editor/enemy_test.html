@@ -118,6 +118,7 @@
 </div>
 
 <!-- ─── Real game scripts — same as index.html ─────────────────────────── -->
+<script src="../game/overrideStore.js"></script>
 <script src="../game/audio.js"></script>
 <script src="../game/input.js"></script>
 <script src="../game/physics.js"></script>
@@ -125,6 +126,7 @@
 <script src="../game/animdata.js"></script>
 <script src="../game/animImageStore.js"></script>
 <script src="../game/area.js"></script>
+<script src="../game/roomVerify.js"></script>
 <script src="../game/map.js"></script>
 <script src="../game/ability.js"></script>
 <script src="../game/cutscene.js"></script>
@@ -141,6 +143,7 @@
 <script src="../game/game_update.js"></script>
 <script src="../game/game_hud_menus.js"></script>
 <script src="../game/game_draw_loop.js"></script>
+<script src="canvasFit.js"></script>
 
 <script>
 // ─── Enemy roster — built (real, spawnable) + planned (from expansion.md) ───
@@ -285,14 +288,6 @@ const REGION_ROWS = [
 // game.js's own resizeCanvasToFit() sizes against the full window width,
 // which doesn't know about the 340px sidebar here — override it. Registered
 // after game.js's own resize listener, so it always runs second and wins.
-function fitCanvasToStage() {
-  const sideWidth = document.getElementById('side').offsetWidth;
-  const availW = window.innerWidth - sideWidth;
-  const availH = window.innerHeight;
-  const scale = Math.min(availW / W, availH / H);
-  canvas.style.width = Math.floor(W * scale) + 'px';
-  canvas.style.height = Math.floor(H * scale) + 'px';
-}
 window.addEventListener('resize', fitCanvasToStage);
 fitCanvasToStage();
 
