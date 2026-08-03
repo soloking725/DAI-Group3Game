@@ -44,7 +44,7 @@ game — not just "can the sprite look different."
 - **Canvas**: 800×450 internal resolution (`game.js`), so today's player is
   ≈3% of screen width, ≈7% of screen height — a small, iconic silhouette,
   typical of tight-camera 2D action-platformers.
-- **Declared visual style** (`Plans/CLAUDE.md`): *"minimalist vector art,
+- **Declared visual style** (`CLAUDE.md`): *"minimalist vector art,
   dark background, violet/teal/deep-blue palette. Tonal references: Hollow
   Knight, Celeste, Hyper Light Drifter."* All three references are
   deliberately **small, simplified, non-realistic humanoid or non-human

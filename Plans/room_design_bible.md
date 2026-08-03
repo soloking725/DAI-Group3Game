@@ -57,7 +57,7 @@ for(const id of Object.keys(AREAS)){const r=AREAS[id];
   console.log(id, r.region, (r.enemies||[]).length, (r.loreFragments||[]).length);}
 "
 ```
-Never open a browser to check this — per `Plans/CLAUDE.md`'s hard rule, everything
+Never open a browser to check this — per `CLAUDE.md`'s hard rule, everything
 above is a pure Node/`vm` read of `area.js`, same technique `Plans/room_progress.js`
 already uses.
 

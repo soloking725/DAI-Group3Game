@@ -3,7 +3,7 @@
 // Extracted 2026-07-29 out of Plans/room_progress.js so that file's Node CLI
 // and editor/dev_hub.html's live Progress panel can't silently drift apart
 // on what counts as "designed" (the same class of bug graph_analyzer.html
-// used to have vs. validateAreaGraph() — see Plans/CLAUDE.md). Pure, no fs/
+// used to have vs. validateAreaGraph() — see CLAUDE.md). Pure, no fs/
 // vm/DOM dependency — works as a plain <script> tag (browser) or via
 // require() (Node).
 

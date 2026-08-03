@@ -325,7 +325,7 @@ per-region pipeline works well on one or two regions before committing to repeat
     via `floor_plan_simulation.html`/`floor_plan_report.html` against the *actually
     built* graph (not just the planned one), save-compatibility check across all
     save-shape changes made during the content pass, then ship — trivial for this
-    project specifically, since there's no build step (`Plans/CLAUDE.md`: open
+    project specifically, since there's no build step (`CLAUDE.md`: open
     `index.html` directly or serve the folder statically).
 
 ## Sources

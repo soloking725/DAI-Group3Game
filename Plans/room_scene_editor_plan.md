@@ -9,12 +9,12 @@ hand-drawn/uploaded PNG art, and animation PNGs — plus a way to place cutscene
 points, with real UI-design attention. This doc is the plan for that tool: what it
 should do, what it should reuse from existing code, its data model, and a proposed UI
 layout. **Not implemented in this pass** — same status as `Plans/animation_editor_plan.md`
-was before it got built, and the same "planning-only" status `Plans/CLAUDE.md`'s existing
+was before it got built, and the same "planning-only" status `CLAUDE.md`'s existing
 `level_designer.html` entry has had since 2026-07-17 (still not built as of this doc).
 
 ## 0. How this tool relates to the existing editor family — don't duplicate, extend
 
-This project already has 8 dev tools (`Plans/CLAUDE.md`'s "Dev/debug tooling" section),
+This project already has 8 dev tools (`CLAUDE.md`'s "Dev/debug tooling" section),
 each with a narrow, non-overlapping job. This new tool needs to slot into that same
 division of labor, not re-solve what another tool already owns:
 
@@ -100,7 +100,7 @@ of a room's "look" is one of:
 
 **Cutscenes are already a real, working system, just not visually placed.**
 `cutscene.js`'s `CUTSCENES{}` + `playCutscene(id)` is fully built (§ referenced in
-`Plans/CLAUDE.md`'s architecture map) — the gap is that every trigger is a hardcoded
+`CLAUDE.md`'s architecture map) — the gap is that every trigger is a hardcoded
 condition, e.g.:
 ```js
 // game_entities.js:511

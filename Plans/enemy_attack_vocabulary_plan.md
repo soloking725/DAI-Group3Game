@@ -190,7 +190,7 @@ telegraph) — pure behavior/data additions, draw for them via
 up authored frames once they exist.
 
 **Manual test plan (per this repo's hard "don't open a browser yourself"
-rule — see `Plans/CLAUDE.md`):** in `editor/enemy_designer.html`, build one
+rule — see `CLAUDE.md`):** in `editor/enemy_designer.html`, build one
 enemy per attack — (1) a `tiger_knee` attacker, jump near it and confirm
 it only swings while you're airborne, never grounded; (2) a
 `phase_dash`/`afterimage_strike` counter enemy, Phase Dash through it and

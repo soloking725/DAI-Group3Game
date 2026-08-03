@@ -197,7 +197,7 @@ previously-open "how should lore-bit visual effects work" question: they should 
 ## 10. THE PACIFIST WING & THE COMPANION NPC (confirmed 2026-07-21)
 
 The pacifist region (existing design — fighting even once forfeits its reward
-permanently, per `Plans/CLAUDE.md`'s consent-gated-choices note) is reframed as a ward for
+permanently, per `CLAUDE.md`'s consent-gated-choices note) is reframed as a ward for
 shelter staff discarded as no longer useful — injured, aged, retired from weapons work.
 One resident, a genuinely warm presence in an otherwise grim shelter, offers the player a
 place to sleep (the game's first real home-base beat) and can teach a skill over repeat

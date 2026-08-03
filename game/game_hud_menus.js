@@ -24,12 +24,12 @@
 // Saved overrides (the editor's 💾) load from localStorage below.
 const HUD_LAYOUT_KEY = 'stillpoint_hud_layout_v1';
 const HUD_LAYOUT = {
-  healthHearts:  { anchor: 'top-left',     x: 16, y: 14, size: 16, gap: 3,  visible: true },
-  areaLabel:     { anchor: 'top-left',     x: 16, y: 42,                    visible: true },
-  bossBar:       { anchor: 'top-center',   x: 0,  y: 18, w: 320, h: 12,    visible: true },
-  limitBreakBar: { anchor: 'top-center',   x: 0,  y: 40, w: 160, h: 8,     visible: true },
-  controlsHint:  { anchor: 'bottom-right', x: 16, y: 12,                    visible: true },
-  fracturePips:  { anchor: 'bottom-left',  x: 14, y: 58, gap: 22,          visible: true },
+  healthHearts:  { anchor: 'top-left', x: 16, y: 14, size: 16, gap: 3, visible: true },
+  areaLabel:     { anchor: 'top-left', x: 14, y: 42, visible: true },
+  bossBar:       { anchor: 'top-center', x: 0, y: 18, w: 320, h: 12, visible: true },
+  limitBreakBar: { anchor: 'top-center', x: 0, y: 40, w: 160, h: 8, visible: true },
+  controlsHint:  { anchor: 'bottom-right', x: 16, y: 12, visible: true },
+  fracturePips:  { anchor: 'bottom-left', x: 14, y: 58, gap: 22, visible: true },
   abilityCooldowns: { anchor: 'bottom-center', x: 0, y: 34, size: 20, gap: 6, visible: true },
 };
 

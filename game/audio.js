@@ -61,6 +61,19 @@ const SFX = (() => {
     voidTetherCast: 'assets/audio/sfx/voidTetherCast.ogg',
     voidTetherPull: 'assets/audio/sfx/voidTetherPull.ogg',
     voidTetherHit: 'assets/audio/sfx/voidTetherHit.ogg',
+    // Enemy/ability slots that were candidate-only in audio_ab_tester.html
+    // (no live track, no code hook) until 2026-08-02 — see manifest.json's
+    // description on each key for exactly which fight/mechanic was silent.
+    // Picks below are the first CC0 candidate in each slot's manifest list;
+    // swap freely once someone actually A/B-tests them.
+    electricAbility: 'assets/audio/sfx/electricAbility.ogg',
+    forceField: 'assets/audio/sfx/forceField.ogg',
+    trainSweep: 'assets/audio/sfx/trainSweep.ogg',
+    gravityFlip: 'assets/audio/sfx/gravityFlip.ogg',
+    slimeSquelch: 'assets/audio/sfx/slimeSquelch.ogg',
+    voidPull: 'assets/audio/sfx/voidPull.ogg',
+    portalDoor: 'assets/audio/sfx/portalDoor.ogg',
+    defenseVerb: 'assets/audio/sfx/defenseVerb.ogg',
   };
   const sampleBuffers = {}; // name -> decoded AudioBuffer, once loaded
 
@@ -219,9 +232,34 @@ const SFX = (() => {
       fetch(MUSIC_URLS[key])
         .then((res) => res.arrayBuffer())
         .then((data) => c.decodeAudioData(data))
-        .then((buf) => { musicBuffers[key] = buf; })
+        .then((buf) => { musicBuffers[key] = buf; retryPendingMusic(key); })
         .catch(() => { /* region just stays silent on the music layer if this fails */ });
     });
+  }
+
+  // A track's fetch+decode can still be in flight when the player first
+  // enters an area/zone/boss fight that wants it — setRegionMusic/
+  // setAudioZone/setBossMusic all bail out early in that case ("still
+  // loading"), and since nothing else re-called them once the buffer
+  // landed, that region/boss stayed permanently silent for the rest of the
+  // session (e.g. tutorial-skip jumping straight to the_fracture_part1
+  // before chrono_fracture.ogg — 2.1MB — finished decoding). Called from
+  // loadMusic()'s onload above: starts playback now if this key is still
+  // what the current area/zone/boss actually wants and nothing already
+  // picked it up in the meantime.
+  function retryPendingMusic(key) {
+    const c = ctx;
+    if (!c || !unlocked) return;
+    const wantedRegionKey = zoneOverrideKey || (AREA_MUSIC_MAP[currentAreaId] || DEFAULT_MUSIC_KEY);
+    if (wantedRegionKey === key && currentMusicKey !== key) {
+      currentMusicKey = key;
+      ensureMusicGains();
+      musicSource = playLoopingTrack(key, musicGainNode, musicSource, 0.35);
+    }
+    if (currentBossMusicKey === key && !bossMusicSource) {
+      ensureMusicGains();
+      bossMusicSource = playLoopingTrack(key, bossMusicGainNode, bossMusicSource, 0.42);
+    }
   }
 
   function ensureMusicGains() {
@@ -267,11 +305,16 @@ const SFX = (() => {
     if (!unlocked) return;
     const key = AREA_MUSIC_MAP[areaId] || DEFAULT_MUSIC_KEY;
     if (key === currentMusicKey) return;
-    currentMusicKey = key;
     const c = ensureCtx();
     if (!c) return;
     ensureMusicGains();
-    if (!musicBuffers[key]) return; // still loading — next call once it lands will pick it up
+    // Don't commit currentMusicKey until the buffer is actually ready to
+    // play — committing it early (as this used to) permanently blocked the
+    // "key === currentMusicKey" guard above from ever retrying once the
+    // buffer landed. retryPendingMusic() (see loadMusic()) picks this up
+    // once decoding finishes instead.
+    if (!musicBuffers[key]) return; // still loading
+    currentMusicKey = key;
     musicSource = playLoopingTrack(key, musicGainNode, musicSource, 0.35);
   }
 
@@ -746,6 +789,21 @@ const SFX = (() => {
       noiseBurst(0.2, { filterFreq: 700, volume: 0.08, attack: 0.03 });
     },
     enemyHop() { tone(300, 0.08, { type: 'sine', sweepTo: 450, volume: 0.08 }); },
+    // Added 2026-08-02 — the generic windup dispatch (ComposedEnemy.update(),
+    // enemy.js) used to only pick between enemyTelegraph/enemyTelegraphHeavy
+    // by a hardcoded type list; every attack shape now gets its own tell so
+    // the sound genuinely hints at what's coming, not just "light or heavy".
+    enemyTelegraphRanged() {
+      // Rising ping distinct from melee's triangle tick — reads as "charging
+      // a shot," not "about to swing."
+      tone(500, 0.14, { type: 'sine', sweepTo: 900, volume: 0.1, filterFreq: 2200, attack: 0.02 });
+    },
+    enemyTelegraphGrab() {
+      // Low guttural pull-in — a falling tone plus a short low noise thump,
+      // distinct from the rising/bright melee and ranged tells.
+      tone(180, 0.3, { type: 'sawtooth', sweepTo: 90, volume: 0.13, filterFreq: 700, attack: 0.04 });
+      noiseBurst(0.15, { filterFreq: 400, volume: 0.09, attack: 0.05 });
+    },
     bossTelegraph() {
       tone(200, 0.3, { type: 'triangle', sweepTo: 320, volume: 0.14, filterFreq: 1200, attack: 0.04 });
     },
@@ -809,5 +867,56 @@ const SFX = (() => {
       noiseBurst(0.5, { filterType: 'bandpass', filterFreq: 1200, volume: 0.14 });
     },
     bossStillpointEnd() { tone(160, 0.4, { type: 'sawtooth', sweepTo: 60, volume: 0.16 }); },
+
+    // Wired up 2026-08-02 — these six were sitting in audio_ab_tester.html's
+    // candidate pool with real CC0 samples but no code hook, so the
+    // fights/mechanics they cover played nothing at all. See enemy.js call
+    // sites (grep for each name) for exactly where each fires.
+    electricAbility() {
+      if (playSample('electricAbility', 0.24)) return;
+      tone(900, 0.1, { type: 'square', sweepTo: 200, volume: 0.14, filterFreq: 3000 });
+      noiseBurst(0.12, { filterType: 'highpass', filterFreq: 4500, volume: 0.12 });
+    },
+    forceField() {
+      if (playSample('forceField', 0.26)) return;
+      tone(700, 0.18, { type: 'sine', sweepTo: 1400, volume: 0.16 });
+      noiseBurst(0.08, { filterType: 'highpass', filterFreq: 3000, volume: 0.1 });
+    },
+    trainSweep() {
+      subThump(0.14);
+      if (playSample('trainSweep', 0.26)) return;
+      tone(80, 0.5, { type: 'sawtooth', sweepTo: 140, volume: 0.2, filterFreq: 700, attack: 0.05 });
+      noiseBurst(0.4, { filterFreq: 500, volume: 0.14, attack: 0.05 });
+    },
+    gravityFlip() {
+      subThump(0.2);
+      if (playSample('gravityFlip', 0.3)) return;
+      tone(60, 0.8, { type: 'sawtooth', sweepTo: 20, volume: 0.22, filterFreq: 500, attack: 0.05 });
+      noiseBurst(0.5, { filterFreq: 400, volume: 0.16, attack: 0.05 });
+    },
+    slimeSquelch() {
+      if (playSample('slimeSquelch', 0.22)) return;
+      noiseBurst(0.15, { filterType: 'lowpass', filterFreq: 900, volume: 0.14, attack: 0.02 });
+      tone(180, 0.15, { type: 'sine', sweepTo: 90, volume: 0.1 });
+    },
+    voidPull() {
+      if (playSample('voidPull', 0.18)) return;
+      tone(120, 0.9, { type: 'sine', sweepTo: 60, volume: 0.14, attack: 0.15 });
+      noiseBurst(0.7, { filterType: 'lowpass', filterFreq: 500, volume: 0.1, attack: 0.2 });
+    },
+    portalDoor() {
+      if (playSample('portalDoor', 0.24)) return;
+      tone(600, 0.15, { type: 'sine', sweepTo: 1100, volume: 0.13 });
+      noiseBurst(0.12, { filterType: 'highpass', filterFreq: 3500, volume: 0.1 });
+    },
+    // Base-Enemy defense verbs (dodge/back-hop, ranged-dodge, guard-raise,
+    // anti-juggle breakout burst) — a light, quick stinger by design (not a
+    // swing/attack sound), shared across all four since they're all the same
+    // "quick evasive/defensive commit" beat, just triggered differently.
+    defenseVerb() {
+      if (playSample('defenseVerb', 0.18, 0.05)) return;
+      noiseBurst(0.06, { filterType: 'highpass', filterFreq: 2800, volume: 0.09 });
+      tone(700, 0.06, { type: 'sine', sweepTo: 500, volume: 0.08 });
+    },
   };
 })();

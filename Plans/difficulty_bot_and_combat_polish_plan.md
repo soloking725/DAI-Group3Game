@@ -49,7 +49,7 @@ New file: `game/agentController.js` (loaded only by the new tool below,
 never by `index.html`). Self-contained, no dependency on other `game/*.js`
 files beyond reading `player`/`boss`/`gameState` off `window` (same
 pattern `debug_v1.html` already relies on — see the `window.player`/
-`window.gameState` getters noted in `Plans/CLAUDE.md`'s architecture map).
+`window.gameState` getters noted in `CLAUDE.md`'s architecture map).
 
 ```
 game/agentController.js
@@ -104,7 +104,7 @@ Exposed as UI controls in `editor/difficulty_bot.html`, all before hitting
   **"ability tier"** concept worth adding here since it doesn't exist yet:
   a simple 1-3 knob that scales tunable constants already exposed as
   live `var`s (dash speed/cooldown, attack cooldown, max health — see
-  `Plans/CLAUDE.md`'s note that "almost all tunable numbers are named
+  `CLAUDE.md`'s note that "almost all tunable numbers are named
   consts") so you can ask "how hard is this boss for a player who *has*
   Phase Dash + full health vs. one who's undergeared." This is the actual
   point of making it customizable — difficulty isn't one number, it's a
@@ -283,7 +283,7 @@ and `POSE_RENDERERS` already implements draw functions for all three
 `Animator` or these pose names at all — it's still driving off the legacy
 manual timer/hitbox path (`attackVFX.js`), same as the rest of the
 not-yet-migrated entities per the "migration is deliberate per-entity
-work" note in `Plans/CLAUDE.md`'s architecture map.
+work" note in `CLAUDE.md`'s architecture map.
 
 **Plan**: this is the animation-system migration for the player's attack,
 specifically. Steps:
@@ -311,7 +311,7 @@ touching the actual input-to-hitbox-to-cancel pipeline for the player's
 core attack, not just adding a new independent system. Do this in its own
 session with nothing else in flight, and re-run `debug_v1.html` afterward
 (input/state-transition changes are explicitly called out in
-`Plans/CLAUDE.md` as needing a manual debug-console pass).
+`CLAUDE.md` as needing a manual debug-console pass).
 
 ### 2c. Attack input buffering during recovery frames
 

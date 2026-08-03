@@ -165,7 +165,7 @@ Stillpoint's room AND Room 2 both mandatory, no new soft-lock entries.
 - Timeline X Roads Room 2's Void Tether grant should be a real
   irreversible "give up the Child / keep the Child forever" choice —
   matches the game's established irreversible-consent-gated-choice
-  pattern (`Plans/CLAUDE.md`). Keep this framing.
+  pattern (`CLAUDE.md`). Keep this framing.
 - The arrest/prison plot point itself (the narrative beat) is good and
   worth keeping — only the graph wiring needs to land on variant (3c)
   above (or a refinement of it) before committing it to the real files.

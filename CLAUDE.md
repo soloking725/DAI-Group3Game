@@ -39,32 +39,32 @@ dash) and directional melee combat.
 
 ## Read these first (in this order)
 
-1. **`performanceInstructions.md`** — standing engineering rules for every
+1. **`Plans/performanceInstructions.md`** — standing engineering rules for every
    session (performance discipline, file organization, keep debug tools
    working, update the plan doc, ask before big refactors). Treat this as
    binding.
-2. **`roadmap.md`** — the actual dev-status changelog: what's done, what's
+2. **`Plans/roadmap.md`** — the actual dev-status changelog: what's done, what's
    partial, what's not started, and *why* things were built the way they
    were (bug fixes, decisions, deviations from plan). This is the
    single most important doc for "what state is the code actually in."
    **Update it whenever you finish work**, in the same style as existing
    entries (checkboxes + a short prose note, not just a checkbox flip).
-3. **`expansion.md`** — the forward-looking design plan (new abilities,
+3. **`Plans/expansion.md`** — the forward-looking design plan (new abilities,
    26+2 enemy roster, 13 new regions, 8 minibosses, post-game). This is
-   aspirational/planned, not built — cross-check against `roadmap.md` and
+   aspirational/planned, not built — cross-check against `Plans/roadmap.md` and
    `area.js` before assuming something described here exists in code.
-4. **`BUG_ANALYSIS_AND_QA_PLAN.md`** — known bug inventory (severity-rated,
+4. **`Plans/BUG_ANALYSIS_AND_QA_PLAN.md`** — known bug inventory (severity-rated,
    with file/line references) plus the manual playtest protocol and
    automated test suite design. Check here before assuming a weird
    behavior is new.
 
 Other design docs, read as needed for their specific topic:
-- `story.md` — narrative/companion-character system (large, not yet built
+- `Plans/story.md` — narrative/companion-character system (large, not yet built
   — no code currently implements the companion, endings, or Fracture Pip
   economy described there; it's a design doc, not a status doc). Contains
   the newest planned ability, **Void Tether** (§4) — newer than
   expansion.md's Graviton Surge, itself still unbuilt.
-- `lore.md` — a real, substantive narrative doc. Rewritten 2026-07-12: the
+- `Plans/lore.md` — a real, substantive narrative doc. Rewritten 2026-07-12: the
   Sovereign (renamed from "the King" 2026-07-13 — see her own revision
   history) is a deliberate conqueror-villain (fused every Stillpoint into
   one on purpose, still actively hunting the companion child from
@@ -87,39 +87,39 @@ Other design docs, read as needed for their specific topic:
   being updated. `game/archive/game.js` (dead code, not `<script>`'d
   anywhere — see `Plans/engineering_todo.md`'s Structural issues) still
   has old `King` text; not touched, since renaming inside frozen/dead code
-  has no payoff. `roadmap.md`'s changelog entries intentionally keep
+  has no payoff. `Plans/roadmap.md`'s changelog entries intentionally keep
   "King" where they're describing what was true at the time — not part of
   this rename, don't touch those either. "The Mirror King" (`hollow_
   guardian` miniboss, `class MirrorKing`) is a different, deliberately-
-  named character per `lore.md` — unrelated to this rename, left as-is
+  named character per `Plans/lore.md` — unrelated to this rename, left as-is
   everywhere.
-- `movement_feel_plan.md` — proposal (not started) for pushing player
+- `Plans/movement_feel_plan.md` — proposal (not started) for pushing player
   movement toward a faster, more fluid ("late Celeste") feel — dash-
   refill-on-landing as the priority lever, camera look-ahead, and matching
   enemy pacing. Flags that raising base speed constants requires a full
   `validateAllRoomLayouts()` re-run since the linter simulates physics
   against those exact constants — read this before touching
   `MOVE_SPEED`/`DASH_SPEED`/dash-cooldown behavior.
-- `human_proportions_plan.md` — proposal (not started, 2026-07-26), written
+- `Plans/human_proportions_plan.md` — proposal (not started, 2026-07-26), written
   as a discussion doc analyzing what giving the player (and possibly the
   cast) real human-scale proportions (reference given: Ike from Smash
   Ultimate — tall, broad, muscular) instead of the current abstract 24×32
   rectangle would ripple into: art production cost, hurtbox/collision
   geometry (a full `validateAllRoomLayouts()` re-run, same class of risk
-  `movement_feel_plan.md` already flags for a smaller change), movement
+  `Plans/movement_feel_plan.md` already flags for a smaller change), movement
   feel, enemy/world scale (directly interacts with the "Sovereign should
   always read as stronger than you" design note elsewhere in this file),
   and tonal fit against the game's declared Hollow Knight/Celeste/Hyper
   Light Drifter visual references, which all use small, non-realistic
   silhouettes on purpose. Ends with open questions for the user, not a
   plan of record — nothing here is scoped for implementation yet.
-- `cave_design_plan.md` — "how to make rooms read as a cave, not a
+- `Plans/cave_design_plan.md` — "how to make rooms read as a cave, not a
   platform gauntlet" research notes; informed the Crag of the Colossus
   build. Largely superseded for new work by the Task 4 decoration system
   (`REGION_STYLES`/`decorateRoomForRegion()` in game_entities.js — see roadmap.md
   Phase 9) for anything region-specific; still the right reference for
   cave-floor/no-fall-death philosophy generally.
-- `room_verification_tool_plan.md` — reachability/safety linter for rooms.
+- `Plans/room_verification_tool_plan.md` — reachability/safety linter for rooms.
   **Components 1 (static linter) and 3 (Spawn button) built, 2026-07-29**:
   `game/roomVerify.js` (reachability flood-fill via real jump/dash/phase-
   dash physics, floor-gap/embedded-door/one-sided-door checks), runnable
@@ -129,23 +129,23 @@ Other design docs, read as needed for their specific topic:
   `applyDevSpawnOverride()` in `game_boot_save.js` — `?spawnRoom=<id>`
   boots straight into any room, no save touched. **Component 2 (headless
   bot walker) still not built** — `debug_v1.html`'s R09–R11 checks remain
-  the only down-payment on that piece. See `roadmap.md`'s tail entry for
+  the only down-payment on that piece. See `Plans/roadmap.md`'s tail entry for
   full detail on what each check does and its known false-positive class.
-- `floor_plan.md` — **official, 2026-07-13**: the full-game room-to-room
+- `Plans/floor_plan.md` — **official, 2026-07-13**: the full-game room-to-room
   connection graph (origin spine + all 3 built regions + all 10 planned
   regions), as a mermaid flowchart. Topology only — door-by-door connections,
   fast travel nodes, ability gates, pip/upgrade placement per room. Doesn't
-  replace `regions.md` (mechanical effect, miniboss assignment, cluster
+  replace `Plans/regions.md` (mechanical effect, miniboss assignment, cluster
   position) — the two are meant to be read together. Reinstates Mirror
-  Corridor (see `regions.md`'s connective-content section). Static Field
-  gained a new miniboss, The Conduit (see `lore.md`) — it briefly also
+  Corridor (see `Plans/regions.md`'s connective-content section). Static Field
+  gained a new miniboss, The Conduit (see `Plans/lore.md`) — it briefly also
   granted a new ability, Magnet Climb, which was removed 2026-07-14 along
   with the Antechamber's ability-gate requirement. Contains "Sovereign Room"
-  nodes for `story.md` §9's Sovereign Ending postgame arc — rescoped
+  nodes for `Plans/story.md` §9's Sovereign Ending postgame arc — rescoped
   2026-07-14 from far-future/unscoped to real planned (if unbuilt) content,
   see roadmap.md 5.9 — still no room-by-room design yet, so don't build
   against them without a fuller pass first.
-- `regions.md` — the single planning reference for world layout: which of
+- `Plans/regions.md` — the single planning reference for world layout: which of
   the 13 expansion.md regions exist (built or planned), cluster/col/row,
   room counts, miniboss assignment, and each region's special effect.
   Rebuilt 2026-07-13 to fold in the col/row/cluster data that used to only
@@ -156,12 +156,12 @@ Other design docs, read as needed for their specific topic:
   exports the live world graph to yEd's GraphML format — the actual answer
   to "is there a tool to plan the map spatially," no custom tool needed)
   and `levelEditor.html` for individual room detail.
-- `session_priorities.md` — an ordered task docket for a specific work
+- `Plans/session_priorities.md` — an ordered task docket for a specific work
   session (checkbox list, not a permanent design doc). Once fully consumed
   its "recommended order" reasoning should be folded into roadmap.md and
   the file itself archived/retired — don't treat it as a standing doc the
   way roadmap.md/expansion.md are.
-- `enemy_attack_vocabulary_plan.md` — the newest, best-maintained plan doc
+- `Plans/enemy_attack_vocabulary_plan.md` — the newest, best-maintained plan doc
   (self-updating dated status entries through 2026-07-20): new enemy attack
   verbs (Reversal, Aggro-Pull, The Catch, Tiger Knee, Afterimage Strike,
   Mote Eater) layered on the Phase 19 AI/defense-verb base. Most of it is
@@ -182,8 +182,8 @@ Other design docs, read as needed for their specific topic:
   `anim_editor.html` — one section per region with a live, code-derived
   room table (size/connections/enemies/pips) plus that region's mechanic,
   miniboss, local tragedy, Hunt-thread one-liner, and hazard/puzzle ideas,
-  all cross-referenced back to `floor_plan.md`/`regions.md`/`lore.md`/
-  `expansion.md`/`story.md` rather than duplicating them. Also has the
+  all cross-referenced back to `Plans/floor_plan.md`/`Plans/regions.md`/`Plans/lore.md`/
+  `Plans/expansion.md`/`Plans/story.md` rather than duplicating them. Also has the
   full built-enemy/built-miniboss roster reference and the current pip-
   economy counts (Fracture/Lore/Extra-Customization) in one place. Its
   ground-truth tables go stale the moment `area.js` changes — regenerate
@@ -224,7 +224,7 @@ shells (`node Plans/room_progress.js --full` for the live count).
 
 - **Irreversible, consent-gated choices are an intentional throughline
   (named 2026-07-14).** Recurring pattern across the design docs: Void
-  Tether (leaving the child at the entrance is now permanent, `story.md`
+  Tether (leaving the child at the entrance is now permanent, `Plans/story.md`
   §4), the proposed Hollow Core secret ending-path (explicit "are you sure"
   warning before an irreversible commitment), the proposed pacifist
   region (fighting even once forfeits the reward forever). Not a unique
@@ -248,7 +248,7 @@ shells (`node Plans/room_progress.js --full` for the live count).
   environmental storytelling. Data and code paths are left intact —
   don't delete them, and don't flip the flag without being asked.
 - **No fall-death as the default difficulty lever.** New rooms should use
-  continuous cave floors (see `cave_design_plan.md`); pits are reserved
+  continuous cave floors (see `Plans/cave_design_plan.md`); pits are reserved
   for rooms that deliberately want that hazard, via an explicit
   `pitDeathY` override, not an inferred one.
 - **No lock-and-key gating (flagged 2026-07-12).** A door should be
@@ -258,7 +258,7 @@ shells (`node Plans/room_progress.js --full` for the live count).
   `requires: 'phase_dash'` already works everywhere in `area.js` today.
   Hollow Knight reference point: mantis-jump-gated ledges and dash-gated
   gaps, not literal locked doors with a key on the other side of the map.
-  **Known conflict, not yet resolved**: `expansion.md`'s Warp Gate Nexus
+  **Known conflict, not yet resolved**: `Plans/expansion.md`'s Warp Gate Nexus
   (§3.11, and the cross-link table in §3.13b) is planned to open "after
   collecting 3 Keystones" — a literal key mechanic. Not built yet. Revisit
   this with the user before implementing it as written; it may need
@@ -297,9 +297,12 @@ The repo root used to be flat (every `.js`/dev-tool `.html` alongside
   tags now read `../game/foo.js`. `export_graph.js` (a Node CLI, not
   loaded by any page) resolves its `../game/area.js` / `../world_map.graphml`
   defaults off `__dirname`, so it works regardless of the caller's cwd.
-- `Plans/` — unchanged, all planning docs (this file included).
+- `Plans/` — unchanged, all planning docs.
 - Root — `index.html`, `world_map.graphml` (an export artifact, not a
-  tool — nothing loads it programmatically), `Enemy_Design.pdf`.
+  tool — nothing loads it programmatically), `Enemy_Design.pdf`, and this
+  file (`CLAUDE.md` — moved here from `Plans/` on 2026-08-02 so Claude Code
+  auto-loads it at session start; every `Plans/*.md` reference below is
+  written as a full `Plans/foo.md` path accordingly).
 
 `index.html`'s own script tags now read `game/foo.js` (it didn't move, so
 these are still simple root-relative paths, just one folder deeper than
@@ -448,16 +451,16 @@ Tether from Q/E/R to A/S/D** — a real, user-facing keybind change.
 - `validateAreaGraph()` runs on load and console-errors on: doors not on
   the correct edge, missing targets, col/row adjacency mismatches, and
   missing reverse connections for two-way doors. Keep new rooms passing
-  this — it's cheap and catches real bugs (see `roadmap.md` Phase 7 for
+  this — it's cheap and catches real bugs (see `Plans/roadmap.md` Phase 7 for
   examples of bugs it would have caught).
 - Room-sizing philosophy: **few large, multi-tier rooms with internal
   branching**, not many small single-gimmick rooms — see
-  `expansion.md` §3.15. Reserve real doors (`transitions`/`connections`)
+  `Plans/expansion.md` §3.15. Reserve real doors (`transitions`/`connections`)
   for genuine region boundaries or pre-boss checkpoints.
 - `pitDeathY` is an explicit per-room override in `game_update.js`'s death check
   — don't rely on inferring it from `groundY` (a past bug: a hardcoded
   600px-kill-plane heuristic killed players in tall rooms with real
-  floors below y:600; see `roadmap.md` Phase 7).
+  floors below y:600; see `Plans/roadmap.md` Phase 7).
 
 ### Combat / physics constants
 
@@ -472,7 +475,7 @@ starts) prevents a multi-frame attack hitbox from damaging the same
 target every overlapping frame. Any new damage-dealing hit loop (enemy,
 boss, miniboss, destructible wall) must check/add to this set the same
 way the existing loops in `game.js` do — see `BUG-001` in
-`BUG_ANALYSIS_AND_QA_PLAN.md` for what happens if you don't.
+`Plans/BUG_ANALYSIS_AND_QA_PLAN.md` for what happens if you don't.
 
 ### Boss/miniboss death pattern — a real gotcha
 
@@ -512,7 +515,7 @@ gate only the damage checks on `!dead`.
   session_priorities.md's former #8), and a "Diff vs Saved" comparison —
   still no `region`-driven decoration *preview* (Task 4's palette/cave
   styling only renders in the real game, not this editor's canvas) — see
-  `roadmap.md`'s own "WHAT'S ACTUALLY NEXT"/tail section for the
+  `Plans/roadmap.md`'s own "WHAT'S ACTUALLY NEXT"/tail section for the
   prioritized next-session list (`Plans/archive/level_editor_guide.md` is
   the older, now-superseded version of this same punch list).
   **Correction, 2026-08-01**: this section previously claimed "still no UI
@@ -536,7 +539,7 @@ gate only the damage checks on `!dead`.
   `tryDrawPointObjectAnim()` bridge, since those are bare `{x,y}` with no
   `w`/`h`) — deliberately NOT added to Cosmetic Upgrade (no runtime draw
   function exists for those yet, so the field would be dead). See
-  `roadmap.md`'s tail entry for full detail.
+  `Plans/roadmap.md`'s tail entry for full detail.
 - **`enemy_test.html`** — spawns any real enemy/miniboss class in an
   isolated flat arena with a chosen ability loadout, for balance/behavior
   testing without playing through the full game.
@@ -556,7 +559,7 @@ gate only the damage checks on `!dead`.
   same cell, making the rendered map genuinely unreadable. A real fix would
   mean redesigning the renderer to cluster/stack overlapping rooms instead
   of a flat grid — a rework, not a patch — and the user judged the tool low-
-  value even without the bug, so it was deleted rather than fixed. `regions.md`
+  value even without the bug, so it was deleted rather than fixed. `Plans/regions.md`
   (region-level cluster/col/row planning) and `graph_analyzer.html`/
   `levelEditor.html` (room-level detail) remain the right tools for this.
 - **`anim_editor.html`** — NEW (2026-07-16): frame-strip animation/hitbox
@@ -569,7 +572,7 @@ gate only the damage checks on `!dead`.
   handler that now auto-creates a sized placeholder for a brand-new key
   (previously only worked for already-authored keys) — the latter is what
   makes `levelEditor.html`'s new per-object "Edit Animation →" buttons a
-  real one-click flow. See `roadmap.md`'s tail entry for full detail.
+  real one-click flow. See `Plans/roadmap.md`'s tail entry for full detail.
 - **`combo_editor.html`** — NEW: visual editor for `game/combo.js`'s
   `COMBO_DEFS` (steps from the documented action vocabulary, per-step
   frame windows, rewards). Same save/export pattern.
@@ -686,7 +689,7 @@ gate only the damage checks on `!dead`.
   (thumbnail + duration + reorder/delete + "+ Add Frame", reusing
   `RoomImageStore` exactly like the existing single-image upload). A layer
   with no `frames` (every layer before this) is untouched — falls straight
-  back to the original single-`imageId` path. See `roadmap.md`'s tail
+  back to the original single-`imageId` path. See `Plans/roadmap.md`'s tail
   entry for the full writeup, including a real `stripPreview()`/
   `pushFullLiveState()` gotcha this caught (per-frame preview blobs needed
   the same strip/re-prime treatment the layer-level image already had).
@@ -721,7 +724,7 @@ gate only the damage checks on `!dead`.
   `levelEditor.html` per region. **Corrected same session**: the first pass
   wrongly claimed `loreFragments` had no `mode` field and reported Lore vs.
   Extra/Customization Pips as unsplittable — a bad grep plus trusting
-  `regions.md`'s stale line over `room_design_bible.md`'s correct one. The
+  `Plans/regions.md`'s stale line over `Plans/room_design_bible.md`'s correct one. The
   split is real and fully wired already: `game_update.js`'s pickup handler
   and `levelEditor.html`'s pip inspector both branch live on
   `loreFragments[].mode` (`'overlay'`/`'cutscene'` = Lore, `'none'` = Extra,
@@ -729,7 +732,7 @@ gate only the damage checks on `!dead`.
   (2026-07-29). The panel now reads the real field: 18/15 Lore Pips, 0/15
   Extra Pips (0 only because none are placed yet, not because the field is
   missing). `cosmeticUpgrades` (a separate rare/cosmetic mechanic, ~4
-  target) stays its own row. See `roadmap.md`'s tail entry for full detail.
+  target) stays its own row. See `Plans/roadmap.md`'s tail entry for full detail.
   **v2 (per-room drill-down + Spawn-button links, "suggested next"
   heuristic) not built**, deferred per the plan's own scope staging.
 - **`Plans/cutscene_editor_plan.md`** — **v1 built, 2026-07-30**:
@@ -756,13 +759,13 @@ gate only the damage checks on `!dead`.
   every other tool loading `cutscene.js` pick up edits with no code change.
   Wired into `dev_hub.html` (Level Design group + Live Overrides panel).
   Not tested in a browser per this repo's standing rule — see
-  `roadmap.md`'s tail entry for the full verification note. Complements,
-  doesn't overlap, `room_scene_editor_plan.md`'s cutscene-trigger placement
+  `Plans/roadmap.md`'s tail entry for the full verification note. Complements,
+  doesn't overlap, `Plans/room_scene_editor_plan.md`'s cutscene-trigger placement
   — that tool decides *where* a cutscene fires, this one authors *what's in
   it*.
 
 If you touch input handling, area data shape, or add a new game state,
-run the relevant debug page manually — per `performanceInstructions.md`,
+run the relevant debug page manually — per `Plans/performanceInstructions.md`,
 breaking these silently is treated as a regression.
 
 **Known debug-tool issues (pre-existing, not from recent sessions):**
@@ -783,27 +786,27 @@ separate key, `stillpoint_settings_v1`. See `saveGame()`/`loadGame()` in
 to also update it in both the save and load functions, plus
 `startNewGame()`'s reset path.
 
-## Current status (see `roadmap.md` for full detail — corrected 2026-07-12,
+## Current status (see `Plans/roadmap.md` for full detail — corrected 2026-07-12,
 the note below about Phase 1.8 was stale; this is exactly the kind of drift
-this section is prone to, so **always trust `roadmap.md`'s own tail end
+this section is prone to, so **always trust `Plans/roadmap.md`'s own tail end
 ("NEXT SESSION SHOULD") over this summary**, not the other way around)
 
 - Phase 0 (core UX/QoL) and Phase 1.1–1.8 (movement/combat overhaul,
   including 1.8 Dash Refund on Hit) are done.
 - Crag of the Colossus (a full region: 4 rooms + Colossus Core miniboss)
-  is built and live-verified — see `roadmap.md` Phase 7 for the bugs
+  is built and live-verified — see `Plans/roadmap.md` Phase 7 for the bugs
   found/fixed while building it.
 - 3 of the 13 expansion.md spacetime regions (Mirror Veil, Event Horizon,
   Chrono-Space Rift) have their special *mechanical* effect built, and are
   further along visually (Task 4 cave-aesthetic pass, 2 of Mirror Veil's
   abilities/enemies placed). **Corrected 2026-07-21**: all 13 regions now
   exist as real `AREAS{}` entries (71 rooms total) — the 2026-07-17 SVG
-  rebuild (`roadmap.md` Phase 20) scaffolded the other 10 as flat SHELL
+  rebuild (`Plans/roadmap.md` Phase 20) scaffolded the other 10 as flat SHELL
   rooms (geometry/doors only, no mechanical effect or hand-design yet). Run
   `node Plans/room_progress.js --full` for the live per-room state. The
-  rest of the 26+2 enemy roster and the 8 minibosses in `expansion.md` are
-  still **planned, not built**. See `roadmap.md` Phase 9/10/20 and
-  `regions.md` for detail.
+  rest of the 26+2 enemy roster and the 8 minibosses in `Plans/expansion.md` are
+  still **planned, not built**. See `Plans/roadmap.md` Phase 9/10/20 and
+  `Plans/regions.md` for detail.
 - 5 new enemies (Null Sentinel, Anchor Wraith, Deflector Drone, Mirror
   Sprite, Echo Stalker) are built in `enemy.js`, spawnable via
   `enemy_test.html`/`enemy_editor.html` (new tool — see Dev/debug tooling
@@ -813,19 +816,19 @@ this section is prone to, so **always trust `roadmap.md`'s own tail end
   (incl. BlitzGuard); placing them is open level-design work. Two known balance issues open: BUG-013
   (Stillpoint) and BAL-001 (Phase Dash's echo-distraction) — both partially
   addressed this session but need a human playtest to confirm, see
-  `BUG_ANALYSIS_AND_QA_PLAN.md`.
+  `Plans/BUG_ANALYSIS_AND_QA_PLAN.md`.
 - The King's death-timer gating bug (victory could never fire) is fixed —
   see the boss/miniboss death pattern section above for the pattern to copy.
 
 ## When making changes
 
-- Follow `performanceInstructions.md`: no per-frame allocations, profile
-  before optimizing, keep files organized by feature, update `roadmap.md`
+- Follow `Plans/performanceInstructions.md`: no per-frame allocations, profile
+  before optimizing, keep files organized by feature, update `Plans/roadmap.md`
   when you finish something, don't break debug tools.
 - New rooms: give them `col`/`row`, real `connections[]` entries, run
   `validateAreaGraph()` (automatic on load — check the console), prefer
   the "few big rooms" pattern, default to no fall-death.
 - New enemies/bosses: follow the per-swing hit dedup pattern and the
   correct dead-gating pattern (see above) — don't copy the King's bug.
-- Design-doc conflicts: `roadmap.md` reflects actual code state and wins
-  over `expansion.md`/`story.md` when they disagree about what exists.
+- Design-doc conflicts: `Plans/roadmap.md` reflects actual code state and wins
+  over `Plans/expansion.md`/`Plans/story.md` when they disagree about what exists.

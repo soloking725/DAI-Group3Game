@@ -36,7 +36,7 @@ const ACTION_NAMES = [
 // game_state.js's ABILITY_GRANTS key→abilityState-flag map, snapshotted here
 // (not loaded live — game_state.js can't load in this editor without a
 // canvas#game element, same reason minibossRegistry.js avoids it, see
-// Plans/CLAUDE.md). Regenerate by hand if a new grantable ability is added.
+// CLAUDE.md). Regenerate by hand if a new grantable ability is added.
 const ABILITY_FLAG_MAP = {
   phase_dash: 'hasPhaseDash',
   shard_shot: 'hasShardShot',

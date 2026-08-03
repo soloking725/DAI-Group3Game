@@ -336,6 +336,7 @@ class Enemy {
       this.breakoutCharge -= _ts;
       if (this.breakoutCharge <= 0) {
         this.breakoutBurstPending = true; // game.js applies the player shove + VFX
+        if (typeof SFX !== 'undefined' && SFX.defenseVerb) SFX.defenseVerb();
         this.hitStun = 0;                 // escapes the juggle
         this.juggling = false;
         this.juggleHits = 0;
@@ -363,6 +364,7 @@ class Enemy {
         this.blocking = d.block.guardFrames ?? 26;
         this.guardCooldown = d.block.cooldown ?? 120;
         this.vx = 0;
+        if (typeof SFX !== 'undefined' && SFX.defenseVerb) SFX.defenseVerb();
       } else if (d.dodge && this.dodgeCooldown <= 0 &&
                  dist < (d.dodge.range ?? 90) && Math.random() < (d.dodge.chance ?? 0.35)) {
         const away = px > ex ? -1 : 1;
@@ -377,6 +379,7 @@ class Enemy {
           this.vy = (Math.random() < 0.5 ? -1 : 1) * 4;
           this.dodgeIFrames = d.dodge.iframes ?? 18;
           this.dodgeCooldown = d.dodge.cooldown ?? 150;
+          if (typeof SFX !== 'undefined' && SFX.defenseVerb) SFX.defenseVerb();
         } else if (this.grounded) {
           // Telegraphed back-hop with brief i-frames — fixed landing
           // recovery is the punish window; baiting it out (swing, wait,
@@ -387,6 +390,7 @@ class Enemy {
             this.grounded = false;
             this.dodgeIFrames = d.dodge.iframes ?? 18;
             this.dodgeCooldown = d.dodge.cooldown ?? 150;
+            if (typeof SFX !== 'undefined' && SFX.defenseVerb) SFX.defenseVerb();
           }
         }
       }
@@ -426,6 +430,7 @@ class Enemy {
         }
         this.dodgeIFrames = d.rangedDodge.iframes ?? 20;
         this.dodgeCooldown = d.rangedDodge.cooldown ?? 90;
+        if (typeof SFX !== 'undefined' && SFX.defenseVerb) SFX.defenseVerb();
         break;
       }
     }
@@ -990,13 +995,19 @@ class FracturedSlime {
             this.state = 'charging';
             this.stateTimer = 30;
             this.vx = this.facing * SLIME_SPEED * 2;
-            if (typeof SFX !== 'undefined') SFX.enemyTelegraphHeavy();
+            if (typeof SFX !== 'undefined') {
+              SFX.enemyTelegraphHeavy();
+              if (SFX.slimeSquelch) SFX.slimeSquelch();
+            }
           } else if (this.grounded) {
             this.state = 'hopping';
             this.stateTimer = 20;
             this.vy = -7;
             this.vx = this.facing * SLIME_SPEED;
-            if (typeof SFX !== 'undefined') SFX.enemyHop();
+            if (typeof SFX !== 'undefined') {
+              SFX.enemyHop();
+              if (SFX.slimeSquelch) SFX.slimeSquelch();
+            }
           }
         }
         break;
@@ -1642,6 +1653,10 @@ const MOVEMENT_BEHAVIORS = {
         enemy.x = Math.max(bounds.left, Math.min(enemy.x, bounds.right - enemy.width));
         enemy._mState.blinkCooldown = p.cooldown;
         enemy._blinkFlash = 15;
+        // Optional per-def blink sound (p.sfxBlink) — Assembler/Undertow tag
+        // theirs 'portalDoor' since it's a literal portal, not a personal
+        // teleport like Stutterer/EchoStalker (those stay silent-blink).
+        if (p.sfxBlink && typeof SFX !== 'undefined' && SFX[p.sfxBlink]) SFX[p.sfxBlink]();
         if (typeof spawnParticlesAt !== 'undefined') spawnParticlesAt(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#a78bfa', 6);
       }
       if (enemy._blinkFlash > 0) enemy._blinkFlash -= _ts;
@@ -2130,6 +2145,7 @@ const ATTACK_BEHAVIORS = {
     onFire(enemy, player, atkDef) {
       const choices = atkDef.directions.filter((d) => d !== enemy.roomGravityDir);
       enemy.roomGravityDir = choices[Math.floor(Math.random() * choices.length)];
+      if (typeof SFX !== 'undefined' && SFX.gravityFlip) SFX.gravityFlip();
       if (typeof spawnParticles !== 'undefined') {
         spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color, 20);
       }
@@ -2473,7 +2489,13 @@ class ComposedEnemy extends Enemy {
     this._wallNormal = 0; // cached each physics resolve, read by the 'near_wall' attack condition
 
     this.movement = { ...MOVEMENT_BEHAVIORS[def.movement?.type]?.params, ...def.movement }; // per-instance clone — safe for rage to mutate
-    this._movementFlies = def.movement?.type === 'hover' || def.movement?.type === 'teleport_blink';
+    // `grounded: true` on a teleport_blink def (Stutterer) opts back INTO
+    // gravity/platform collision between blinks — the blink itself still
+    // snaps x/y instantly (see teleport_blink.run()), but the enemy then
+    // falls/rests on the floor like a normal melee enemy instead of holding
+    // position in mid-air. Other teleport_blink enemies (EchoStalker etc.)
+    // don't set this and keep the original always-airborne behavior.
+    this._movementFlies = def.movement?.type === 'hover' || (def.movement?.type === 'teleport_blink' && !def.movement?.grounded);
     this._mState = {};
 
     // Backward compat: old single `def.attack` becomes a 1-entry list.
@@ -2647,6 +2669,7 @@ class ComposedEnemy extends Enemy {
         this.shieldHp = 0;
         this.shieldBroken = true;
         this.shieldBreakTimer = this.shieldDef.breakDuration ?? 90;
+        if (typeof SFX !== 'undefined' && SFX.forceField) SFX.forceField();
         if (typeof spawnParticles !== 'undefined') spawnParticles(this.x + this.width / 2, this.y + this.height / 2, '#2dd4bf', 12);
       }
       return; // no health damage/knockback/death check while the shield absorbs it
@@ -2905,7 +2928,7 @@ class ComposedEnemy extends Enemy {
     if (phaseDef.movement) {
       Object.assign(this.movement, phaseDef.movement);
       if (phaseDef.movement.type !== undefined) {
-        this._movementFlies = this.movement.type === 'hover' || this.movement.type === 'teleport_blink';
+        this._movementFlies = this.movement.type === 'hover' || (this.movement.type === 'teleport_blink' && !this.movement.grounded);
       }
     }
 
@@ -3115,9 +3138,21 @@ class ComposedEnemy extends Enemy {
         this.windUpTimer = this.attacks[idx].windupFrames ?? 20;
         this.vx = 0;
         if (typeof SFX !== 'undefined') {
-          const heavy = this.attacks[idx].hyperArmor ||
-            ['dash_charge', 'command_grab', 'reversal'].includes(this.attacks[idx].type);
-          if (heavy) SFX.enemyTelegraphHeavy(); else SFX.enemyTelegraph();
+          // Which tell fires depends on the actual attack shape now, not
+          // just a heavy/light binary — grabs pull, ranged shots ping,
+          // heavy/hyperarmor attacks rumble, everything else gets the
+          // default melee tick. See SFX.enemyTelegraph*() in audio.js.
+          const atk = this.attacks[idx];
+          const heavy = atk.hyperArmor || ['dash_charge', 'reversal'].includes(atk.type);
+          if (atk.type === 'grab' || atk.type === 'command_grab') {
+            if (SFX.enemyTelegraphGrab) SFX.enemyTelegraphGrab(); else SFX.enemyTelegraphHeavy();
+          } else if (heavy) {
+            SFX.enemyTelegraphHeavy();
+          } else if (atk.type === 'ranged_projectile' || atk.type === 'beam') {
+            if (SFX.enemyTelegraphRanged) SFX.enemyTelegraphRanged(); else SFX.enemyTelegraph();
+          } else {
+            SFX.enemyTelegraph();
+          }
         }
       }
     }
@@ -3133,6 +3168,12 @@ class ComposedEnemy extends Enemy {
           this.attacking = true;
           this.attackTimer = atkDef.activeFrames ?? 20;
           behavior.onFire?.(this, player, atkDef);
+          // Optional per-attack identity sound (e.g. Stationmaster's
+          // dash_charge, sfxOnFire:'trainSweep') layered on top of the
+          // generic windup telegraph above — lets one shared attack type
+          // (dash_charge, gravity_flip, etc.) sound distinct per enemy
+          // without a bespoke onFire() override just for audio.
+          if (atkDef.sfxOnFire && typeof SFX !== 'undefined' && SFX[atkDef.sfxOnFire]) SFX[atkDef.sfxOnFire]();
         }
       } else if (this.attacking) {
         behavior.onTick?.(this, player, atkDef, _ts, bounds);
@@ -3652,7 +3693,11 @@ class WarScavenger extends ComposedEnemy {
 const STUTTERER_DEF = {
   id: 'stutterer',
   color: '#a78bfa',
-  movement: { type: 'teleport_blink', mode: 'interval', interval: 120, blinkDistance: 110, cooldown: 0 },
+  // grounded: true — unlike EchoStalker/other teleport_blink enemies, the
+  // Stutterer is a ground melee harasser, not a flier: it should fall to
+  // and stand on the floor between blinks instead of holding at whatever
+  // y it last blinked to (see _movementFlies in ComposedEnemy's ctor).
+  movement: { type: 'teleport_blink', mode: 'interval', interval: 120, blinkDistance: 110, cooldown: 0, grounded: true },
   attacks: [{ type: 'melee_swing', range: ENEMY_ATTACK_RANGE * 2.5, windupFrames: ENEMY_WINDUP_FRAMES, activeFrames: 20, cooldown: ENEMY_ATTACK_COOLDOWN + 30, damage: ENEMY_DAMAGE }],
   stats: { health: ENEMY_HEALTH },
 };
@@ -3950,10 +3995,11 @@ const CONDUIT_DEF = {
   movement: { type: 'ground_chase', speed: 1.4, patrolSpeed: 0.6 },
   attacks: [
     { type: 'ranged_projectile', range: 380, windupFrames: 30, activeFrames: 18, cooldown: 90,
-      damage: 1, projectileSpeed: 4, pattern: 'homing', homingDuration: 40, color: '#a5b4fc', weight: 2 },
+      damage: 1, projectileSpeed: 4, pattern: 'homing', homingDuration: 40, color: '#a5b4fc', weight: 2,
+      sfxOnFire: 'electricAbility' }, // "her tell is electricity, not scale" — see CONDUIT_DEF comment
     { type: 'ranged_projectile', range: 300, windupFrames: 34, activeFrames: 18, cooldown: 130,
       damage: 1, projectileSpeed: 3.5, pattern: 'spread', projectileCount: 3, spreadAngle: 40,
-      color: '#6558F5', weight: 1 },
+      color: '#6558F5', weight: 1, sfxOnFire: 'electricAbility' },
   ],
   stats: { health: 26, knockbackResistance: 0.2 },
   phases: [
@@ -4071,7 +4117,9 @@ const ASSEMBLER_DEF = {
   id: 'paradox_engine',
   displayName: 'The Assembler',
   color: '#fb923c',
-  movement: { type: 'teleport_blink', mode: 'interval', interval: 150, blinkDistance: 90, cooldown: 70 },
+  // sfxBlink:'portalDoor' — her portal, not a personal teleport like
+  // Stutterer/EchoStalker (see teleport_blink.run() in MOVEMENT_BEHAVIORS).
+  movement: { type: 'teleport_blink', mode: 'interval', interval: 150, blinkDistance: 90, cooldown: 70, sfxBlink: 'portalDoor' },
   attacks: [
     { type: 'dash_charge', range: 260, windupFrames: 26, activeFrames: 18, cooldown: 130,
       damage: 2, chargeSpeed: 9, knockbackX: 6, knockbackY: -5, knockbackHitStun: 14, weight: 2 }, // slam
@@ -4134,7 +4182,8 @@ const STATIONMASTER_DEF = {
   movement: { type: 'ground_chase', speed: 1.0, patrolSpeed: 0.5 },
   attacks: [
     { type: 'dash_charge', range: 500, windupFrames: 40, activeFrames: 14, cooldown: 160,
-      damage: 3, chargeSpeed: 13, knockbackX: 8, knockbackY: -5, knockbackHitStun: 18, weight: 2 }, // locomotive sweep
+      damage: 3, chargeSpeed: 13, knockbackX: 8, knockbackY: -5, knockbackHitStun: 18, weight: 2,
+      sfxOnFire: 'trainSweep' }, // locomotive sweep
     { type: 'melee_swing', damage: 2, cooldown: 100, weight: 2 },
   ],
   stats: { health: 30, knockbackResistance: 0.15, ignoreVertical: true },
@@ -4366,6 +4415,7 @@ class ElectromagneticGolem extends ComposedEnemy {
     this._clearCharge();
     const area = typeof getCurrentArea !== 'undefined' ? getCurrentArea() : null;
     if (!area) return;
+    if (typeof SFX !== 'undefined' && SFX.forceField) SFX.forceField();
     const polarity = Math.random() < 0.5 ? 'positive' : 'negative';
     for (const plat of area.platforms) {
       if (!plat.magnetizable) continue;
@@ -4762,12 +4812,15 @@ const UNDERTOW_DEF = {
   id: 'void_expanse_boss',
   displayName: 'The Undertow',
   color: '#1a0b2e',
-  movement: { type: 'teleport_blink', mode: 'interval', interval: 160, blinkDistance: 200, cooldown: 80 },
+  // sfxBlink:'portalDoor' — "moves through the void at will," same portal
+  // identity as The Assembler's, not a personal teleport (see comment there).
+  movement: { type: 'teleport_blink', mode: 'interval', interval: 160, blinkDistance: 200, cooldown: 80, sfxBlink: 'portalDoor' },
   attacks: [
     { type: 'ranged_projectile', range: 380, windupFrames: 32, activeFrames: 18, cooldown: 110,
       damage: 2, projectileSpeed: 4, pattern: 'homing', homingDuration: 45, color: '#4c1d95', weight: 2 },
     { type: 'ranged_projectile', range: 260, windupFrames: 40, activeFrames: 20, cooldown: 160,
-      damage: 0, pattern: 'gravity_well', wellRadius: 110, wellPull: 0.22, color: '#0f0620', weight: 1 },
+      damage: 0, pattern: 'gravity_well', wellRadius: 110, wellPull: 0.22, color: '#0f0620', weight: 1,
+      sfxOnFire: 'voidPull' }, // "steals what you hold dear" as a literal pulling current — see UNDERTOW_DEF comment
     { type: 'ranged_projectile', range: 340, windupFrames: 30, activeFrames: 16, cooldown: 140,
       damage: 1, projectileSpeed: 3.5, pattern: 'spread', projectileCount: 5, spreadAngle: 60, color: '#6d28d9', weight: 1 },
   ],

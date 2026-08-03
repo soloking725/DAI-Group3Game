@@ -57,9 +57,10 @@
   <h3>Save / export</h3>
   <button onclick="save()" style="width:100%; margin-bottom:4px">💾 Save to game (localStorage)</button>
   <button onclick="exportJSON()" style="width:100%; margin-bottom:4px">📋 Export JSON</button>
-  <button onclick="saveToFile()" style="width:100%; margin-bottom:4px">💽 Write to game_hud_menus.js (needs save-server)</button>
+  <button id="writeFileBtn" onclick="saveToFile()" style="width:100%; margin-bottom:4px">💽 Write to game_hud_menus.js (needs save-server)</button>
   <button class="danger" onclick="resetAll()" style="width:100%">Reset to defaults</button>
-  <div class="hint">"Save": the game reads this on next load (HUD_LAYOUT overrides in game_hud_menus.js). "Export": paste-ready values for game_hud_menus.js's HUD_LAYOUT if you want them permanent. "Write to file": same result as Export, but done for you — only works when running <code>node editor/save-server.js</code> and loading this page through http://localhost:8787. "Reset": clears the saved override AND restores defaults here — never touches the source file.</div>
+  <div class="hint">"Save": the game reads this on next load (HUD_LAYOUT overrides in game_hud_menus.js). "Export": paste-ready values for game_hud_menus.js's HUD_LAYOUT if you want them permanent. "Write to file": same result as Export, but done for you — only works when running <code>node editor/save-server.js</code> and loading this page through http://localhost:8787. Click twice to confirm. "Reset": clears the saved override AND restores defaults here — never touches the source file.</div>
+  <div id="status" style="min-height:34px; margin-top:6px; padding:7px 9px; border-radius:var(--radius-sm); font-size:11.5px; line-height:1.5; display:none;"></div>
   <textarea id="exportBox" placeholder="Export appears here…"></textarea>
 </div>
 
@@ -343,13 +344,25 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Save / export ───────────────────────────────────────────────────────────
+// Status is shown inline (not via alert/confirm) because embedded/preview
+// browser panes often auto-dismiss native dialogs without showing them,
+// which would silently no-op these actions.
+function showStatus(text, kind) {
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.style.display = 'block';
+  el.style.background = kind === 'error' ? 'var(--danger-dim)' : kind === 'warn' ? 'var(--bg-panel)' : 'var(--accent-glow-soft)';
+  el.style.color = kind === 'error' ? 'var(--danger)' : 'var(--fg)';
+  el.style.border = '1px solid ' + (kind === 'error' ? 'var(--danger-border)' : 'var(--border-hover)');
+}
+
 function save() {
   try {
     localStorage.setItem(HUD_LAYOUT_KEY, JSON.stringify(layout));
-    alert('Saved. The game applies this layout on next load.');
+    showStatus('✅ Saved to localStorage. The game applies this layout on next load.', 'ok');
     if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Saved layout', '');
     if (unsavedGuard) unsavedGuard.checkpoint();
-  } catch (e) { alert('Save failed (storage unavailable). Use Export instead.'); }
+  } catch (e) { showStatus('Save failed (storage unavailable). Use Export instead.', 'error'); }
 }
 function resetAll() {
   localStorage.removeItem(HUD_LAYOUT_KEY);
@@ -359,21 +372,42 @@ function resetAll() {
   if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Reset to defaults', '');
   if (unsavedGuard) unsavedGuard.checkpoint();
   if (historyMgr) historyMgr.push();
+  showStatus('↺ Reset to defaults (localStorage override cleared — game_hud_menus.js on disk was not touched).', 'warn');
 }
 function exportJSON() {
   const text = `// Paste over the HUD_LAYOUT values in game/game_hud_menus.js (and update the\n// DEFAULTS copy in editor/hud_editor.html to match).\nconst HUD_LAYOUT = ${JSON.stringify(layout, null, 2)};`;
   ExportPanel.write('exportBox', text, 'HUD Editor', 'Exported layout', '');
 }
+let writeArmed = false;
+let writeArmTimer = null;
+
 async function saveToFile() {
-  const changed = Object.keys(layout).filter((k) => JSON.stringify(layout[k]) !== JSON.stringify(DEFAULTS[k]) || !(k in DEFAULTS));
-  const summary = changed.length
-    ? `Elements changed from defaults: ${changed.join(', ')}`
-    : 'No elements differ from defaults — this will overwrite HUD_LAYOUT with the default values.';
-  const ok = confirm(
-    `This will directly overwrite the HUD_LAYOUT block in game/game_hud_menus.js on disk.\n\n${summary}\n\n` +
-    `A timestamped backup (.bak) is made first, and you can also revert with git. Proceed?`
-  );
-  if (!ok) return;
+  const btn = document.getElementById('writeFileBtn');
+
+  // Two-click confirm, done entirely in-page (no window.confirm/alert) —
+  // some embedded/preview browsers silently auto-dismiss native dialogs,
+  // which would make a confirm()-gated action look like it does nothing.
+  if (!writeArmed) {
+    const changed = Object.keys(layout).filter((k) => JSON.stringify(layout[k]) !== JSON.stringify(DEFAULTS[k]) || !(k in DEFAULTS));
+    const summary = changed.length
+      ? `Changed from defaults: ${changed.join(', ')}.`
+      : 'No elements differ from defaults — this will overwrite HUD_LAYOUT with the default values.';
+    showStatus(`⚠️ Click "Write to file" again to confirm overwriting game_hud_menus.js on disk. ${summary} (a .bak is made first)`, 'warn');
+    writeArmed = true;
+    btn.textContent = '💽 Click again to confirm write';
+    clearTimeout(writeArmTimer);
+    writeArmTimer = setTimeout(() => {
+      writeArmed = false;
+      btn.textContent = '💽 Write to game_hud_menus.js (needs save-server)';
+    }, 6000);
+    return;
+  }
+
+  writeArmed = false;
+  clearTimeout(writeArmTimer);
+  btn.textContent = '💽 Write to game_hud_menus.js (needs save-server)';
+  showStatus('Writing…', 'warn');
+
   try {
     const res = await fetch('http://localhost:8787/save-hud-layout', {
       method: 'POST',
@@ -382,13 +416,13 @@ async function saveToFile() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    alert(`Written to game/game_hud_menus.js.\nBackup: ${data.backup}`);
+    showStatus(`✅ Saved! Written to game/game_hud_menus.js. Backup: ${data.backup}`, 'ok');
     if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Wrote HUD_LAYOUT to disk', data.backup);
   } catch (e) {
-    alert(
-      `Could not write to disk: ${e.message}\n\n` +
-      `Is the save server running? Start it with:\n  node editor/save-server.js\n` +
-      `...and load this editor via http://localhost:8787/editor/hud_editor.html`
+    showStatus(
+      `❌ Could not write to disk: ${e.message}. Is the save server running? Start it with ` +
+      `"node editor/save-server.js" and load this editor via http://localhost:8787/editor/hud_editor.html`,
+      'error'
     );
   }
 }

@@ -8,7 +8,7 @@
 // branch (or the companion_test.html arena tool). game.js creates/updates/
 // draws the global `child` while active.
 //
-// Design rules (from the plan — do not quietly relax these):
+//  Design rules (from the plan — do not quietly relax these):
 //   * She can NEVER die, take damage, fall into pits permanently, block the
 //     player's movement, or soft-lock a room. Frustration kills attachment.
 //   * Enemies never target her (she's an anomaly outside the fracture).

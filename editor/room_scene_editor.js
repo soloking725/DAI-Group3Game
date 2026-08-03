@@ -17,7 +17,7 @@ function clone(o) { return typeof structuredClone === 'function' ? structuredClo
 // default VALUES always come from the live preview's own REGION_STYLES,
 // never duplicated here, so this can't drift out of sync with
 // game_entities.js). Same acceptable-duplication precedent as
-// hud_editor.html's DEFAULTS copy (see Plans/CLAUDE.md's dev-tooling notes).
+// hud_editor.html's DEFAULTS copy (see CLAUDE.md's dev-tooling notes).
 const REGION_STYLE_FIELDS = {
   mirror_veil: [
     { key: 'diamondSpacing', label: 'Diamond Spacing', min: 40, max: 400, step: 10 },

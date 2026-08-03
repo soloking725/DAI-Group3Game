@@ -1,12 +1,13 @@
-// Local-only save server (proof of concept, HUD editor only).
+// Local-only save server. Lets specific editors write straight to their
+// game/*.js source file instead of the copy-paste "Export JSON" flow.
 //
 // Run with:  node editor/save-server.js
-// Then load editor/hud_editor.html through http://localhost:8787/editor/hud_editor.html
-// (fetch() to this server won't work if the editor is opened via file://).
+// Then load editors through http://localhost:8787/editor/<name>.html
+// (fetch() to this server won't work if an editor is opened via file://).
 //
-// It does exactly one thing: replace the `const HUD_LAYOUT = { ... };` block
-// in game/game_hud_menus.js with a new object, and nothing else in the file.
-// Every write is preceded by a timestamped backup copy.
+// Each route below patches exactly one `const NAME = { ... };` block in one
+// target file, line by line, and nothing else in the file. Every write is
+// preceded by a timestamped backup copy.
 
 const http = require('http');
 const fs = require('fs');
@@ -14,24 +15,86 @@ const path = require('path');
 
 const PORT = 8787;
 const REPO_ROOT = path.resolve(__dirname, '..');
-const TARGET_FILE = path.join(REPO_ROOT, 'game', 'game_hud_menus.js');
-const BLOCK_RE = /const HUD_LAYOUT = \{[\s\S]*?\n\};/;
 
-const REQUIRED_KEYS = [
-  'healthHearts', 'areaLabel', 'bossBar', 'limitBreakBar',
-  'controlsHint', 'fracturePips', 'abilityCooldowns',
-];
+// One entry per editor wired up to disk-save. `endpoint` is the POST path
+// the editor's saveToFile() calls; `declName` is the exact `const X = {`
+// this route is allowed to touch; `requiredKeys` guards against writing a
+// partial/empty payload over real data.
+const LAYOUTS = {
+  '/save-hud-layout': {
+    targetFile: path.join(REPO_ROOT, 'game', 'game_hud_menus.js'),
+    declName: 'HUD_LAYOUT',
+    requiredKeys: [
+      'healthHearts', 'areaLabel', 'bossBar', 'limitBreakBar',
+      'controlsHint', 'fracturePips', 'abilityCooldowns',
+    ],
+  },
+  '/save-inventory-layout': {
+    targetFile: path.join(REPO_ROOT, 'game', 'inventory_ui.js'),
+    declName: 'INVENTORY_LAYOUT',
+    requiredKeys: [
+      'panel', 'tabStrip', 'portrait', 'healthLabel', 'fracturePipsRow',
+      'abilityGrid', 'companionPortrait', 'storyListHeader', 'storyList',
+      'storyDetail', 'pipsHeader', 'pipsRow2', 'lorePipsInfo', 'upgradesList',
+      'slotTabs', 'cosmeticsGrid', 'cosmeticsDetail',
+    ],
+  },
+};
 
-function jsonStringifyLayout(layout) {
-  // Pretty-print with 2-space indent, one entry per line, matching the
-  // existing file's style closely enough to keep diffs readable.
-  const lines = Object.entries(layout).map(([key, val]) => {
-    return `  ${key}: ${JSON.stringify(val)},`;
+const KEY_LINE_RE = /^(\s*)([A-Za-z_$][\w$]*)(\s*:\s*)(\{.*\})(\s*,?)(\s*(\/\/.*)?)$/;
+
+// JS-object-literal style to match the hand-written files: unquoted keys,
+// single-quoted strings, spaces inside braces — not JSON.stringify's
+// double-quoted-key compact form.
+function serializeValue(val) {
+  const entries = Object.entries(val).map(([k, v]) => {
+    const rendered = typeof v === 'string' ? `'${v.replace(/'/g, "\\'")}'` : JSON.stringify(v);
+    return `${k}: ${rendered}`;
   });
-  return `const HUD_LAYOUT = {\n${lines.join('\n')}\n};`;
+  return `{ ${entries.join(', ')} }`;
 }
 
-function handleSave(req, res) {
+// Rewrites only the keys that changed, line by line, so any line this
+// function doesn't recognize (comments, blank lines, keys not present in
+// the new layout) passes through completely untouched. This is what keeps
+// a file's original column alignment and any inline/standalone comments
+// intact — a full stringify-and-rebuild would silently discard both.
+function patchLayoutBlock(blockText, declName, newLayout) {
+  const lines = blockText.split('\n');
+  const openLineIdx = lines.findIndex((l) => l.includes(`const ${declName} = {`));
+  const closeLineIdx = lines.length - 1; // block always ends with the `};` line
+  if (openLineIdx === -1) throw new Error(`Could not find "const ${declName} = {" opening line`);
+
+  const seenKeys = new Set();
+  const indentUnit = '  ';
+  let sampleIndent = null;
+
+  const patched = lines.map((line, i) => {
+    if (i <= openLineIdx || i >= closeLineIdx) return line;
+    const m = line.match(KEY_LINE_RE);
+    if (!m) return line; // comment-only or blank line — leave completely alone
+    const [, indent, key, sep] = m;
+    if (sampleIndent === null) sampleIndent = indent;
+    seenKeys.add(key);
+    if (!(key in newLayout)) return null; // key removed in the editor — drop the line
+    const [, , , , , comma, trailing] = m;
+    return `${indent}${key}${sep}${serializeValue(newLayout[key])}${comma || ','}${trailing || ''}`;
+  }).filter((l) => l !== null);
+
+  const newKeys = Object.keys(newLayout).filter((k) => !seenKeys.has(k));
+  if (newKeys.length) {
+    const insertAt = patched.length - 1; // just before the closing `};` line
+    const added = newKeys.map((k) => `${sampleIndent || indentUnit}${k}: ${serializeValue(newLayout[k])},`);
+    patched.splice(insertAt, 0, ...added);
+  }
+
+  return patched.join('\n');
+}
+
+function handleSave(route, req, res) {
+  const { targetFile, declName, requiredKeys } = route;
+  const blockRe = new RegExp(`const ${declName} = \\{[\\s\\S]*?\\n\\};`);
+
   let body = '';
   req.on('data', (chunk) => { body += chunk; });
   req.on('end', () => {
@@ -47,7 +110,7 @@ function handleSave(req, res) {
       return respond(res, 400, { error: 'Missing or invalid "layout" object' });
     }
 
-    const missing = REQUIRED_KEYS.filter((k) => !(k in layout));
+    const missing = requiredKeys.filter((k) => !(k in layout));
     if (missing.length) {
       return respond(res, 400, {
         error: `Refusing to save: layout is missing expected keys: ${missing.join(', ')}. ` +
@@ -57,33 +120,39 @@ function handleSave(req, res) {
 
     let original;
     try {
-      original = fs.readFileSync(TARGET_FILE, 'utf8');
+      original = fs.readFileSync(targetFile, 'utf8');
     } catch (e) {
-      return respond(res, 500, { error: `Could not read ${TARGET_FILE}: ${e.message}` });
+      return respond(res, 500, { error: `Could not read ${targetFile}: ${e.message}` });
     }
 
-    const matches = original.match(new RegExp(BLOCK_RE, 'g'));
+    const matches = original.match(new RegExp(blockRe, 'g'));
     if (!matches || matches.length !== 1) {
       return respond(res, 500, {
-        error: `Expected exactly one HUD_LAYOUT block in game_hud_menus.js, found ${matches ? matches.length : 0}. ` +
+        error: `Expected exactly one ${declName} block in ${path.basename(targetFile)}, found ${matches ? matches.length : 0}. ` +
           `Aborting — file may have been restructured since this tool was written.`,
       });
     }
 
-    const newBlock = jsonStringifyLayout(layout);
-    const updated = original.replace(BLOCK_RE, newBlock);
+    const oldBlock = matches[0];
+    let newBlock;
+    try {
+      newBlock = patchLayoutBlock(oldBlock, declName, layout);
+    } catch (e) {
+      return respond(res, 500, { error: `Failed to patch ${declName} block: ${e.message}` });
+    }
+    const updated = original.replace(blockRe, newBlock);
 
     // Timestamped backup, kept alongside the target file, before any write.
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = `${TARGET_FILE}.${stamp}.bak`;
+    const backupPath = `${targetFile}.${stamp}.bak`;
     try {
       fs.writeFileSync(backupPath, original, 'utf8');
-      fs.writeFileSync(TARGET_FILE, updated, 'utf8');
+      fs.writeFileSync(targetFile, updated, 'utf8');
     } catch (e) {
       return respond(res, 500, { error: `Write failed: ${e.message}` });
     }
 
-    console.log(`[save-server] Wrote HUD_LAYOUT to ${path.relative(REPO_ROOT, TARGET_FILE)}`);
+    console.log(`[save-server] Wrote ${declName} to ${path.relative(REPO_ROOT, targetFile)}`);
     console.log(`[save-server] Backup saved to ${path.relative(REPO_ROOT, backupPath)}`);
     respond(res, 200, { ok: true, backup: path.relative(REPO_ROOT, backupPath) });
   });
@@ -122,12 +191,13 @@ function handleStaticFile(req, res) {
 
 const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') return respond(res, 204, {});
-  if (req.method === 'POST' && req.url === '/save-hud-layout') return handleSave(req, res);
+  if (req.method === 'POST' && LAYOUTS[req.url]) return handleSave(LAYOUTS[req.url], req, res);
   if (req.method === 'GET') return handleStaticFile(req, res);
   respond(res, 404, { error: 'Not found' });
 });
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[save-server] Listening on http://localhost:${PORT} (repo root: ${REPO_ROOT})`);
-  console.log(`[save-server] Open http://localhost:${PORT}/editor/hud_editor.html to use the HUD editor with disk-save enabled.`);
+  console.log(`[save-server] Routes: ${Object.keys(LAYOUTS).join(', ')}`);
+  console.log(`[save-server] Open http://localhost:${PORT}/editor/hud_editor.html or /editor/inventory_editor.html to use them with disk-save enabled.`);
 });

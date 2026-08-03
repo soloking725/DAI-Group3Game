@@ -1,7 +1,7 @@
 # Stillpoint — Lore
 
 Status: **narrative reference doc, not yet displayed in-game** (`LORE_ENABLED = false`
-in `game.js` — see `Plans/CLAUDE.md`). This is a full rewrite (2026-07-12) of the
+in `game.js` — see `CLAUDE.md`). This is a full rewrite (2026-07-12) of the
 Sovereign's characterization and a new section on miniboss/region lore — see "Revision
 history" at the bottom for what changed and why. The individual fragments quoted in
 `area.js`'s `loreFragments[]` predate this rewrite and are now stale (they were written

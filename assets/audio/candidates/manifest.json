@@ -1687,8 +1687,8 @@
     {
       "key": "phaseDash",
       "name": "Phase Dash (ability)",
-      "description": "New candidate-only slot, no live track yet. The Phase Dash ability's cast/activation cue.",
-      "liveTrack": null,
+      "description": "Wired 2026-07-28 — SFX.phaseDash() in game/audio.js.",
+      "liveTrack": "assets/audio/sfx/phaseDash.ogg",
       "candidates": [
         {
           "id": "teleport_summoningwars", "file": "assets/audio/candidates/enemy_sfx/phaseDash/teleport_summoningwars.ogg", "title": "Teleport Spell", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/teleport-spell"
@@ -1701,8 +1701,8 @@
     {
       "key": "stillpoint",
       "name": "Stillpoint (ability)",
-      "description": "New candidate-only slot, no live track yet. The Stillpoint time-slow ability's cast cue.",
-      "liveTrack": null,
+      "description": "Wired 2026-07-28 — SFX.stillpointActivate() in game/audio.js.",
+      "liveTrack": "assets/audio/sfx/stillpoint.ogg",
       "candidates": [
         {
           "id": "time_stop", "file": "assets/audio/candidates/enemy_sfx/stillpoint/time_stop.ogg", "title": "Time Slow (\"time_stop\")", "author": "unknown (OGA \"Time Slow\")", "license": "CC0", "sourceUrl": "https://opengameart.org/content/time-slow"
@@ -1739,8 +1739,8 @@
     {
       "key": "chargedAttack",
       "name": "Charged Attack (ability)",
-      "description": "New candidate-only slot, no live track yet. The player's charge-up windup and/or release cue.",
-      "liveTrack": null,
+      "description": "Wired 2026-07-28 — SFX.chargeFull() in game/audio.js.",
+      "liveTrack": "assets/audio/sfx/chargedAttack.ogg",
       "candidates": [
         {
           "id": "power_up_v1", "file": "assets/audio/candidates/enemy_sfx/chargedAttack/power_up_v1.ogg", "title": "Power-Up Sound v1", "author": "Spring Spring", "license": "CC0", "sourceUrl": "https://opengameart.org/content/power-up-sound-effects"
@@ -1762,8 +1762,8 @@
     {
       "key": "electricAbility",
       "name": "Electric/Static Ability (new mechanic)",
-      "description": "New candidate-only slot, no live track yet. For an unbuilt electromagnetic ability (e.g. roadmap's 'graviton_surge') or Polar Shift/Static Field/Conduit region stingers.",
-      "liveTrack": null,
+      "description": "Wired 2026-08-02 to The Conduit's two ranged attacks (game/enemy.js CONDUIT_DEF, sfxOnFire).",
+      "liveTrack": "assets/audio/sfx/electricAbility.ogg",
       "candidates": [
         {
           "id": "crackle_electricity_loop", "file": "assets/audio/candidates/enemy_sfx/electricAbility/crackle_electricity_loop.ogg", "title": "Crackle Electricity Loop", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
@@ -1809,8 +1809,8 @@
     {
       "key": "defenseVerb",
       "name": "Base-Enemy Defense Verbs (dodge / guard / breakout)",
-      "description": "New candidate-only slot, no live track yet. Covers the base Enemy class's dodge/back-hop, ranged-dodge, block/guard-raise, and anti-juggle breakout burst — all currently 100% silent across the whole regular-enemy roster. Light, quick stingers rather than a swing/attack sound.",
-      "liveTrack": null,
+      "description": "Wired 2026-08-02 to all four base-Enemy defense verbs (dodge/back-hop, ranged-dodge, block/guard-raise, anti-juggle breakout burst — game/enemy.js).",
+      "liveTrack": "assets/audio/sfx/defenseVerb.ogg",
       "candidates": [
         {
           "id": "defense_swish_1", "file": "assets/audio/candidates/enemy_sfx/attack/swish_1.ogg", "title": "Swish 1 (light)", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
@@ -1858,8 +1858,8 @@
     {
       "key": "forceField",
       "name": "Shield Break / Chime",
-      "description": "New candidate-only slot, no live track yet. Covers Crystal Sentinel's shield break/regen, Fractured Knight's Shield Slip, Sovereign's Guard's shield break, and Electromagnetic Golem's Magnetize charge-up — all currently silent.",
-      "liveTrack": null,
+      "description": "Wired 2026-08-02 to Crystal Sentinel's shield break and Electromagnetic Golem's Magnetize charge-up. Fractured Knight's Shield Slip and Sovereign's Guard's shield break still silent.",
+      "liveTrack": "assets/audio/sfx/forceField.ogg",
       "candidates": [
         { "id": "forcefield_0", "file": "assets/audio/candidates/enemy_sfx/forceField/forceField_000.ogg", "title": "forceField_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
         { "id": "forcefield_1", "file": "assets/audio/candidates/enemy_sfx/forceField/forceField_001.ogg", "title": "forceField_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
@@ -1871,8 +1871,8 @@
     {
       "key": "portalDoor",
       "name": "Portal / Teleport Blink (Assembler, Undertow)",
-      "description": "New candidate-only slot, no live track yet. The Assembler's and The Undertow's teleport blinks are both silent — distinct from the player's own Phase Dash and the Sovereign's bossTeleportOut, since both are explicitly portal-themed.",
-      "liveTrack": null,
+      "description": "Wired 2026-08-02 to the Assembler's and Undertow's teleport_blink (movement.sfxBlink, game/enemy.js) — distinct from the player's own Phase Dash and the Sovereign's bossTeleportOut.",
+      "liveTrack": "assets/audio/sfx/portalDoor.ogg",
       "candidates": [
         { "id": "door_open_0", "file": "assets/audio/candidates/enemy_sfx/portalDoor/doorOpen_000.ogg", "title": "doorOpen_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
         { "id": "door_open_1", "file": "assets/audio/candidates/enemy_sfx/portalDoor/doorOpen_001.ogg", "title": "doorOpen_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
@@ -1885,8 +1885,8 @@
     {
       "key": "trainSweep",
       "name": "Locomotive Sweep (The Stationmaster)",
-      "description": "New candidate-only slot, no live track yet. The Stationmaster's dash_charge is explicitly a 'locomotive sweep' per the user's own miniboss spec (expansion.md #4.11) but is currently a generic dash telegraph with no train/rail sound at all.",
-      "liveTrack": null,
+      "description": "Wired 2026-08-02 to the Stationmaster's dash_charge (sfxOnFire, game/enemy.js).",
+      "liveTrack": "assets/audio/sfx/trainSweep.ogg",
       "candidates": [
         { "id": "engine_circular_0", "file": "assets/audio/candidates/enemy_sfx/trainSweep/engineCircular_000.ogg", "title": "engineCircular_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
         { "id": "engine_circular_1", "file": "assets/audio/candidates/enemy_sfx/trainSweep/engineCircular_001.ogg", "title": "engineCircular_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
@@ -1900,8 +1900,8 @@
     {
       "key": "gravityFlip",
       "name": "Room Gravity Flip (Gravity Collapse Core)",
-      "description": "New candidate-only slot, no live track yet. gravity_flip has a particle burst + screen shake but zero SFX — a full room-gravity reversal is currently silent.",
-      "liveTrack": null,
+      "description": "Wired 2026-08-02 to ATTACK_BEHAVIORS.gravity_flip.onFire (game/enemy.js) — plays alongside the existing particle burst + screen shake.",
+      "liveTrack": "assets/audio/sfx/gravityFlip.ogg",
       "candidates": [
         { "id": "low_freq_explosion_0", "file": "assets/audio/candidates/enemy_sfx/gravityFlip/lowFrequency_explosion_000.ogg", "title": "lowFrequency_explosion_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
         { "id": "low_freq_explosion_1", "file": "assets/audio/candidates/enemy_sfx/gravityFlip/lowFrequency_explosion_001.ogg", "title": "lowFrequency_explosion_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" }
@@ -1910,8 +1910,8 @@
     {
       "key": "slimeSquelch",
       "name": "Slime Hop / Charge (FracturedSlime)",
-      "description": "New candidate-only slot, no live track yet. FracturedSlime's hop/charge reuse generic enemyHop/enemyTelegraphHeavy cues — no wet squelch/gloop texture despite being a slime creature.",
-      "liveTrack": null,
+      "description": "Wired 2026-08-02 — now layers on top of FracturedSlime's existing enemyHop/enemyTelegraphHeavy cues (game/enemy.js).",
+      "liveTrack": "assets/audio/sfx/slimeSquelch.ogg",
       "candidates": [
         { "id": "slime_0", "file": "assets/audio/candidates/enemy_sfx/slimeSquelch/slime_000.ogg", "title": "slime_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
         { "id": "slime_1", "file": "assets/audio/candidates/enemy_sfx/slimeSquelch/slime_001.ogg", "title": "slime_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" }
@@ -1920,8 +1920,8 @@
     {
       "key": "voidPull",
       "name": "Void Gravity-Well / Ambient Dread (The Undertow)",
-      "description": "New candidate-only slot, no live track yet. The Undertow's gravity_well pull ('steals what you hold dear' made literal) has no sound at all — a slow ominous suction/undertow drone would be highly on-theme.",
-      "liveTrack": null,
+      "description": "Wired 2026-08-02 to The Undertow's gravity_well attack (sfxOnFire, game/enemy.js) — 'steals what you hold dear' made literal.",
+      "liveTrack": "assets/audio/sfx/voidPull.ogg",
       "candidates": [
         { "id": "scifi_drone", "file": "assets/audio/candidates/enemy_sfx/voidPull/scifi_ambient_drone_excerpt.ogg", "title": "Sci-fi Ambient Drone (8s excerpt of a 2:45 loop)", "author": "LookIMadeAThing", "license": "CC0", "sourceUrl": "https://freesound.org/people/LookIMadeAThing/sounds/534018/" }
       ]

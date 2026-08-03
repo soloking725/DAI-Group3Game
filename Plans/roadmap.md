@@ -2650,7 +2650,7 @@ Mobility/evasion pass + a real defense-verb bug (2026-07-24, same day)
     onto Crystal Sentinel/Deflector Drone/Anchor Wraith, which each have
     documented, considered movesets already).
 [ ] Verified with `node --check` only (no-browser-testing rule, per
-    `Plans/CLAUDE.md`) — not yet playtested, and this batch is riskier than
+    `CLAUDE.md`) — not yet playtested, and this batch is riskier than
     most (it touches the movement/attack dispatch every composed enemy runs
     through every frame). Manual test plan: (1) in `enemy_test.html`, spawn
     any enemy with `defense.dodge` enabled, attack it, confirm it now
@@ -2712,7 +2712,7 @@ defs, no new engine work, following `CONDUIT_DEF`'s proven shape.
     generalized spawn/combat/defeat block from the earlier architecture
     pass already handles any registry entry generically.
 [ ] Verified with `node --check` on `game/enemy.js` and `game/game.js`
-    only — no browser testing per `Plans/CLAUDE.md`'s hard rule. Manual
+    only — no browser testing per `CLAUDE.md`'s hard rule. Manual
     test plan: enter `mirror_veil_gate`, confirm `MirrorKing` spawns,
     fires melee/spread-shard/counter_stance, dodges on your swing startup,
     and gets faster/denser at 50% HP; enter the Graviton Core boss room,
@@ -2784,7 +2784,7 @@ since the phase system was first built for The Conduit:
     were already wired and the asset files already exist on disk — zero
     `area.js`/`audio.js` changes needed, same as every fight in this batch.
 [ ] Verified with `node --check` on `game/enemy.js`/`game/game.js` only —
-    no browser testing per `Plans/CLAUDE.md`'s hard rule, and this pair is
+    no browser testing per `CLAUDE.md`'s hard rule, and this pair is
     riskier than the first four (new shared engine hooks, not just new
     defs). Manual test plan: enter Paradox Engine's boss room, confirm
     `TheAssembler` spawns and teleport-blinks behind the player
@@ -2887,7 +2887,7 @@ possible:
     exist on disk — zero `area.js`/`audio.js` changes needed, same as
     every fight in this batch.
 [ ] Verified with `node --check` on `game/enemy.js`/`game/game.js` only —
-    no browser testing per `Plans/CLAUDE.md`'s hard rule, and this pair is
+    no browser testing per `CLAUDE.md`'s hard rule, and this pair is
     the riskiest yet (a real subclass overriding `update()`/`draw()`, plus
     a new defense verb touching the shared `updateDefense()` every
     enemy/miniboss runs through). Manual test plan: enter Echoing Abyss's
@@ -3892,7 +3892,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     notes on Metroidvania room design (Boss Keys' framework, Hollow
     Knight's own stated design choices, dedicated-2D-editor layer-thinking)
     and full built-enemy (19)/built-miniboss (14) roster references plus
-    current pip-economy counts. `Plans/CLAUDE.md`'s doc list updated to
+    current pip-economy counts. `CLAUDE.md`'s doc list updated to
     point at it.
 [x] **`Plans/room_scene_editor_plan.md` added** (planning only, not built):
     a proposed room "look" editor — background PNG/parallax layers (new
@@ -3908,7 +3908,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     hitting the `localStorage` quota bug that pattern already fixed once.
     Research-backed (Tiled/LDtk/Ogmo/GameMaker layer models, parallax
     practice, cutscene-tool conventions — sources listed in the doc).
-    `Plans/CLAUDE.md`'s `level_designer.html` entry updated to point at
+    `CLAUDE.md`'s `level_designer.html` entry updated to point at
     this doc's superseding proposal. Has open questions for the user
     before any of it gets built (see the doc's own §7) — not started.
 [x] **`Plans/production_workflow_and_tool_gaps.md` added**: audits the
@@ -3959,7 +3959,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     can't cover. Complements (doesn't overlap) `room_scene_editor_plan.md`'s
     cutscene-trigger placement — that plans *where*, this plans *what's in
     it*. `Plans/production_workflow_and_tool_gaps.md`'s gap table and
-    `Plans/CLAUDE.md`'s doc list both updated to point at it.
+    `CLAUDE.md`'s doc list both updated to point at it.
 [~] **`Plans/room_verification_tool_plan.md` — Components 1 and 3 built**
     (Component 2, the dynamic bot walker, still not started). New shared
     pure module `game/roomVerify.js` implements the static layout linter:

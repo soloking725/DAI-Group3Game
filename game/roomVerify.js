@@ -73,7 +73,7 @@
 //     room's own anchors for isolated dev rooms) lands with no platform
 //     beneath it.
 //   - FLOOR_GAP: for rooms with no pitDeathY hazard override (the "continuous
-//     cave floor, no fall-death" default per Plans/CLAUDE.md), any gap in the
+//     cave floor, no fall-death" default per CLAUDE.md), any gap in the
 //     standable-platform coverage wider than jump/dash/wall-jump range reads
 //     as an unintended pit, not a designed hazard.
 //   - DOOR_EMBEDDED: a transition whose player-standing hitbox (platformTop -

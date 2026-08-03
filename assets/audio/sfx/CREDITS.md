@@ -64,6 +64,23 @@ phase/death, teleport) have no matching candidate yet and stay procedural.
 Added 2026-08-02, same `loudnorm` (I=-16 LUFS) + short fade + OGG Vorbis
 44.1kHz re-encode pipeline as above.
 
+**Six ability slots wired 2026-08-02** — all had real CC0 samples sitting in
+`audio_ab_tester.html`'s candidate pool (see `assets/audio/candidates/manifest.json`)
+but no code hook, so the fights/mechanics below played nothing at all. Picked
+the first CC0 candidate in each slot; not yet A/B-tested against the rest of
+the pool — swap freely.
+
+| File | Source track | Author | License | Source URL | Now wired to |
+|---|---|---|---|---|---|
+| electricAbility.ogg | "hit.wav" (Electricity Game Sound Pack) | faxcorp | CC0 | via candidates/enemy_sfx/electricAbility | `SFX.electricAbility()` — The Conduit's two ranged attacks (`game/enemy.js` `CONDUIT_DEF`) |
+| forceField.ogg | "forceField_000" (Sci-Fi Sounds) | Kenney | CC0 | via candidates/enemy_sfx/forceField | `SFX.forceField()` — Crystal Sentinel shield break + Electromagnetic Golem's Magnetize charge-up |
+| trainSweep.ogg | "engineCircular_000" (Interface/Sci-Fi Sounds) | Kenney | CC0 | via candidates/enemy_sfx/trainSweep | `SFX.trainSweep()` — The Stationmaster's `dash_charge` "locomotive sweep" |
+| gravityFlip.ogg | "lowFrequency_explosion_000" | Kenney | CC0 | via candidates/enemy_sfx/gravityFlip | `SFX.gravityFlip()` — `ATTACK_BEHAVIORS.gravity_flip.onFire` (Gravity Collapse Core) |
+| slimeSquelch.ogg | "slime_000" | Kenney | CC0 | via candidates/enemy_sfx/slimeSquelch | `SFX.slimeSquelch()` — FracturedSlime hop/charge |
+| voidPull.ogg | "Sci-fi Ambient Drone" (8s excerpt) | LookIMadeAThing | CC0 | via candidates/enemy_sfx/voidPull | `SFX.voidPull()` — The Undertow's `gravity_well` attack |
+| portalDoor.ogg | "doorOpen_000" (Sci-Fi Sounds) | Kenney | CC0 | via candidates/enemy_sfx/portalDoor | `SFX.portalDoor()` — Assembler/Undertow `teleport_blink` (`movement.sfxBlink`), distinct from the player's own Phase Dash |
+| defenseVerb.ogg | "swish_1" (light) | Kenney | CC0 | via candidates/enemy_sfx/attack | `SFX.defenseVerb()` — base-Enemy dodge/back-hop, ranged-dodge, guard-raise, anti-juggle breakout burst (all previously silent) |
+
 ## Known gaps
 
 - **Net launcher** (`ATTACK_BEHAVIORS.net`, added 2026-07-26 alongside these)

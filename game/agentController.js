@@ -247,7 +247,7 @@
 
       // Boss/miniboss: single dedicated global slot each — game.js's own
       // loop drives boss.update()/miniboss.update() separately from the
-      // areaEnemies array (see Plans/CLAUDE.md's "Boss/miniboss death
+      // areaEnemies array (see CLAUDE.md's "Boss/miniboss death
       // pattern" note), so these aren't pushed into areaEnemies.
       area.isBossArena = false;
       if (this.cfg.bossType === 'boss') {

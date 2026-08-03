@@ -4,7 +4,7 @@
  *
  * Parses the canonical mermaid graph embedded in Plans/floor_plan.md (the
  * doc's own designated source of truth — see its header note and
- * Plans/CLAUDE.md), builds an ability-gated traversal graph, then:
+ * CLAUDE.md), builds an ability-gated traversal graph, then:
  *
  *   1. Runs a fixpoint reachability search (same idea as a metroidvania
  *      randomizer's logic solver) to find everything reachable from Spawn

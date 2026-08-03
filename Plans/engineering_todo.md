@@ -140,10 +140,10 @@ audio stingers, per-ability cooldown ring colors, a scoped
   `kings_guard_miniboss`→`sovereigns_guard_miniboss` in
   `editor/enemy_test.html`, both unbuilt/unreferenced elsewhere so safe to
   rename outright). `area.js`'s `loreFragments[]` turned out to already
-  say "Sovereign" — a stale claim in `Plans/CLAUDE.md` said otherwise,
+  say "Sovereign" — a stale claim in `CLAUDE.md` said otherwise,
   corrected there too. "The Mirror King" is a separate, deliberately-named
   character (per `lore.md`) and was left untouched everywhere. See
-  `Plans/CLAUDE.md`'s `lore.md` entry for the full rundown.
+  `CLAUDE.md`'s `lore.md` entry for the full rundown.
 
 ## 7. Editor/game duplication & structural audit (2026-08-02)
 
@@ -285,7 +285,7 @@ session (see "Fixed" below); the rest is a ranked backlog.
    Checked for references before deleting: only `dev_hub.html`'s tool list
    linked it (now removed) — no other functional code referenced it.
    Updated the doc mentions that describe it as a currently-live tool
-   (`Plans/CLAUDE.md`'s File locations + Dev/debug tooling sections,
+   (`CLAUDE.md`'s File locations + Dev/debug tooling sections,
    `Plans/performanceInstructions.md`'s "never break the debug tools"
    list); left it in places that are more historical/planning artifacts
    (`Plans/OVERVIEW.md`, `Plans/production_workflow_and_tool_gaps.md`,
@@ -409,7 +409,7 @@ session (see "Fixed" below); the rest is a ranked backlog.
     references the deleted `validateAllRoomLayouts()` — left as-is
     deliberately: that script is frozen, one-off tooling this project's
     own convention says not to re-run once hand level-design starts (see
-    `Plans/CLAUDE.md`), so a stale reference inside it costs nothing.
+    `CLAUDE.md`), so a stale reference inside it costs nothing.
     **Along the way, found and fixed a real, separate regression**: three
     Node CLI tools (`Plans/room_verify_cli.js`, `Plans/room_progress.js`,
     `editor/export_graph.js`) were silently broken — each runs `area.js`
@@ -526,14 +526,14 @@ session (see "Fixed" below); the rest is a ranked backlog.
   `readOverrideJSON()` at parse time, `animdata.js` must precede
   `area.js`, etc. Reordering a tag is a silent `ReferenceError` at load,
   not a build error, and no file can be unit-tested in isolation. Already
-  implicitly flagged in `Plans/CLAUDE.md`'s Architecture map ("actually
+  implicitly flagged in `CLAUDE.md`'s Architecture map ("actually
   modularizing state behind real module boundaries would be a much bigger
   refactor than [the 2026-07-27 game.js] split was — flag that before
   attempting"). Since every file is already a plain non-module `<script>`,
   switching to `type="module"` + real `import`/`export` is additive rather
   than a rewrite — but this is a large, speculative refactor of working
-  code, exactly what `Plans/CLAUDE.md`'s "ask before big refactors" rule
-  and the project's stated infra-vs-content priority (`Plans/CLAUDE.md`'s
+  code, exactly what `CLAUDE.md`'s "ask before big refactors" rule
+  and the project's stated infra-vs-content priority (`CLAUDE.md`'s
   "Where this project is right now" section) should gate. Not scoped for
   implementation — flagging only.
 
@@ -609,7 +609,7 @@ fixed, if not can we fix them":**
   `dev_hub.html`, `graph_analyzer.html`, `room_scene_editor.js`,
   `levelEditor.html`, `export_graph.js`, `cutscene_editor.js` all index
   `AREAS[...]` directly), but this is a **deliberate, already-made
-  decision, not a gap** — `Plans/CLAUDE.md`'s own `levelEditor.html` entry
+  decision, not a gap** — `CLAUDE.md`'s own `levelEditor.html` entry
   says it was *corrected* 2026-07-12 specifically to load `area.js`
   directly and edit the real `AREAS` object, replacing an earlier design
   with "separate hardcoded preset copies" that drifted from the real
@@ -624,7 +624,7 @@ fixed, if not can we fix them":**
   word and merging them would be a real regression risk**, not a fix:
   `overrideStore.js` persists dev-tool-authored override blobs (private,
   best-effort, explicitly designed to degrade to "no persistence" on any
-  failure — see `Plans/CLAUDE.md`'s Save data section); `game_boot_save.js`
+  failure — see `CLAUDE.md`'s Save data section); `game_boot_save.js`
   persists the player's actual save-game progress, which is why it has a
   `getBackupKey()` redundancy scheme `readOverrideJSON()` has no
   equivalent of (a corrupted save falls back to its backup; a corrupted
