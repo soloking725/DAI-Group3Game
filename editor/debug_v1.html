@@ -315,37 +315,23 @@ async function runChecks() {
   }
 
   // ── Check 11: no door is embedded inside the platform it sits next to ──
-  // Static check, no simulation needed. Catches the exact bug found while
+  // Delegates to win.RoomVerify's DOOR_EMBEDDED check (game/roomVerify.js —
+  // this used to be its own hand-rolled AABB loop, byte-for-byte duplicated
+  // in dev_hub.html; both now call the one shared implementation, see
+  // Plans/engineering_todo.md item 6). Catches the exact bug found while
   // building Crag of the Colossus: a transition hitbox positioned at
   // `y: platform.y` extending DOWN into the platform's own solid body,
   // instead of `y: platform.y - height` extending UP into the air where the
   // player's standing hitbox actually is — physically untouchable in
-  // practice even though it loads and renders with no errors. See
-  // Plans/room_verification_tool_plan.md for the fuller version of this idea
-  // (this is a lightweight permanent regression guard, not that full tool).
+  // practice even though it loads and renders with no errors.
   try {
     const embeddedDoors = [];
     for (const id in win.AREAS) {
       const room = win.AREAS[id];
-      (room.transitions || []).forEach((t, i) => {
-        for (const p of room.platforms || []) {
-          if (p.destructible) continue; // walls aren't floor references
-          const xOverlap = t.x < p.x + p.w && t.x + t.w > p.x;
-          if (!xOverlap) continue;
-          // A door with zero actual vertical overlap with this platform (e.g.
-          // a south-edge door at y:450 sitting right where a y:390/h:60
-          // ground platform ends at 450) can never be "inside" it — checking
-          // x-overlap and the y-heuristic alone without this real AABB
-          // y-overlap produced false positives for exactly that common case.
-          const yOverlap = t.y < p.y + p.h && (t.y + t.h) > p.y;
-          if (!yOverlap) continue;
-          // Embedded = the door's entire vertical span sits at/below the
-          // platform's own top surface with no part reaching above it.
-          if (t.y >= p.y - 2 && (t.y + t.h) > p.y + 5) {
-            embeddedDoors.push(`${id}.transitions[${i}] (to '${t.to}') inside platform at (${p.x},${p.y})`);
-          }
-        }
-      });
+      const issues = win.RoomVerify.verifyRoom(room, win.AREAS).issues;
+      for (const iss of issues) {
+        if (iss.type === 'DOOR_EMBEDDED') embeddedDoors.push(`${id}: ${iss.detail}`);
+      }
     }
     report('R11', embeddedDoors.length === 0 ? 'ok' : 'err',
       embeddedDoors.length === 0

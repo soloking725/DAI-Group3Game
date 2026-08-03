@@ -179,6 +179,7 @@
 <script src="boxResize.js"></script>
 <script src="../game/unsavedGuard.js"></script>
 <script src="../game/undoHistory.js"></script>
+<script src="exportPanel.js"></script>
 <script>
 'use strict';
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1433,10 +1434,9 @@ function clearOverrides() {
   alert('Saved overrides cleared — the game is back to the built-in ANIM_DEFS.');
 }
 function exportJSON() {
-  const box = document.getElementById('exportBox');
-  box.value = `// Paste into game/animdata.js — replaces the ANIM_DEFS entries below.\n`
+  const text = `// Paste into game/animdata.js — replaces the ANIM_DEFS entries below.\n`
     + `Object.assign(ANIM_DEFS, ${JSON.stringify(ANIM_DEFS, null, 2)});`;
-  box.select();
+  ExportPanel.write('exportBox', text);
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────────

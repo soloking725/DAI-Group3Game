@@ -28,14 +28,19 @@ const SFX = (() => {
   // fallback further down, used automatically until the buffer finishes loading
   // (or if decoding/fetch ever fails).
   const SAMPLE_URLS = {
-    attack: 'assets/audio/sfx/attack.ogg',
+    // attack/heavyAttack/parry are arrays — round-robin picked in playSample()
+    // instead of always playing the same buffer, so a repeated attack doesn't
+    // read as thin/identical after a few swings. All three variants per slot
+    // are the same Kenney sub-pack as the original (_001/_002 alongside the
+    // original _000), so they stay tonally consistent — see CREDITS.md.
+    attack: ['assets/audio/sfx/attack.ogg', 'assets/audio/sfx/attack_2.ogg', 'assets/audio/sfx/attack_3.ogg'],
     attackHit: 'assets/audio/sfx/attackHit.ogg',
-    heavyAttack: 'assets/audio/sfx/heavyAttack.ogg',
+    heavyAttack: ['assets/audio/sfx/heavyAttack.ogg', 'assets/audio/sfx/heavyAttack_2.ogg', 'assets/audio/sfx/heavyAttack_3.ogg'],
     bossHit: 'assets/audio/sfx/bossHit.ogg',
     enemyDeath: 'assets/audio/sfx/enemyDeath.ogg',
     playerHurt: 'assets/audio/sfx/playerHurt.ogg',
     shardHit: 'assets/audio/sfx/shardHit.ogg',
-    parry: 'assets/audio/sfx/parry.ogg',
+    parry: ['assets/audio/sfx/parry.ogg', 'assets/audio/sfx/parry_2.ogg', 'assets/audio/sfx/parry_3.ogg'],
     uiSelect: 'assets/audio/sfx/uiSelect.ogg',
     // Scavenged war weapons (2026-07-26) — see assets/audio/sfx/CREDITS.md
     // for source/license/author of each. All CC0, no attribution required.
@@ -48,6 +53,14 @@ const SFX = (() => {
     chargedAttack: 'assets/audio/sfx/chargedAttack.ogg',
     phaseDash: 'assets/audio/sfx/phaseDash.ogg',
     stillpoint: 'assets/audio/sfx/stillpoint.ogg',
+    // Void Tether, added 2026-08-02 — was silent (cast/latch reused SFX.dash(),
+    // arrival had nothing at all). Three distinct stages matching the three
+    // real moments in game_update.js's tether code: cast (the instant it
+    // latches onto a target or grapples a wall), pull (the sustained travel),
+    // hit (arrival/impact — pitch-scaled by target size, see SFX.voidTetherHit()).
+    voidTetherCast: 'assets/audio/sfx/voidTetherCast.ogg',
+    voidTetherPull: 'assets/audio/sfx/voidTetherPull.ogg',
+    voidTetherHit: 'assets/audio/sfx/voidTetherHit.ogg',
   };
   const sampleBuffers = {}; // name -> decoded AudioBuffer, once loaded
 
@@ -194,6 +207,8 @@ const SFX = (() => {
   let bossMusicSource = null;
   let currentMusicKey = null;
   let currentBossMusicKey = null;
+  let zoneOverrideKey = null; // MUSIC_URLS key from an area.audioZones[] zone the player is
+                              // currently standing in, or null — see setAudioZone() below.
   const MUSIC_CROSSFADE = 2.0; // seconds, matches the drone's own ramp style
 
   function loadMusic() {
@@ -260,6 +275,35 @@ const SFX = (() => {
     musicSource = playLoopingTrack(key, musicGainNode, musicSource, 0.35);
   }
 
+  // Sub-room ambient override — area.audioZones[] (room_scene_editor.html)
+  // lets part of a room play a different track than the rest (e.g. a quiet
+  // corner of an otherwise-hub_living room). Call every frame with the
+  // MUSIC_URLS key of whichever zone the player is currently standing in
+  // (or null if none), plus the room's own area id as the fallback to
+  // revert to. Reuses setRegionMusic's own gain node/crossfade — a zone is
+  // just "temporarily pretend the room's music key is this instead."
+  function setAudioZone(trackKey, fallbackAreaId) {
+    if (!unlocked) return;
+    const key = trackKey || null;
+    if (key === zoneOverrideKey) return;
+    zoneOverrideKey = key;
+    const c = ensureCtx();
+    if (!c) return;
+    ensureMusicGains();
+    const effectiveKey = key || (AREA_MUSIC_MAP[fallbackAreaId] || DEFAULT_MUSIC_KEY);
+    if (effectiveKey === currentMusicKey) return; // already playing (zone track matches room track)
+    if (!musicBuffers[effectiveKey]) return; // still loading
+    currentMusicKey = effectiveKey;
+    musicSource = playLoopingTrack(effectiveKey, musicGainNode, musicSource, 0.35);
+  }
+
+  // Editor-only accessor (room_scene_editor.html's audio-zone track-key
+  // dropdown) — same purpose as exposing the real CUTSCENES object for the
+  // cutscene-trigger id autocomplete, just for music track keys instead.
+  function getMusicKeys() {
+    return Object.keys(MUSIC_URLS);
+  }
+
   // Boss/miniboss track, layered on top of (louder than) the region track —
   // call at fight start with the miniboss id (or 'sovereign' for the final
   // boss) and again with null when the fight ends to fall back to region music.
@@ -304,24 +348,40 @@ const SFX = (() => {
     if (!c) return;
     Object.keys(SAMPLE_URLS).forEach((name) => {
       if (sampleBuffers[name]) return;
-      fetch(SAMPLE_URLS[name])
-        .then((res) => res.arrayBuffer())
-        .then((data) => c.decodeAudioData(data))
-        .then((buf) => { sampleBuffers[name] = buf; })
-        .catch(() => { /* leave unset — caller falls back to procedural */ });
+      const urls = Array.isArray(SAMPLE_URLS[name]) ? SAMPLE_URLS[name] : [SAMPLE_URLS[name]];
+      const isArray = Array.isArray(SAMPLE_URLS[name]);
+      const loaded = []; // sparse-safe: only fully-decoded variants get used
+      urls.forEach((url, i) => {
+        fetch(url)
+          .then((res) => res.arrayBuffer())
+          .then((data) => c.decodeAudioData(data))
+          .then((buf) => {
+            loaded[i] = buf;
+            sampleBuffers[name] = isArray ? loaded.filter(Boolean) : buf;
+          })
+          .catch(() => { /* leave this variant unset — round-robin skips it */ });
+      });
     });
   }
 
   // Plays a decoded sample with a per-call gain (and slight pitch jitter for
   // variety), through the same master -> compressor safety chain as everything
   // else. Returns true if it actually played, so callers can fall back.
-  function playSample(name, volume, pitchVariance) {
+  function playSample(name, volume, pitchVariance, pitchCenter) {
     const c = ctx;
-    const buf = sampleBuffers[name];
-    if (!c || !ready() || !buf) return false;
+    const entry = sampleBuffers[name];
+    if (!c || !ready() || !entry) return false;
+    // Round-robin: an array (attack/heavyAttack/parry) picks a random loaded
+    // variant each call instead of always the same buffer, so repeated hits
+    // don't sound identical. A plain buffer (every other slot) is unchanged.
+    const buf = Array.isArray(entry) ? entry[Math.floor(Math.random() * entry.length)] : entry;
+    if (!buf) return false;
     const src = c.createBufferSource();
     src.buffer = buf;
-    src.playbackRate.value = jitter(1, pitchVariance !== undefined ? pitchVariance : 0.03);
+    // pitchCenter shifts the base rate before jitter — e.g. voidTetherHit()
+    // uses it so a bigger target genuinely plays lower, not just "randomly
+    // different" (pitchVariance alone is symmetric jitter, no directional bias).
+    src.playbackRate.value = jitter(pitchCenter !== undefined ? pitchCenter : 1, pitchVariance !== undefined ? pitchVariance : 0.03);
     const gain = c.createGain();
     gain.gain.value = Math.min(0.5, volume !== undefined ? volume : 0.3);
     src.connect(gain);
@@ -485,6 +545,35 @@ const SFX = (() => {
     src.stop(t0 + duration + 0.02);
   }
 
+  // Sub-bass "weight" layer for heavy hits — a very short, very low sine
+  // with a near-instant attack, meant to be layered UNDER an existing
+  // sample/tone (not played alone). Adds felt punch without a new recorded
+  // asset: most speakers barely reproduce 45-60Hz as a distinct pitch, so
+  // it reads as a thump rather than a tone. Call alongside (same frame as)
+  // whatever sets hitstopTimer for a given hit, so the transient and the
+  // freeze-frame land together.
+  function subThump(volume) {
+    const c = ensureCtx();
+    if (!c || !ready()) return;
+    const t0 = c.currentTime;
+    const osc = c.createOscillator();
+    osc.type = 'sine';
+    const f = jitter(50, 0.1);
+    osc.frequency.setValueAtTime(f, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, f * 0.6), t0 + 0.09);
+
+    const gain = c.createGain();
+    const vol = Math.min(0.3, volume !== undefined ? volume : 0.18);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(vol, t0 + 0.003); // near-instant attack
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+
+    osc.connect(gain);
+    gain.connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.12);
+  }
+
   // Called on spawn/area-transition to switch the recorded region track.
   // No procedural ambient bed anymore — recorded music (setRegionMusic) is
   // the only ambience layer now.
@@ -500,6 +589,8 @@ const SFX = (() => {
     setAreaAmbient,
     setRegionMusic,
     setBossMusic,
+    setAudioZone,
+    getMusicKeys,
     setMusicVolume,
     setSfxVolume,
 
@@ -514,14 +605,41 @@ const SFX = (() => {
       noiseBurst(0.2, { filterFreq: 4000, volume: 0.16 });
       tone(800, 0.2, { type: 'sine', sweepTo: 200, volume: 0.12 });
     },
+    // Void Tether's three stages — cast (latch), pull (sustained travel),
+    // hit (arrival). See game_update.js's `player.voidTetherFired` block for
+    // where each fires. `sizeFactor` (0..1, default 0.5) lets the arrival hit
+    // read heavier for a big target and lighter for a small one — see
+    // voidTetherHit()'s call site for how it's derived from target dimensions.
+    voidTetherCast() {
+      if (playSample('voidTetherCast', 0.24)) return;
+      tone(700, 0.1, { type: 'sine', sweepTo: 1400, volume: 0.14, attack: 0.005 });
+      noiseBurst(0.06, { filterType: 'highpass', filterFreq: 3500, volume: 0.1 });
+    },
+    voidTetherPull() {
+      if (playSample('voidTetherPull', 0.16)) return;
+      noiseBurst(0.5, { filterFreq: 1800, volume: 0.1, attack: 0.05 });
+      tone(200, 0.5, { type: 'sawtooth', sweepTo: 500, volume: 0.08, filterFreq: 1200, attack: 0.05 });
+    },
+    voidTetherHit(sizeFactor) {
+      const sf = sizeFactor !== undefined ? Math.max(0, Math.min(1, sizeFactor)) : 0.5;
+      // Bigger target (sf near 1) = lower pitch + more sub-thump weight;
+      // smaller (sf near 0) = higher/lighter. pitchCenter ranges ~1.25 (small)
+      // down to ~0.75 (large) around the sample's natural pitch.
+      const pitchCenter = 1.25 - sf * 0.5;
+      subThump(0.1 + sf * 0.14);
+      if (playSample('voidTetherHit', 0.2 + sf * 0.08, 0.03, pitchCenter)) return;
+      tone(500 - sf * 260, 0.12, { type: 'triangle', sweepTo: 120 - sf * 60, volume: 0.16, filterFreq: 1400, attack: 0.004 });
+      noiseBurst(0.1, { filterFreq: 1500 - sf * 700, volume: 0.14, attack: 0.003 });
+    },
     attack() {
       if (playSample('attack', 0.22)) return;
       tone(180, 0.08, { type: 'triangle', sweepTo: 90, volume: 0.16, filterFreq: 1500 });
     },
     heavyAttack() {
+      subThump(0.16); // felt weight under the sample or the procedural fallback either way
       if (playSample('heavyAttack', 0.32)) return;
-      tone(100, 0.15, { type: 'sawtooth', sweepTo: 40, volume: 0.22, filterFreq: 900 });
-      noiseBurst(0.12, { filterFreq: 800, volume: 0.2 });
+      tone(100, 0.15, { type: 'sawtooth', sweepTo: 40, volume: 0.22, filterFreq: 900, attack: 0.006 });
+      noiseBurst(0.12, { filterFreq: 800, volume: 0.2, attack: 0.003 });
     },
     chargeFull() {
       if (playSample('chargedAttack', 0.26)) return;
@@ -565,8 +683,12 @@ const SFX = (() => {
     },
     lorePickup() { tone(300, 0.6, { type: 'sine', sweepTo: 500, volume: 0.12, attack: 0.03 }); },
     bossHit() {
+      // Also the impact for Charged Heavy (see bossTelegraphSlam) and every
+      // boss/miniboss's landed attack — the sub-thump gives every one of
+      // those a consistent felt weight regardless of source.
+      subThump(0.14);
       if (playSample('bossHit', 0.3)) return;
-      noiseBurst(0.1, { filterFreq: 1800, volume: 0.18 });
+      noiseBurst(0.1, { filterFreq: 1800, volume: 0.18, attack: 0.003 });
     },
     wallJump() {
       tone(500, 0.1, { type: 'sine', sweepTo: 750, volume: 0.13, filterFreq: 2500 });
@@ -578,6 +700,7 @@ const SFX = (() => {
       noiseBurst(0.6, { filterFreq: 2000, volume: 0.16 });
     },
     bossDeath() {
+      subThump(0.2);
       tone(100, 1.5, { type: 'sawtooth', sweepTo: 20, volume: 0.24, filterFreq: 700, attack: 0.08 });
       noiseBurst(1.0, { filterFreq: 1500, volume: 0.18 });
     },
@@ -605,9 +728,10 @@ const SFX = (() => {
       tone(140, 0.3, { type: 'sawtooth', sweepTo: 90, volume: 0.12, filterFreq: 700 });
     },
     bombExplode() {
+      subThump(0.22);
       if (playSample('bombExplode', 0.32)) return;
-      noiseBurst(0.5, { filterFreq: 1200, volume: 0.22 });
-      tone(90, 0.6, { type: 'sawtooth', sweepTo: 30, volume: 0.2, filterFreq: 600, attack: 0.02 });
+      noiseBurst(0.5, { filterFreq: 1200, volume: 0.22, attack: 0.003 });
+      tone(90, 0.6, { type: 'sawtooth', sweepTo: 30, volume: 0.2, filterFreq: 600, attack: 0.008 });
     },
 
     // --- telegraphs: the audible "tell" before an enemy/boss attack lands,

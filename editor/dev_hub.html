@@ -190,7 +190,6 @@ const TOOL_GROUPS = [
   { label: 'QA & Debug', tools: [
     { name: 'Debug Console v2 (full audit)', file: 'debug_v2.html', desc: '100+ frame-stepped checks across collision, abilities, AI, UI, audio, input, save/load, rooms, anim, perf' },
     { name: 'Debug Console (R01–R11)', file: 'debug_v1.html', desc: 'Iframe-injected regression checks' },
-    { name: 'Debug Console (smoke test)', file: 'debug_new.html', desc: '8-point live sanity check' },
   ]},
   { label: 'Analysis & Reports (static snapshots)', tools: [
     { name: 'Room Difficulty Calculator', file: 'room_difficulty_calculator.html', desc: 'Pathfind + time/difficulty cost per room' },
@@ -559,23 +558,13 @@ function runAllValidations() {
   catch (e) { graphOk = false; graphErrors.push('validateAreaGraph() threw: ' + e.message); }
   finally { console.error = origError; }
 
-  // 3. Embedded doors
-  const embeddedDoors = [];
-  for (const id in AREAS) {
-    const room = AREAS[id];
-    (room.transitions || []).forEach((t, i) => {
-      for (const p of room.platforms || []) {
-        if (p.destructible) continue;
-        const xOverlap = t.x < p.x + p.w && t.x + t.w > p.x;
-        if (!xOverlap) continue;
-        const yOverlap = t.y < p.y + p.h && (t.y + t.h) > p.y;
-        if (!yOverlap) continue;
-        if (t.y >= p.y - 2 && (t.y + t.h) > p.y + 5) {
-          embeddedDoors.push(`${id}.transitions[${i}] (to '${t.to}') inside platform at (${p.x},${p.y})`);
-        }
-      }
-    });
-  }
+  // 3. Embedded doors — REMOVED as a separate check, 2026-08-02: this used
+  // to be its own hand-rolled AABB loop, byte-for-byte duplicated from
+  // debug_v1.html's R11 (see Plans/engineering_todo.md item 6). Now that
+  // step 1 above calls RoomVerify.verifyRoom() (which includes a
+  // DOOR_EMBEDDED check), any embedded door already shows up in the Room
+  // Layout Linter section's per-room issue list — a separate section here
+  // would just be showing the same issues twice.
 
   // ── Render ──
   let html = '';
@@ -589,11 +578,6 @@ function runAllValidations() {
     ? `<div class="ok">✓ connections/transitions/adjacency all consistent</div>`
     : graphErrors.map(e => `<div class="bad">✗ ${e}</div>`).join('');
 
-  html += `<div class="group-title">Embedded Doors</div>`;
-  html += embeddedDoors.length === 0
-    ? `<div class="ok">✓ no transition hitboxes embedded in solid geometry</div>`
-    : embeddedDoors.map(e => `<div class="bad">✗ ${e}</div>`).join('');
-
   out.innerHTML = html;
   out.querySelectorAll('.bad[data-room]').forEach(elm => {
     elm.addEventListener('click', () => {
@@ -601,16 +585,17 @@ function runAllValidations() {
     });
   });
 
-  const allClean = roomIssues.length === 0 && graphErrors.length === 0 && embeddedDoors.length === 0;
+  const allClean = roomIssues.length === 0 && graphErrors.length === 0;
   banner.className = allClean ? 'ok' : 'bad';
   statusText.textContent = allClean
     ? 'All Clear'
-    : `${roomIssues.length + (graphErrors.length ? 1 : 0) + (embeddedDoors.length ? 1 : 0)} issue group(s) found`;
+    : `${roomIssues.length + (graphErrors.length ? 1 : 0)} issue group(s) found`;
 
-  // Push results into the sidebar's per-tool health dots — room linter +
-  // embedded doors both point at room geometry (Level Editor), graph errors
-  // point at the compass graph (World Graph Analyzer).
-  toolHealth['levelEditor.html'] = (roomIssues.length === 0 && embeddedDoors.length === 0) ? 'ok' : 'bad';
+  // Push results into the sidebar's per-tool health dots — room linter
+  // (now including embedded-door issues, see above) points at room
+  // geometry (Level Editor), graph errors point at the compass graph
+  // (World Graph Analyzer).
+  toolHealth['levelEditor.html'] = roomIssues.length === 0 ? 'ok' : 'bad';
   toolHealth['graph_analyzer.html'] = graphErrors.length === 0 ? 'ok' : 'bad';
   renderSidebar();
 

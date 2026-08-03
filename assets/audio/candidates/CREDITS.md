@@ -146,3 +146,77 @@ across the set rather than all 33, to avoid near-duplicate clutter in the tester
 **License note**: everything above is CC0 except the two `qubodup` sources (ice and
 electricity), which are CC-BY 3.0 — attribution to Iwan 'qubodup' Gabovitch is
 required if either ends up live.
+
+## Third pass (2026-08-02) — sound-gap catalog follow-up
+
+Prompted by a full moveset/SFX audit (every enemy/miniboss/boss attack cross-referenced
+against `game/audio.js`). Two findings from that audit:
+
+- **The Conduit / Electromagnetic Golem / other electricity-themed enemies have no
+  electric texture anywhere in their kits** — `electricAbility` (added second pass,
+  above) already targets this; this pass rounds out the rest of the faxcorp
+  "Electricity Game Sound Pack" that wasn't grabbed yet, for more A/B choice.
+- **Base `Enemy` class's dodge/back-hop, ranged-dodge, block/guard-raise, and
+  anti-juggle breakout burst are 100% silent** across every regular enemy in the
+  roster (this affects every enemy type, not just one boss) — new `defenseVerb` slot.
+- **Taser was suspected unwired** (asset + `SFX.taserZap()` exist but seemingly never
+  called) — turned out to be a false alarm: `game/game_update.js:1616` already calls
+  `SFX.taserZap()` when `hitType === 'taser'` on player-hit resolution. No fix needed.
+
+| Slot | New files | Source pack | Author | License | Source URL |
+|---|---|---|---|---|---|
+| electricAbility (new) | groundhit.ogg, hit.ogg, killconfirmed.ogg, recharge.ogg, snaploop.ogg, turbo.ogg, shieldloop.ogg | "Electricity Game Sound Pack" | faxcorp | CC0 | https://opengameart.org/content/electricity-game-sound-pack |
+| defenseVerb (new) | swish_1..4.ogg (reused from `attack` slot's existing files, no re-download) | "Swishes Sound Pack" | Summoning Wars team | CC0 | https://opengameart.org/content/swishes-sound-pack |
+
+`electricAbility` now has the complete faxcorp pack (all 15 one-shots/loops) available
+for A/B, aside from `death.wav`/`powerdown.wav` (redundant with `deathboom`/existing
+`stillpointEnd`-style fades — skipped as near-duplicates). Same `ffmpeg` loudnorm
+(-18 LUFS, TP -1.5, LRA 11) + short fade + Ogg Vorbis re-encode pipeline as every other
+pass. `defenseVerb` deliberately reuses the `attack` slot's lighter swish variants
+rather than downloading new files — they're already CC0-cleared and already in the
+pool, just unassigned to a slot before now.
+
+## Fourth pass (2026-08-02, same day) — Void Tether wired live + a new source family
+
+**Void Tether went from completely silent to 3 real dedicated cues, live** (not just
+candidates — see `assets/audio/sfx/CREDITS.md`'s own entry for the full writeup):
+`voidTetherCast`/`voidTetherPull`/`voidTetherHit`, matching the three real moments in
+`game/game_update.js`'s tether code (cast/latch, sustained pull, arrival). The arrival
+hit's pitch now scales by target size (`SFX.voidTetherHit(sizeFactor)`, derived from
+`enemy.width * enemy.height`) — a big target lands lower/heavier, a small one higher/
+lighter, addressing the user's ask for the arrival sound to differ "slightly... for
+size." A new `playSample(name, volume, pitchVariance, pitchCenter)` param in
+`game/audio.js` makes this a directional pitch shift, not just random jitter.
+
+**New source family this pass**: Kenney's ["Sci-fi Sounds"](https://kenney.nl/assets/sci-fi-sounds)
+pack (CC0, 77 files) — everything used from it this pass is CC0, no attribution
+required (credited anyway per convention). Also added one CC-BY 3.0 source
+(a real train field-recording) and one more CC0 Freesound source, both new source
+families for this project (previously only OpenGameArt/Freesound/Kenney's two older
+packs).
+
+| Slot | New files | Source pack | Author | License | Source URL |
+|---|---|---|---|---|---|
+| voidTetherCast (live) | laserRetro_002.ogg | "Sci-Fi Sounds" | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| voidTetherPull (live + 2 alts) | thrusterFire_000/001/002.ogg | "Sci-Fi Sounds" | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| voidTetherHit (live) | impactMetal_003.ogg | "Sci-Fi Sounds" | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| forceField (new) | forceField_000..004.ogg | "Sci-Fi Sounds" | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| portalDoor (new) | doorOpen_000..002.ogg, doorClose_000..002.ogg | "Sci-Fi Sounds" | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| trainSweep (new) | engineCircular_000..002.ogg, spaceEngineLow_000..002.ogg | "Sci-Fi Sounds" | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| trainSweep (new) | gryc_train_rumble_excerpt.ogg (8s excerpt of a real train field-recording) | "Background Rumble Noise" | gryc | **CC-BY 3.0 — attribution required** | https://opengameart.org/content/background-rumble-noise |
+| gravityFlip (new) | lowFrequency_explosion_000/001.ogg | "Sci-Fi Sounds" | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| slimeSquelch (new) | slime_000/001.ogg | "Sci-Fi Sounds" | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| voidPull (new) | scifi_ambient_drone_excerpt.ogg (8s excerpt of a 2:45 loop) | "Sci-fi Ambient Drone" | LookIMadeAThing | CC0 | https://freesound.org/people/LookIMadeAThing/sounds/534018/ |
+
+Same `ffmpeg` loudnorm/fade/Ogg Vorbis pipeline as every other pass (live files at
+I=-16 LUFS matching `assets/audio/sfx/CREDITS.md`'s convention, candidates at -18 LUFS
+matching this file's own convention). The long-form drone and train-rumble sources
+were trimmed to 8s excerpts rather than kept full-length (2:45 and much longer
+respectively) — enough to A/B the character without bloating the repo.
+
+**Note on Pixabay**: a Pixabay train-horn search was the original lead for this pass,
+but Pixabay's site returned a bot-protection 403 to every fetch attempt, and its
+license is a separate "Pixabay Content License" rather than CC0/CC-BY anyway (no
+attribution required, but distinct terms — e.g. can't resell the raw file standalone).
+Skipped in favor of the OpenGameArt/Freesound/Kenney sources above, which stay
+consistent with every other credit in this project.

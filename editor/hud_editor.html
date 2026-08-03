@@ -57,8 +57,9 @@
   <h3>Save / export</h3>
   <button onclick="save()" style="width:100%; margin-bottom:4px">💾 Save to game (localStorage)</button>
   <button onclick="exportJSON()" style="width:100%; margin-bottom:4px">📋 Export JSON</button>
+  <button onclick="saveToFile()" style="width:100%; margin-bottom:4px">💽 Write to game_hud_menus.js (needs save-server)</button>
   <button class="danger" onclick="resetAll()" style="width:100%">Reset to defaults</button>
-  <div class="hint">"Save": the game reads this on next load (HUD_LAYOUT overrides in game_hud_menus.js). "Export": paste-ready values for game_hud_menus.js's HUD_LAYOUT if you want them permanent. "Reset": clears the saved override AND restores defaults here.</div>
+  <div class="hint">"Save": the game reads this on next load (HUD_LAYOUT overrides in game_hud_menus.js). "Export": paste-ready values for game_hud_menus.js's HUD_LAYOUT if you want them permanent. "Write to file": same result as Export, but done for you — only works when running <code>node editor/save-server.js</code> and loading this page through http://localhost:8787. "Reset": clears the saved override AND restores defaults here — never touches the source file.</div>
   <textarea id="exportBox" placeholder="Export appears here…"></textarea>
 </div>
 
@@ -68,6 +69,7 @@
 <script src="../game/unsavedGuard.js"></script>
 <script src="../game/undoHistory.js"></script>
 <script src="anchoredDrag.js"></script>
+<script src="exportPanel.js"></script>
 <script>
 'use strict';
 // ─────────────────────────────────────────────────────────────────────────────
@@ -359,10 +361,36 @@ function resetAll() {
   if (historyMgr) historyMgr.push();
 }
 function exportJSON() {
-  const box = document.getElementById('exportBox');
-  box.value = `// Paste over the HUD_LAYOUT values in game/game_hud_menus.js (and update the\n// DEFAULTS copy in editor/hud_editor.html to match).\nconst HUD_LAYOUT = ${JSON.stringify(layout, null, 2)};`;
-  box.select();
-  if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Exported layout', '');
+  const text = `// Paste over the HUD_LAYOUT values in game/game_hud_menus.js (and update the\n// DEFAULTS copy in editor/hud_editor.html to match).\nconst HUD_LAYOUT = ${JSON.stringify(layout, null, 2)};`;
+  ExportPanel.write('exportBox', text, 'HUD Editor', 'Exported layout', '');
+}
+async function saveToFile() {
+  const changed = Object.keys(layout).filter((k) => JSON.stringify(layout[k]) !== JSON.stringify(DEFAULTS[k]) || !(k in DEFAULTS));
+  const summary = changed.length
+    ? `Elements changed from defaults: ${changed.join(', ')}`
+    : 'No elements differ from defaults — this will overwrite HUD_LAYOUT with the default values.';
+  const ok = confirm(
+    `This will directly overwrite the HUD_LAYOUT block in game/game_hud_menus.js on disk.\n\n${summary}\n\n` +
+    `A timestamped backup (.bak) is made first, and you can also revert with git. Proceed?`
+  );
+  if (!ok) return;
+  try {
+    const res = await fetch('http://localhost:8787/save-hud-layout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ layout }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    alert(`Written to game/game_hud_menus.js.\nBackup: ${data.backup}`);
+    if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Wrote HUD_LAYOUT to disk', data.backup);
+  } catch (e) {
+    alert(
+      `Could not write to disk: ${e.message}\n\n` +
+      `Is the save server running? Start it with:\n  node editor/save-server.js\n` +
+      `...and load this editor via http://localhost:8787/editor/hud_editor.html`
+    );
+  }
 }
 
 renderPanel();

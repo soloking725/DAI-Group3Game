@@ -256,7 +256,7 @@
         // that runs unconditionally every tick. bot_arena never set this
         // flag, so the boss got nulled on the very first update() call
         // after spawning (same bug class the miniboss branch below already
-        // avoids via area.isMinibossArena — missed the King's equivalent).
+        // avoids via area.isMinibossArena — missed the Sovereign's equivalent).
         area.isBossArena = true;
         bossDefeated = false; // stale true from an earlier run in this tab would suppress the fight entirely
         boss = new Boss(area.width / 2, area.groundY - 140);

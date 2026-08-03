@@ -158,7 +158,7 @@ const ROSTER = [
   { id: 'crystal_sentinel', name: 'Crystal Sentinel', group: 'Built', built: true,
     blurb: 'Ranged homing attacker with a directional shield — shield blocks melee from the front, ranged pierces it.' },
   { id: 'fractured_slime', name: 'Fractured Slime', group: 'Built', built: true,
-    blurb: 'Summoned by the King — charges or hops at the player. Not normally placed standalone in a room.' },
+    blurb: 'Summoned by the Fractured Sovereign — charges or hops at the player. Not normally placed standalone in a room.' },
   { id: 'colossus_core', name: 'Colossus Core (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
     blurb: 'Crag of the Colossus miniboss. Only Charged (heavy) attacks connect — normal attacks bounce off with no damage. Single telegraphed charge attack. Has a real designed arena already (crag_warden) — this test uses an equivalent flat open floor.' },
   { id: 'static_guardian', name: 'The Conduit (miniboss)', group: 'Built — Miniboss', built: true, isMiniboss: true,
@@ -239,7 +239,7 @@ const ROSTER = [
     blurb: 'Tiny, fast, erratic. Contact teleports you nearby (no damage, disorienting). Counter: phase-dash through it.' },
   { id: 'inertial_shieldbearer', name: 'Inertial Shieldbearer', group: 'Planned — Normal', built: false, region: 'The Polar Shift',
     blurb: 'Runs in a straight line, gains speed, can\'t turn sharply. Counter: Graviton Surge flips it into a wall.' },
-  { id: 'fractured_kings_guard_normal', name: "Fractured King's Guard (elite normal)", group: 'Planned — Normal', built: false, region: 'unassigned',
+  { id: 'fractured_sovereigns_guard_normal', name: "Fractured Sovereign's Guard (elite normal)", group: 'Planned — Normal', built: false, region: 'unassigned',
     blurb: 'Greatshield, 3 phases (bash / combos / enrage with adds). NOTE: this name duplicates miniboss 4.1 below — likely the same entity described twice in expansion.md, worth resolving which is canonical.' },
 
   // ── Planned hard enemies (expansion.md §2.2) ──
@@ -260,7 +260,7 @@ const ROSTER = [
   // Mirror King/Gravity Collapse Core/Electromagnetic Golem/Quantum
   // Pursuer/The Assembler/Warden & Hollow all moved up to "Built —
   // Miniboss" above once their real enemy.js classes landed. ──
-  { id: 'kings_guard_miniboss', name: "The Fractured King's Guard (4.1)", group: 'Planned — Miniboss', built: false, region: 'origin spine (early)',
+  { id: 'sovereigns_guard_miniboss', name: "The Fractured Sovereign's Guard (4.1)", group: 'Planned — Miniboss', built: false, region: 'origin spine (early)',
     blurb: 'Shield bash + combos, enrage with shard adds. Parry the bash, punish shield recovery. Reward: +1 Max Health. Same design template as Colossus Core (this is the fight it was reskinned from).', needsRoom: true },
   { id: 'temporal_warden', name: 'Temporal Warden (4.6)', group: 'Planned — Miniboss', built: false, region: 'unassigned',
     blurb: 'Rewinds its own health every 10s unless interrupted. The one enemy with partial, narratively-justified Stillpoint resistance. Deliberately last per the user — design not settled yet.', needsRoom: true },

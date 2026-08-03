@@ -557,7 +557,7 @@ function update() {
   }
 
   // Spawn miniboss when entering a miniboss arena (Colossus Core, etc.) —
-  // parallel to the King's spawn above but keyed by `area.miniboss` (an id
+  // parallel to the Sovereign's spawn above but keyed by `area.miniboss` (an id
   // string) rather than tied to isBossArena, so multiple future minibosses
   // in different regions can each persist their own defeated flag.
   if (area.isMinibossArena && !miniboss && !defeatedMinibosses[area.miniboss]) {
@@ -911,7 +911,8 @@ function update() {
       // other big hit in the game already uses (see the heavy-attack and
       // guard-break hitstop above) — just applied to the cast itself.
       setHitstop(6);
-      SFX.dash();
+      SFX.voidTetherCast();
+      SFX.voidTetherPull();
     } else {
       // "Pulls enemies to you, OR pulls you to walls" (Enemy_Design.pdf) —
       // this half was missing entirely (user report 2026-07-16: "void
@@ -933,7 +934,8 @@ function update() {
       if (wallTargetX !== null) {
         player.tether = { targetPoint: { x: wallTargetX, y: player.y }, speed, pullTimer: 0 };
         setHitstop(6);
-        SFX.dash();
+        SFX.voidTetherCast();
+        SFX.voidTetherPull();
       } else {
         // WHIFF — nothing in front to pull and no wall to grapple. The old
         // code silently burned the full cooldown here with zero feedback
@@ -955,6 +957,10 @@ function update() {
     const d = Math.hypot(dx, dy);
     if (d <= player.tether.speed + 4) {
       player.x = tp.x; player.y = tp.y; player.vx = 0; player.vy = 0;
+      // Wall-grapple arrival was silent too (noticed alongside the enemy-
+      // arrival fix above) — light/fixed size factor, a wall isn't "sized"
+      // the way an enemy is.
+      SFX.voidTetherHit(0.15);
       player.tether = null;
     } else {
       player.tether.pullTimer++;
@@ -1011,6 +1017,11 @@ function update() {
           screenShake = Math.max(screenShake, 10); screenShakeIntensity = Math.max(screenShakeIntensity, 5);
           setHitstop(8);
           SFX.playerHurt();
+          // The Catch reverses who takes the hit, but it's still a Void
+          // Tether arrival — layer the size-scaled tether-hit thump under
+          // the normal player-hurt cue so this branch stays sonically tied
+          // to the ability, not indistinguishable from a plain enemy hit.
+          SFX.voidTetherHit(Math.max(0, Math.min(1, ((enemy.width * enemy.height) - 700) / 7300)));
           player.tether = null;
         } else {
           // A tether yank rips a raised guard open (defense-verb counterplay:
@@ -1046,6 +1057,11 @@ function update() {
           spawnParticles(ex, ey, '#34d399', 10);
           screenShake = Math.max(screenShake, 6); screenShakeIntensity = Math.max(screenShakeIntensity, 3);
           setHitstop(6);
+          // Size-scaled arrival hit — a big target (e.g. a miniboss-scale
+          // body) reads heavier/lower than a small one. Normalized against
+          // roughly the smallest (~28x28 base Enemy) to largest (~84x92,
+          // e.g. ColossusCore) real enemy footprints in the roster.
+          SFX.voidTetherHit(Math.max(0, Math.min(1, ((enemy.width * enemy.height) - 700) / 7300)));
           player.tether = null;
         }
       } else if (!player.tether.pullPlayerToEnemy && player.tether.hitStunSetLastFrame !== undefined && enemy.hitStun >= player.tether.hitStunSetLastFrame) {
@@ -1710,7 +1726,7 @@ function update() {
   // call that increments `deathTimer`) stopped running on every subsequent
   // frame, so `deathTimer` got stuck at 0 forever and `deathTimer === 1`
   // (required below to trigger victory) could never become true. Confirmed
-  // live: defeating the King could not end the game through this path.
+  // live: defeating the Sovereign could not end the game through this path.
   // Boss.update() already early-returns after incrementing deathTimer when
   // `this.dead`, so calling it unconditionally here is safe — same pattern
   // already used for the miniboss's equivalent block.
@@ -1815,13 +1831,13 @@ function update() {
 
   // === MINIBOSS UPDATE (Colossus Core, etc.) ===
   // NOTE: gate on `miniboss` alone, NOT `miniboss && !miniboss.dead` — the
-  // King's equivalent block uses that pattern and it has a real bug: once
+  // Sovereign's equivalent block uses that pattern and it has a real bug: once
   // `dead` flips true, the outer `!boss.dead` check fails on every
   // subsequent frame, so `boss.update()` (which increments `deathTimer`)
   // never runs again and `deathTimer === 1` can never become true — the
   // victory trigger is dead code. Confirmed live (deathTimer stays stuck at
   // 0 forever once dead). Not fixing boss.js's copy here since it's a
-  // separate, bigger change to the King's win-condition flow outside this
+  // separate, bigger change to the Sovereign's win-condition flow outside this
   // task's scope — flagging it in the summary instead. My own code below
   // must not repeat it, so `miniboss.update()` always runs, and only the
   // damage-dealing collision checks are individually gated on `!miniboss.dead`.
@@ -1852,7 +1868,7 @@ function update() {
       }
     }
 
-    // Player projectiles (Shard Shot) hit miniboss — mirrors the King's own
+    // Player projectiles (Shard Shot) hit miniboss — mirrors the Sovereign's own
     // block above; minibosses previously had no ranged interaction at all,
     // so a Shard Shot silently passed through every one of them.
     for (let j = projectiles.length - 1; j >= 0; j--) {
@@ -1992,6 +2008,27 @@ function update() {
         break;
       }
     }
+  }
+
+  // Sub-room ambient audio zones (area.audioZones[], room_scene_editor.html)
+  // — lets part of a room play a different track than the rest (e.g. a
+  // quiet corner of an otherwise-hub_living room). Checked every frame like
+  // the cutscene-trigger zones above; SFX.setAudioZone() itself no-ops if
+  // the effective track hasn't actually changed, so this is cheap even
+  // when nothing's happening. First overlapping zone wins if more than one
+  // overlaps (same "first match" convention as the cutscene triggers loop).
+  if (gameState === 'playing' && typeof SFX !== 'undefined') {
+    let zoneTrackKey = null;
+    for (const zone of (area.audioZones || [])) {
+      if (rectsOverlap(
+        { x: player.x, y: player.y, width: player.width, height: player.height },
+        { x: zone.x, y: zone.y, width: zone.w, height: zone.h }
+      )) {
+        zoneTrackKey = zone.trackKey || null;
+        break;
+      }
+    }
+    SFX.setAudioZone(zoneTrackKey, currentAreaId);
   }
 
   // Check Anchor checkpoints

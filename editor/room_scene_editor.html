@@ -105,6 +105,9 @@ button:disabled{opacity:0.35;cursor:default;transform:none}
     <div class="section-title">Cutscene Triggers</div>
     <button id="add-trigger-btn">+ Add Trigger</button>
     <div id="trigger-list" class="scroll"></div>
+    <div class="section-title">Audio Zones</div>
+    <button id="add-audiozone-btn">+ Add Audio Zone</button>
+    <div id="audiozone-list" class="scroll"></div>
   </div>
 
   <div id="center">
@@ -116,7 +119,7 @@ button:disabled{opacity:0.35;cursor:default;transform:none}
       <label>Parallax Preview</label>
       <input type="range" id="scrub" min="0" max="1000" value="0">
     </div>
-    <div id="scrub-note">Drags the real player through the room (camera follows via the actual game's own camera-follow logic) so parallax speed differences between layers read correctly — a static frame can't show relative motion. Dashed rectangles are cutscene trigger zones — drag to move, drag a corner to resize.</div>
+    <div id="scrub-note">Drags the real player through the room (camera follows via the actual game's own camera-follow logic) so parallax speed differences between layers read correctly — a static frame can't show relative motion. Dashed rectangles are cutscene trigger zones, dotted rectangles are audio zones — drag to move, drag a corner to resize.</div>
   </div>
 
   <div id="right" class="ds-sidebar">
@@ -138,9 +141,11 @@ button:disabled{opacity:0.35;cursor:default;transform:none}
 <script src="../game/area.js"></script>
 <script src="../game/roomVerify.js"></script>
 <script src="../game/cutscene.js"></script>
+<script src="../game/audio.js"></script>
 <script src="../game/devContext.js"></script>
 <script src="../game/unsavedGuard.js"></script>
 <script src="../game/roomImageStore.js"></script>
+<script src="../game/undoHistory.js"></script>
 <script src="boxResize.js"></script>
 <script src="room_scene_editor.js"></script>
 </body>

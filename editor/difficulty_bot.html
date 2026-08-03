@@ -103,7 +103,7 @@
   </div>
   <select id="bossSelect">
     <option value="">None</option>
-    <option value="boss">The Fractured King / Sovereign</option>
+    <option value="boss">The Fractured Sovereign</option>
     <option value="colossus_core">Colossus Core (miniboss)</option>
     <option value="static_guardian">The Conduit (miniboss)</option>
     <option value="hollow_guardian">The Mirror King (miniboss)</option>
@@ -164,7 +164,7 @@
   <p class="hint">Fast-forward evaluation is one long synchronous burst of game-logic calls per genome with nothing to make it yield — that's almost certainly the fan/heat. This inserts a real pause between genomes so the CPU actually gets a break; higher = cooler but slower to finish.</p>
 
   <p class="hint">
-    <b>How many generations is "enough"?</b> There's no fixed number — watch the chart below: keep going while best fitness is still climbing, stop once it's been flat for ~15-20 generations in a row (that's a plateau, not a countdown). Rough starting points: a single Fractured usually shows real learning within 20-40 generations; 2-3 enemies or a miniboss often needs 60-150+; the King can need more. <b>If it can't reliably clear 2 Fractured yet, that's expected before ~50+ generations</b> — the 3-target awareness window (was 2) and the reaction-time throttle above both help, but multi-enemy fights are a harder problem than 1v1 and need more generations to solve, not a sign something's broken. Start small (1 enemy), confirm it's actually learning, then scale up roster size — jumping straight to the full roster or the boss makes it much harder to tell "still training" from "stuck."
+    <b>How many generations is "enough"?</b> There's no fixed number — watch the chart below: keep going while best fitness is still climbing, stop once it's been flat for ~15-20 generations in a row (that's a plateau, not a countdown). Rough starting points: a single Fractured usually shows real learning within 20-40 generations; 2-3 enemies or a miniboss often needs 60-150+; the Sovereign can need more. <b>If it can't reliably clear 2 Fractured yet, that's expected before ~50+ generations</b> — the 3-target awareness window (was 2) and the reaction-time throttle above both help, but multi-enemy fights are a harder problem than 1v1 and need more generations to solve, not a sign something's broken. Start small (1 enemy), confirm it's actually learning, then scale up roster size — jumping straight to the full roster or the boss makes it much harder to tell "still training" from "stuck."
   </p>
 
   <button class="primary" id="runBtn">▶ Run Evolution</button>

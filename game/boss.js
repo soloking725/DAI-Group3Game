@@ -1,7 +1,7 @@
-// Final Boss: The Sovereign (still `class Boss` / `King`-prefixed
-// identifiers internally — the King→Sovereign rename is docs-only so far,
-// see Plans/CLAUDE.md's lore.md note; not renaming JS identifiers here,
-// that's a separate, unrequested refactor).
+// Final Boss: The Sovereign. `class Boss` was always generically named (no
+// actual `King`-prefixed identifiers existed to rename — only prose
+// comments referred to "the King"); those comments are now updated to
+// "the Sovereign" throughout game/*.js, per the 2026-08-02 rename.
 //
 // Moveset rebuilt 2026-07-26 (~/.claude/plans/distributed-gliding-forest.md)
 // for full parity with the player's own ability kit — she is explicitly

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Asset Browser</title>
+<style>
+  body { font: 13px/1.4 monospace; background: #0d0d12; color: #ddd; margin: 0; padding: 20px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  p.hint { color: #888; margin: 0 0 16px; }
+  input[type=file] { margin-bottom: 16px; }
+  .ns { margin-bottom: 24px; }
+  .ns h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #9ad; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { text-align: left; padding: 2px 8px; }
+  tr:hover { background: #1a1a22; }
+  .refs { color: #6c6; text-align: right; }
+  .refs.zero { color: #c66; font-weight: bold; }
+  .files { color: #888; font-size: 12px; }
+  .filter { margin-bottom: 12px; }
+  input[type=text] { background: #1a1a22; border: 1px solid #333; color: #ddd; padding: 4px 8px; width: 300px; }
+  .cmd { background: #1a1a22; border: 1px solid #333; padding: 2px 6px; color: #fc9; cursor: pointer; }
+  .empty { color: #666; font-style: italic; }
+</style>
+</head>
+<body>
+<h1>Stillpoint Asset Browser</h1>
+<p class="hint">
+  Read-only viewer over an index produced by <code>node editor/asset_index.js --json</code>.
+  Generate the index, then load the JSON file below. Renames happen via
+  <code>node editor/rename_asset.js &lt;namespace&gt; &lt;old&gt; &lt;new&gt; --write</code>
+  (click a row's command to copy it) — this page never writes to disk itself.
+</p>
+<input type="file" id="fileInput" accept="application/json">
+<div class="filter"><input type="text" id="filterBox" placeholder="Filter keys..."></div>
+<div id="output"><p class="empty">No index loaded yet.</p></div>
+
+<script>
+let INDEX = null;
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      INDEX = JSON.parse(reader.result);
+      render();
+    } catch (err) {
+      document.getElementById('output').innerHTML = '<p class="empty">Failed to parse JSON: ' + err.message + '</p>';
+    }
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('filterBox').addEventListener('input', render);
+
+function render() {
+  const out = document.getElementById('output');
+  if (!INDEX) { out.innerHTML = '<p class="empty">No index loaded yet.</p>'; return; }
+  const filter = document.getElementById('filterBox').value.trim().toLowerCase();
+  out.innerHTML = '';
+  for (const [ns, entries] of Object.entries(INDEX)) {
+    const filtered = entries
+      .filter((e) => !filter || e.key.toLowerCase().includes(filter))
+      .sort((a, b) => a.totalRefs - b.totalRefs || a.key.localeCompare(b.key));
+    if (filtered.length === 0) continue;
+    const section = document.createElement('div');
+    section.className = 'ns';
+    const h2 = document.createElement('h2');
+    h2.textContent = ns + ' (' + filtered.length + (filter ? ' matching' : '') + ')';
+    section.appendChild(h2);
+    const table = document.createElement('table');
+    filtered.forEach((entry) => {
+      const tr = document.createElement('tr');
+      const refClass = entry.totalRefs === 0 ? 'refs zero' : 'refs';
+      const filesStr = entry.files.map((f) => f.file + ' (' + f.count + 'x)').join(', ') || 'unreferenced — safe to delete?';
+      const cmd = 'node editor/rename_asset.js ' + ns + ' ' + entry.key + ' <new-name> --write';
+      tr.innerHTML =
+        '<td>' + escapeHtml(entry.key) + '</td>' +
+        '<td class="' + refClass + '">' + entry.totalRefs + '</td>' +
+        '<td class="files">' + escapeHtml(filesStr) + '</td>' +
+        '<td><span class="cmd" title="Click to copy">copy rename cmd</span></td>';
+      tr.querySelector('.cmd').addEventListener('click', () => {
+        navigator.clipboard.writeText(cmd);
+        tr.querySelector('.cmd').textContent = 'copied!';
+        setTimeout(() => { tr.querySelector('.cmd').textContent = 'copy rename cmd'; }, 1200);
+      });
+      table.appendChild(tr);
+    });
+    section.appendChild(table);
+    out.appendChild(section);
+  }
+  if (!out.children.length) out.innerHTML = '<p class="empty">No keys match "' + filter + '".</p>';
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+</script>
+</body>
+</html>

@@ -35,9 +35,10 @@ const REGION_STYLE_FIELDS = {
 const ALL_ROOM_IDS = Object.keys(AREAS).filter((id) => typeof AREAS[id].col === 'number'); // real rooms only, same skip rule area.js's own linter uses
 let area = null;               // working clone of the current room
 let currentStyle = null;       // working clone of REGION_STYLES[area.region], or null if none exists yet
-let selMode = 'none';          // 'none' | 'layer' | 'region' | 'trigger'
+let selMode = 'none';          // 'none' | 'layer' | 'region' | 'trigger' | 'audioZone'
 let selLayerIndex = -1;
 let selTriggerIndex = -1;
+let selAudioZoneIndex = -1;
 let win = null;                // the sandboxed preview iframe's contentWindow, once loaded
 let previewGeneration = 0;     // guards against a stale async loadPreview() resolving after a newer one started
 let liveCamera = { x: 0, y: 0, zoom: 1 }; // mirrors win.camera every frame, for the trigger-overlay's world<->screen math
@@ -87,6 +88,22 @@ function newTrigger(centerX, groundY) {
   };
 }
 
+// area.audioZones[] — sub-room ambient override (game/audio.js's
+// SFX.setAudioZone(), checked every frame in game_update.js). Lets part of
+// a room play a different track than the whole-room AREA_MUSIC_MAP default
+// (e.g. a quiet corner of an otherwise-hub_living room) — same zone-rectangle
+// shape as a cutscene trigger, just with a trackKey instead of a cutsceneId
+// and no triggerType/storyFlag (a zone is just "while standing here, play
+// this instead," no one-shot/gating semantics to track).
+function newAudioZone(centerX, groundY) {
+  return {
+    id: 'az_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+    x: Math.max(0, centerX - 60), y: Math.max(0, (groundY || 400) - 180),
+    w: 120, h: 120,
+    trackKey: '',
+  };
+}
+
 // Recursively checks whether any CUTSCENES script (including inside a
 // 'choice' step's onA/onB branches) sets the given story flag — used for
 // the trigger inspector's "will this ever actually gate itself?" hint.
@@ -106,32 +123,33 @@ function findCutsceneSettingFlag(flag) {
 }
 
 // ── History (undo/redo) ─────────────────────────────────────────────────
-const HISTORY_MAX = 60;
-let history = [], historyIndex = 0;
-function snapshot() { return { area: clone(area), style: currentStyle ? clone(currentStyle) : null }; }
+// Shared with levelEditor.html/anim_editor.html/etc — see game/undoHistory.js.
+// State spans two variables (area/currentStyle), so the snapshot bundles both.
+function snapshot() { return { area, style: currentStyle }; }
+const historyMgr = (typeof UndoHistory !== 'undefined') ? UndoHistory.create(
+  snapshot,
+  (snap) => {
+    area = snap.area;
+    if (!area.backdropLayers) area.backdropLayers = [];
+    if (!area.cutsceneTriggers) area.cutsceneTriggers = [];
+    if (!area.audioZones) area.audioZones = [];
+    currentStyle = snap.style;
+    selMode = 'none'; selLayerIndex = -1; selTriggerIndex = -1; selAudioZoneIndex = -1;
+    renderAll();
+    pushFullLiveState();
+  }
+) : null;
 function pushHistory() {
-  history = history.slice(0, historyIndex + 1);
-  history.push(snapshot());
-  if (history.length > HISTORY_MAX) history.shift();
-  historyIndex = history.length - 1;
+  if (historyMgr) historyMgr.push();
   updateUndoRedoButtons();
   // baseline (unsavedGuard) stays at load/save time on purpose — this only enables the undo/redo buttons
 }
-function resetHistory() { history = [snapshot()]; historyIndex = 0; updateUndoRedoButtons(); }
-function restoreSnapshot(snap) {
-  area = clone(snap.area);
-  if (!area.backdropLayers) area.backdropLayers = [];
-  if (!area.cutsceneTriggers) area.cutsceneTriggers = [];
-  currentStyle = snap.style ? clone(snap.style) : null;
-  selMode = 'none'; selLayerIndex = -1; selTriggerIndex = -1;
-  renderAll();
-  pushFullLiveState();
-}
-function undo() { if (historyIndex <= 0) return; historyIndex--; restoreSnapshot(history[historyIndex]); updateUndoRedoButtons(); }
-function redo() { if (historyIndex >= history.length - 1) return; historyIndex++; restoreSnapshot(history[historyIndex]); updateUndoRedoButtons(); }
+function resetHistory() { if (historyMgr) historyMgr.reset(); updateUndoRedoButtons(); }
+function undo() { if (historyMgr) historyMgr.undo(); updateUndoRedoButtons(); }
+function redo() { if (historyMgr) historyMgr.redo(); updateUndoRedoButtons(); }
 function updateUndoRedoButtons() {
-  document.getElementById('undo-btn').disabled = historyIndex <= 0;
-  document.getElementById('redo-btn').disabled = historyIndex >= history.length - 1;
+  document.getElementById('undo-btn').disabled = !historyMgr || !historyMgr.canUndo();
+  document.getElementById('redo-btn').disabled = !historyMgr || !historyMgr.canRedo();
 }
 
 // ── Live preview (sandboxed iframe booting the real game) ───────────────
@@ -202,6 +220,11 @@ function pushFullLiveState() {
     // 'enter' zone actually fires the real trigger check in game_update.js,
     // not just an editor-only preview of the rectangle.
     room.cutsceneTriggers = clone(area.cutsceneTriggers || []);
+    // area.audioZones[] (see newAudioZone() above) — pushed live so walking
+    // the real player (via the parallax scrubber) into a zone actually
+    // exercises the real SFX.setAudioZone() check in game_update.js, not
+    // just an editor-only preview of the rectangle.
+    room.audioZones = clone(area.audioZones || []);
   }
   if (area.region && win.REGION_STYLES && currentStyle) {
     win.REGION_STYLES[area.region] = clone(currentStyle);
@@ -228,7 +251,8 @@ function loadRoom(id) {
   area = clone(AREAS[id]);
   if (!area.backdropLayers) area.backdropLayers = [];
   if (!area.cutsceneTriggers) area.cutsceneTriggers = [];
-  selMode = 'none'; selLayerIndex = -1; selTriggerIndex = -1;
+  if (!area.audioZones) area.audioZones = [];
+  selMode = 'none'; selLayerIndex = -1; selTriggerIndex = -1; selAudioZoneIndex = -1;
   currentStyle = null;
   resetHistory();
   document.getElementById('scrub').max = area.width;
@@ -244,6 +268,7 @@ function renderAll() {
   renderRegionPanel();
   renderInspector();
   renderTriggerList();
+  renderAudioZoneList();
 }
 
 // ── Layer list (left panel) ─────────────────────────────────────────────
@@ -363,8 +388,10 @@ function renderInspector() {
     renderRegionInspector(el);
   } else if (selMode === 'trigger' && area.cutsceneTriggers[selTriggerIndex]) {
     renderTriggerInspector(el, area.cutsceneTriggers[selTriggerIndex]);
+  } else if (selMode === 'audioZone' && area.audioZones[selAudioZoneIndex]) {
+    renderAudioZoneInspector(el, area.audioZones[selAudioZoneIndex]);
   } else {
-    el.innerHTML = '<div class="hint">Select a backdrop layer, the Region Style panel, or a cutscene trigger to edit its properties.</div>';
+    el.innerHTML = '<div class="hint">Select a backdrop layer, the Region Style panel, a cutscene trigger, or an audio zone to edit its properties.</div>';
   }
 }
 
@@ -874,6 +901,113 @@ function populateCutsceneDatalist() {
 }
 populateCutsceneDatalist();
 
+// ── Audio zone list (left panel) — mirrors the cutscene trigger list above.
+function renderAudioZoneList() {
+  const listEl = document.getElementById('audiozone-list');
+  listEl.innerHTML = '';
+  area.audioZones.forEach((zone, i) => {
+    const row = document.createElement('div');
+    row.className = 'layer-row' + (selMode === 'audioZone' && selAudioZoneIndex === i ? ' sel' : '');
+    const info = document.createElement('div');
+    info.className = 'layer-info';
+    const name = document.createElement('div');
+    name.className = 'layer-name';
+    name.textContent = zone.trackKey || '(no trackKey)';
+    const badge = document.createElement('div');
+    badge.className = 'layer-badge';
+    badge.textContent = '♪ zone';
+    info.appendChild(name); info.appendChild(badge);
+    row.appendChild(info);
+    row.addEventListener('click', () => {
+      selMode = 'audioZone'; selAudioZoneIndex = i;
+      jumpScrubTo(zone.x + zone.w / 2);
+      renderAudioZoneList(); renderInspector();
+    });
+    listEl.appendChild(row);
+  });
+}
+
+document.getElementById('add-audiozone-btn').addEventListener('click', () => {
+  const centerX = Number(scrubEl.value) || area.width / 2;
+  area.audioZones.push(newAudioZone(centerX, area.groundY));
+  selMode = 'audioZone'; selAudioZoneIndex = area.audioZones.length - 1;
+  onLiveEdit(); pushHistory();
+  renderAudioZoneList(); renderInspector();
+});
+
+function renderAudioZoneInspector(el, zone) {
+  el.innerHTML = '';
+  const title = document.createElement('div');
+  title.className = 'section-title';
+  title.textContent = 'Audio Zone';
+  el.appendChild(title);
+
+  const note = document.createElement('div');
+  note.className = 'hint';
+  note.textContent = 'While the player is standing inside this zone, the room\'s music crossfades to trackKey instead of its normal AREA_MUSIC_MAP track — reverts automatically on leaving the zone.';
+  el.appendChild(note);
+
+  // trackKey — datalist-autocompleted from the real SFX.getMusicKeys()
+  // (same pattern the cutscene trigger's cutsceneId field uses for CUTSCENES).
+  const tkRow = document.createElement('div');
+  tkRow.className = 'row';
+  const tkLabel = document.createElement('label');
+  tkLabel.textContent = 'trackKey';
+  const tkInput = document.createElement('input');
+  tkInput.type = 'text';
+  tkInput.setAttribute('list', 'music-keys-datalist');
+  tkInput.value = zone.trackKey || '';
+  tkInput.addEventListener('input', () => { zone.trackKey = tkInput.value; onLiveEdit(); renderAudioZoneList(); });
+  tkInput.addEventListener('change', () => pushHistory());
+  tkRow.appendChild(tkLabel); tkRow.appendChild(tkInput);
+  el.appendChild(tkRow);
+  if (typeof SFX === 'undefined' || !SFX.getMusicKeys || !SFX.getMusicKeys().length) {
+    const warn = document.createElement('div');
+    warn.className = 'hint';
+    warn.style.color = '#e0a458';
+    warn.textContent = 'No music tracks found (game/audio.js not loaded) — type the key anyway, it just won\'t autocomplete.';
+    el.appendChild(warn);
+  }
+
+  // Zone geometry — precise numeric editing alongside dragging the overlay
+  addNumberField(el, 'X', zone, 'x', 10);
+  addNumberField(el, 'Y', zone, 'y', 10);
+  addNumberField(el, 'Width', zone, 'w', 10);
+  addNumberField(el, 'Height', zone, 'h', 10);
+
+  // Delete
+  const delRow = document.createElement('div');
+  delRow.className = 'row';
+  const delBtn = document.createElement('button');
+  delBtn.className = 'del';
+  delBtn.textContent = '✕ Delete Audio Zone';
+  delBtn.addEventListener('click', () => {
+    area.audioZones.splice(selAudioZoneIndex, 1);
+    selMode = 'none'; selAudioZoneIndex = -1;
+    onLiveEdit(); pushHistory();
+    renderAudioZoneList(); renderInspector();
+  });
+  delRow.appendChild(delBtn);
+  el.appendChild(delRow);
+}
+
+function populateMusicKeysDatalist() {
+  let dl = document.getElementById('music-keys-datalist');
+  if (!dl) {
+    dl = document.createElement('datalist');
+    dl.id = 'music-keys-datalist';
+    document.body.appendChild(dl);
+  }
+  dl.innerHTML = '';
+  if (typeof SFX === 'undefined' || !SFX.getMusicKeys) return;
+  for (const key of SFX.getMusicKeys()) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    dl.appendChild(opt);
+  }
+}
+populateMusicKeysDatalist();
+
 // ── Trigger-zone overlay (center pane) — a transparent canvas stacked on
 // top of the live preview iframe, redrawn every frame from a small rAF loop
 // that mirrors the iframe's real win.camera so zone rectangles track the
@@ -916,6 +1050,29 @@ function drawTriggerOverlay() {
     }
     overlayCtx.restore();
   });
+  area.audioZones.forEach((zone, i) => {
+    const x = worldToScreenX(zone.x), y = worldToScreenY(zone.y);
+    const w = zone.w * liveCamera.zoom, h = zone.h * liveCamera.zoom;
+    const isSel = selMode === 'audioZone' && selAudioZoneIndex === i;
+    overlayCtx.save();
+    overlayCtx.strokeStyle = isSel ? '#fbbf24' : '#a78bfa';
+    overlayCtx.fillStyle = isSel ? 'rgba(251,191,36,0.12)' : 'rgba(167,139,250,0.08)';
+    overlayCtx.lineWidth = isSel ? 2 : 1.5;
+    overlayCtx.setLineDash([2, 3]); // dotted, vs. the cutscene triggers' dashed [6,4] — visually distinct at a glance
+    overlayCtx.fillRect(x, y, w, h);
+    overlayCtx.strokeRect(x, y, w, h);
+    overlayCtx.setLineDash([]);
+    overlayCtx.fillStyle = isSel ? '#fbbf24' : '#a78bfa';
+    overlayCtx.font = '10px monospace';
+    overlayCtx.fillText('♪ ' + (i + 1), x + 3, y + 11);
+    if (isSel) {
+      const hs = 4;
+      [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([hx, hy]) => {
+        overlayCtx.fillRect(hx - hs, hy - hs, hs * 2, hs * 2);
+      });
+    }
+    overlayCtx.restore();
+  });
 }
 
 function overlayTick() {
@@ -947,19 +1104,35 @@ function hitTestTriggerBody(trig, mx, my) {
   const r = triggerScreenRect(trig);
   return mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
 }
+// Audio zones are the same {x,y,w,h} rect shape as a trigger — reuse the
+// exact same screen-rect/handle/body math via triggerScreenRect() etc.,
+// just aliased so the drag-handling code below stays symmetrical to read.
+const audioZoneScreenRect = triggerScreenRect;
+const hitTestAudioZoneHandle = hitTestTriggerHandle;
+const hitTestAudioZoneBody = hitTestTriggerBody;
 
 let triggerDrag = null; // {mode:'move'|'resize', corner, startMouseX, startMouseY, orig:{x,y,w,h}}
+let audioZoneDrag = null; // same shape, for area.audioZones instead
 
 overlayCanvas.addEventListener('mousedown', (e) => {
   if (!area) return;
   const { x: mx, y: my } = overlayMousePos(e);
   const triggers = area.cutsceneTriggers;
+  const zones = area.audioZones;
 
   if (selMode === 'trigger' && triggers[selTriggerIndex] && triggers[selTriggerIndex].triggerType !== 'onRoomLoad') {
     const corner = hitTestTriggerHandle(triggers[selTriggerIndex], mx, my);
     if (corner) {
       const t = triggers[selTriggerIndex];
       triggerDrag = { mode: 'resize', corner, startMouseX: mx, startMouseY: my, orig: { x: t.x, y: t.y, w: t.w, h: t.h } };
+      return;
+    }
+  }
+  if (selMode === 'audioZone' && zones[selAudioZoneIndex]) {
+    const corner = hitTestAudioZoneHandle(zones[selAudioZoneIndex], mx, my);
+    if (corner) {
+      const z = zones[selAudioZoneIndex];
+      audioZoneDrag = { mode: 'resize', corner, startMouseX: mx, startMouseY: my, orig: { x: z.x, y: z.y, w: z.w, h: z.h } };
       return;
     }
   }
@@ -973,30 +1146,58 @@ overlayCanvas.addEventListener('mousedown', (e) => {
       return;
     }
   }
+  for (let i = zones.length - 1; i >= 0; i--) {
+    if (hitTestAudioZoneBody(zones[i], mx, my)) {
+      selMode = 'audioZone'; selAudioZoneIndex = i;
+      const z = zones[i];
+      audioZoneDrag = { mode: 'move', startMouseX: mx, startMouseY: my, orig: { x: z.x, y: z.y, w: z.w, h: z.h } };
+      renderAudioZoneList(); renderInspector();
+      return;
+    }
+  }
   if (selMode === 'trigger') { selMode = 'none'; selTriggerIndex = -1; renderTriggerList(); renderInspector(); }
+  else if (selMode === 'audioZone') { selMode = 'none'; selAudioZoneIndex = -1; renderAudioZoneList(); renderInspector(); }
 });
 
 window.addEventListener('mousemove', (e) => {
-  if (!triggerDrag || !area) return;
+  if (!area) return;
   const { x: mx, y: my } = overlayMousePos(e);
-  const dxWorld = (mx - triggerDrag.startMouseX) / liveCamera.zoom;
-  const dyWorld = (my - triggerDrag.startMouseY) / liveCamera.zoom;
-  const t = area.cutsceneTriggers[selTriggerIndex];
-  if (!t) { triggerDrag = null; return; }
-  const o = triggerDrag.orig;
-  if (triggerDrag.mode === 'move') {
-    t.x = Math.max(0, o.x + dxWorld);
-    t.y = Math.max(0, o.y + dyWorld);
-  } else {
-    const r = resizeRectByCorner(o, triggerDrag.corner, dxWorld, dyWorld, MIN_TRIGGER_SIZE);
-    t.x = r.x; t.y = r.y; t.w = r.w; t.h = r.h;
+  if (triggerDrag) {
+    const dxWorld = (mx - triggerDrag.startMouseX) / liveCamera.zoom;
+    const dyWorld = (my - triggerDrag.startMouseY) / liveCamera.zoom;
+    const t = area.cutsceneTriggers[selTriggerIndex];
+    if (!t) { triggerDrag = null; return; }
+    const o = triggerDrag.orig;
+    if (triggerDrag.mode === 'move') {
+      t.x = Math.max(0, o.x + dxWorld);
+      t.y = Math.max(0, o.y + dyWorld);
+    } else {
+      const r = resizeRectByCorner(o, triggerDrag.corner, dxWorld, dyWorld, MIN_TRIGGER_SIZE);
+      t.x = r.x; t.y = r.y; t.w = r.w; t.h = r.h;
+    }
+    if (selMode === 'trigger') renderInspector(); // keep the numeric x/y/w/h fields live in sync while dragging
   }
-  if (selMode === 'trigger') renderInspector(); // keep the numeric x/y/w/h fields live in sync while dragging
+  if (audioZoneDrag) {
+    const dxWorld = (mx - audioZoneDrag.startMouseX) / liveCamera.zoom;
+    const dyWorld = (my - audioZoneDrag.startMouseY) / liveCamera.zoom;
+    const z = area.audioZones[selAudioZoneIndex];
+    if (!z) { audioZoneDrag = null; return; }
+    const o = audioZoneDrag.orig;
+    if (audioZoneDrag.mode === 'move') {
+      z.x = Math.max(0, o.x + dxWorld);
+      z.y = Math.max(0, o.y + dyWorld);
+    } else {
+      const r = resizeRectByCorner(o, audioZoneDrag.corner, dxWorld, dyWorld, MIN_TRIGGER_SIZE);
+      z.x = r.x; z.y = r.y; z.w = r.w; z.h = r.h;
+    }
+    if (selMode === 'audioZone') renderInspector();
+  }
 });
 
 window.addEventListener('mouseup', () => {
-  if (!triggerDrag) return;
+  if (!triggerDrag && !audioZoneDrag) return;
   triggerDrag = null;
+  audioZoneDrag = null;
   onLiveEdit(); pushHistory();
 });
 
@@ -1006,7 +1207,8 @@ document.getElementById('exp-btn').addEventListener('click', () => {
   let out = `// Paste into AREAS['${area.id}'] (add/replace these fields):\n`
     + `backdropLayers: ${JSON.stringify(layers, null, 2)},\n`
     + `hideProceduralBackdrop: ${!!area.hideProceduralBackdrop},\n`
-    + `cutsceneTriggers: ${JSON.stringify(area.cutsceneTriggers, null, 2)},`;
+    + `cutsceneTriggers: ${JSON.stringify(area.cutsceneTriggers, null, 2)},\n`
+    + `audioZones: ${JSON.stringify(area.audioZones, null, 2)},`;
   if (currentStyle) {
     out += `\n\n// Paste into REGION_STYLES in game/game_entities.js:\n`
       + `${area.region}: ${JSON.stringify(currentStyle, null, 2)},`;

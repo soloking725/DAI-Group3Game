@@ -64,12 +64,13 @@ list, not a replacement): `production_workflow_and_tool_gaps.md`,
 ## 2. Room verification / production tooling
 
 - **Room reachability bot-walker** (`room_verification_tool_plan.md`
-  Component 2) — **the single highest-priority item on this whole list**,
-  per `production_workflow_and_tool_gaps.md`'s own stated recommendation.
-  Only the static linter (Component 1) and Spawn button (Component 3) are
-  built; nothing actually walks a room and reports stuck points yet.
-  Recommended to build before the full 71-room hand-design pass starts —
-  cheaper to catch a bad room while it's still being built.
+  Component 2) — **deprioritized by the user, 2026-08-02** ("i don't care
+  for the bot walker"). Previously ranked highest-priority per
+  `production_workflow_and_tool_gaps.md`'s own recommendation; overridden
+  by explicit user call. Only the static linter (Component 1, now merged
+  into `game/roomVerify.js` — see §7 item 10) and Spawn button (Component
+  3) are built. Not being pursued — don't resurface this as a
+  recommendation without being asked again.
 - **Project Progress Dashboard v2** — per-room drill-down (click a region
   row to expand into its per-room breakdown) and a "suggested next
   room/region" heuristic. v1 (aggregate stats) is built on `dev_hub.html`;
@@ -131,11 +132,18 @@ audio stingers, per-ability cooldown ring colors, a scoped
   design decisions section). Needs a decision from you (reframe as an
   ability gate or puzzle-vault-completion gate?) before it's buildable —
   not something to resolve unilaterally.
-- **JS code King→Sovereign rename** — `lore.md`/`story.md`/etc. are fully
-  renamed; `boss.js`/`game.js`/`area.js`/`enemy.js` still use `King`
-  identifiers throughout. `CLAUDE.md` explicitly says not to do this
-  without being asked, since it's a real refactor (state vars, dialogue
-  strings), not a find/replace.
+- ~~JS code King→Sovereign rename~~ — **done, 2026-08-02**, on explicit
+  request. Turned out to be smaller than it looked: no actual `King`-
+  prefixed identifiers existed anywhere (`class Boss` was always generic),
+  only prose comments and a few editor-tool display strings/ids
+  (`fractured_kings_guard_normal`→`fractured_sovereigns_guard_normal`,
+  `kings_guard_miniboss`→`sovereigns_guard_miniboss` in
+  `editor/enemy_test.html`, both unbuilt/unreferenced elsewhere so safe to
+  rename outright). `area.js`'s `loreFragments[]` turned out to already
+  say "Sovereign" — a stale claim in `Plans/CLAUDE.md` said otherwise,
+  corrected there too. "The Mirror King" is a separate, deliberately-named
+  character (per `lore.md`) and was left untouched everywhere. See
+  `Plans/CLAUDE.md`'s `lore.md` entry for the full rundown.
 
 ## 7. Editor/game duplication & structural audit (2026-08-02)
 
@@ -221,34 +229,128 @@ session (see "Fixed" below); the rest is a ranked backlog.
    plain reassignment. `pushHistory()`/`resetHistory()`/`undo()`/`redo()`/
    `updateUndoRedoButtons()` kept their names as thin wrappers so none of
    the ~15 existing call sites needed to change.
-4. **JSON export-to-textarea pattern duplicated in 4 editors** —
-   `anim_editor.html`, `combo_editor.html`, `hud_editor.html`,
-   `inventory_editor.html` each define their own `exportJSON()` +
-   hand-styled `<textarea id="exportBox">`. Export-only everywhere — no
-   editor implements paste-to-load either, that's copy-pasted-missing too.
-5. **Headless-boot `requestAnimationFrame` stub duplicated 4 times** —
-   `debug_v1.html`, `debug_new.html`, `debug_v2.html`, `difficulty_bot.html`
-   each independently stub `window.requestAnimationFrame` before loading
-   the game scripts, to suppress the auto-boot loop.
-6. **Embedded-door AABB linter check duplicated byte-for-byte** between
-   `debug_v1.html` (its "R11" check) and `dev_hub.html` — `dev_hub.html`'s
-   own comment admits it was "ported from debug_v1.html's R11" rather than
-   reused. Belongs in `game/roomVerify.js` alongside its other static
-   checks, not copied into two HTML files.
-7. **`debug_new.html` is a stale near-duplicate of `debug_v1.html`**
-   (which is a superset — adds R09-R11). Likely deletable; not deleted
-   yet, wasn't confirmed as safe to remove.
-8. **No shared stylesheet** — all ~25 `editor/*.html` files inline their
-   own `<style>`/`:root` dark-theme block (21-150 lines each) instead of
-   a shared CSS file, so the same button/panel/toolbar visual language
-   gets a slightly different palette in each file.
-9. **Hit-flash/knockback duplicated ~6 ways in `game/*.js` with drifted
-   field names** — `Player.takeDamage`, `Enemy.takeDamage`,
-   `ComposedEnemy.takeDamage`, `FracturedSlime.takeDamage`,
-   `ColossusCore.takeDamage`, and a HorizonCore-family override each
-   hand-roll health-decrement + flash-timer + optional-knockback
-   independently, with three different names for the same "just hit" flag
-   (`flashTimer` / `hitFlash` / `bounceFlash`).
+4. ~~JSON export-to-textarea pattern duplicated in 4 editors~~ — **fixed
+   2026-08-02.** `anim_editor.html`/`combo_editor.html`/`hud_editor.html`/
+   `inventory_editor.html` each defined their own `exportJSON()` with an
+   identical shell (write into `#exportBox`, `.select()`, optionally log
+   via `DevContext`) around a genuinely-different header comment + JSON
+   snippet per tool (different target file, different wrapping —
+   `Object.assign(ANIM_DEFS, ...)` vs `COMBO_DEFS = ...` vs `const
+   HUD_LAYOUT = ...` vs `const INVENTORY_LAYOUT = ...`). New
+   `editor/exportPanel.js` (`ExportPanel.write(boxId, text, logSource,
+   logMsg, logDetail)`) owns just the shared shell; each caller still
+   builds its own `text` string. **Paste-to-load is still not
+   implemented** — that's a real feature gap, not duplication (each
+   editor's wrapper shape is different enough that "parse it back" needs
+   real per-editor design: replace-whole-object vs merge, validation,
+   undo/unsaved-guard interaction), left out of this pass on purpose
+   rather than bolted on as a rushed side effect of the dedup.
+5. ~~Headless-boot `requestAnimationFrame` stub duplicated 4 times~~ —
+   **checked 2026-08-02, turned out to be mischaracterized, not a real
+   dedup target.** Actually 3 genuinely different things: (a)
+   `debug_v1.html`/`debug_new.html`'s version doesn't suppress anything —
+   it calls through to the real RAF and just logs timestamps for frame-
+   timing telemetry; that pair was byte-identical, but that's item 7's
+   duplication, not this one, and item 7 is now resolved (`debug_new.html`
+   deleted). (b) `debug_v2.html`'s stub is one small piece of a much larger
+   `INSTRUMENT` bundle (localStorage shim, muted audio, exception capture,
+   frame-counting RAF stub) injected as a single template string into a
+   sandboxed iframe — different mechanism, different purpose (frozen
+   clock, manually stepped) from either of the others. (c)
+   `difficulty_bot.html`'s is a genuinely standalone 2-line stub
+   (`window.requestAnimationFrame = function(){ return 0; }`) loaded
+   directly on its own page, no iframe at all — different mechanism again.
+   Three different injection mechanisms (string-spliced-before-iframe-
+   srcdoc ×2, direct-page-script) for three different purposes means there
+   isn't a clean shared abstraction here — forcing one would add
+   indirection for a script that's already 1-3 lines in each real case.
+   Not extracted; not a real duplication once actually compared.
+6. ~~Embedded-door AABB linter check duplicated byte-for-byte~~ — **fixed
+   2026-08-02.** `debug_v1.html`'s R11 now calls
+   `win.RoomVerify.verifyRoom(room, win.AREAS)` and filters for
+   `DOOR_EMBEDDED` issues instead of its own AABB loop.
+   `dev_hub.html`'s copy was pure redundancy once its "Room Layout Linter"
+   section already switched to `RoomVerify.verifyRoom()` (§7 item 3's
+   `levelEditor`/`dev_hub` fix, done alongside the linter merge) — any
+   `DOOR_EMBEDDED` issue already surfaces there, so the separate "Embedded
+   Doors" section/summary-count/health-dot in `dev_hub.html` was deleted
+   outright rather than pointed at the same call a second time.
+7. ~~`debug_new.html` is a stale near-duplicate of `debug_v1.html`~~ —
+   **fixed 2026-08-02: deleted.** Confirmed via direct diff before
+   removing (not assumed): identical R01-R08 checks except `debug_v1.html`
+   has real bug fixes on top (R05 reads `win.player.x` directly instead of
+   unreliable canvas-pixel-diffing; R06's pause-menu-navigation press count
+   is the correct 7, not the old 5), plus 3 more checks (R09-R11)
+   `debug_new.html` never had — a strict superset, not just a rename.
+   Checked for references before deleting: only `dev_hub.html`'s tool list
+   linked it (now removed) — no other functional code referenced it.
+   Updated the doc mentions that describe it as a currently-live tool
+   (`Plans/CLAUDE.md`'s File locations + Dev/debug tooling sections,
+   `Plans/performanceInstructions.md`'s "never break the debug tools"
+   list); left it in places that are more historical/planning artifacts
+   (`Plans/OVERVIEW.md`, `Plans/production_workflow_and_tool_gaps.md`,
+   `Plans/BUG_ANALYSIS_AND_QA_PLAN.md`) — lower payoff to chase every
+   mention across the whole doc set.
+8. ~~No shared stylesheet~~ — **stale claim, checked 2026-08-02.** This one
+   was already solved: `styles/design-system.css` (455 lines, built
+   2026-07-29 per `Plans/editor_redesign.md`/`Plans/editor_design_style_
+   guide.md`) is already `<link>`ed by 21 of 24 hand-maintained
+   `editor/*.html` files, each still keeping its own internal `<style>`
+   block after it for genuine one-off overrides — exactly the intended
+   convention per the stylesheet's own header comment. This item was
+   apparently written before that rollout, or just never updated after
+   — either way, not a real gap for those 21. **The real, narrower gap**:
+   the 3 *generated* files (`floor_plan_simulation.html`,
+   `floor_plan_report.html`, `room_difficulty_calculator.html` — machine-
+   written by `Plans/analyze_floor_plan.js`/`Plans/room_difficulty_
+   calculator.js`, see duplication item 1 above) never got the link added
+   to their template, so they were still on their own inline-only styling.
+   **Fixed**: added the `<link>` to both generator scripts' `fullDoc`
+   head-template strings (so future regenerations stay consistent) and
+   hand-patched the 3 currently-committed HTML files' `<head>` tags to
+   match, rather than fully re-running the generators — `floor_plan_
+   simulation.html` in particular embeds a randomly-seeded simulation run,
+   and regenerating without the original seed would have changed those
+   numbers as an unrelated side effect of a styling-only fix.
+9. **Hit-flash/knockback duplicated ~6 ways in `game/*.js`** — checked
+   2026-08-02, line-by-line, before touching any of it (this is live,
+   tuned combat code, high risk to merge blind without the ability to
+   browser-test per this repo's standing rule). Turned out to be much less
+   mergeable than it looked, plus one real, safe fix:
+   - **The "three different names for the same flag" part was partly
+     right, partly wrong.** `hitFlash` (`TemporalWarden.takeDamage`,
+     `enemy.js:4503`) really was a pure rename of the exact same
+     set-8/countdown/`>0`-check pattern every other simple enemy's
+     `flashTimer` uses — **fixed**, renamed to `flashTimer` throughout the
+     class (4 sites: ctor, `takeDamage`, `update`, `draw`), zero behavior
+     change, no other file referenced the old name. `bounceFlash`
+     (`ColossusCore`) is **not** the same flag under a different name —
+     it's a genuinely separate, second flag that coexists with
+     `ColossusCore`'s own `flashTimer` on the same instance, for a
+     different visual state ("this hit bounced off harmlessly" vs. "this
+     hit actually connected"). Left alone; renaming it would have been
+     wrong, not a fix.
+   - **The 6 `takeDamage()` bodies are not safe to merge.** `Player`'s
+     flash isn't even the same mechanism — it's driven by
+     `invincibleTimer > 0` with a flicker check (`flashTimer % 4 < 2`) in
+     `draw()`, not a post-hit countdown at all, so it isn't really part of
+     this family. `FracturedSlime`/`ColossusCore`/`TemporalWarden` (now
+     consistent on `flashTimer`) really are near-identical in shape
+     (health -= amount; flashTimer = N; optional small fixed knockback;
+     death check) — genuinely mergeable in principle — but `Enemy`'s base
+     `takeDamage` and especially `ComposedEnemy`'s (~100 lines: shield-HP
+     absorption, Shield Slip streak-counting, Mote Eater heal-instead-of-
+     damage, parry-stun double damage, hyper-armor knockback/interrupt
+     immunity, per-class `knockbackResistance`/`stunResistance` scaling,
+     Reversal hit-streak arming, on-death effect hooks — all before or
+     woven through the common health/flash/knockback tail) are real,
+     load-bearing per-class combat design, not copy-paste drift. Forcing
+     a shared `applyHitEffect()` across all of these would either flatten
+     into a config object doing the same branching with extra indirection,
+     or risk silently changing tuned numbers (exact knockback values,
+     flash-frame counts) across enemies players already fight — not
+     attempted. The field-name fix above is the one part of this item that
+     was both real and safe to do without a browser to verify against.
 10. ~~Two independent room-reachability linters~~ — **fixed 2026-08-02.**
     `area.js:5341-5688` had its own complete flood-fill room-layout linter
     (`_linterFloodFill`/`_linterPointReachable`/`_linterJumpHeight`/

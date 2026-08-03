@@ -1782,7 +1782,148 @@
         },
         {
           "id": "qubodup_electricity_02", "file": "assets/audio/candidates/enemy_sfx/electricAbility/qubodup_electricity_damage_02.ogg", "title": "Electricity Damage 2", "author": "Iwan 'qubodup' Gabovitch", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/ice-electricity-magic"
+        },
+        {
+          "id": "groundhit", "file": "assets/audio/candidates/enemy_sfx/electricAbility/groundhit.ogg", "title": "Ground Hit (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "electricity_hit", "file": "assets/audio/candidates/enemy_sfx/electricAbility/hit.ogg", "title": "Hit (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "killconfirmed", "file": "assets/audio/candidates/enemy_sfx/electricAbility/killconfirmed.ogg", "title": "Kill Confirmed (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "recharge", "file": "assets/audio/candidates/enemy_sfx/electricAbility/recharge.ogg", "title": "Recharge (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "snaploop", "file": "assets/audio/candidates/enemy_sfx/electricAbility/snaploop.ogg", "title": "Snap Loop (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "turbo", "file": "assets/audio/candidates/enemy_sfx/electricAbility/turbo.ogg", "title": "Turbo (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
+        },
+        {
+          "id": "shieldloop", "file": "assets/audio/candidates/enemy_sfx/electricAbility/shieldloop.ogg", "title": "Shield Loop (Electricity Game Sound Pack)", "author": "faxcorp", "license": "CC0", "sourceUrl": "https://opengameart.org/content/electricity-game-sound-pack"
         }
+      ]
+    },
+    {
+      "key": "defenseVerb",
+      "name": "Base-Enemy Defense Verbs (dodge / guard / breakout)",
+      "description": "New candidate-only slot, no live track yet. Covers the base Enemy class's dodge/back-hop, ranged-dodge, block/guard-raise, and anti-juggle breakout burst — all currently 100% silent across the whole regular-enemy roster. Light, quick stingers rather than a swing/attack sound.",
+      "liveTrack": null,
+      "candidates": [
+        {
+          "id": "defense_swish_1", "file": "assets/audio/candidates/enemy_sfx/attack/swish_1.ogg", "title": "Swish 1 (light)", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "defense_swish_2", "file": "assets/audio/candidates/enemy_sfx/attack/swish_2.ogg", "title": "Swish 2 (light)", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "defense_swish_3", "file": "assets/audio/candidates/enemy_sfx/attack/swish_3.ogg", "title": "Swish 3 (light)", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        },
+        {
+          "id": "defense_swish_4", "file": "assets/audio/candidates/enemy_sfx/attack/swish_4.ogg", "title": "Swish 4 (light)", "author": "Summoning Wars team", "license": "CC0", "sourceUrl": "https://opengameart.org/content/swishes-sound-pack"
+        }
+      ]
+    },
+    {
+      "key": "voidTetherCast",
+      "name": "Void Tether — Cast (going out)",
+      "description": "Now LIVE (assets/audio/sfx/voidTetherCast.ogg) — plays the instant the tether latches onto a target or grapples a wall. Was previously silent (reused SFX.dash()).",
+      "liveTrack": "assets/audio/sfx/voidTetherCast.ogg",
+      "candidates": [
+        { "id": "vt_cast_live", "file": "assets/audio/sfx/voidTetherCast.ogg", "title": "laserRetro_002 (currently live)", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" }
+      ]
+    },
+    {
+      "key": "voidTetherPull",
+      "name": "Void Tether — Pull (bringing it in)",
+      "description": "Now LIVE (assets/audio/sfx/voidTetherPull.ogg) — sustained sound for the travel between cast and arrival. Was previously silent.",
+      "liveTrack": "assets/audio/sfx/voidTetherPull.ogg",
+      "candidates": [
+        { "id": "vt_pull_live", "file": "assets/audio/sfx/voidTetherPull.ogg", "title": "thrusterFire_002 (currently live)", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "vt_pull_alt1", "file": "assets/audio/candidates/enemy_sfx/voidTetherPull/thrusterFire_000.ogg", "title": "thrusterFire_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "vt_pull_alt2", "file": "assets/audio/candidates/enemy_sfx/voidTetherPull/thrusterFire_001.ogg", "title": "thrusterFire_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" }
+      ]
+    },
+    {
+      "key": "voidTetherHit",
+      "name": "Void Tether — Hit (arrival, size-scaled)",
+      "description": "Now LIVE (assets/audio/sfx/voidTetherHit.ogg) — plays SFX.voidTetherHit(sizeFactor) on arrival; pitch center shifts by target size (bigger = lower/heavier). Was previously completely silent on arrival.",
+      "liveTrack": "assets/audio/sfx/voidTetherHit.ogg",
+      "candidates": [
+        { "id": "vt_hit_live", "file": "assets/audio/sfx/voidTetherHit.ogg", "title": "impactMetal_003 (currently live)", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" }
+      ]
+    },
+    {
+      "key": "forceField",
+      "name": "Shield Break / Chime",
+      "description": "New candidate-only slot, no live track yet. Covers Crystal Sentinel's shield break/regen, Fractured Knight's Shield Slip, Sovereign's Guard's shield break, and Electromagnetic Golem's Magnetize charge-up — all currently silent.",
+      "liveTrack": null,
+      "candidates": [
+        { "id": "forcefield_0", "file": "assets/audio/candidates/enemy_sfx/forceField/forceField_000.ogg", "title": "forceField_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "forcefield_1", "file": "assets/audio/candidates/enemy_sfx/forceField/forceField_001.ogg", "title": "forceField_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "forcefield_2", "file": "assets/audio/candidates/enemy_sfx/forceField/forceField_002.ogg", "title": "forceField_002", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "forcefield_3", "file": "assets/audio/candidates/enemy_sfx/forceField/forceField_003.ogg", "title": "forceField_003", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "forcefield_4", "file": "assets/audio/candidates/enemy_sfx/forceField/forceField_004.ogg", "title": "forceField_004", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" }
+      ]
+    },
+    {
+      "key": "portalDoor",
+      "name": "Portal / Teleport Blink (Assembler, Undertow)",
+      "description": "New candidate-only slot, no live track yet. The Assembler's and The Undertow's teleport blinks are both silent — distinct from the player's own Phase Dash and the Sovereign's bossTeleportOut, since both are explicitly portal-themed.",
+      "liveTrack": null,
+      "candidates": [
+        { "id": "door_open_0", "file": "assets/audio/candidates/enemy_sfx/portalDoor/doorOpen_000.ogg", "title": "doorOpen_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "door_open_1", "file": "assets/audio/candidates/enemy_sfx/portalDoor/doorOpen_001.ogg", "title": "doorOpen_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "door_open_2", "file": "assets/audio/candidates/enemy_sfx/portalDoor/doorOpen_002.ogg", "title": "doorOpen_002", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "door_close_0", "file": "assets/audio/candidates/enemy_sfx/portalDoor/doorClose_000.ogg", "title": "doorClose_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "door_close_1", "file": "assets/audio/candidates/enemy_sfx/portalDoor/doorClose_001.ogg", "title": "doorClose_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "door_close_2", "file": "assets/audio/candidates/enemy_sfx/portalDoor/doorClose_002.ogg", "title": "doorClose_002", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" }
+      ]
+    },
+    {
+      "key": "trainSweep",
+      "name": "Locomotive Sweep (The Stationmaster)",
+      "description": "New candidate-only slot, no live track yet. The Stationmaster's dash_charge is explicitly a 'locomotive sweep' per the user's own miniboss spec (expansion.md #4.11) but is currently a generic dash telegraph with no train/rail sound at all.",
+      "liveTrack": null,
+      "candidates": [
+        { "id": "engine_circular_0", "file": "assets/audio/candidates/enemy_sfx/trainSweep/engineCircular_000.ogg", "title": "engineCircular_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "engine_circular_1", "file": "assets/audio/candidates/enemy_sfx/trainSweep/engineCircular_001.ogg", "title": "engineCircular_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "engine_circular_2", "file": "assets/audio/candidates/enemy_sfx/trainSweep/engineCircular_002.ogg", "title": "engineCircular_002", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "space_engine_low_0", "file": "assets/audio/candidates/enemy_sfx/trainSweep/spaceEngineLow_000.ogg", "title": "spaceEngineLow_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "space_engine_low_1", "file": "assets/audio/candidates/enemy_sfx/trainSweep/spaceEngineLow_001.ogg", "title": "spaceEngineLow_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "space_engine_low_2", "file": "assets/audio/candidates/enemy_sfx/trainSweep/spaceEngineLow_002.ogg", "title": "spaceEngineLow_002", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "gryc_train_rumble", "file": "assets/audio/candidates/enemy_sfx/trainSweep/gryc_train_rumble_excerpt.ogg", "title": "Background Rumble Noise (8s excerpt, real train recording)", "author": "gryc", "license": "CC-BY 3.0 (attribution required)", "sourceUrl": "https://opengameart.org/content/background-rumble-noise" }
+      ]
+    },
+    {
+      "key": "gravityFlip",
+      "name": "Room Gravity Flip (Gravity Collapse Core)",
+      "description": "New candidate-only slot, no live track yet. gravity_flip has a particle burst + screen shake but zero SFX — a full room-gravity reversal is currently silent.",
+      "liveTrack": null,
+      "candidates": [
+        { "id": "low_freq_explosion_0", "file": "assets/audio/candidates/enemy_sfx/gravityFlip/lowFrequency_explosion_000.ogg", "title": "lowFrequency_explosion_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "low_freq_explosion_1", "file": "assets/audio/candidates/enemy_sfx/gravityFlip/lowFrequency_explosion_001.ogg", "title": "lowFrequency_explosion_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" }
+      ]
+    },
+    {
+      "key": "slimeSquelch",
+      "name": "Slime Hop / Charge (FracturedSlime)",
+      "description": "New candidate-only slot, no live track yet. FracturedSlime's hop/charge reuse generic enemyHop/enemyTelegraphHeavy cues — no wet squelch/gloop texture despite being a slime creature.",
+      "liveTrack": null,
+      "candidates": [
+        { "id": "slime_0", "file": "assets/audio/candidates/enemy_sfx/slimeSquelch/slime_000.ogg", "title": "slime_000", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" },
+        { "id": "slime_1", "file": "assets/audio/candidates/enemy_sfx/slimeSquelch/slime_001.ogg", "title": "slime_001", "author": "Kenney", "license": "CC0", "sourceUrl": "https://kenney.nl/assets/sci-fi-sounds" }
+      ]
+    },
+    {
+      "key": "voidPull",
+      "name": "Void Gravity-Well / Ambient Dread (The Undertow)",
+      "description": "New candidate-only slot, no live track yet. The Undertow's gravity_well pull ('steals what you hold dear' made literal) has no sound at all — a slow ominous suction/undertow drone would be highly on-theme.",
+      "liveTrack": null,
+      "candidates": [
+        { "id": "scifi_drone", "file": "assets/audio/candidates/enemy_sfx/voidPull/scifi_ambient_drone_excerpt.ogg", "title": "Sci-fi Ambient Drone (8s excerpt of a 2:45 loop)", "author": "LookIMadeAThing", "license": "CC0", "sourceUrl": "https://freesound.org/people/LookIMadeAThing/sounds/534018/" }
       ]
     }
   ]

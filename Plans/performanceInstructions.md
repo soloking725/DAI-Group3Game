@@ -64,7 +64,7 @@ how the doc set fits together.
 ---
 
 ## 4. DEBUG TOOLS – KEEP THEM WORKING & EXTEND
-- **Never break the debug tools** – `debug_v1.html`/`debug_new.html`,
+- **Never break the debug tools** – `debug_v1.html`,
   `levelEditor.html`, `enemy_test.html`, `enemy_editor.html`
   (full list and what each does in `CLAUDE.md`'s "Dev/debug tooling"
   section). If your change touches input handling, area data shape, or adds

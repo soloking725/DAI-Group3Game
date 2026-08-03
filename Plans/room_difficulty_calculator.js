@@ -425,7 +425,7 @@ function main() {
   const htmlIdx = args.indexOf('--html');
   const outArg = htmlIdx !== -1 && args[htmlIdx + 1] && !args[htmlIdx + 1].startsWith('--') ? args[htmlIdx + 1] : null;
   const outPath = outArg ? path.resolve(outArg) : path.join(PLANS_DIR, '..', 'editor', 'room_difficulty_calculator.html');
-  const fullDoc = `<!doctype html>\n<html><head><meta charset="utf-8"><title>Stillpoint — Room Difficulty Calculator</title></head><body>\n${html}\n</body></html>\n`;
+  const fullDoc = `<!doctype html>\n<html><head><meta charset="utf-8"><title>Stillpoint — Room Difficulty Calculator</title><link rel="stylesheet" href="../styles/design-system.css"></head><body>\n${html}\n</body></html>\n`;
   fs.writeFileSync(outPath, fullDoc);
   console.log(`Wrote room difficulty calculator to: ${path.relative(process.cwd(), outPath)}`);
 }

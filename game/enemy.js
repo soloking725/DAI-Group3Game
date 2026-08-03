@@ -913,7 +913,7 @@ const STALKER_HEALTH = 4;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FracturedSlime — summoned miniboss by the Fractured King
+// FracturedSlime — summoned miniboss by the Fractured Sovereign
 // ─────────────────────────────────────────────────────────────────────────────
 const SLIME_SPEED = 2.5;
 const SLIME_HEALTH = 8;
@@ -1079,7 +1079,7 @@ const BLITZ_DETECT_RANGE = 300;
 // construct that only Charged (heavy) attacks can damage — a normal hit
 // bounces off with a spark, exactly like the region's destructible rubble
 // walls. Single telegraphed charge attack, no phases — reskin of "The
-// Fractured King's Guard" (expansion.md 4.1), chosen because it's the most
+// Fractured Sovereign's Guard" (expansion.md 4.1), chosen because it's the most
 // "basic, no ability required beyond Charged Attack" fight on the miniboss
 // roster, which fits a region's first miniboss. Reward: +1 Max Health,
 // applied by game.js when `defeatedMinibosses['colossus_core']` flips true.
@@ -4461,7 +4461,7 @@ class TemporalWarden {
     this.dead = false;
     this.deathTimer = 0;
     this.displayName = 'Temporal Warden';
-    this.hitFlash = 0;
+    this.flashTimer = 0; // renamed from hitFlash 2026-08-02 — same set-8/countdown/">0" pattern every other enemy's flash field uses, no behavior change
 
     // Restrained ranged kit — no melee, no heavy hits.
     this.attackCooldown = 60;
@@ -4503,7 +4503,7 @@ class TemporalWarden {
   takeDamage(amount, fromX) {
     if (this.dead) return;
     this.health -= amount;
-    this.hitFlash = 8;
+    this.flashTimer = 8;
     if (this._flashActive) this._damageDuringFlash += amount;
     if (fromX !== undefined) this.vx = (this.x > fromX ? 1 : -1) * 1.5;
     if (this.health <= 0) { this.health = 0; this.dead = true; this.deathTimer = 0; }
@@ -4528,7 +4528,7 @@ class TemporalWarden {
     this._stillpointWasActive = spNow;
     const myTS = this._myTimeScale(_globalTS);
 
-    this.hitFlash = Math.max(0, this.hitFlash - 1);
+    this.flashTimer = Math.max(0, this.flashTimer - 1);
     this.facing = player.x > this.x ? 1 : -1;
 
     // ── Health-rewind cycle ────────────────────────────────────────────
@@ -4627,7 +4627,7 @@ class TemporalWarden {
       this.animator.draw(ctx);
     } else {
       // Robed body — cyan/violet, a hooded time-mage silhouette.
-      ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : '#2e2a4a';
+      ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : '#2e2a4a';
       ctx.beginPath();
       ctx.moveTo(cx, this.y);
       ctx.lineTo(this.x + this.width, this.y + this.height);

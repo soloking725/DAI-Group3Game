@@ -141,28 +141,27 @@ function seedWorkingData() {
 }
 
 // ── History (undo/redo) ─────────────────────────────────────────────────
-const HISTORY_MAX = 60;
-let history = [], historyIndex = 0;
-function snapshot() { return { data: clone(workingCutscenes), selectedKey, selection: selection ? clone(selection) : null }; }
-function pushHistory() {
-  history = history.slice(0, historyIndex + 1);
-  history.push(snapshot());
-  if (history.length > HISTORY_MAX) history.shift();
-  historyIndex = history.length - 1;
-  updateUndoRedoButtons();
-}
-function resetHistory() { history = [snapshot()]; historyIndex = 0; updateUndoRedoButtons(); }
-function restoreSnapshot(snap) {
-  workingCutscenes = clone(snap.data);
-  selectedKey = snap.selectedKey;
-  selection = snap.selection ? clone(snap.selection) : null;
-  renderAll();
-}
-function undo() { if (historyIndex <= 0) return; historyIndex--; restoreSnapshot(history[historyIndex]); updateUndoRedoButtons(); }
-function redo() { if (historyIndex >= history.length - 1) return; historyIndex++; restoreSnapshot(history[historyIndex]); updateUndoRedoButtons(); }
+// Shared with levelEditor.html/anim_editor.html/etc — see game/undoHistory.js.
+// This editor's state spans three variables (workingCutscenes/selectedKey/
+// selection), not just one, so the snapshot is a plain object bundling all
+// three; setState restores each and re-renders.
+function snapshot() { return { data: workingCutscenes, selectedKey, selection }; }
+const historyMgr = (typeof UndoHistory !== 'undefined') ? UndoHistory.create(
+  snapshot,
+  (snap) => {
+    workingCutscenes = snap.data;
+    selectedKey = snap.selectedKey;
+    selection = snap.selection;
+    renderAll();
+  }
+) : null;
+function pushHistory() { if (historyMgr) historyMgr.push(); updateUndoRedoButtons(); }
+function resetHistory() { if (historyMgr) historyMgr.reset(); updateUndoRedoButtons(); }
+function undo() { if (historyMgr) historyMgr.undo(); updateUndoRedoButtons(); }
+function redo() { if (historyMgr) historyMgr.redo(); updateUndoRedoButtons(); }
 function updateUndoRedoButtons() {
-  document.getElementById('undo-btn').disabled = historyIndex <= 0;
-  document.getElementById('redo-btn').disabled = historyIndex >= history.length - 1;
+  document.getElementById('undo-btn').disabled = !historyMgr || !historyMgr.canUndo();
+  document.getElementById('redo-btn').disabled = !historyMgr || !historyMgr.canRedo();
 }
 
 document.addEventListener('keydown', (e) => {

@@ -95,6 +95,8 @@
 <script src="../game/combo.js"></script>
 <script src="../game/devContext.js"></script>
 <script src="../game/unsavedGuard.js"></script>
+<script src="../game/undoHistory.js"></script>
+<script src="exportPanel.js"></script>
 <script>
 'use strict';
 // ─────────────────────────────────────────────────────────────────────────────
@@ -212,6 +214,7 @@ function createCombo() {
   sel = COMBO_DEFS.length - 1;
   document.getElementById('newComboId').value = '';
   refresh();
+  pushHistory();
 }
 function deleteCombo() {
   if (!combo()) return;
@@ -219,27 +222,32 @@ function deleteCombo() {
   COMBO_DEFS.splice(sel, 1);
   sel = Math.max(0, sel - 1);
   refresh();
+  pushHistory();
 }
 function applyMeta() {
   const c = combo(); if (!c) return;
   c.name = document.getElementById('cName').value;
   refresh();
+  pushHistory();
 }
 function addStep() {
   const c = combo(); if (!c) return;
   c.steps.push({ action: document.getElementById('addAction').value, maxGap: 45 });
   refresh();
+  pushHistory();
 }
 function setStep(i, prop, val) {
   const c = combo(); if (!c || !c.steps[i]) return;
   c.steps[i][prop] = val;
   renderChain();
+  pushHistory();
 }
 function delStep(i) {
   const c = combo(); if (!c || c.steps.length <= 1) return alert('A combo needs at least one step.');
   c.steps.splice(i, 1);
   c.steps[0].maxGap = 0; // first step is always the chain starter
   refresh();
+  pushHistory();
 }
 function moveStep(i, dir) {
   const c = combo(); if (!c) return;
@@ -249,6 +257,7 @@ function moveStep(i, dir) {
   c.steps[0].maxGap = 0;
   if (c.steps[1] && !c.steps[1].maxGap) c.steps[1].maxGap = 45;
   refresh();
+  pushHistory();
 }
 function applyReward() {
   const c = combo(); if (!c) return;
@@ -261,6 +270,7 @@ function applyReward() {
     c.reward = { type };
   }
   renderReward();
+  pushHistory();
 }
 
 // ── Save / export ───────────────────────────────────────────────────────────
@@ -278,17 +288,42 @@ function clearOverrides() {
   if (typeof DevContext !== 'undefined') DevContext.log('Combo Editor', 'Cleared overrides', '');
 }
 function exportJSON() {
-  const box = document.getElementById('exportBox');
-  box.value = `// Paste into game/combo.js, replacing the COMBO_DEFS list.\n`
+  const text = `// Paste into game/combo.js, replacing the COMBO_DEFS list.\n`
     + `COMBO_DEFS = ${JSON.stringify(COMBO_DEFS, null, 2)};`;
-  box.select();
-  if (typeof DevContext !== 'undefined') DevContext.log('Combo Editor', 'Exported combos', COMBO_DEFS.length + ' combo(s)');
+  ExportPanel.write('exportBox', text, 'Combo Editor', 'Exported combos', COMBO_DEFS.length + ' combo(s)');
 }
 
 refresh();
 
-// ─── UNSAVED-CHANGES GUARD ─────────────────────────────────────────────────
+// ─── UNSAVED-CHANGES GUARD & UNDO/REDO ─────────────────────────────────────
+// Shared with levelEditor.html/anim_editor.html/etc — see game/undoHistory.js.
+// COMBO_DEFS is a reassignable `let` (game/combo.js), so setState can just
+// reassign it directly (unlike ANIM_DEFS's const, which needs an in-place copy).
 const unsavedGuard = (typeof UnsavedGuard !== 'undefined') ? UnsavedGuard.watch(() => COMBO_DEFS) : null;
+
+const historyMgr = (typeof UndoHistory !== 'undefined') ? UndoHistory.create(
+  () => COMBO_DEFS,
+  (snapshot) => {
+    COMBO_DEFS = snapshot;
+    sel = Math.min(sel, COMBO_DEFS.length - 1);
+    refresh();
+  }
+) : null;
+function pushHistory() { if (historyMgr) historyMgr.push(); }
+
+document.addEventListener('keydown', (e) => {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  if (!historyMgr) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    e.shiftKey ? historyMgr.redo() : historyMgr.undo();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    historyMgr.redo();
+  }
+});
 </script>
 </body>
 </html>

@@ -71,17 +71,28 @@ Other design docs, read as needed for their specific topic:
   story.md), not the earlier sympathetic/tragic framing — see roadmap.md
   1.10 for the full brainstorm and lore.md's own "Revision history".
   Also gained a full "Minibosses & their regions" section covering all 8
-  expansion.md minibosses. `area.js`'s existing `loreFragments[]` text
-  still reflects the OLD King and has NOT been ported to match yet — treat
-  lore.md as the current source of truth for characterization, not the
-  live in-game strings. Not yet surfaced in-game (`LORE_ENABLED = false`).
-  **JS code (`boss.js`, `game.js`, `area.js`, `enemy.js`) still uses `King`
-  identifiers/text throughout — the rename is docs-only so far** (all of
-  `lore.md`, `story.md`, `expansion.md`, `regions.md`, `floor_plan.md` now
-  say "Sovereign"; `roadmap.md`'s changelog entries intentionally keep
-  "King" where they're describing what was true at the time). Don't rename
-  the JS without being asked — it's a real refactor (state var names, boss
-  dialogue strings, etc.), not a find/replace.
+  expansion.md minibosses. Not yet surfaced in-game (`LORE_ENABLED =
+  false`). **King→Sovereign rename completed in JS code, 2026-08-02**
+  (previously docs-only, per explicit user request). Verified before
+  renaming that there were no actual `King`-prefixed *identifiers*
+  anywhere (`class Boss` was always generically named) — every live
+  reference was prose ("the King" in a comment) or a display string, both
+  now say "Sovereign"/"the Fractured Sovereign" throughout `boss.js`,
+  `game_state.js`, `game_update.js`, `game_entities.js`, `enemy.js`,
+  `agentController.js`, and `editor/enemy_test.html`/`difficulty_bot.html`.
+  Also found while checking: `area.js`'s `loreFragments[]` text already
+  said "Sovereign" (e.g. `lore_so_1`: "The Sovereign sees all, but watches
+  nothing.") — this doc's previous claim that it "still reflects the OLD
+  King" was itself stale, fixed in an earlier session without this note
+  being updated. `game/archive/game.js` (dead code, not `<script>`'d
+  anywhere — see `Plans/engineering_todo.md`'s Structural issues) still
+  has old `King` text; not touched, since renaming inside frozen/dead code
+  has no payoff. `roadmap.md`'s changelog entries intentionally keep
+  "King" where they're describing what was true at the time — not part of
+  this rename, don't touch those either. "The Mirror King" (`hollow_
+  guardian` miniboss, `class MirrorKing`) is a different, deliberately-
+  named character per `lore.md` — unrelated to this rename, left as-is
+  everywhere.
 - `movement_feel_plan.md` — proposal (not started) for pushing player
   movement toward a faster, more fluid ("late Celeste") feel — dash-
   refill-on-landing as the priority lever, camera look-ahead, and matching
@@ -277,7 +288,7 @@ The repo root used to be flat (every `.js`/dev-tool `.html` alongside
   nothing about load order or global-scope semantics changed. It does
   **not** modularize the state (see "Key global state" note below) —
   it's the same shared globals, just spread across files textually.
-- `editor/` — every dev/debug tool (`debug_v1.html`, `debug_new.html`,
+- `editor/` — every dev/debug tool (`debug_v1.html`,
   `levelEditor.html`, `enemy_test.html`, `enemy_editor.html`,
   `enemy_designer.html`, `graph_analyzer.html`,
   `export_graph.js`). Cross-references between these tools (e.g.
@@ -292,8 +303,8 @@ The repo root used to be flat (every `.js`/dev-tool `.html` alongside
 
 `index.html`'s own script tags now read `game/foo.js` (it didn't move, so
 these are still simple root-relative paths, just one folder deeper than
-before). `debug_v1.html`/`debug_new.html` fetch `../index.html` and text-
-rewrite its `game/foo.js` paths to `../game/foo.js` before injecting via
+before). `debug_v1.html` fetches `../index.html` and text-
+rewrites its `game/foo.js` paths to `../game/foo.js` before injecting via
 `srcdoc` (a `srcdoc` document resolves relative paths against the *host*
 file's location, not the fetched content's original location — see the
 comment at each file's `loadSandbox()`).
@@ -478,13 +489,15 @@ gate only the damage checks on `!dead`.
 
 ## Dev/debug tooling — keep these working
 
-- **`debug_v1.html` / `debug_new.html`** — headless-ish live test console.
-  Boots the real game in a sandboxed iframe, dispatches real
-  `KeyboardEvent`s, diffs canvas snapshots and frame timing. `debug_v1.html`
-  additionally walks every room via `validateAreaGraph()` + a 90-frame
-  teleport-in survival check per room, and a static "door embedded in
-  platform geometry" linter. Run this after any change touching input,
-  state transitions, area data, or timing.
+- **`debug_v1.html`** — headless-ish live test console. Boots the real game
+  in a sandboxed iframe, dispatches real `KeyboardEvent`s, diffs canvas
+  snapshots and frame timing (11 checks, R01-R11), walks every room via
+  `validateAreaGraph()` + a 90-frame teleport-in survival check per room,
+  and a static "door embedded in platform geometry" linter. Run this after
+  any change touching input, state transitions, area data, or timing.
+  (`debug_new.html`, an earlier 8-check version this one strictly
+  superseded — same checks with real bug fixes plus 3 more — was deleted
+  2026-08-02 as a confirmed-safe duplicate; see `Plans/engineering_todo.md`.)
 - **`levelEditor.html`** — visual room editor (place platforms, enemies,
   transitions, anchors, ability rewards, lore, boss spawns) with JS export.
   **Corrected 2026-07-12** (was stale): it now loads `area.js`/`enemy.js`

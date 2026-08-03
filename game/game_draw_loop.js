@@ -706,14 +706,39 @@ function gameLoop(now) {
   lastTime = now;
   accumulator += elapsed;
 
+  // game/runtimeDebugger.js (only present behind ?debug=1) can gate ticks
+  // for pause/step and wants per-phase timing — everyone else no-ops through
+  // this with zero cost (RuntimeDebugger is undefined in normal play).
+  const dbg = window.RuntimeDebugger;
+  // While genuinely paused (not single-stepping), drop the backlog instead
+  // of letting it grow — otherwise resuming would burn through however many
+  // ticks built up while paused, as a burst. Clamped to 1.5x a tick, not
+  // exactly 1x — clamping to precisely FIXED_DT leaves accumulator sitting
+  // right on the `>= FIXED_DT` boundary, where float rounding in `elapsed`
+  // can make a step's single permitted tick get silently skipped some frames.
+  if (dbg && dbg.enabled && dbg.paused) accumulator = Math.min(accumulator, FIXED_DT * 1.5);
+
   let ticks = 0;
   while (accumulator >= FIXED_DT && ticks < MAX_TICKS_PER_FRAME) {
-    update();
+    if (dbg && dbg.enabled && !dbg.shouldRunUpdate()) break;
+    if (dbg && dbg.enabled) {
+      const t0 = performance.now();
+      update();
+      dbg.onTickTimed(performance.now() - t0);
+    } else {
+      update();
+    }
     accumulator -= FIXED_DT;
     ticks++;
   }
 
-  draw();
+  if (dbg && dbg.enabled) {
+    const t0 = performance.now();
+    draw();
+    dbg.onDrawTimed(performance.now() - t0);
+  } else {
+    draw();
+  }
   requestAnimationFrame(gameLoop);
 }
 

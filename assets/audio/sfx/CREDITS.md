@@ -6,6 +6,35 @@ Sounds" (CC0) — see `LICENSE_kenney_impact.txt` / `LICENSE_kenney_interface.tx
 in this folder. Not re-listed below; this table only covers the scavenged
 war-weapon SFX added 2026-07-26.
 
+**Void Tether wired 2026-08-02** — was completely silent (cast/latch reused
+`SFX.dash()`, arrival had no sound at all). Three new dedicated cues matching
+the three real moments in `game/game_update.js`'s tether code:
+`voidTetherCast.ogg` ("going out" — plays the instant the tether latches onto
+a target or grapples a wall), `voidTetherPull.ogg` (the sustained travel),
+`voidTetherHit.ogg` (arrival/impact — `SFX.voidTetherHit(sizeFactor)` shifts
+its pitch center by target size, so a big enemy lands lower/heavier and a
+small one lands higher/lighter, not just randomly different each time).
+
+| File | Source track | Author | License | Source URL |
+|---|---|---|---|---|
+| voidTetherCast.ogg | "laserRetro_002" (Sci-Fi Sounds) | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| voidTetherPull.ogg | "thrusterFire_002" (Sci-Fi Sounds) | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+| voidTetherHit.ogg | "impactMetal_003" (Sci-Fi Sounds) | Kenney | CC0 | https://kenney.nl/assets/sci-fi-sounds |
+
+Same `ffmpeg` loudnorm (I=-16 LUFS)/fade/Ogg Vorbis pipeline as everything
+else here.
+
+**Round-robin variants added 2026-08-02** (`game/audio.js`'s `playSample()` now
+picks randomly among an array when `SAMPLE_URLS[name]` is an array, instead of
+always the same buffer — reduces repeated-hit fatigue on the three most
+frequently-triggered cues): `attack_2.ogg`/`attack_3.ogg`,
+`heavyAttack_2.ogg`/`heavyAttack_3.ogg`, `parry_2.ogg`/`parry_3.ogg`. Same
+Kenney "Impact Sounds" pack as the originals (`impactPunch_medium_001/002`,
+`impactMetal_heavy_001/002`, `impactBell_heavy_001/002` — the originals are
+`_000`), pulled from the already-downloaded `assets/audio/candidates/enemy_sfx/`
+pool and re-encoded with the same `loudnorm` (I=-16 LUFS)/fade/Ogg Vorbis
+pipeline as everything else here. CC0, same license file as the originals.
+
 | File | Source track | Author | License | Source URL | Notes |
 |---|---|---|---|---|---|
 | gunShot.ogg | "gunshot_0.mp3" (Basic Sound Effects) | n4 | CC0 | https://opengameart.org/content/basic-sound-effects | Gun (`ATTACK_BEHAVIORS.gun`, enemy.js) |
@@ -25,9 +54,15 @@ metadata and in this table regardless.
 
 Promoted 2026-07-28 from the reviewed `assets/audio/candidates/enemy_sfx/`
 pool (CC0-only picks) to replace procedural fallbacks for those three cues;
-untouched procedural SFX (jump, land, dash, wall-jump/slide, telegraphs,
-pickups, boss phase/death, teleport) have no matching candidate yet and stay
-procedural.
+untouched procedural SFX (wall-jump/slide, telegraphs, pickups, boss
+phase/death, teleport) have no matching candidate yet and stay procedural.
+
+| jump.ogg | "Jump Landing Sound" | MentalSanityOff (via qubodup) | CC0 | https://opengameart.org/content/jump-landing-sound | `SFX.jump()` |
+| land.ogg | "landing.ogg" (yd's Platformer Sounds) | yd | CC0 | https://opengameart.org/content/platformer-sounds-terminal-interaction-door-shots-bang-and-footsteps | `SFX.land()` — "blunt landing of a metal spaceship / cyborg on the floor," good sci-fi fit |
+| dash.ogg | "Swosh swoosh whoosh air sound" | qubodup (Iwan Gabovitch) | CC0 | https://freesound.org/people/qubodup/sounds/60026/ | `SFX.dash()` |
+
+Added 2026-08-02, same `loudnorm` (I=-16 LUFS) + short fade + OGG Vorbis
+44.1kHz re-encode pipeline as above.
 
 ## Known gaps
 

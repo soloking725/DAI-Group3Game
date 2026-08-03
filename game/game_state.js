@@ -100,6 +100,16 @@ let gameState = 'menu'; // 'menu', 'playing', 'gameover', 'paused', 'paused_cont
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'player', { get: () => player, configurable: true });
   Object.defineProperty(window, 'gameState', { get: () => gameState, configurable: true });
+  // Same live-getter reasoning as player/gameState above — added for
+  // game/runtimeDebugger.js's variable watch + frame profiler, which need
+  // to read whatever the current binding holds every frame, not a stale
+  // snapshot from whenever the debugger script happened to load.
+  Object.defineProperty(window, 'currentAreaId', { get: () => currentAreaId, configurable: true });
+  Object.defineProperty(window, 'frameCount', { get: () => frameCount, configurable: true });
+  Object.defineProperty(window, 'projectiles', { get: () => projectiles, configurable: true });
+  Object.defineProperty(window, 'particles', { get: () => particles, configurable: true });
+  Object.defineProperty(window, 'echoes', { get: () => echoes, configurable: true });
+  Object.defineProperty(window, 'currentEnemies', { get: () => areaEnemies[currentAreaId] || [], configurable: true });
 }
 let frameCount = 0;
 let transitionAlpha = 0;
@@ -160,7 +170,7 @@ let bossProjectiles = [];
 let victoryTimer = 0;
 let bossDefeated = false;
 
-// Miniboss fight state — separate from `boss` (the King), which is tied to
+// Miniboss fight state — separate from `boss` (the Sovereign), which is tied to
 // isBossArena and the victory-cinematic flow. Minibosses use `isMinibossArena`
 // + `area.miniboss` (an id string) instead, and just persist a defeated flag
 // per id (keyed in `defeatedMinibosses`) rather than ending the run.

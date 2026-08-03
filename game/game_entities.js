@@ -66,7 +66,7 @@ class Projectile {
 // While Stillpoint is active, melee turns into a risk-reward recovery tool
 // instead of a purely defensive slowdown: hits deal 1.5x damage and every
 // landed melee hit restores 1 health pip (capped at MAX_HEALTH). Shared by
-// all three melee hit loops (enemies, the King, minibosses) so the numbers
+// all three melee hit loops (enemies, the Sovereign, minibosses) so the numbers
 // can never drift apart between them.
 // Strength Lv3/Lv4 damage multipliers (Enemy_Design.pdf, old Lv2/Lv3): Lv3
 // +20%, Lv4 an additional +25% (total +45% over base). Lv1 (2026-07-27, the

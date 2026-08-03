@@ -4455,3 +4455,51 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     revisited this pass either. No authoring UI was built for
     `REGION_STYLES`-level animated variants (an animated hazard that also
     varies by region) — out of scope for this pass, not attempted.
+
+**Sub-room audio zones (2026-08-02)** — `area.audioZones[]`, letting part of
+a room play a different music track than the rest (the gap flagged during a
+sound-design audit: `AREA_MUSIC_MAP` in `game/audio.js` only assigns music
+per whole room-id, so e.g. an entire hub cluster all shares one
+`hub_living.ogg` track with no way to carve out a quieter/different-mood
+corner). Same zone-rectangle shape as the existing `area.cutsceneTriggers[]`
+(`room_scene_editor_plan.md` §3/v2) — reused its exact architecture rather
+than inventing a new one: a `{id,x,y,w,h,trackKey}` array, checked every
+frame in `game_update.js` via `rectsOverlap()` against the player (first
+overlapping zone wins), calling a new `SFX.setAudioZone(trackKey,
+fallbackAreaId)` in `game/audio.js`. That function reuses `setRegionMusic`'s
+own gain node/crossfade machinery (`playLoopingTrack`) rather than building
+a parallel mixer — a zone is just "temporarily pretend the room's music key
+is this instead," reverting to the room's own `AREA_MUSIC_MAP` track via
+`fallbackAreaId` when the player leaves the zone (self-corrects to the
+right track on the very next frame even across a room transition, since
+`setRegionMusic` already sets the base track independently — verified by
+tracing the interaction, not just assumed). Also added `SFX.getMusicKeys()`,
+an editor-only accessor (same purpose as exposing the real `CUTSCENES`
+object for the cutscene-trigger id autocomplete, just for music track keys).
+
+Editor support in `editor/room_scene_editor.html`/`.js` mirrors the
+cutscene-trigger UI almost exactly (same overlay canvas, same drag/resize-
+by-corner handles, same left-panel list + right-panel inspector pattern) —
+deliberately copy-pattern rather than a shared abstraction, consistent with
+this codebase's existing acceptable-duplication precedent (`hud_editor.html`'s
+DEFAULTS table, etc.). Visually distinguished from cutscene triggers by
+color (violet `#a78bfa` vs. cyan `#67e8f9`) and line style (dotted `[2,3]`
+vs. dashed `[6,4]`) so both zone types are readable at a glance when
+overlapping in the same room. `trackKey` is a free-text field with a
+`<datalist>` autocompleted from `SFX.getMusicKeys()` (degrades gracefully
+with a warning if `game/audio.js` isn't loaded, same pattern the cutsceneId
+field uses for `CUTSCENES`). `game/audio.js` is now loaded directly by
+`room_scene_editor.html` (new `<script>` tag, right after `cutscene.js`) —
+safe since `audio.js` only defines the `SFX` closure at load time, no
+`AudioContext`/DOM side effects until a method is actually called.
+
+`levelEditor.html`'s room export needed no changes — confirmed it already
+round-trips arbitrary unknown fields via a generic whole-object serializer
+(same reason `cutsceneTriggers` already worked there with zero special-
+casing), so `audioZones` passes through automatically. No rooms have any
+zones authored yet (empty by default, `area.audioZones || []` guards every
+read) — this is infrastructure only, same "built but not content-populated"
+state as `cutsceneTriggers` was when it first shipped. Verified with
+`node --check` on all 4 touched files (`game/audio.js`, `game/game_update.js`,
+`editor/room_scene_editor.js`, plus a JSON-validity check where relevant) —
+no browser testing, per this repo's standing rule.
