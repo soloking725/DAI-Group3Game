@@ -6,7 +6,7 @@
 // player.js/game_state.js's full dependency chain just to read a table size —
 // game_state.js does `document.getElementById('game').getContext('2d')`
 // unconditionally at its top, which throws in any page without a live
-// <canvas id="game"> (see Plans/project_progress_dashboard_plan.md §0).
+// <canvas id="game"> (see Plans/archive/project_progress_dashboard_plan.md §0).
 //
 // Hand-maintained — keep in sync with game_state.js's MINIBOSS_CLASSES
 // whenever a miniboss is added/renamed. Same manual-sync caveat as

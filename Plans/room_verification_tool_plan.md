@@ -1,4 +1,16 @@
-# Room Verification Tool — Design Plan (not built yet)
+# Room Verification Tool — Design Plan (Components 1 & 3 built; see status below)
+
+**Status (updated 2026-08-03):** Component 1 (static layout linter) is built as
+`game/roomVerify.js` — its own header docstring is now the more current living
+implementation record (it documents the 2026-08-02 merge with `area.js`'s
+independent linter and exact algorithm details this plan doesn't cover), read
+it alongside this doc rather than instead of it. Runnable via
+`editor/room_verify.html` or `node Plans/room_verify_cli.js` — clean across
+all 71 rooms. Component 3 (dev Spawn button) is also built
+(`applyDevSpawnOverride()`/`?spawnRoom=<id>`). **Component 2 (dynamic bot
+walker) is still NOT built** — `debug_v1.html`'s R09–R11 checks are the only
+current down-payment on that piece; this remains the one real open item in
+this plan.
 
 ## Why this exists
 

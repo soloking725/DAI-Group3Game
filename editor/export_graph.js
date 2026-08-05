@@ -48,7 +48,7 @@ const outPath = path.resolve(process.argv[3] || path.join(__dirname, '../world_m
 // ── Load the real AREAS object by actually running area.js ──────────────────
 function loadAreas(filePath) {
   const code = fs.readFileSync(filePath, 'utf8');
-  const sandbox = { console, readOverrideJSON() { return null; } };
+  const sandbox = { console, readOverrideJSON() { return null; }, OverrideShape: { object: () => true, array: () => true } };
   vm.createContext(sandbox);
   // Run area.js itself (defines `const AREAS = {...}` + calls validateAreaGraph()
   // at the bottom, which just console.logs/warns — harmless here).

@@ -31,6 +31,7 @@
   (click a row's command to copy it) — this page never writes to disk itself.
 </p>
 <input type="file" id="fileInput" accept="application/json">
+<button id="generateBtn" class="cmd" style="margin-left:8px">⟳ Generate index (Electron app only)</button>
 <div class="filter"><input type="text" id="filterBox" placeholder="Filter keys..."></div>
 <div id="output"><p class="empty">No index loaded yet.</p></div>
 
@@ -53,6 +54,27 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
 });
 
 document.getElementById('filterBox').addEventListener('input', render);
+
+document.getElementById('generateBtn').addEventListener('click', async () => {
+  if (!window.stillpointAPI) {
+    alert('Only available in the unified editor desktop app (npm start) — in a plain browser tab, run "node editor/asset_index.js --json" yourself and load the file above.');
+    return;
+  }
+  const btn = document.getElementById('generateBtn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Scanning…';
+  try {
+    const { index } = await window.stillpointAPI.generateAssetIndex();
+    INDEX = index;
+    render();
+  } catch (e) {
+    document.getElementById('output').innerHTML = '<p class="empty">Failed to generate index: ' + escapeHtml(e.message) + '</p>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+});
 
 function render() {
   const out = document.getElementById('output');

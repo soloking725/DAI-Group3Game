@@ -96,12 +96,20 @@
   .candidate .meta { font-size: 11px; color: var(--fg-muted); min-width: 90px; max-width: 130px; }
   .candidate .meta a { color: var(--fg-muted); text-decoration: none; border-bottom: 1px dotted var(--fg-muted); }
   .star-btn {
-    border: none; background: transparent; font-size: 20px; cursor: pointer; line-height: 1;
+    border: none; background: transparent; color: var(--fg); font-size: 20px; cursor: pointer; line-height: 1;
     filter: grayscale(1) opacity(0.5);
     transition: transform var(--dur-fast) var(--ease-out-expo), filter var(--dur-fast) var(--ease-out-expo);
   }
   .star-btn:hover { transform: scale(1.2); }
   .star-btn.picked { filter: none; transform: scale(1.1); }
+  .apply-btn {
+    border: 1px solid var(--card-border); background: var(--card-bg); color: var(--fg-muted);
+    font-size: 11px; font-weight: 600; padding: 6px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; white-space: nowrap;
+    transition: background var(--dur-fast) var(--ease-out-expo), color var(--dur-fast) var(--ease-out-expo);
+  }
+  .apply-btn:hover:not(:disabled) { background: var(--accent-region); color: #06202b; }
+  .apply-btn:disabled { opacity: 0.7; cursor: default; }
   .empty-note { color: var(--fg-muted); font-size: 12px; font-style: italic; padding: 6px 0; }
   .no-candidates { opacity: 0.6; }
 
@@ -181,6 +189,46 @@ function togglePick(entityKey, candId) {
   savePicks();
 }
 
+// Writes a chosen candidate straight to its live asset path via
+// save-server.js's /apply-audio-pick route (2026-08-04) — replaces the old
+// "export picks.json, someone reads it and copies the file by hand" dead
+// end (nothing in the repo ever consumed picks.json). Only reachable when
+// this page is loaded through http://localhost:8787, same caveat every
+// other save-server-backed editor action has (fetch() to it 404s/CORS-fails
+// over file://). candidateFile/liveTrack always come straight from the
+// manifest this page already loaded, never freeform text.
+async function applyAudioPick(candidateFile, liveTrack, liveAudioEl, btn) {
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Applying…';
+  try {
+    if (window.stillpointAPI) {
+      await window.stillpointAPI.applyAudioPick(candidateFile, liveTrack);
+    } else {
+      const res = await fetch('http://localhost:8787/apply-audio-pick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateFile, liveTrack }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    btn.textContent = '✅ Applied';
+    if (liveAudioEl) {
+      // Cache-bust so the <audio> element's "Current live" row actually
+      // reflects the new bytes instead of a stale cached decode.
+      liveAudioEl.src = '../' + liveTrack + '?t=' + Date.now();
+    }
+    setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1500);
+  } catch (e) {
+    alert(window.stillpointAPI
+      ? `❌ Could not apply: ${e.message}`
+      : `❌ Could not apply: ${e.message}. Is the save server running? Start it with "node editor/save-server.js" and load this page via http://localhost:8787/editor/audio_ab_tester.html`);
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+}
+
 function entityCard(entity, groupClass) {
   const card = document.createElement('div');
   card.className = 'entity-card';
@@ -196,6 +244,7 @@ function entityCard(entity, groupClass) {
 
   // Current live track first, as a reference point — but still pickable (id "__live__")
   // so "keep what's already there" is a real choice, not just the unlabeled default.
+  let liveAudioEl = null; // referenced below by each candidate's Apply button, to refresh in place after a swap
   if (entity.liveTrack) {
     const liveRow = document.createElement('div');
     liveRow.className = 'candidate';
@@ -219,6 +268,7 @@ function entityCard(entity, groupClass) {
       currentAudio = audio;
     });
     liveRow.appendChild(audio);
+    liveAudioEl = audio;
 
     const meta = document.createElement('div');
     meta.className = 'meta';
@@ -270,6 +320,15 @@ function entityCard(entity, groupClass) {
         (cand.author ? cand.author + ' · ' : '') + (cand.license || '') +
         (cand.sourceUrl ? ' · <a href="' + cand.sourceUrl + '" target="_blank" rel="noopener">src</a>' : '');
       row.appendChild(meta);
+
+      if (entity.liveTrack) {
+        const applyBtn = document.createElement('button');
+        applyBtn.className = 'apply-btn';
+        applyBtn.textContent = '⬆ Apply as live track';
+        applyBtn.title = 'Copies this candidate over ' + entity.liveTrack + ' (needs save-server — node editor/save-server.js)';
+        applyBtn.onclick = () => applyAudioPick(cand.file, entity.liveTrack, liveAudioEl, applyBtn);
+        row.appendChild(applyBtn);
+      }
 
       card.appendChild(row);
     });

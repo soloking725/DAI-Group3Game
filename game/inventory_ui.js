@@ -1,5 +1,5 @@
 // Multi-page Inventory screen (2026-08-01 redesign — see
-// Plans/inventory_redesign.md). Replaces the old single-page inventory
+// Plans/archive/inventory_redesign.md). Replaces the old single-page inventory
 // panel that used to be drawn inline in game_draw_loop.js. Four pages,
 // switched with Q/E while gameState === 'inventory':
 //   0 MAP           — the world map (reuses map.js's drawMap) + player-
@@ -51,7 +51,7 @@ const INVENTORY_LAYOUT = {
 };
 
 (function applyInventoryLayoutOverrides() {
-  const saved = readOverrideJSON(INVENTORY_LAYOUT_KEY);
+  const saved = readOverrideJSON(INVENTORY_LAYOUT_KEY, OverrideShape.object);
   if (!saved) return;
   for (const key in saved) {
     // Editor-added elements (not one of the built-in keys above) get

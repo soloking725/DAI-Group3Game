@@ -1,5 +1,5 @@
 // The Child — companion system (2026-07-16).
-// See Plans/child_companion_system_plan.md (Neva-style reference: she is
+// See Plans/archive/child_companion_system_plan.md (Neva-style reference: she is
 // PHYSICALLY REAL — runs, jumps, hesitates, catches up — with an invisible
 // teleport failsafe that only ever fires off-screen, so the illusion of
 // real traversal never breaks on camera).

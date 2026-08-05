@@ -51,9 +51,11 @@
 
   <h3>Save / export</h3>
   <button onclick="saveOverrides()" style="width:100%; margin-bottom:4px">💾 Save to game</button>
+  <button onclick="saveComboToFile()" style="width:100%; margin-bottom:4px">💽 Write this combo to combo.js (Electron app only)</button>
   <button onclick="exportJSON()" style="width:100%; margin-bottom:4px">📋 Export JSON</button>
+  <button onclick="importJSON()" style="width:100%; margin-bottom:4px">📥 Load from pasted JSON</button>
   <button class="danger" onclick="clearOverrides()" style="width:100%">Clear saved overrides</button>
-  <div class="hint">"Save to game": the real game (and enemy_test.html) loads this whole combo list on next reload — good for quick testing. "Export": paste-ready block for game/combo.js when a set is final.</div>
+  <div class="hint">"Save to game": the real game (and enemy_test.html) loads this whole combo list on next reload — good for quick testing. "Export": paste-ready block for game/combo.js when a set is final. "Load from pasted JSON": paste a previously-exported block (or bare JSON) into the box below first, then click — replaces the working combo list.</div>
   <textarea id="exportBox" placeholder="Export appears here…"></textarea>
 </div>
 
@@ -92,6 +94,7 @@
 </div>
 
 <script src="../game/overrideStore.js"></script>
+<script src="../game/writeGuard.js"></script>
 <script src="../game/combo.js"></script>
 <script src="../game/devContext.js"></script>
 <script src="../game/unsavedGuard.js"></script>
@@ -287,10 +290,50 @@ function clearOverrides() {
   alert('Cleared — the game is back to the built-in COMBO_DEFS. Reload this page to see the built-ins.');
   if (typeof DevContext !== 'undefined') DevContext.log('Combo Editor', 'Cleared overrides', '');
 }
+function importJSON() {
+  let parsed;
+  try {
+    parsed = ExportPanel.read('exportBox');
+  } catch (e) {
+    alert('Could not load: ' + e.message);
+    return;
+  }
+  if (!Array.isArray(parsed)) { alert('Could not load: expected a JSON array of combo defs.'); return; }
+  COMBO_DEFS.length = 0;
+  COMBO_DEFS.push(...parsed);
+  sel = 0;
+  refresh();
+  pushHistory();
+  if (typeof DevContext !== 'undefined') DevContext.log('Combo Editor', 'Loaded combos from pasted JSON', COMBO_DEFS.length + ' combo(s)');
+  if (unsavedGuard) unsavedGuard.checkpoint();
+}
+
 function exportJSON() {
   const text = `// Paste into game/combo.js, replacing the COMBO_DEFS list.\n`
     + `COMBO_DEFS = ${JSON.stringify(COMBO_DEFS, null, 2)};`;
   ExportPanel.write('exportBox', text, 'Combo Editor', 'Exported combos', COMBO_DEFS.length + ' combo(s)');
+}
+
+// ─── WRITE THIS COMBO TO combo.js (Electron only) — patches only the
+// currently-selected combo (matched by its `id` field, not array
+// position, since position shifts as combos are added/removed/reordered)
+// via the AST-based patcher — every other combo's data and hand-written
+// comments in combo.js are left untouched.
+async function saveComboToFile() {
+  const c = combo();
+  if (!c) return alert('No combo selected.');
+  if (!window.stillpointAPI) return alert('Only available in the unified editor desktop app (npm start) — not in a plain browser tab.');
+  const badPath = findNonFiniteNumber(c);
+  if (badPath) return alert(`Refusing to write: "${badPath}" is not a valid number. Fix the input field(s) and try again.`);
+  if (!confirm(`Write combo "${c.id}" to game/combo.js on disk? (a .bak is made first)`)) return;
+  try {
+    const data = await window.stillpointAPI.patchArrayElement('comboDefs', c.id, JSON.stringify(c, null, 2), true);
+    alert(`✅ Saved! Written to game/combo.js. Backup: ${data.backup}`);
+    if (typeof DevContext !== 'undefined') DevContext.log('Combo Editor', 'Wrote combo to disk', c.id);
+    if (unsavedGuard) unsavedGuard.checkpoint();
+  } catch (e) {
+    alert(`❌ Could not write to disk: ${e.message}`);
+  }
 }
 
 refresh();

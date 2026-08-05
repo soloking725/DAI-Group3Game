@@ -1,4 +1,4 @@
-// Room Scene Editor — Plans/room_scene_editor_plan.md v1 (2026-07-29).
+// Room Scene Editor — Plans/archive/room_scene_editor_plan.md v1 (2026-07-29).
 // Edits a room's backdropLayers[]/hideProceduralBackdrop and its region's
 // REGION_STYLES entry (absorbing the never-built level_designer.html's
 // scope, per §0 of that plan). The center preview is NOT a reimplemented
@@ -215,7 +215,7 @@ function pushFullLiveState() {
   if (room) {
     room.backdropLayers = stripPreview(clone(area.backdropLayers));
     room.hideProceduralBackdrop = !!area.hideProceduralBackdrop;
-    // area.cutsceneTriggers[] (Plans/room_scene_editor_plan.md §3/v2) — pushed
+    // area.cutsceneTriggers[] (Plans/archive/room_scene_editor_plan.md §3/v2) — pushed
     // live so walking the real player (via the parallax scrubber) into an
     // 'enter' zone actually fires the real trigger check in game_update.js,
     // not just an editor-only preview of the rectangle.
@@ -245,6 +245,52 @@ function pushFullLiveState() {
 }
 
 function onLiveEdit() { pushFullLiveState(); }
+
+// Promotes a working-draft room image (RoomImageStore IndexedDB id, or a
+// legacy inline data: URL) to a real checked-in PNG file under
+// assets/art/rooms/, via editor/save-server.js's /save-art-image route —
+// only reachable when this page is loaded through http://localhost:8787,
+// not file://. Returns the new root-relative path (e.g.
+// "assets/art/rooms/mirror_veil_bg.png") on success, or null if cancelled/
+// failed (caller already showed the alert). Deliberately does NOT clear
+// `previewDataUrl` on the caller's object — pushFullLiveState()'s existing
+// re-prime loop (above) keys off it to prime the live iframe preview
+// under the NEW imageId with zero extra code here.
+async function promoteRoomImageToFile(imageId, previewDataUrl, defaultName) {
+  let dataUrl = previewDataUrl;
+  if (!dataUrl && imageId && imageId.startsWith('data:')) dataUrl = imageId;
+  if (!dataUrl && imageId && imageId.startsWith('idb_') && typeof RoomImageStore !== 'undefined') {
+    try { dataUrl = await RoomImageStore.get(imageId); } catch (e) { /* fall through */ }
+  }
+  if (!dataUrl) { alert('Could not read this image (IndexedDB unavailable, or it\'s already a real file).'); return null; }
+
+  const filename = prompt('Filename (no extension, letters/numbers/_/- only):', defaultName);
+  if (!filename) return null; // cancelled
+  if (!/^[A-Za-z0-9_-]+$/.test(filename)) { alert('Filename must contain only letters, numbers, "_", "-".'); return null; }
+
+  try {
+    let data;
+    if (window.stillpointAPI) {
+      data = await window.stillpointAPI.saveArtImage('rooms', filename, dataUrl);
+    } else {
+      const res = await fetch('http://localhost:8787/save-art-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: 'rooms', filename, dataUrl }),
+      });
+      data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    if (imageId && imageId.startsWith('idb_') && typeof RoomImageStore !== 'undefined') RoomImageStore.delete(imageId).catch(() => {});
+    alert(`✅ Saved to ${data.path}`);
+    return data.path;
+  } catch (e) {
+    alert(window.stillpointAPI
+      ? `❌ Could not write PNG file: ${e.message}`
+      : `❌ Could not write PNG file: ${e.message}. Is the save server running? Start it with "node editor/save-server.js" and load this editor via http://localhost:8787/editor/room_scene_editor.html`);
+    return null;
+  }
+}
 
 // ── Room loading ─────────────────────────────────────────────────────────
 function loadRoom(id) {
@@ -562,6 +608,26 @@ function renderLayerInspector(el, layer) {
     el.appendChild(prevRow);
   }
 
+  // "Save as PNG file" — only offered while imageId is still a working-draft
+  // reference (IndexedDB id or inline data: URL); a real assets/art/rooms/
+  // path has nothing left to promote.
+  if (layer.imageId && (layer.imageId.startsWith('idb_') || layer.imageId.startsWith('data:'))) {
+    const saveRow = document.createElement('div');
+    saveRow.className = 'row';
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = '💾 Save as PNG file (needs save-server)';
+    saveBtn.addEventListener('click', async () => {
+      const defaultName = `${area.id || 'room'}_layer${selLayerIndex + 1}`;
+      const newPath = await promoteRoomImageToFile(layer.imageId, layer._previewDataUrl, defaultName);
+      if (!newPath) return;
+      layer.imageId = newPath;
+      onLiveEdit(); pushHistory();
+      renderLayerList(); renderInspector();
+    });
+    saveRow.appendChild(saveBtn);
+    el.appendChild(saveRow);
+  }
+
   renderLayerFramesSection(el, layer);
 
   // ParallaxX
@@ -716,7 +782,7 @@ function renderRegionInspector(el) {
   el.appendChild(delRow);
 }
 
-// ── Camera-pan scrubber (Plans/room_scene_editor_plan.md §4) ─────────────
+// ── Camera-pan scrubber (Plans/archive/room_scene_editor_plan.md §4) ─────────────
 const scrubEl = document.getElementById('scrub');
 scrubEl.addEventListener('input', () => {
   if (!win || !win.player) return;
@@ -728,7 +794,7 @@ function jumpScrubTo(worldX) {
   scrubEl.dispatchEvent(new Event('input'));
 }
 
-// ── Cutscene trigger list (left panel) — v2, Plans/room_scene_editor_plan.md
+// ── Cutscene trigger list (left panel) — v2, Plans/archive/room_scene_editor_plan.md
 // §3/§4. cutsceneTriggers[] is data-driven room-entry/on-load plot triggers,
 // closing the gap the plan describes: today's 3 hardcoded `if` conditions in
 // game_update.js/game_entities.js aren't visible or movable without editing
@@ -1075,11 +1141,29 @@ function drawTriggerOverlay() {
   });
 }
 
+// Preview safety — this editor is for authoring backdrop/parallax/trigger/
+// audio-zone content, not for combat testing (enemy_test.html/companion_test.html
+// are the right tools for that). The sandboxed iframe boots the REAL game with
+// the room's real enemies, so without this the scrubbed "player" can be hit,
+// take damage, and hit gameover mid-edit for reasons that have nothing to do
+// with what's being edited. Pinning invincibleTimer short-circuits virtually
+// every damage call site (they're all gated on `player.invincibleTimer <= 0`
+// per game_update.js/enemy.js/boss.js) without touching any shared game file;
+// the health/gameState pins below are a belt-and-suspenders catch-all for the
+// one path that isn't invincibility-gated (pit death, per game_update.js).
+function applyPreviewSafety() {
+  if (!win || !win.player) return;
+  win.player.invincibleTimer = 999999;
+  if (typeof win.playerMaxHealth === 'function') win.player.health = win.playerMaxHealth();
+  if (win.gameState === 'gameover') win.gameState = 'playing';
+}
+
 function overlayTick() {
   requestAnimationFrame(overlayTick);
   if (win && win.camera) {
     liveCamera.x = win.camera.x; liveCamera.y = win.camera.y; liveCamera.zoom = win.camera.zoom || 1;
   }
+  applyPreviewSafety();
   drawTriggerOverlay();
 }
 overlayTick();
@@ -1248,6 +1332,48 @@ document.getElementById('save-style-live-btn').addEventListener('click', () => {
     if (typeof DevContext !== 'undefined') DevContext.log('Room Scene Editor', 'Saved region style live override', area.region);
   } catch (e) {
     statusEl.innerHTML = `<span class="bad">✗ save failed: ${e.message}</span>`;
+  }
+});
+
+// ─── WRITE TO DISK (Electron only) — patches this one room's
+// backdropLayers/hideProceduralBackdrop/cutsceneTriggers/audioZones
+// fields inside AREAS[area.id] (game/area.js), and this one region's
+// entry inside REGION_STYLES (game/game_entities.js), each via the
+// AST-based patcher — every other room/region's data and comments are
+// left untouched.
+document.getElementById('write-file-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('live-status');
+  if (!window.stillpointAPI) {
+    statusEl.innerHTML = `<span class="bad">✗ Only available in the unified editor desktop app (npm start) — not in a plain browser tab.</span>`;
+    return;
+  }
+  const layers = stripPreview(area.backdropLayers);
+  const badPath = findNonFiniteNumber({ layers, cutsceneTriggers: area.cutsceneTriggers, audioZones: area.audioZones, currentStyle });
+  if (badPath) {
+    statusEl.innerHTML = `<span class="bad">✗ Refusing to write: "${badPath}" is not a valid number. Fix the input field(s) and try again.</span>`;
+    return;
+  }
+
+  if (!confirm(`Write room "${area.id}"'s backdrop/cutscene/audio fields${currentStyle ? ` and region "${area.region}"'s style` : ''} to disk? (a .bak is made first for each file touched)`)) return;
+
+  statusEl.innerHTML = 'Writing…';
+  try {
+    await window.stillpointAPI.patchPath('areas', `${area.id}.backdropLayers`, JSON.stringify(layers, null, 2), true);
+    await window.stillpointAPI.patchPath('areas', `${area.id}.hideProceduralBackdrop`, JSON.stringify(!!area.hideProceduralBackdrop), true);
+    await window.stillpointAPI.patchPath('areas', `${area.id}.cutsceneTriggers`, JSON.stringify(area.cutsceneTriggers || [], null, 2), true);
+    const lastRoomWrite = await window.stillpointAPI.patchPath('areas', `${area.id}.audioZones`, JSON.stringify(area.audioZones || [], null, 2), true);
+
+    let styleBackup = null;
+    if (currentStyle) {
+      const styleWrite = await window.stillpointAPI.patchPath('regionStyles', area.region, JSON.stringify(currentStyle, null, 2), true);
+      styleBackup = styleWrite.backup;
+    }
+
+    statusEl.innerHTML = `<span class="ok">✓ Saved! Room fields written to game/area.js (backup: ${lastRoomWrite.backup})${styleBackup ? `; region style written to game/game_entities.js (backup: ${styleBackup})` : ''}</span>`;
+    if (typeof DevContext !== 'undefined') DevContext.log('Room Scene Editor', 'Wrote room/region to disk', area.id);
+    if (unsavedGuard) unsavedGuard.checkpoint();
+  } catch (e) {
+    statusEl.innerHTML = `<span class="bad">✗ Could not write to disk: ${e.message}</span>`;
   }
 });
 

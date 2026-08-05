@@ -34,7 +34,7 @@ const HUD_LAYOUT = {
 };
 
 (function applyHudLayoutOverrides() {
-  const saved = readOverrideJSON(HUD_LAYOUT_KEY);
+  const saved = readOverrideJSON(HUD_LAYOUT_KEY, OverrideShape.object);
   if (!saved) return;
   for (const key in saved) {
     // Editor-added elements (not one of the built-in keys above) get

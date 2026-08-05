@@ -1,3 +1,9 @@
+> **ARCHIVED 2026-08-03**: moved out of `Plans/` during a doc consolidation
+> pass. Its "still open" items are now 100% duplicated in
+> `Plans/engineering_todo.md` §3 (the live punch list, added 2026-08-01) —
+> read that instead. The "Done" section below is a 2026-07-24 point-in-time
+> snapshot, never updated since; kept here for historical detail only.
+
 # Dev Tools Roadmap — Status (2026-07-24)
 
 Source: a 19-tab critique doc of the dev-tool suite, consolidated into a phased roadmap. This tracks what's actually landed vs. still open.

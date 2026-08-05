@@ -1,3 +1,20 @@
+// ── Shared transient-entity reset ────────────────────────────────────────
+// Every path that resets the game world (init, startNewGame, loadGame,
+// respawnPlayer, returnToAnchor, restartRoom, switchArea) needs to clear
+// the same set of frame-scoped entities. Centralizing the list here means
+// adding a new transient entity type is a one-line change instead of a
+// hunt through 7 call sites.
+function resetTransientEntities() {
+  echoes = [];
+  standEcho = null;
+  projectiles = [];
+  afterimageHazards = [];
+  particles = [];
+  bossProjectiles = [];
+  areaAmbient = [];
+  if (player && player.phasedThroughEnemies) player.phasedThroughEnemies.clear();
+}
+
 // Unstuck button — teleport player to last stillpoint or area spawn
 function unstuckPlayer() {
   if (gameState !== 'playing' || !player) return;
@@ -65,11 +82,9 @@ function handleFullscreenKey() {
 function init() {
   const area = getCurrentArea();
   player = new Player(100, area.groundY - 60);
-  echoes = [];
-  standEcho = null;
-  projectiles = [];
-  afterimageHazards = [];
-  particles = [];
+  resetTransientEntities();
+  boss = null;
+  miniboss = null;
   gameState = 'menu';
   menuScreen = 'main';
   menuSelection = 0;
@@ -109,6 +124,7 @@ function init() {
   abilityState.hasGravitonSurge = false;
   abilityState.hasVoidTether = false;
   abilityState.hasParry = false;
+  abilityState.hasReach = false;
   abilityState.hasConstruct = false;
   gameTimeScale = 1.0;
 
@@ -405,6 +421,7 @@ function saveGame(slot) {
         hasGravitonSurge: abilityState.hasGravitonSurge,
         hasVoidTether: abilityState.hasVoidTether,
         hasParry: abilityState.hasParry,
+        hasReach: abilityState.hasReach,
         // Cooldowns persisted (2026-07-24 fix) so quitting/reloading mid-fight
         // can't be used to reset an ability early — see BUG list.
         phaseDashCooldown: abilityState.phaseDashCooldown,
@@ -493,6 +510,7 @@ function loadGame(slot) {
     abilityState.hasGravitonSurge = !!(data.abilityState && data.abilityState.hasGravitonSurge);
     abilityState.hasVoidTether = !!(data.abilityState && data.abilityState.hasVoidTether);
     abilityState.hasParry = !!(data.abilityState && data.abilityState.hasParry);
+    abilityState.hasReach = !!(data.abilityState && data.abilityState.hasReach);
     abilityState.hasConstruct = !!(data.abilityState && data.abilityState.hasConstruct);
     // Cooldowns persisted (2026-07-24 fix) — clamp to the real max so a
     // hand-edited/corrupted save can't hand the player a stuck-forever
@@ -531,12 +549,7 @@ function loadGame(slot) {
     clearWeaponDrops();
     resetHealingCrystals();
 
-    echoes = [];
-    standEcho = null;
-    projectiles = [];
-    afterimageHazards = [];
-    particles = [];
-    bossProjectiles = [];
+    resetTransientEntities();
     boss = null;
     miniboss = null;
     areaEnemiesSpawned = {};
@@ -673,12 +686,7 @@ function startNewGame() {
   SFX.setAreaAmbient('spawn_area_1');
   const area = getCurrentArea();
   player = new Player(100, area.groundY - 60);
-  echoes = [];
-  standEcho = null;
-  projectiles = [];
-  afterimageHazards = [];
-  particles = [];
-  bossProjectiles = [];
+  resetTransientEntities();
   boss = null;
   miniboss = null;
   defeatedMinibosses = {};
@@ -715,6 +723,7 @@ function startNewGame() {
   abilityState.hasGravitonSurge = false;
   abilityState.hasVoidTether = false;
   abilityState.hasParry = false;
+  abilityState.hasReach = false;
   abilityState.hasConstruct = false;
   abilityState.phaseDashCooldown = 0;
   abilityState.shardShotCooldown = 0;
@@ -722,6 +731,27 @@ function startNewGame() {
   abilityState.voidTetherCooldown = 0;
   abilityState.parryCooldown = 0;
   abilityState.notifications = [];
+  gameTimeScale = 1.0;
+  limitBreak.active = false;
+  limitBreak.ability = null;
+  limitBreak.timer = 0;
+  hitstopTimer = 0;
+  slowMoTimer = 0;
+  slowMoSkip = 0;
+  screenShake = 0;
+  screenShakeIntensity = 0;
+  deathFadeAlpha = 0;
+  deathFadeDir = 0;
+  transitionAlpha = 0;
+  transitioning = false;
+  doorCooldown = 0;
+  abilityFlash = 0;
+  abilityPopups = [];
+  moteCharge = 0;
+  comboState.progress = {};
+  comboState.damageBuff = null;
+  comboState.lastCompleted = null;
+  comboState._prev = {};
   resetTutorial();
   spawnAreaEnemies('spawn_area_1');
   resetCamera();
@@ -763,10 +793,9 @@ function respawnPlayer() {
     resetCamera();
   }
 
-  echoes = [];
-  standEcho = null;
-  projectiles = [];
-  afterimageHazards = [];
+  resetTransientEntities();
+  boss = null;
+  miniboss = null;
 }
 
 // Teleport to the most recent Anchor checkpoint (full health).
@@ -793,10 +822,9 @@ function returnToAnchor() {
   spawnAreaEnemies(currentAreaId);
   resetCamera();
   SFX.setAreaAmbient(currentAreaId);
-  echoes = [];
-  standEcho = null;
-  projectiles = [];
-  afterimageHazards = [];
+  resetTransientEntities();
+  boss = null;
+  miniboss = null;
   spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#c4b5fd', 12);
   SFX.stillpoint();
 }
@@ -820,13 +848,9 @@ function restartRoom() {
   clearAreaEnemies(currentAreaId);
   spawnAreaEnemies(currentAreaId);
   // Clear transient entities
-  echoes = [];
-  standEcho = null;
-  projectiles = [];
-  afterimageHazards = [];
+  resetTransientEntities();
   boss = null;
   miniboss = null;
-  bossProjectiles = [];
   resetCamera();
   spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#67e8f9', 10);
 }

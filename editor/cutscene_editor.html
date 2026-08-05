@@ -73,7 +73,7 @@ body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:col
 #live-status .bad{color:var(--danger)}
 
 /* Preview overlay (cheap mocked-up walkthrough, not the real game — see
-   Plans/cutscene_editor_plan.md §7's staged recommendation). Entrance is a
+   Plans/archive/cutscene_editor_plan.md §7's staged recommendation). Entrance is a
    quick fade+scale-in (per the design system's "Scale in" pattern), never
    a bounce — reduced-motion collapses --dur-med to 0 automatically. */
 #preview-overlay{position:fixed;inset:0;background:rgba(2,2,3,0.8);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:50}
@@ -91,6 +91,14 @@ body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:col
 #preview-step-badge{position:absolute;top:44px;left:16px;color:var(--fg-faint);font-size:9.5px;font-family:var(--font-ui);text-transform:uppercase;letter-spacing:0.05em}
 #preview-controls{display:flex;gap:6px;padding:10px;border-top:1px solid var(--border);position:relative;z-index:3}
 #preview-controls .ds-btn{flex:1}
+
+/* Live preview (real game in a sandboxed iframe) — same overlay chrome as
+   the mocked preview above, sized for the game's own 16:9 canvas instead. */
+#live-preview-overlay{position:fixed;inset:0;background:rgba(2,2,3,0.85);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:50}
+#live-preview-overlay.open{display:flex}
+#live-preview-card{width:960px;max-width:92vw;background:#000;border-radius:var(--radius-lg);box-shadow:var(--shadow-overlay);overflow:hidden}
+#live-preview-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--bg-panel)}
+#live-sandbox{display:block;width:960px;max-width:92vw;height:540px;border:0;background:#000}
 </style>
 </head>
 <body class="ds-root ds-ambient">
@@ -108,6 +116,7 @@ body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:col
   <button id="redo-btn" class="ds-btn ds-btn-ghost" title="Ctrl+Shift+Z / Ctrl+Y">↷ Redo</button>
   <div class="sep"></div>
   <button id="preview-btn" class="ds-btn ds-btn-primary">▶ Preview This Cutscene</button>
+  <button id="live-preview-btn" class="ds-btn ds-btn-primary" title="Boots the real game and runs this cutscene through the actual playCutscene() engine — camera pans, choice branching, and call steps all really execute, not mocked">🎮 Play in Real Game</button>
 </div>
 
 <div id="main">
@@ -137,13 +146,14 @@ body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:col
       <button id="exp-btn" class="ds-btn ds-btn-block">⬇ Export Paste-Ready JS</button>
       <textarea id="exp-out" class="ds-textarea ds-mono" readonly placeholder="Press Export to generate a snippet for the selected cutscene..."></textarea>
       <button id="save-live-btn" class="ds-btn ds-btn-ok ds-btn-block">💾 Save to Browser (Live)</button>
+      <button id="write-file-btn" class="ds-btn ds-btn-block">💽 Write to cutscene.js (Electron app only)</button>
       <div id="live-status" class="hint"></div>
     </div>
   </div>
 </div>
 
 <!-- Cheap mocked-up preview: a static walkthrough of the step sequence, not
-     a real-game boot. See Plans/cutscene_editor_plan.md §4/§7 — the
+     a real-game boot. See Plans/archive/cutscene_editor_plan.md §4/§7 — the
      real-game-iframe preview is staged for v2. -->
 <div id="preview-overlay">
   <div id="preview-card">
@@ -166,7 +176,26 @@ body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:col
   </div>
 </div>
 
+<!-- Live preview — boots the real game in a sandboxed iframe (same
+     fetch+srcdoc+rewrite technique as room_scene_editor.js) and runs the
+     working (possibly unsaved) cutscene through the real playCutscene()
+     engine, in enemy_test_arena (a flat, isolated dev room). Complements
+     the cheap mocked walkthrough above rather than replacing it — that one
+     needs no boot and is instant for checking text/branch content; this
+     one is for verifying the real camera pans, call-step side effects, and
+     timing actually work. -->
+<div id="live-preview-overlay">
+  <div id="live-preview-card">
+    <div id="live-preview-bar">
+      <span id="live-preview-status" class="ds-mono" style="color:var(--fg-muted);font-size:11px">not started</span>
+      <button id="live-preview-close" class="ds-btn ds-btn-danger">✕ Close</button>
+    </div>
+    <iframe id="live-sandbox" title="Live cutscene preview"></iframe>
+  </div>
+</div>
+
 <script src="../game/overrideStore.js"></script>
+<script src="../game/writeGuard.js"></script>
 <script src="../game/area.js"></script>
 <script src="../game/roomVerify.js"></script>
 <script src="../game/cutscene.js"></script>

@@ -1,0 +1,29 @@
+{
+  "name": "dai-group3game",
+  "version": "1.0.0",
+  "description": "Stillpoint dev editor suite, packaged as a desktop app shell (see Plans/unified_editor_ide_plan.md)",
+  "private": true,
+  "main": "editor_shell/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soloking725/DAI-Group3Game.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/soloking725/DAI-Group3Game/issues"
+  },
+  "homepage": "https://github.com/soloking725/DAI-Group3Game#readme",
+  "devDependencies": {
+    "electron": "^43.2.0"
+  },
+  "dependencies": {
+    "@babel/parser": "^8.0.4",
+    "recast": "^0.23.19"
+  }
+}

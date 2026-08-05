@@ -12,6 +12,17 @@
    ========================================================================== */
 
 :root {
+  /* Tells the browser this page's UI is dark-only, so native form controls
+     (buttons, checkboxes, selects, scrollbars) render with dark-appropriate
+     UA defaults instead of assuming a light page — without this, an
+     unstyled control (e.g. audio_ab_tester.html's star-pick <button>, which
+     sets no explicit `color`) can render with light-scheme default text
+     color even though every custom-styled element here is dark, making it
+     invisible against this file's own dark backgrounds. Every editor here
+     shares this one fixed dark palette — there's no light variant to
+     accidentally break. */
+  color-scheme: dark;
+
   /* ---- Color: Deep Space with Ambient Indigo Light -------------------- */
   --bg-deep:        #020203;
   --bg-base:        #050506;

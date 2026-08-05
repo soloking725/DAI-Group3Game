@@ -1,4 +1,4 @@
-// Healing & collectibles (2026-07-16) — see Plans/healing_items_plan.md.
+// Healing & collectibles (2026-07-16) — see Plans/archive/healing_items_plan.md.
 // Three systems, all deliberately NOT consumable-inventory items:
 //
 //   1. VITALITY MOTES — enemies drop small drifting motes on death; motes

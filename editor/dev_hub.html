@@ -27,6 +27,9 @@ body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:col
 .tool{display:block;padding:6px 14px;color:var(--fg-muted);text-decoration:none;font-size:11px;border-left:2px solid transparent;transition:background var(--dur-fast) var(--ease-out-expo),color var(--dur-fast) var(--ease-out-expo),border-color var(--dur-fast) var(--ease-out-expo)}
 .tool:hover{background:var(--surface);color:var(--fg);border-left-color:var(--accent-bright)}
 .tool.hidden{display:none}
+.tool.planned{opacity:0.62}
+.tool.planned:hover{border-left-color:var(--fg-faint)}
+.tool .plan-badge{display:inline-block;font-size:8px;letter-spacing:0.05em;text-transform:uppercase;color:var(--warn);border:1px solid var(--warn);border-radius:var(--radius-sm);padding:0 4px;margin-left:6px;vertical-align:middle}
 .tool .desc{display:block;color:var(--fg-faint);font-size:9px;margin-top:1px}
 .tool .ctx{color:var(--teal);font-size:9px}
 .tool .health{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;background:var(--fg-faint);vertical-align:middle}
@@ -65,7 +68,7 @@ body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:col
 #progress-footnote{color:var(--fg-faint);font-size:9px;margin-top:6px;line-height:1.5}
 
 /* VALIDATION OUTPUT */
-#validation-out{background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px;font-size:10px;line-height:1.6;max-height:280px;overflow-y:auto}
+#validation-out,#cli-tools-hint{background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px;font-size:10px;line-height:1.6;max-height:280px;overflow-y:auto}
 #validation-out .ok{color:var(--ok)}
 #validation-out .bad{color:var(--danger);cursor:pointer}
 #validation-out .bad:hover{color:#fca5a5;text-decoration:underline}
@@ -127,7 +130,7 @@ body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:col
     </div>
     <div class="section">
       <h2>CLI-Only Tools <span style="color:#3a3a5e;font-weight:normal">(no browser UI — run from a terminal in the repo root)</span></h2>
-      <div id="validation-out" style="max-height:none">
+      <div id="cli-tools-hint" style="max-height:none">
         <div class="hint"><code>node Plans/room_progress.js --full</code> — per-room SHELL/started/designed status<br>
         <code>node Plans/room_difficulty_calculator.js</code> — regenerates the Room Difficulty Calculator's snapshot<br>
         <code>node Plans/analyze_floor_plan.js</code> — regenerates the Floor Plan Path Viewer / Playthrough Simulation snapshots<br>
@@ -170,10 +173,11 @@ const TOOL_GROUPS = [
     { name: 'Room Verification', file: 'room_verify.html', desc: 'Reachability/floor-gap/embedded-door linter + Spawn-into-room links' },
     { name: 'Room Scene Editor', file: 'room_scene_editor.html', desc: 'Backdrop art/parallax layers + region style tuning, live preview', contextKey: 'currentRoomId', param: 'room' },
     { name: 'Cutscene Editor', file: 'cutscene_editor.html', desc: 'Author CUTSCENES step lists (wait/text/cameraPan/choice/call), branch nesting, mocked preview', contextKey: 'currentCutsceneId', param: 'cutscene' },
+    { name: 'Plotline Editor', file: 'plotline_editor.html', desc: 'Story-flag graph (cycle/dead-flag audit), lore visions, quest stages, NPC dialogue' },
   ]},
   { label: 'Combat & Enemies', tools: [
     { name: 'Enemy Editor', file: 'enemy_editor.html', desc: 'Quick stat tweaks on built-in enemies', contextKey: 'currentEnemyId', param: 'enemy' },
-    { name: 'Enemy Designer', file: 'enemy_designer.html', desc: 'Full ComposedEnemy attack/behavior authoring' },
+    { name: 'Enemy Designer', file: 'enemy_designer.html', desc: 'Full ComposedEnemy attack/behavior authoring', contextKey: 'currentEnemyId', param: 'enemy' },
     { name: 'Boss Phase Editor', file: 'boss_phase_editor.html', desc: 'The Sovereign\'s phase thresholds & attack-selection weights' },
     { name: 'Enemy & Miniboss Test Bench', file: 'enemy_test.html', desc: 'Spawn and fight enemies in an arena' },
     { name: 'Ability Tester', file: 'ability_tester.html', desc: 'Live-tune player ability constants' },
@@ -232,6 +236,11 @@ const toolHealth = {};
 
 function renderToolLink(tool) {
   const ctx = DevContext.get();
+  // Planned (not-yet-built) tools link to their design doc instead of a dead
+  // 404 for the unbuilt .html — keeps the hub honest about what exists.
+  if (tool.planned) {
+    return `<a class="tool planned" data-file="${tool.file}" data-name="${tool.name.toLowerCase()}" href="${tool.planDoc}" target="_blank">${tool.name}<span class="plan-badge">planned</span><span class="desc">${tool.desc}</span></a>`;
+  }
   const hasCtx = tool.contextKey && ctx[tool.contextKey];
   const ctxNote = hasCtx ? `<span class="ctx"> → resumes ${ctx[tool.contextKey]}</span>` : '';
   const h = toolHealth[tool.file];
@@ -282,6 +291,14 @@ const OVERRIDE_KEYS = [
     describe: (v) => { const o = JSON.parse(v); return `${Object.keys(o).length} element(s) repositioned`; } },
   { name: 'Cutscenes (Cutscene Editor)', key: 'stillpoint_cutscene_overrides_v1',
     describe: (v) => { const o = JSON.parse(v); const ids = Object.keys(o); return `${ids.length} cutscene(s): ${ids.join(', ')}`; } },
+  { name: 'Visions (Plotline Editor)', key: 'stillpoint_visions_overrides_v1',
+    describe: (v) => { const o = JSON.parse(v); return `${Object.keys(o).length} vision(s)`; } },
+  { name: 'Quests (Plotline Editor)', key: 'stillpoint_quests_overrides_v1',
+    describe: (v) => { const o = JSON.parse(v); return `${Object.keys(o).length} quest(s)`; } },
+  { name: 'NPC Dialogue (Plotline Editor)', key: 'stillpoint_npc_dialogue_overrides_v1',
+    describe: (v) => { const o = JSON.parse(v); return `${Object.keys(o).length} NPC(s)`; } },
+  { name: 'Flag Meta (Plotline Editor)', key: 'stillpoint_flag_meta_overrides_v1',
+    describe: (v) => { const o = JSON.parse(v); return `${Object.keys(o).length} flag note(s)`; } },
 ];
 
 function renderOverrides() {
@@ -322,7 +339,7 @@ function renderOverrides() {
 
 // ─── PROGRESS DASHBOARD ─────────────────────────────────────────────────
 // Extends the old 3-card Quick Stats into the full "what's left" view from
-// Plans/project_progress_dashboard_plan.md. Targets below are design
+// Plans/archive/project_progress_dashboard_plan.md. Targets below are design
 // decisions recorded in Plans/regions.md/room_design_bible.md/expansion.md —
 // NOT derivable from code — so they're hand-maintained constants, same
 // dual-copy caveat hud_editor.html's DEFAULTS table already lives with.
@@ -627,6 +644,11 @@ window.addEventListener('storage', (e) => {
   if (e.key === 'stillpoint_dev_context') { renderSidebar(); renderActivity(); }
   if (OVERRIDE_KEY_SET.has(e.key)) renderOverrides();
 });
+// Under the Electron shell, DevContext is pushed live from the main
+// process (see game/devContext.js) instead of relying on 'storage' events,
+// which only fire for a *different* browsing context's localStorage write
+// — this event covers that push path too.
+window.addEventListener('devcontext:changed', () => { renderSidebar(); renderActivity(); });
 
 renderSidebar();
 renderStats();

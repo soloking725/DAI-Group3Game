@@ -25,7 +25,7 @@ const AREA_PATH = path.join(__dirname, '..', 'game', 'area.js');
 const args = process.argv.slice(2);
 const FULL = args.includes('--full');
 
-const ctx = { window: { addEventListener() {} }, console: { log() {}, warn() {}, error() {} }, readOverrideJSON() { return null; } };
+const ctx = { window: { addEventListener() {} }, console: { log() {}, warn() {}, error() {} }, readOverrideJSON() { return null; }, OverrideShape: { object: () => true, array: () => true } };
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(AREA_PATH, 'utf8'), ctx, { filename: 'area.js' });
 const AREAS = ctx.window.AREAS;

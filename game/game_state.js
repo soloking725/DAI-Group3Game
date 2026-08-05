@@ -374,7 +374,7 @@ const CONTROLS_HINT_FADE_END = 660;    // ~11s @ 60fps: hint fully gone
 const LORE_ENABLED = false;
 let collectedLore = {};        // lore pip ids collected — drives the new visual-effect pickup flow (1.9), independent of LORE_ENABLED's old text-popup path
 
-// area.cutsceneTriggers[] (Plans/room_scene_editor_plan.md §3/v2) same-visit
+// area.cutsceneTriggers[] (Plans/archive/room_scene_editor_plan.md §3/v2) same-visit
 // debounce — NOT save-persisted on purpose, unlike storyFlags (the real
 // "don't replay this ever again" gate a trigger's own storyFlag field
 // checks). This just stops an 'enter'-type zone trigger from immediately
@@ -394,7 +394,7 @@ let inventoryMessage = null; // { text, timer } — transient feedback line in t
 let inventorySelection = 0;  // selected row in the Inventory screen's upgrade list
 let inventoryReturnState = 'paused'; // gameState to restore on exit — 'paused' (via pause menu) or 'playing' (via direct I shortcut)
 
-// ── Multi-page Inventory (2026-08-01 redesign, see Plans/inventory_redesign.md) ──
+// ── Multi-page Inventory (2026-08-01 redesign, see Plans/archive/inventory_redesign.md) ──
 // Page 0 = Map (world map + player-placed pins), 1 = Character (abilities/
 // stats/story items/companion), 2 = Upgrades (the old single-page inventory
 // content, unchanged), 3 = Customization (idle anims/taunts/fashion, starts

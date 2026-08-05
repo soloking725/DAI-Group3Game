@@ -1,3 +1,14 @@
+> **ARCHIVED 2026-08-03**: moved out of `Plans/` during a doc consolidation
+> pass. Superseded by `CLAUDE.md` (auto-loaded, authoritative "read this
+> first" doc since 2026-08-02) and `Plans/roadmap.md` (the live changelog).
+> This doc's own changelog was frozen at v0.0.14/2026-07-21 and its "File
+> map" section had drifted stale (still describes the pre-split single
+> `game.js`, references `enemy_designer.html`/`debug_new.html` as live
+> tools — both since removed). Its one genuinely unique piece of content,
+> the "Basic plot / mandatory story sequence" summary, was folded into
+> `CLAUDE.md` before this archive. Kept here for historical context only —
+> do not treat anything below as current.
+
 # Stillpoint — Overview
 
 Read this first, then give instructions. This doc is a map + a changelog,
@@ -93,20 +104,21 @@ files marked NEW landed 2026-07-16, roadmap Phase 17):
 5. `regions.md` — world layout reference: which regions exist, cluster position, room counts, miniboss, special effect
 6. `floor_plan.md` (+ `floor_plan_mermaid.txt`, `floor_plan.svg`, `floor_plan_report.html`, `floor_plan_simulation.html`) — the full room-to-room connection graph and an automated reachability/simulation tool (`analyze_floor_plan.js`) over it
 7. `archive/floor_plan_open_issues.md` — archived 2026-07-21, superseded by `floor_plan.md`'s own correction log
-8. `story.md` — narrative/companion-character system (companion is now built — see `child_companion_system_plan.md`; endings/Fracture Pip economy still unbuilt)
+8. `story.md` — narrative/companion-character system (companion is now built — see `archive/child_companion_system_plan.md`; endings/Fracture Pip economy still unbuilt)
 9. `lore.md` — narrative/character writing (Sovereign, minibosses) — current source of truth for characterization, not yet ported into in-game text
 10. `BUG_ANALYSIS_AND_QA_PLAN.md` — known bug inventory + playtest protocol (not fully re-verified since 2026-07-11/12, see its own staleness note)
 11. `enemy_system_plan.md` — the composable enemy-module system (`ComposedEnemy`); see also `enemy_attack_vocabulary_plan.md` for the newer attack-verb layer
-12. 2026-07-16 planning set — **all built as of Phase 19, 2026-07-16** (see `roadmap.md`):
-    `child_companion_system_plan.md` (Neva-style following Child — locomotion,
+12. 2026-07-16 planning set — **all built as of Phase 19, 2026-07-16** (see `roadmap.md`), all now archived under `Plans/archive/` (2026-08-03 — done and no longer live design docs, kept for original rationale only):
+    `archive/child_companion_system_plan.md` (Neva-style following Child — locomotion,
     hide-&-heal shipped, learns-to-fight progression still open, `companion_test.html` arena tool),
-    `combat_ai_overhaul_plan.md` (Void Tether fix + facing auto-aim,
+    `archive/combat_ai_overhaul_plan.md` (Void Tether fix + facing auto-aim,
     enemy notice-delay/decision-cooldown/facing-cone, block/dodge/breakout/
     mix-up/reactivity modules, shared collision resolver + spawn safety — all shipped),
-    `healing_items_plan.md` (no potions — vitality motes, Child heal, placed
-    restores, max-health shards — all shipped), `animation_editor_plan.md` (timeline/hitbox
+    `archive/healing_items_plan.md` (no potions — vitality motes, Child heal, placed
+    restores, max-health shards — all shipped), `archive/animation_editor_plan.md` (timeline/hitbox
     editor + `ANIM_DEFS` data model shipped; player/enemy/boss bridges + raster frames added 2026-07-20)
-13. Other narrower docs as needed: `cave_design_plan.md`, `movement_feel_plan.md`, `archive/level_editor_guide.md` (archived 2026-07-21, superseded by roadmap.md's "WHAT'S ACTUALLY NEXT"), `room_verification_tool_plan.md`, `session_priorities.md`, `enemy_attack_vocabulary_plan.md`
+13. Other narrower docs as needed: `cave_design_plan.md`, `movement_feel_plan.md`, `archive/level_editor_guide.md` (archived 2026-07-21, superseded by roadmap.md's "WHAT'S ACTUALLY NEXT"), `room_verification_tool_plan.md`, `enemy_attack_vocabulary_plan.md`, `engineering_todo.md` (added 2026-08-01, the current live engineering punch list — read this instead of hunting through individual plan docs for "what's still open")
+14. More archived, done-or-superseded docs (`Plans/archive/`, moved 2026-08-03 — not maintained further, historical rationale only): `inventory_redesign.md` (multi-page inventory, implemented 2026-08-01), `cutscene_editor_plan.md` (v1 built 2026-07-30, `editor/cutscene_editor.html`), `room_scene_editor_plan.md` (v1+v2 built 2026-07-29/08-01, `editor/room_scene_editor.html`), `project_progress_dashboard_plan.md` (v1 built 2026-07-29, folded into `dev_hub.html`; v2 per-room drill-down still open, tracked in `engineering_todo.md`), `continue_boss_buildout_prompt.md` (a one-time session-resume prompt from the miniboss buildout push, superseded by the ~14 minibosses now built), `session_priorities.md` (an old, 2026-07-12 session docket — 5 of 8 items done, its remaining useful item folded into `engineering_todo.md` §3)
 
 ## Where we are
 

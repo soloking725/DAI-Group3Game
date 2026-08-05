@@ -72,7 +72,7 @@ let COMBO_DEFS = [
 // Editor overrides — combo_editor.html saves its working set here; applied
 // on load so "save → reload game → test" needs no code edits.
 (function applyComboOverrides() {
-  const list = readOverrideJSON(COMBO_OVERRIDES_KEY);
+  const list = readOverrideJSON(COMBO_OVERRIDES_KEY, OverrideShape.array);
   if (Array.isArray(list) && list.length) COMBO_DEFS = list;
 })();
 

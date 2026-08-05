@@ -57,9 +57,10 @@
   <h3>Save / export</h3>
   <button onclick="save()" style="width:100%; margin-bottom:4px">💾 Save to game (localStorage)</button>
   <button onclick="exportJSON()" style="width:100%; margin-bottom:4px">📋 Export JSON</button>
+  <button onclick="importJSON()" style="width:100%; margin-bottom:4px">📥 Load from pasted JSON</button>
   <button id="writeFileBtn" onclick="saveToFile()" style="width:100%; margin-bottom:4px">💽 Write to game_hud_menus.js (needs save-server)</button>
   <button class="danger" onclick="resetAll()" style="width:100%">Reset to defaults</button>
-  <div class="hint">"Save": the game reads this on next load (HUD_LAYOUT overrides in game_hud_menus.js). "Export": paste-ready values for game_hud_menus.js's HUD_LAYOUT if you want them permanent. "Write to file": same result as Export, but done for you — only works when running <code>node editor/save-server.js</code> and loading this page through http://localhost:8787. Click twice to confirm. "Reset": clears the saved override AND restores defaults here — never touches the source file.</div>
+  <div class="hint">"Save": the game reads this on next load (HUD_LAYOUT overrides in game_hud_menus.js). "Export": paste-ready values for game_hud_menus.js's HUD_LAYOUT if you want them permanent. "Load from pasted JSON": paste a previously-exported block (or bare JSON) into the box below first, then click — replaces the working layout. "Write to file": same result as Export, but done for you — only works when running <code>node editor/save-server.js</code> and loading this page through http://localhost:8787. Click twice to confirm. "Reset": clears the saved override AND restores defaults here — never touches the source file.</div>
   <div id="status" style="min-height:34px; margin-top:6px; padding:7px 9px; border-radius:var(--radius-sm); font-size:11.5px; line-height:1.5; display:none;"></div>
   <textarea id="exportBox" placeholder="Export appears here…"></textarea>
 </div>
@@ -374,6 +375,27 @@ function resetAll() {
   if (historyMgr) historyMgr.push();
   showStatus('↺ Reset to defaults (localStorage override cleared — game_hud_menus.js on disk was not touched).', 'warn');
 }
+function importJSON() {
+  let parsed;
+  try {
+    parsed = ExportPanel.read('exportBox');
+  } catch (e) {
+    showStatus('Could not load: ' + e.message, 'error');
+    return;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    showStatus('Could not load: expected a JSON object keyed by HUD element id.', 'error');
+    return;
+  }
+  layout = parsed;
+  selected = null;
+  renderPanel(); draw();
+  if (historyMgr) historyMgr.push();
+  if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Loaded layout from pasted JSON', '');
+  if (unsavedGuard) unsavedGuard.checkpoint();
+  showStatus('✅ Loaded layout from pasted JSON (not yet saved — use Save to persist).', 'ok');
+}
+
 function exportJSON() {
   const text = `// Paste over the HUD_LAYOUT values in game/game_hud_menus.js (and update the\n// DEFAULTS copy in editor/hud_editor.html to match).\nconst HUD_LAYOUT = ${JSON.stringify(layout, null, 2)};`;
   ExportPanel.write('exportBox', text, 'HUD Editor', 'Exported layout', '');
@@ -409,19 +431,30 @@ async function saveToFile() {
   showStatus('Writing…', 'warn');
 
   try {
-    const res = await fetch('http://localhost:8787/save-hud-layout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ layout }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    showStatus(`✅ Saved! Written to game/game_hud_menus.js. Backup: ${data.backup}`, 'ok');
-    if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Wrote HUD_LAYOUT to disk', data.backup);
+    let backupPath;
+    if (window.stillpointAPI) {
+      const valueSources = {};
+      for (const [k, v] of Object.entries(layout)) valueSources[k] = JSON.stringify(v, null, 2);
+      const data = await window.stillpointAPI.syncTopLevelKeys('hudLayout', valueSources);
+      backupPath = data.backup;
+    } else {
+      const res = await fetch('http://localhost:8787/save-hud-layout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layout }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      backupPath = data.backup;
+    }
+    showStatus(`✅ Saved! Written to game/game_hud_menus.js. Backup: ${backupPath}`, 'ok');
+    if (typeof DevContext !== 'undefined') DevContext.log('HUD Editor', 'Wrote HUD_LAYOUT to disk', backupPath);
   } catch (e) {
     showStatus(
-      `❌ Could not write to disk: ${e.message}. Is the save server running? Start it with ` +
-      `"node editor/save-server.js" and load this editor via http://localhost:8787/editor/hud_editor.html`,
+      window.stillpointAPI
+        ? `❌ Could not write to disk: ${e.message}`
+        : `❌ Could not write to disk: ${e.message}. Is the save server running? Start it with ` +
+          `"node editor/save-server.js" and load this editor via http://localhost:8787/editor/hud_editor.html`,
       'error'
     );
   }

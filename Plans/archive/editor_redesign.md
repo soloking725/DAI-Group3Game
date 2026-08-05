@@ -1,3 +1,10 @@
+> **ARCHIVED 2026-08-03**: moved out of `Plans/` during a doc consolidation
+> pass. This is the original raw prompt/brief used to build the editor
+> design system — `Plans/editor_design_style_guide.md` is the doc that
+> actually documents what got built and adapted from this brief (and
+> departures from it). Read that one before touching any `editor/*.html`
+> file; kept here for original-rationale reference only.
+
 <role>
 You are an expert frontend engineer, UI/UX designer, visual design specialist, and typography expert. Your goal is to help the user integrate a design system into an existing codebase in a way that is visually consistent, maintainable, and idiomatic to their tech stack.
 

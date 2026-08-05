@@ -130,7 +130,7 @@ non-`Animator` mechanism given the performance boundary above) — both genuinel
 open, not just unscheduled. HUD/world-map icons also not revisited. See
 `roadmap.md`'s tail entry for full per-item implementation detail.
 
-## 1. Addendum to `Plans/room_scene_editor_plan.md` — what else it should cover
+## 1. Addendum to `Plans/archive/room_scene_editor_plan.md` — what else it should cover
 
 Three things that plan didn't scope, worth folding in before building it:
 
@@ -178,9 +178,9 @@ to the same tool, not a new one.
 | Audio curation (real CC0 music/SFX, per-region) | `editor/audio_ab_tester.html` + `assets/audio/candidates/manifest.json` | Full for picking/shortlisting tracks — no per-*spot* ambient placement (added to §1 above) |
 | Cross-tool state, launcher, live-override management | `editor/dev_hub.html` | Full as a launcher/status board for the tools above |
 | Room-by-room design-completeness tracking | `Plans/room_progress.js`, `Plans/room_design_bible.md` | Full as a live read of `area.js` — see the Project Dashboard gap below for unifying this with pip/anim status |
-| Room *background art* + parallax + cutscene-trigger placement | **Planned, not built**: `Plans/room_scene_editor_plan.md` | Genuine gap until built |
+| Room *background art* + parallax + cutscene-trigger placement | **Planned, not built**: `Plans/archive/room_scene_editor_plan.md` | Genuine gap until built |
 | Room reachability/physical-safety verification (not just topology) | **Planned, not built**: `Plans/room_verification_tool_plan.md` (only a 90-frame single-check down-payment exists, `debug_v1.html` R09-R11) | Genuine, flagged gap — see §3 |
-| Cutscene *step* authoring (the `wait`/`text`/`choice` content itself) | **Planned, not built**: `Plans/cutscene_editor_plan.md` (2026-07-29) | Was a genuine gap; now planned — a structured list-and-form editor over the existing `CUTSCENES` step format, not a timeline/node-graph (the format already fits that pattern better, per that doc's research) |
+| Cutscene *step* authoring (the `wait`/`text`/`choice` content itself) | **Planned, not built**: `Plans/archive/cutscene_editor_plan.md` (2026-07-29) | Was a genuine gap; now planned — a structured list-and-form editor over the existing `CUTSCENES` step format, not a timeline/node-graph (the format already fits that pattern better, per that doc's research) |
 | Manual playtest protocol | `Plans/BUG_ANALYSIS_AND_QA_PLAN.md` §6 | Exists but written for the old "Fractured King" boss — needs a refresh pass before it's trustworthy against the current Sovereign/miniboss roster |
 
 ## 3. Real gaps — and which ones a tool can actually close
@@ -199,12 +199,12 @@ to the same tool, not a new one.
    room while you're still actively building it than to discover it in a full playtest
    once everything's "done."
 2. **A unified Project Progress Dashboard** (extend `dev_hub.html`, don't build a
-   separate tool) — now planned in full: `Plans/project_progress_dashboard_plan.md`
+   separate tool) — now planned in full: `Plans/archive/project_progress_dashboard_plan.md`
    (2026-07-29). Pulls room design-state, pip-placed-vs-target for all 3 pip types,
    enemy/miniboss roster coverage, and anim-authored-vs-procedural coverage into one
    panel on the existing `dev_hub.html` page, reusing its already-live `AREAS`/
    `ENEMY_REGISTRY`/`ANIM_DEFS` data instead of cross-referencing docs/scripts by hand.
-3. **`Plans/room_scene_editor_plan.md` itself** — already planned, not yet built,
+3. **`Plans/archive/room_scene_editor_plan.md` itself** — already planned, not yet built,
    covered in depth in that doc plus §1's addendum above.
 
 **Not closeable by tooling — inherent creative work, no shortcut**:

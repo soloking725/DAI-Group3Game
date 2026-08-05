@@ -73,9 +73,10 @@
   <h3>Save / export layout</h3>
   <button onclick="save()" style="width:100%; margin-bottom:4px">💾 Save layout to game (localStorage)</button>
   <button onclick="exportJSON()" style="width:100%; margin-bottom:4px">📋 Export JSON</button>
+  <button onclick="importJSON()" style="width:100%; margin-bottom:4px">📥 Load from pasted JSON</button>
   <button id="writeFileBtn" onclick="saveToFile()" style="width:100%; margin-bottom:4px">💽 Write to inventory_ui.js (needs save-server)</button>
   <button class="danger" onclick="resetAll()" style="width:100%">Reset layout to defaults</button>
-  <div class="hint">"Write to file": writes INVENTORY_LAYOUT straight to game/inventory_ui.js — only works when running <code>node editor/save-server.js</code> and loading this page through http://localhost:8787. Click twice to confirm. Only touches the layout, never the Page 3 cosmetics catalog below.</div>
+  <div class="hint">"Load from pasted JSON": paste a previously-exported block (or bare JSON) into the box below first, then click — replaces the working layout (not the Page 3 cosmetics catalog). "Write to file": writes INVENTORY_LAYOUT straight to game/inventory_ui.js — only works when running <code>node editor/save-server.js</code> and loading this page through http://localhost:8787. Click twice to confirm. Only touches the layout, never the Page 3 cosmetics catalog below.</div>
   <div id="status" style="min-height:34px; margin-top:6px; padding:7px 9px; border-radius:var(--radius-sm); font-size:11.5px; line-height:1.5; display:none;"></div>
   <textarea id="exportBox" placeholder="Export appears here…"></textarea>
 
@@ -117,7 +118,7 @@
 // INVENTORY_LAYOUT (localStorage key below), and additionally lets you
 // ADD new freeform elements (not just reposition existing ones) plus
 // author the Page-3 cosmetics catalog from scratch — see
-// Plans/inventory_redesign.md. The mock canvas is exactly 800x450, the
+// Plans/archive/inventory_redesign.md. The mock canvas is exactly 800x450, the
 // SAME internal resolution the real game uses, so positions here match
 // 1:1 with no scale-conversion (unlike hud_editor.html's blown-up mock).
 // ─────────────────────────────────────────────────────────────────────────
@@ -497,6 +498,27 @@ function exportJSON() {
   ExportPanel.write('exportBox', text, 'Inventory Editor', 'Exported layout', '');
 }
 
+function importJSON() {
+  let parsed;
+  try {
+    parsed = ExportPanel.read('exportBox');
+  } catch (e) {
+    showStatus('Could not load: ' + e.message, 'error');
+    return;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    showStatus('Could not load: expected a JSON object keyed by element id.', 'error');
+    return;
+  }
+  layout = parsed;
+  selected = null;
+  renderPanel(); draw();
+  if (historyMgr) historyMgr.push();
+  if (typeof DevContext !== 'undefined') DevContext.log('Inventory Editor', 'Loaded layout from pasted JSON', '');
+  if (unsavedGuard) unsavedGuard.checkpoint();
+  showStatus('✅ Loaded layout from pasted JSON (not yet saved — use Save to persist).', 'ok');
+}
+
 let writeArmed = false;
 let writeArmTimer = null;
 
@@ -527,19 +549,30 @@ async function saveToFile() {
   showStatus('Writing…', 'warn');
 
   try {
-    const res = await fetch('http://localhost:8787/save-inventory-layout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ layout }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    showStatus(`✅ Saved! Written to game/inventory_ui.js. Backup: ${data.backup}`, 'ok');
-    if (typeof DevContext !== 'undefined') DevContext.log('Inventory Editor', 'Wrote INVENTORY_LAYOUT to disk', data.backup);
+    let backupPath;
+    if (window.stillpointAPI) {
+      const valueSources = {};
+      for (const [k, v] of Object.entries(layout)) valueSources[k] = JSON.stringify(v, null, 2);
+      const data = await window.stillpointAPI.syncTopLevelKeys('inventoryLayout', valueSources);
+      backupPath = data.backup;
+    } else {
+      const res = await fetch('http://localhost:8787/save-inventory-layout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layout }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      backupPath = data.backup;
+    }
+    showStatus(`✅ Saved! Written to game/inventory_ui.js. Backup: ${backupPath}`, 'ok');
+    if (typeof DevContext !== 'undefined') DevContext.log('Inventory Editor', 'Wrote INVENTORY_LAYOUT to disk', backupPath);
   } catch (e) {
     showStatus(
-      `❌ Could not write to disk: ${e.message}. Is the save server running? Start it with ` +
-      `"node editor/save-server.js" and load this editor via http://localhost:8787/editor/inventory_editor.html`,
+      window.stillpointAPI
+        ? `❌ Could not write to disk: ${e.message}`
+        : `❌ Could not write to disk: ${e.message}. Is the save server running? Start it with ` +
+          `"node editor/save-server.js" and load this editor via http://localhost:8787/editor/inventory_editor.html`,
       'error'
     );
   }

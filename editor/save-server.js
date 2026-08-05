@@ -5,9 +5,11 @@
 // Then load editors through http://localhost:8787/editor/<name>.html
 // (fetch() to this server won't work if an editor is opened via file://).
 //
-// Each route below patches exactly one `const NAME = { ... };` block in one
+// Each LAYOUTS route patches exactly one `const NAME = { ... };` block in one
 // target file, line by line, and nothing else in the file. Every write is
-// preceded by a timestamped backup copy.
+// preceded by a timestamped backup copy. `/save-art-image` (below) is a
+// different shape — it writes a real binary PNG file under assets/art/
+// instead of patching JS source; see its own comment for detail.
 
 const http = require('http');
 const fs = require('fs');
@@ -158,6 +160,119 @@ function handleSave(route, req, res) {
   });
 }
 
+// Real-PNG-file save route (2026-08-03) — lets anim_editor.html/
+// room_scene_editor.html turn a working-draft image (currently an inline
+// `data:` URL or an AnimImageStore/RoomImageStore IndexedDB id) into an
+// actual checked-in file under assets/art/<category>/, instead of the
+// base64-in-JS-source export path. Returns the relative path the caller
+// should store as frame.image / backdropLayers[].imageId going forward —
+// game/animdata.js's getAnimImage() / game/game_entities.js's
+// getRoomImage() both already load any non-`data:`/non-`idb_` string as a
+// real path via `new Image()`, so no other runtime change was needed.
+const ART_CATEGORIES = {
+  anim: path.join(REPO_ROOT, 'assets', 'art', 'anim'),
+  rooms: path.join(REPO_ROOT, 'assets', 'art', 'rooms'),
+};
+const SAFE_FILENAME_RE = /^[A-Za-z0-9_-]+$/;
+
+function handleSaveArtImage(req, res) {
+  let body = '';
+  req.on('data', (chunk) => { body += chunk; });
+  req.on('end', () => {
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch (e) {
+      return respond(res, 400, { error: 'Invalid JSON body' });
+    }
+
+    const { category, filename, dataUrl } = payload || {};
+    const dir = ART_CATEGORIES[category];
+    if (!dir) {
+      return respond(res, 400, { error: `"category" must be one of: ${Object.keys(ART_CATEGORIES).join(', ')}` });
+    }
+    if (typeof filename !== 'string' || !SAFE_FILENAME_RE.test(filename)) {
+      return respond(res, 400, { error: '"filename" must be non-empty and contain only letters, numbers, "_", "-" (no extension, no path separators)' });
+    }
+    const m = typeof dataUrl === 'string' && dataUrl.match(/^data:image\/png;base64,(.+)$/s);
+    if (!m) {
+      return respond(res, 400, { error: '"dataUrl" must be a data:image/png;base64,... string (PNG only)' });
+    }
+
+    const targetFile = path.join(dir, `${filename}.png`);
+    const bytes = Buffer.from(m[1], 'base64');
+
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      if (fs.existsSync(targetFile)) {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        fs.copyFileSync(targetFile, `${targetFile}.${stamp}.bak`);
+      }
+      fs.writeFileSync(targetFile, bytes);
+    } catch (e) {
+      return respond(res, 500, { error: `Write failed: ${e.message}` });
+    }
+
+    const relPath = path.relative(REPO_ROOT, targetFile).split(path.sep).join('/');
+    console.log(`[save-server] Wrote art image to ${relPath}`);
+    respond(res, 200, { ok: true, path: relPath });
+  });
+}
+
+// Audio-pick apply route (2026-08-04) — lets audio_ab_tester.html write a
+// chosen A/B candidate straight to its live asset path, instead of the old
+// "export picks.json, someone reads the file and updates audio.js by hand"
+// dead end (picks.json was never consumed anywhere — Plans/engineering_todo.md).
+// Both `candidateFile` and `liveTrack` come from assets/audio/candidates/
+// manifest.json on the client side (the editor only ever sends values it
+// read out of that file, never freeform text), but this route re-validates
+// independently since anything hitting an HTTP endpoint should be treated
+// as untrusted input, not trusted because of what the caller happens to be.
+const AUDIO_ROOT = path.join(REPO_ROOT, 'assets', 'audio') + path.sep;
+function handleApplyAudioPick(req, res) {
+  let body = '';
+  req.on('data', (chunk) => { body += chunk; });
+  req.on('end', () => {
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch (e) {
+      return respond(res, 400, { error: 'Invalid JSON body' });
+    }
+
+    const { candidateFile, liveTrack } = payload || {};
+    if (typeof candidateFile !== 'string' || typeof liveTrack !== 'string') {
+      return respond(res, 400, { error: '"candidateFile" and "liveTrack" (relative repo paths) are required' });
+    }
+
+    const srcPath = path.resolve(REPO_ROOT, candidateFile);
+    const destPath = path.resolve(REPO_ROOT, liveTrack);
+    if (!srcPath.startsWith(AUDIO_ROOT) || !destPath.startsWith(AUDIO_ROOT)) {
+      return respond(res, 403, { error: 'Both paths must be inside assets/audio/' });
+    }
+    if (!/\.(ogg|mp3|wav)$/i.test(srcPath) || !/\.(ogg|mp3|wav)$/i.test(destPath)) {
+      return respond(res, 400, { error: 'Both paths must be an audio file (.ogg/.mp3/.wav)' });
+    }
+    if (!fs.existsSync(srcPath)) {
+      return respond(res, 404, { error: `Candidate file not found: ${candidateFile}` });
+    }
+
+    try {
+      if (fs.existsSync(destPath)) {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        fs.copyFileSync(destPath, `${destPath}.${stamp}.bak`);
+      }
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.copyFileSync(srcPath, destPath);
+    } catch (e) {
+      return respond(res, 500, { error: `Write failed: ${e.message}` });
+    }
+
+    console.log(`[save-server] Applied audio pick: ${path.relative(REPO_ROOT, srcPath)} -> ${path.relative(REPO_ROOT, destPath)}`);
+    respond(res, 200, { ok: true, liveTrack });
+  });
+}
+
 function respond(res, status, obj) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
@@ -192,12 +307,14 @@ function handleStaticFile(req, res) {
 const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') return respond(res, 204, {});
   if (req.method === 'POST' && LAYOUTS[req.url]) return handleSave(LAYOUTS[req.url], req, res);
+  if (req.method === 'POST' && req.url === '/save-art-image') return handleSaveArtImage(req, res);
+  if (req.method === 'POST' && req.url === '/apply-audio-pick') return handleApplyAudioPick(req, res);
   if (req.method === 'GET') return handleStaticFile(req, res);
   respond(res, 404, { error: 'Not found' });
 });
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[save-server] Listening on http://localhost:${PORT} (repo root: ${REPO_ROOT})`);
-  console.log(`[save-server] Routes: ${Object.keys(LAYOUTS).join(', ')}`);
+  console.log(`[save-server] Routes: ${Object.keys(LAYOUTS).join(', ')}, /save-art-image, /apply-audio-pick`);
   console.log(`[save-server] Open http://localhost:${PORT}/editor/hud_editor.html or /editor/inventory_editor.html to use them with disk-save enabled.`);
 });

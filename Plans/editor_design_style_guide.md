@@ -1,6 +1,7 @@
 # Editor Design System — Style Guide & Application Checklist
 
-Companion doc to `Plans/editor_redesign.md` (the original design brief) and
+Companion doc to `Plans/archive/editor_redesign.md` (the original design
+brief, archived 2026-08-03) and
 `styles/design-system.css` (the implementation). Read this before touching
 any file in `editor/` — it's the repeatable recipe, applied identically to
 all ~21 editor tools so the whole suite reads as one system instead of one

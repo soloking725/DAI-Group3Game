@@ -91,7 +91,7 @@ radius check, not a rising ring you jump over). None are placed in any
 room yet — same "built but not level-designed" gap as everything else in
 this phase. See `Plans/enemy_attack_vocabulary_plan.md` for the attack-
 vocabulary work (Tiger Knee, Shield Slip, The Catch, Aggro-Pull, etc.)
-these lean on, and `Plans/animation_editor_plan.md` for how to draw art
+these lean on, and `Plans/archive/animation_editor_plan.md` for how to draw art
 for any of them once you're ready.
 
 ### 2.1 Normal Enemies (26 total)

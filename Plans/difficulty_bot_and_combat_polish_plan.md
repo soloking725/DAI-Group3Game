@@ -228,8 +228,8 @@ been real playtesting on the 4 built rooms — don't start this before then.
 
 ## Part 2 — Input Buffering, Centralized Hit Impact, Hitstop Cleanup
 
-Three related but separable fixes, all from `Plans/dev_tools_roadmap_status.md`'s
-"Still open" Phase 2 list.
+Three related but separable fixes, all from `Plans/archive/dev_tools_roadmap_status.md`'s
+"Still open" Phase 2 list (also tracked live in `Plans/engineering_todo.md` §3).
 
 ### 2a. Centralized `triggerHitImpact(severity)`
 

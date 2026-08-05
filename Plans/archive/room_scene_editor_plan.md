@@ -8,7 +8,7 @@
 hand-drawn/uploaded PNG art, and animation PNGs — plus a way to place cutscenes and plot
 points, with real UI-design attention. This doc is the plan for that tool: what it
 should do, what it should reuse from existing code, its data model, and a proposed UI
-layout. **Not implemented in this pass** — same status as `Plans/animation_editor_plan.md`
+layout. **Not implemented in this pass** — same status as `Plans/archive/animation_editor_plan.md`
 was before it got built, and the same "planning-only" status `CLAUDE.md`'s existing
 `level_designer.html` entry has had since 2026-07-17 (still not built as of this doc).
 

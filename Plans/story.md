@@ -552,7 +552,7 @@ this is just a suggestion
   `COMPANION_WEAPONS` in `companion.js`), matching the discussion that produced this: the
   companion IS the player (§0.5's identity loop), so her kit should be *found*, not
   granted, same as the player's own abilities — including a rare enemy-drop that swaps
-  her weapon mid-run. Cross-check `Plans/child_companion_system_plan.md` for the fuller
+  her weapon mid-run. Cross-check `Plans/archive/child_companion_system_plan.md` for the fuller
   build log (hide-and-heal Phase 1, locomotion) — this doc only tracks what changed here.
 
 - **2026-07-22 — miniboss redesign fallout: Void Tether reworked, Loop-ending NG+ detail,

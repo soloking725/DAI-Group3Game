@@ -380,7 +380,7 @@ function update() {
   }
 
   // Inventory screen (2026-08-01 multi-page redesign, see
-  // Plans/inventory_redesign.md and inventory_ui.js) — sub-menu off pause.
+  // Plans/archive/inventory_redesign.md and inventory_ui.js) — sub-menu off pause.
   // Q/E cycle the 4 pages; each page owns its own ↑↓/Enter handling below.
   if (gameState === 'inventory') {
     if (inventoryMessage) {
@@ -1987,7 +1987,7 @@ function update() {
 
   // Cutscene trigger zones (area.cutsceneTriggers[], 'enter' type — the
   // 'onRoomLoad' type instead fires once from switchArea() in
-  // game_entities.js, no zone check needed). Plans/room_scene_editor_plan.md
+  // game_entities.js, no zone check needed). Plans/archive/room_scene_editor_plan.md
   // §3/v2 — this is the data-driven replacement for what used to only be
   // hardcoded `if` conditions scattered across this file/game_entities.js;
   // those existing hardcoded checks are untouched, this is additive. Gated

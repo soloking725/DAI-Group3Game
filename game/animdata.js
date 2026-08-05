@@ -1,5 +1,5 @@
 // Animation / hitbox data model + runtime (2026-07-16).
-// See Plans/animation_editor_plan.md — this is "part 1 + part 2" of that
+// See Plans/archive/animation_editor_plan.md — this is "part 1 + part 2" of that
 // plan: the timeline/hitbox data model AND raster-image frame support.
 //
 // WHAT THIS IS
@@ -198,16 +198,18 @@ const POSE_RENDERERS = {
 };
 
 // ── Raster frame cache ───────────────────────────────────────────────────────
-// Uploaded drawings live in frame.image as either a raw `data:` URL
-// (self-contained — what a paste-into-source export produces, and what
-// legacy saved frames still have) or an IndexedDB id from
-// game/animImageStore.js (what anim_editor.html now saves live overrides
-// as, to avoid the old base64-in-localStorage quota crash). Decoded Image
-// objects are cached here either way so draw never constructs one per
-// frame, and callers never need to know or care which form a given frame
-// used — this always hands back an Image synchronously (possibly still
-// mid-load for the IndexedDB case; callers already check
-// img.complete/naturalWidth before drawing, same as any other image).
+// Uploaded drawings live in frame.image as one of three forms: a raw
+// `data:` URL (self-contained — what an old paste-into-source export
+// produces, and what legacy saved frames still have), an IndexedDB id
+// (`idb_...`, from game/animImageStore.js — anim_editor.html's live
+// working-draft storage, browser-local, never committed), or — added
+// 2026-08-03 — a real path under assets/art/anim/ (a checked-in PNG file,
+// what "💾 Save as PNG file" in anim_editor.html now produces). Decoded
+// Image objects are cached here either way so draw never constructs one
+// per frame, and callers never need to know or care which form a given
+// frame used — this always hands back an Image synchronously (possibly
+// still mid-load; callers already check img.complete/naturalWidth before
+// drawing, same as any other image).
 const _animImageCache = {};
 function getAnimImage(ref) {
   let img = _animImageCache[ref];
@@ -216,9 +218,14 @@ function getAnimImage(ref) {
   _animImageCache[ref] = img;
   if (ref.startsWith('data:')) {
     img.src = ref;
-  } else if (typeof AnimImageStore !== 'undefined') {
+  } else if (ref.startsWith('idb_') && typeof AnimImageStore !== 'undefined') {
     AnimImageStore.get(ref).then((dataUrl) => { if (dataUrl) img.src = dataUrl; })
       .catch(() => {}); // IndexedDB unavailable/blocked — frame just stays blank, same as a 404'd image
+  } else {
+    // Real file path (assets/art/anim/...) — load directly, no IndexedDB
+    // round-trip. Relative to the page that loaded this script, same as
+    // every other asset path in the game (matches SAMPLE_URLS in audio.js).
+    img.src = ref;
   }
   return img;
 }
@@ -238,7 +245,7 @@ function primeAnimImage(id, dataUrl) {
 // dance and no code edits. Overrides merge per-key (whole animation
 // replaced), never per-frame.
 function applyAnimOverrides() {
-  const overrides = readOverrideJSON(ANIM_OVERRIDES_KEY);
+  const overrides = readOverrideJSON(ANIM_OVERRIDES_KEY, OverrideShape.object);
   if (!overrides) return;
   for (const key in overrides) ANIM_DEFS[key] = overrides[key];
 }

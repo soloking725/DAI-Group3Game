@@ -2,17 +2,25 @@
 
 > Generated: 2026-07-11 | Codebase: DAI-Group3Game (vanilla HTML/Canvas/JS)
 
-> **Staleness note (2026-07-21):** this inventory has not been fully
-> re-verified against current code since 2026-07-11/12. Spot-checked this
-> pass: **BUG-001 is fixed** (`player.hitTargetsThisSwing` per-swing hit
-> dedup exists in both `game.js` and `healing.js` — see `CLAUDE.md`'s "Per-
-> swing hit dedup pattern" section). **BUG-002/BUG-012 are NOT fixed** —
-> `boss.js` still uses `setTimeout` at lines 217, 640, 726. BUG-013 is
-> already marked fixed/verified within its own entry below (2026-07-12/17).
-> The rest of the inventory (BUG-003 through BUG-011) has not been
-> re-checked against the Phase 19-23 changes (shared collision resolver,
-> new platform flags, enemy AI overhaul) — treat those entries as
-> "as of 2026-07-11" until someone re-verifies them.
+> **Staleness note (2026-08-03):** re-spot-checked against current code.
+> **BUG-001 is fixed** (`player.hitTargetsThisSwing` per-swing hit dedup
+> exists in both `game.js` and `healing.js` — see `CLAUDE.md`'s "Per-swing
+> hit dedup pattern" section). **BUG-002 and BUG-012 are now also fixed**
+> (superseding the 2026-07-21 note that said otherwise) — `boss.js` no
+> longer uses `setTimeout` for stagger/bounce state; both now run on a
+> frame-counter (`this._staggerDelayTimer`, decremented in `update()`,
+> explicit comment at boss.js:611 "not setTimeout, which fires on
+> wall-clock time regardless of pause"). The one remaining `setTimeout` in
+> `boss.js` (line 566) is a cosmetic phase-3 dialogue-popup delay only, not
+> gameplay state — not the bug either entry described. **BUG-003 is also
+> fixed** — `CHARGE_TAP` was raised from 5 to 16 frames (`player.js:62`,
+> comment cites "2026-07-16, user feedback"), closing the DPS-inversion gap
+> the original entry flagged. BUG-013 is already marked fixed/verified
+> within its own entry below (2026-07-12/17). BUG-004 through BUG-011 have
+> not been re-checked against the Phase 19-23+ changes (shared collision
+> resolver, new platform flags, enemy AI overhaul, ability-leveling system)
+> — treat those entries as "as of 2026-07-11" until someone re-verifies
+> them.
 
 ## Table of Contents
 1. [Bug Inventory](#1-bug-inventory)
@@ -37,27 +45,25 @@
 | **Symptom** | Enemies (3 HP) die in one swing. Attack animation hits ~12 times. |
 | **Fix** | Add `enemy.hitStun > 0` guard before `takeDamage()` in game.js:1626, OR add `invincibleTimer` in enemy.takeDamage() that returns early if active. Boss already has `invulnerable` — enemies need the same pattern. |
 
-#### BUG-002: `setTimeout` in boss.js runs outside game loop
+#### BUG-002: `setTimeout` in boss.js runs outside game loop — FIXED (verified 2026-08-03)
 | Field | Value |
 |-------|-------|
-| **Severity** | CRITICAL |
-| **Files** | `boss.js:607,693,698` |
-| **Root Cause** | `setTimeout` used for boss stagger state transitions and bounce effects. Fires regardless of game paused, tab-inactive, or hitstop. |
-| **Symptom** | Boss state desyncs when tab is inactive or game is paused. Stagger timer may fire after boss is dead. |
-| **Fix** | Replace with frame-counters in `boss.update()`: add `staggerDelayTimer` and `bounceTimer` fields that decrement each frame instead of `setTimeout`. |
+| **Severity** | CRITICAL (was) |
+| **Files** | `boss.js:611-616` (fix), `boss.js:154-155` (field init) |
+| **Root Cause (historical)** | `setTimeout` used for boss stagger state transitions and bounce effects. Fired regardless of game paused, tab-inactive, or hitstop. |
+| **Fix applied** | Stagger/bounce now run on `this._staggerDelayTimer`, a frame-counter decremented in `boss.update()` (`myTimeScale`-aware), exactly the fix this entry proposed. Code has an explicit comment at boss.js:611 marking the intent. Only `setTimeout` left in `boss.js` (line 566) is a cosmetic phase-3 dialogue-popup delay, not state logic. |
 
 ---
 
 ### HIGH (Gameplay-Impacting)
 
-#### BUG-003: CHARGE_TAP threshold mismatch — "heavy" attack fires with normal damage
+#### BUG-003: CHARGE_TAP threshold mismatch — FIXED 2026-07-16 (verified 2026-08-03)
 | Field | Value |
 |-------|-------|
-| **Severity** | HIGH |
-| **Files** | `player.js:265-326` |
-| **Root Cause** | `CHARGE_TAP = 5` frames. Holding 5-19 frames fires "heavy" (26f cooldown) but `heavyCharge < 0.5` so damage = `ATTACK_DAMAGE` (1) instead of scaled. Normal tap = 1 dmg/18f cooldown (20 DPS). Heavy tap = 1 dmg/26f cooldown (11.5 DPS). |
-| **Symptom** | Quick-tap attacks that register as "heavy" cost more cooldown for less DPS. |
-| **Fix** | Either raise `CHARGE_TAP` to 20f (only fire heavy after meaningful hold) or apply `Math.max(dmg, 2)` for heavy branch. |
+| **Severity** | HIGH (was) |
+| **Files** | `player.js:62` |
+| **Root Cause (historical)** | `CHARGE_TAP = 5` frames. Holding 5-19 frames fired "heavy" (26f cooldown) but `heavyCharge < 0.5` so damage = `ATTACK_DAMAGE` (1) instead of scaled — a DPS-inversion trap. |
+| **Fix applied** | `CHARGE_TAP` raised 5 → 16 frames (inline comment: "2026-07-16, user feedback"), the first of this entry's two proposed fixes — only a meaningful hold now registers as heavy. |
 
 #### BUG-004: Pit death gated by invincibility timer
 | Field | Value |
@@ -147,13 +153,13 @@
 | **Root Cause** | After boss defeat, player returns to antechamber with `health = MAX_HEALTH` but cooldowns/fracture meter carry over. |
 | **Fix** | Reset `abilityState.phaseDashCooldown`, `shardShotCooldown`, `fractureMeter`. |
 
-#### BUG-012: Boss bounce effect uses `setTimeout`
+#### BUG-012: Boss bounce effect uses `setTimeout` — FIXED (verified 2026-08-03)
 | Field | Value |
 |-------|-------|
-| **Severity** | LOW |
-| **Files** | `boss.js:607` |
-| **Root Cause** | Same as BUG-002 but for visual effect only. |
-| **Fix** | Same as BUG-002 — frame-based timer. |
+| **Severity** | LOW (was) |
+| **Files** | `boss.js:1186` |
+| **Root Cause (historical)** | Same as BUG-002 but for the bounce visual effect only. |
+| **Fix applied** | Same fix as BUG-002 — `this._heavyDipTimer`, a frame-counter (inline comment: "~120ms at 60fps — frame counter, not setTimeout"). |
 
 ---
 

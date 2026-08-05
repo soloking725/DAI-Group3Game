@@ -132,12 +132,14 @@ button:disabled{opacity:0.35;cursor:default;transform:none}
       <textarea id="exp-out" readonly placeholder="Press Export to generate a snippet..."></textarea>
       <button id="save-room-live-btn">💾 Save Room to Browser (Live)</button>
       <button id="save-style-live-btn">💾 Save Region Style (Live)</button>
+      <button id="write-file-btn">💽 Write to area.js/game_entities.js (Electron app only)</button>
       <div id="live-status" class="hint"></div>
     </div>
   </div>
 </div>
 
 <script src="../game/overrideStore.js"></script>
+<script src="../game/writeGuard.js"></script>
 <script src="../game/area.js"></script>
 <script src="../game/roomVerify.js"></script>
 <script src="../game/cutscene.js"></script>

@@ -99,7 +99,7 @@
   // Hand-synced fallback for callers that haven't loaded player.js/ability.js/
   // attackVFX.js (i.e. the Node CLI) — keep these in sync with those files'
   // own `var GRAVITY = ...` etc. if they ever change. Same hand-maintained-
-  // constant tradeoff Plans/project_progress_dashboard_plan.md already
+  // constant tradeoff Plans/archive/project_progress_dashboard_plan.md already
   // accepts for its pip/enemy-roster targets. When this module runs as a
   // <script> tag after the real files, resolvePhysics() below prefers the
   // live globals over these defaults, so the browser tool is always exact.
@@ -558,6 +558,33 @@
           detail: 'door to "' + t.to + '" at (' + t.x + ', ' + t.y + ') doesn\'t overlap any reachable player standing box and is beyond jump/dash reach — physically untouchable',
         });
       }
+    }
+
+    // ---- bossSpawn <-> roomType consistency ----
+    // game_update.js's boss/miniboss spawn-on-entry check is entirely
+    // `if (spawn) { ... }` gated on `area.bossSpawn` (isBossArena/
+    // isMinibossArena themselves are derived from roomType at load, see
+    // area.js's "ROOM LAYOUT LINTER" section) — a boss/miniboss room with no
+    // bossSpawn placed spawns nothing and looks completely clean everywhere
+    // else (reachability, doors, floor gaps all pass fine), and a bossSpawn
+    // placed in a room not typed 'boss'/'miniboss' is silently inert data.
+    if ((room.roomType === 'boss' || room.roomType === 'miniboss') && !room.bossSpawn) {
+      issues.push({
+        type: 'BOSS_SPAWN_MISSING', severity: 'error', x: 0, y: 0,
+        detail: 'roomType is "' + room.roomType + '" but bossSpawn is not set — the boss/miniboss will never spawn when this room is entered',
+      });
+    }
+    if (room.roomType === 'miniboss' && !room.miniboss) {
+      issues.push({
+        type: 'MINIBOSS_ID_MISSING', severity: 'error', x: 0, y: 0,
+        detail: 'roomType is "miniboss" but the miniboss id field is not set — MINIBOSS_CLASSES[undefined] resolves to nothing, so no miniboss will spawn even with a bossSpawn placed',
+      });
+    }
+    if (room.bossSpawn && room.roomType !== 'boss' && room.roomType !== 'miniboss') {
+      issues.push({
+        type: 'BOSS_SPAWN_ORPHANED', severity: 'warn', x: room.bossSpawn.x, y: room.bossSpawn.y,
+        detail: 'bossSpawn is set at (' + room.bossSpawn.x + ', ' + room.bossSpawn.y + ') but roomType is "' + (room.roomType || 'normal') + '" (not "boss"/"miniboss") — isBossArena/isMinibossArena will be false, so this spawn point is never used',
+      });
     }
 
     // ---- two-way walkability: physical doors, not just declared connections[] ----

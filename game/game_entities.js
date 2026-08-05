@@ -465,15 +465,10 @@ function switchArea(targetId, targetX, targetY) {
   // them into a new room's coordinate space puts them at a meaningless
   // position (a different layout entirely), so they must not survive a
   // room transition, unlike echoes surviving a plain respawn-in-place.
-  echoes = [];
-  standEcho = null;
+  resetTransientEntities();
   clearVitalityMotes(); // motes are room-space too (healing.js)
   clearWeaponDrops(); // companion.js — same room-space lifetime as motes
   child = null; // the Child re-enters at the player's side (companion.js recreates her)
-  // Phase Dash pass-through immunity is keyed by enemy reference (see the
-  // fix note by phasedThroughEnemies below) — those enemies don't exist in
-  // the new room, so drop any stale references rather than holding them.
-  if (player && player.phasedThroughEnemies) player.phasedThroughEnemies.clear();
 
   // Switch
   currentAreaId = targetId;
@@ -499,9 +494,6 @@ function switchArea(targetId, targetX, targetY) {
   // Spawn enemies in new area
   spawnAreaEnemies(targetId);
 
-  // Clear ambient particles for new area
-  areaAmbient = [];
-
   // Transition effect
   transitioning = true;
   transitionAlpha = 1;
@@ -521,7 +513,7 @@ function switchArea(targetId, targetX, targetY) {
   }
 
   // Data-driven room-load cutscene triggers (area.cutsceneTriggers[],
-  // Plans/room_scene_editor_plan.md §3/v2 — the editor UI is
+  // Plans/archive/room_scene_editor_plan.md §3/v2 — the editor UI is
   // editor/room_scene_editor.html) — additive alongside the hardcoded call
   // site right above; a room with no cutsceneTriggers[] behaves exactly as
   // it did before this feature existed. Fires at most one (same "only one
@@ -990,7 +982,7 @@ function hexToRgba(hex, alpha) {
 // optional per-region tuning read by decorateRoomForRegion() below, each
 // falling back to the original hardcoded constant when unset — added so
 // editor/room_scene_editor.html (absorbing the never-built
-// level_designer.html's scope, Plans/room_scene_editor_plan.md §0) has real
+// level_designer.html's scope, Plans/archive/room_scene_editor_plan.md §0) has real
 // numbers to expose sliders for, without changing look for any room that
 // doesn't go through that editor.
 const REGION_STYLES = {
@@ -1007,7 +999,7 @@ if (typeof window !== 'undefined') window.REGION_STYLES = REGION_STYLES;
 // copy-paste round trip.
 const REGION_STYLE_OVERRIDES_KEY = 'stillpoint_region_style_overrides_v1';
 (function applyRegionStyleOverrides() {
-  const overrides = readOverrideJSON(REGION_STYLE_OVERRIDES_KEY);
+  const overrides = readOverrideJSON(REGION_STYLE_OVERRIDES_KEY, OverrideShape.object);
   if (!overrides) return;
   for (const region in overrides) REGION_STYLES[region] = overrides[region];
 })();
@@ -1265,10 +1257,13 @@ function drawMidShape(ctx, kind, x, y, size, rot, color) {
   ctx.restore();
 }
 
-// ── Uploaded room-art image cache (Plans/room_scene_editor_plan.md §2/§5) ──
-// area.backdropLayers[].imageId holds either a RoomImageStore (IndexedDB) id
-// or a raw `data:` URL (self-contained shipped/exported content) — same
-// dual-form convention animdata.js's getAnimImage() already established for
+// ── Uploaded room-art image cache (Plans/archive/room_scene_editor_plan.md §2/§5) ──
+// area.backdropLayers[].imageId holds one of three forms: a RoomImageStore
+// (IndexedDB, `idb_...`) id — browser-local working-draft storage — a raw
+// `data:` URL (self-contained legacy/exported content), or — added
+// 2026-08-03 — a real path under assets/art/rooms/ (a checked-in PNG file,
+// what "💾 Save as PNG file" in room_scene_editor.html now produces). Same
+// dual/triple-form convention animdata.js's getAnimImage() established for
 // character sprites, copied here rather than reinvented. Decoded Image
 // objects are cached so drawAreaBackdrop() never constructs one per frame;
 // draw() call sites already tolerate an image that's still mid-load
@@ -1281,9 +1276,12 @@ function getRoomImage(ref) {
   _roomImageCache[ref] = img;
   if (ref.startsWith('data:')) {
     img.src = ref;
-  } else if (typeof RoomImageStore !== 'undefined') {
+  } else if (ref.startsWith('idb_') && typeof RoomImageStore !== 'undefined') {
     RoomImageStore.get(ref).then((dataUrl) => { if (dataUrl) img.src = dataUrl; })
       .catch(() => {}); // IndexedDB unavailable/blocked — layer just stays blank
+  } else {
+    // Real file path (assets/art/rooms/...) — load directly, no IndexedDB round-trip.
+    img.src = ref;
   }
   return img;
 }
@@ -1376,7 +1374,7 @@ function drawBackdropLayer(ctx, layer, cam) {
 // area.backdropLayers[] (hand-authored/uploaded art, drawn back-to-front in
 // array order) always draws first; the original procedural deep/mid nebula
 // layers draw on top of that unless area.hideProceduralBackdrop is set, for
-// a room whose custom art fully replaces them (Plans/room_scene_editor_plan.md
+// a room whose custom art fully replaces them (Plans/archive/room_scene_editor_plan.md
 // §7 Q2). Neither field existing on a room is the common case — that room
 // renders exactly as before this feature.
 function drawAreaBackdrop(ctx, area, cam) {

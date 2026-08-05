@@ -173,6 +173,8 @@ canvas{display:block;flex-shrink:0;box-shadow:var(--shadow-card)}
       <textarea id="exp-out" readonly placeholder="Press Export to generate area JS..."></textarea>
       <button id="save-live-btn">💾 Save to Browser (Live)</button>
       <div id="save-live-out" class="hint">Saves this room to a live override — index.html, enemy_test.html, etc. pick it up on next load, no copy-paste. "Export JavaScript" above is still what actually ships (paste it into area.js when the room is done).</div>
+      <button id="write-file-btn">💽 Write to area.js (Electron app only)</button>
+      <div id="write-file-out" class="hint">Patches just this one room's entry in game/area.js on disk — every other room's data and comments are left untouched (AST-based, not copy-paste). Only available when running inside the unified editor desktop app; a .bak is made first. Click twice to confirm.</div>
       <button id="validate-btn">▲ Validate This Room</button>
       <div id="validate-out"></div>
       <button id="diff-btn">⇄ Diff vs Saved</button>
@@ -198,6 +200,7 @@ canvas{display:block;flex-shrink:0;box-shadow:var(--shadow-card)}
 </div>
 
 <script src="../game/overrideStore.js"></script>
+<script src="../game/writeGuard.js"></script>
 <script src="../game/physics.js"></script>
 <script src="../game/area.js"></script>
 <script src="../game/roomVerify.js"></script>
@@ -320,9 +323,15 @@ function diamond(x,y,r,fill,stroke,lw){
   ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke();
 }
 
-function isSelObj(o){ return selList.some(s=>s.obj===o); }
+// Rebuilt once per render() call (see below) rather than scanned per-object —
+// isSelObj() is called once per drawable per frame, so a linear selList.some()
+// here was O(objects * selected), which is what made the property panel/canvas
+// crawl once a multi-select grew past ~50 (Plans/engineering_todo.md item 4).
+let _selSet = null;
+function isSelObj(o){ return _selSet ? _selSet.has(o) : selList.some(s=>s.obj===o); }
 
 function render(){
+  _selSet = new Set(selList.map(s=>s.obj));
   resizeCV();
   const zp=document.getElementById('zoom-pct'); if(zp)zp.textContent=Math.round(SCALE*100)+'%';
   ctx.clearRect(0,0,cv.width,cv.height);
@@ -1426,6 +1435,54 @@ document.getElementById('save-live-btn').addEventListener('click',()=>{
     if(unsavedGuard)unsavedGuard.checkpoint();
   }catch(e){
     statusEl.innerHTML=`<span class="bad">✗ save failed: ${e.message} (localStorage full? clear old overrides)</span>`;
+  }
+});
+
+// ─── WRITE TO area.js (Electron only) — patches only AREAS[area.id] via
+// the AST-based patcher (editor_shell/constPatcher.js), so every other
+// room's data and hand-written comments in area.js are left byte-for-byte
+// untouched. Reuses jsLit() (the same generic JS-literal serializer
+// "Export JavaScript" already uses) so the on-disk formatting stays
+// consistent with the rest of the file. ─────────────────────────────────
+let writeFileArmed=false, writeFileArmTimer=null;
+document.getElementById('write-file-btn').addEventListener('click', async ()=>{
+  const btn=document.getElementById('write-file-btn');
+  const statusEl=document.getElementById('write-file-out');
+
+  if(!window.stillpointAPI){
+    statusEl.innerHTML='<span class="bad">✗ Only available in the unified editor desktop app (npm start) — not in a plain browser tab.</span>';
+    return;
+  }
+  const badPath=findNonFiniteNumber(area);
+  if(badPath){
+    statusEl.innerHTML=`<span class="bad">✗ Refusing to write: "${badPath}" is not a valid number. Fix the input field(s) and try again.</span>`;
+    return;
+  }
+
+  if(!writeFileArmed){
+    statusEl.innerHTML=`<span style="color:#e0a030">⚠️ Click "Write to area.js" again to confirm writing room "${area.id}" to game/area.js on disk (a .bak is made first).</span>`;
+    writeFileArmed=true;
+    btn.textContent='💽 Click again to confirm write';
+    clearTimeout(writeFileArmTimer);
+    writeFileArmTimer=setTimeout(()=>{
+      writeFileArmed=false;
+      btn.textContent='💽 Write to area.js (Electron app only)';
+    }, 6000);
+    return;
+  }
+
+  writeFileArmed=false;
+  clearTimeout(writeFileArmTimer);
+  btn.textContent='💽 Write to area.js (Electron app only)';
+  statusEl.innerHTML='Writing…';
+
+  try{
+    const data = await window.stillpointAPI.patchPath('areas', area.id, jsLit(area,''), true);
+    statusEl.innerHTML=`<span class="ok">✓ Saved! Written to game/area.js. Backup: ${data.backup}</span>`;
+    if(typeof DevContext!=='undefined') DevContext.log('Level Editor','Wrote room to disk',area.name||area.id);
+    if(unsavedGuard) unsavedGuard.checkpoint();
+  }catch(e){
+    statusEl.innerHTML=`<span class="bad">✗ Could not write to disk: ${e.message}</span>`;
   }
 });
 

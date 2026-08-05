@@ -63,8 +63,10 @@ td select{width:100%}
   This is the same data <code>pickAttack()</code>/<code>_applyPhase()</code> read at runtime;
   nothing here touches attack behavior itself (windup/hitboxes/telegraphs still live in
   boss.js's <code>start*()</code> methods or game/enemy.js's <code>ATTACK_BEHAVIORS</code>).
-  Bespoke-class minibosses (Colossus Core, etc. — not built on <code>ComposedEnemy</code>) have
-  no phase data and don't appear in the target list below.
+  Temporal Warden is the one remaining bespoke-class miniboss (its health-rewind
+  and Stillpoint-resistance mechanics are an intentional one-off, not built on
+  <code>ComposedEnemy</code>) — it gets a separate, narrower numeric-tuning
+  section below instead of phase/attack editing.
 </p>
 
 <h2>Target</h2>
@@ -141,9 +143,57 @@ td select{width:100%}
 
 </div>
 
+<div id="bespokeUI" style="display:none">
+
+<p class="note">
+  Health-rewind and Stillpoint-resistance <em>logic</em> are intentionally not editable
+  here — this fight is a documented one-off (see game/enemy.js's comment above
+  <code>class TemporalWarden</code>) and its formulas aren't generalized into the
+  phase/attack system every other miniboss uses. These are just its tunable numbers,
+  the same pattern <a href="enemy_editor.html" style="color:var(--fg-subtle)">Enemy Editor</a>
+  uses for other enemies' stat consts — no localStorage live-preview (these are plain
+  <code>const</code>s with no runtime override path), disk-write only.
+</p>
+
+<h2>Health</h2>
+<div class="card">
+  <div class="row"><label>Max health</label><input type="number" id="twHealth" min="1" step="1"></div>
+</div>
+
+<h2>Health-Rewind Cycle</h2>
+<div class="card">
+  <div class="row"><label>Cycle length (frames)</label><input type="number" id="twRewindCycle" min="1" step="1"></div>
+  <div class="row"><label>Flash/interrupt window (frames)</label><input type="number" id="twFlashWindow" min="1" step="1"></div>
+  <div class="row"><label>Damage to interrupt</label><input type="number" id="twInterruptDamage" min="0" step="1"></div>
+</div>
+
+<h2>Stillpoint Resistance</h2>
+<div class="card">
+  <div class="row"><label>Resistance cap (0-1)</label><input type="number" id="twResistCap" min="0" max="1" step="0.01"></div>
+  <div class="row"><label>Activations to ramp to cap</label><input type="number" id="twResistUses" min="1" step="1"></div>
+</div>
+
+<h2>Chrono Bolt</h2>
+<div class="card">
+  <div class="row"><label>Telegraph (frames)</label><input type="number" id="twBoltTelegraph" min="1" step="1"></div>
+  <div class="row"><label>Cooldown (frames)</label><input type="number" id="twBoltCooldown" min="1" step="1"></div>
+  <div class="row"><label>Projectile speed</label><input type="number" id="twBoltSpeed" min="0" step="0.1"></div>
+  <div class="row"><label>Damage</label><input type="number" id="twBoltDamage" min="0" step="1"></div>
+</div>
+
+<h2>Movement</h2>
+<div class="card">
+  <div class="row"><label>Preferred kite distance (px)</label><input type="number" id="twKiteDistance" min="0" step="10"></div>
+  <div class="row"><label>Deadzone (px)</label><input type="number" id="twKiteDeadzone" min="0" step="5"></div>
+  <div class="row"><label>Kite speed</label><input type="number" id="twKiteSpeed" min="0" step="0.1"></div>
+</div>
+
+</div>
+
 <h2>Save / Export</h2>
 <div class="card">
   <button class="primary" id="saveBtn">💾 Save to game (localStorage)</button>
+  <button id="writeFileBtn">💽 Write to source file (Electron app only)</button>
   <button class="reset" id="clearBtn">↺ Reset to defaults</button>
   <button id="exportBtn">⬇ Export JSON</button>
   <button id="loadBtn">⬆ Load JSON (from box below)</button>
@@ -153,6 +203,7 @@ td select{width:100%}
 </div>
 
 <script src="../game/overrideStore.js"></script>
+<script src="../game/writeGuard.js"></script>
 <script src="../game/boss.js"></script>
 <script src="../game/enemy.js"></script>
 <script src="../game/minibossRegistry.js"></script>
@@ -172,6 +223,54 @@ const ATTACK_LABELS = {
 
 let currentTarget = 'sovereign';
 
+// Mirrors editor_shell/targets.js's minibossPhases_* entries — must stay in
+// sync with that registry's ids. A miniboss id with no entry here (e.g. a
+// bespoke-class miniboss that somehow ended up in COMPOSED_PHASE_DEFS)
+// simply can't disk-write; the button falls back to an explanatory alert.
+const MINIBOSS_WRITE_TARGETS = {
+  colossus_core: 'minibossPhases_colossus_core',
+  static_guardian: 'minibossPhases_static_guardian',
+  hollow_guardian: 'minibossPhases_hollow_guardian',
+  graviton_sentinel: 'minibossPhases_graviton_sentinel',
+  paradox_engine: 'minibossPhases_paradox_engine',
+  timeline_keeper: 'minibossPhases_timeline_keeper',
+  abyss_guardian: 'minibossPhases_abyss_guardian',
+  warp_guardian: 'minibossPhases_warp_guardian',
+  polar_guardian: 'minibossPhases_polar_guardian',
+  horizon_core: 'minibossPhases_horizon_core',
+  void_expanse_boss: 'minibossPhases_void_expanse_boss',
+  antechamber_child: 'minibossPhases_antechamber_child',
+  abandoned_shell: 'minibossPhases_abandoned_shell',
+};
+
+// Temporal Warden's bespoke numeric tuning surface — maps each input's id to
+// the top-level const it reads/writes (already-loaded globals via the
+// ../game/enemy.js <script> tag below, same as BOSS_PHASE_CONFIG/
+// COMPOSED_PHASE_DEFS). Must stay in sync with editor_shell/targets.js's
+// `temporalWardenStatVar.allowedVars` list.
+const TW_TARGET = 'chrono_ally';
+const TW_VAR_MAP = {
+  twHealth: 'TEMPORAL_WARDEN_HEALTH',
+  twRewindCycle: 'TEMPORAL_WARDEN_REWIND_CYCLE',
+  twFlashWindow: 'TEMPORAL_WARDEN_FLASH_WINDOW',
+  twInterruptDamage: 'TEMPORAL_WARDEN_INTERRUPT_DAMAGE',
+  twResistCap: 'TEMPORAL_WARDEN_RESIST_CAP',
+  twResistUses: 'TEMPORAL_WARDEN_RESIST_STILLPOINT_USES',
+  twBoltTelegraph: 'TEMPORAL_WARDEN_BOLT_TELEGRAPH_FRAMES',
+  twBoltCooldown: 'TEMPORAL_WARDEN_BOLT_COOLDOWN',
+  twBoltSpeed: 'TEMPORAL_WARDEN_BOLT_SPEED',
+  twBoltDamage: 'TEMPORAL_WARDEN_BOLT_DAMAGE',
+  twKiteDistance: 'TEMPORAL_WARDEN_KITE_DISTANCE',
+  twKiteDeadzone: 'TEMPORAL_WARDEN_KITE_DEADZONE',
+  twKiteSpeed: 'TEMPORAL_WARDEN_KITE_SPEED',
+};
+// Current values live here (seeded from the loaded consts, mutated as the
+// user edits inputs) rather than trying to reassign the consts themselves —
+// there's no live-apply path for these in the real game either way (see the
+// note in #bespokeUI), so an in-memory working copy is all that's needed
+// until "Write to source file" persists it for real.
+let twValues = {};
+
 function populateTargetSelect() {
   const sel = document.getElementById('targetSelect');
   sel.innerHTML = '';
@@ -179,6 +278,10 @@ function populateTargetSelect() {
   optSov.value = 'sovereign';
   optSov.textContent = 'The Sovereign (final boss)';
   sel.appendChild(optSov);
+  const optTW = document.createElement('option');
+  optTW.value = TW_TARGET;
+  optTW.textContent = targetLabel(TW_TARGET) + ' (bespoke miniboss)';
+  sel.appendChild(optTW);
   const ids = Object.keys(COMPOSED_PHASE_DEFS).sort((a, b) => targetLabel(a).localeCompare(targetLabel(b)));
   for (const id of ids) {
     const opt = document.createElement('option');
@@ -197,17 +300,65 @@ function targetLabel(id) {
 function selectTarget(target) {
   currentTarget = target;
   const isSov = target === 'sovereign';
+  const isBespoke = target === TW_TARGET;
   document.getElementById('sovereignUI').style.display = isSov ? '' : 'none';
-  document.getElementById('minibossUI').style.display = isSov ? 'none' : '';
+  document.getElementById('minibossUI').style.display = (!isSov && !isBespoke) ? '' : 'none';
+  document.getElementById('bespokeUI').style.display = isBespoke ? '' : 'none';
+  // Save/Reset don't apply to the bespoke branch — no localStorage
+  // override path exists for plain consts (see #bespokeUI's own note).
+  document.getElementById('saveBtn').style.display = isBespoke ? 'none' : '';
+  document.getElementById('clearBtn').style.display = isBespoke ? 'none' : '';
   const note = document.getElementById('targetNote');
   if (isSov) {
     note.textContent = 'Standalone Boss class — reads BOSS_PHASE_CONFIG at runtime, not a ComposedEnemy def.';
+  } else if (isBespoke) {
+    note.textContent = 'Bespoke class (not a ComposedEnemy def) — numeric tuning only, see the note below.';
+    renderBespokeUI();
   } else {
     const def = COMPOSED_PHASE_DEFS[target];
     note.textContent = `ComposedEnemy def id "${def.id}" — reads def.phases via _applyPhase() at runtime.`;
     renderMinibossUI();
   }
 }
+
+// game/enemy.js's TEMPORAL_WARDEN_* consts are `const`s in a classic
+// (non-module) <script> — they're reachable as bare identifiers from this
+// file's own <script> block (same shared global scope every other direct
+// reference in this file already relies on, e.g. BOSS_PHASE_CONFIG below),
+// but NOT as `window.TEMPORAL_WARDEN_X` (only `var`/function declarations
+// become window properties) — this explicit map is the safe way to read a
+// dynamically-named one of them without an eval.
+function twCurrentValue(varName) {
+  switch (varName) {
+    case 'TEMPORAL_WARDEN_HEALTH': return TEMPORAL_WARDEN_HEALTH;
+    case 'TEMPORAL_WARDEN_REWIND_CYCLE': return TEMPORAL_WARDEN_REWIND_CYCLE;
+    case 'TEMPORAL_WARDEN_FLASH_WINDOW': return TEMPORAL_WARDEN_FLASH_WINDOW;
+    case 'TEMPORAL_WARDEN_INTERRUPT_DAMAGE': return TEMPORAL_WARDEN_INTERRUPT_DAMAGE;
+    case 'TEMPORAL_WARDEN_RESIST_CAP': return TEMPORAL_WARDEN_RESIST_CAP;
+    case 'TEMPORAL_WARDEN_RESIST_STILLPOINT_USES': return TEMPORAL_WARDEN_RESIST_STILLPOINT_USES;
+    case 'TEMPORAL_WARDEN_BOLT_TELEGRAPH_FRAMES': return TEMPORAL_WARDEN_BOLT_TELEGRAPH_FRAMES;
+    case 'TEMPORAL_WARDEN_BOLT_COOLDOWN': return TEMPORAL_WARDEN_BOLT_COOLDOWN;
+    case 'TEMPORAL_WARDEN_BOLT_SPEED': return TEMPORAL_WARDEN_BOLT_SPEED;
+    case 'TEMPORAL_WARDEN_BOLT_DAMAGE': return TEMPORAL_WARDEN_BOLT_DAMAGE;
+    case 'TEMPORAL_WARDEN_KITE_DISTANCE': return TEMPORAL_WARDEN_KITE_DISTANCE;
+    case 'TEMPORAL_WARDEN_KITE_DEADZONE': return TEMPORAL_WARDEN_KITE_DEADZONE;
+    case 'TEMPORAL_WARDEN_KITE_SPEED': return TEMPORAL_WARDEN_KITE_SPEED;
+    default: return undefined;
+  }
+}
+
+function renderBespokeUI() {
+  for (const [id, varName] of Object.entries(TW_VAR_MAP)) {
+    if (!(varName in twValues)) twValues[varName] = twCurrentValue(varName);
+    document.getElementById(id).value = twValues[varName];
+  }
+}
+
+Object.entries(TW_VAR_MAP).forEach(([id, varName]) => {
+  document.getElementById(id).addEventListener('input', (e) => {
+    twValues[varName] = Number(e.target.value);
+  });
+});
 
 function buildPhaseCard(def, phase, i) {
   const card = document.createElement('div');
@@ -515,6 +666,71 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   }
 });
 
+// ─── WRITE TO SOURCE (Electron only) ────────────────────────────────────
+// Sovereign: BOSS_PHASE_CONFIG has zero hand-written comments inside it
+// (verified), so a whole-object replacement is safe; writes via the
+// 'whole'-mode 'bossPhaseConfig' target.
+// Miniboss: each *_DEF const DOES carry hand-written comments elsewhere in
+// the same object (base attacks/movement/defense notes), so only the
+// `.phases` sub-key is patched — via the 'path'-mode
+// 'minibossPhases_<id>' target (editor_shell/targets.js) — leaving
+// everything else in the const untouched.
+// findNonFiniteNumber() comes from game/writeGuard.js (shared across every
+// editor that writes straight to a game/*.js source file) — JSON.stringify
+// silently turns NaN/Infinity into null, so walk the value first and
+// surface a clear error instead of a silent `null` landing on disk.
+document.getElementById('writeFileBtn')?.addEventListener('click', async () => {
+  if (!window.stillpointAPI) return alert('Only available in the unified editor desktop app (npm start) — not in a plain browser tab.');
+
+  if (currentTarget === TW_TARGET) {
+    const invalid = Object.entries(TW_VAR_MAP).filter(([, varName]) => !Number.isFinite(twValues[varName]));
+    if (invalid.length) return alert(`Refusing to write: ${invalid.map(([id]) => id).join(', ')} is not a valid number. Fix the input field(s) and try again.`);
+    if (!confirm(`Write Temporal Warden's tunables to game/enemy.js on disk? (a .bak is made first per changed value)`)) return;
+    try {
+      const backups = new Set();
+      for (const varName of Object.values(TW_VAR_MAP)) {
+        const data = await window.stillpointAPI.writeNamedVar('temporalWardenStatVar', varName, String(twValues[varName]));
+        backups.add(data.backup);
+      }
+      alert(`✅ Saved! Written to game/enemy.js. Backup(s): ${[...backups].join(', ')}`);
+      if (typeof DevContext !== 'undefined') DevContext.log('Boss Phase Editor', 'Wrote Temporal Warden tunables to disk', [...backups].join(', '));
+    } catch (e) {
+      alert(`❌ Could not write to disk: ${e.message}`);
+    }
+    return;
+  }
+
+  if (currentTarget === 'sovereign') {
+    readThresholdsFromInputs();
+    readPhaseFieldsFromInputs();
+    const badPath = findNonFiniteNumber(BOSS_PHASE_CONFIG);
+    if (badPath) return alert(`Refusing to write: "${badPath}" is not a valid number. Fix the input field(s) and try again.`);
+    if (!confirm('Write BOSS_PHASE_CONFIG to game/boss.js on disk? (a .bak is made first)')) return;
+    try {
+      const data = await window.stillpointAPI.writeWhole('bossPhaseConfig', JSON.stringify(BOSS_PHASE_CONFIG, null, 2));
+      alert(`✅ Saved! Written to game/boss.js. Backup: ${data.backup}`);
+      if (typeof DevContext !== 'undefined') DevContext.log('Boss Phase Editor', 'Wrote BOSS_PHASE_CONFIG to disk', data.backup);
+    } catch (e) {
+      alert(`❌ Could not write to disk: ${e.message}`);
+    }
+    return;
+  }
+
+  const targetId = MINIBOSS_WRITE_TARGETS[currentTarget];
+  if (!targetId) return alert(`Disk-write isn't wired up for "${targetLabel(currentTarget)}" — no minibossPhases_* target registered for it in editor_shell/targets.js.`);
+  const def = COMPOSED_PHASE_DEFS[currentTarget];
+  const badPath = findNonFiniteNumber(def.phases);
+  if (badPath) return alert(`Refusing to write: "phases${badPath}" is not a valid number. Fix the input field(s) and try again.`);
+  if (!confirm(`Write ${targetLabel(currentTarget)}'s phases to game/enemy.js on disk? (a .bak is made first)`)) return;
+  try {
+    const data = await window.stillpointAPI.patchPath(targetId, 'phases', JSON.stringify(def.phases, null, 2));
+    alert(`✅ Saved! Written to game/enemy.js. Backup: ${data.backup}`);
+    if (typeof DevContext !== 'undefined') DevContext.log('Boss Phase Editor', `Wrote ${currentTarget} phases to disk`, data.backup);
+  } catch (e) {
+    alert(`❌ Could not write to disk: ${e.message}`);
+  }
+});
+
 document.getElementById('clearBtn').addEventListener('click', () => {
   if (currentTarget === 'sovereign') {
     if (!confirm('Clear saved Sovereign overrides and reload defaults from boss.js?')) return;
@@ -532,7 +748,9 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
-  if (currentTarget === 'sovereign') {
+  if (currentTarget === TW_TARGET) {
+    document.getElementById('exp-out').value = JSON.stringify(twValues, null, 2);
+  } else if (currentTarget === 'sovereign') {
     readThresholdsFromInputs();
     readPhaseFieldsFromInputs();
     document.getElementById('exp-out').value = JSON.stringify(BOSS_PHASE_CONFIG, null, 2);
@@ -546,7 +764,12 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 document.getElementById('loadBtn').addEventListener('click', () => {
   try {
     const parsed = JSON.parse(document.getElementById('exp-out').value);
-    if (currentTarget === 'sovereign') {
+    if (currentTarget === TW_TARGET) {
+      for (const varName of Object.values(TW_VAR_MAP)) {
+        if (varName in parsed) twValues[varName] = Number(parsed[varName]);
+      }
+      renderBespokeUI();
+    } else if (currentTarget === 'sovereign') {
       if (parsed.phaseThresholds) BOSS_PHASE_CONFIG.phaseThresholds = parsed.phaseThresholds;
       if (parsed.reservedSlot) Object.assign(BOSS_PHASE_CONFIG.reservedSlot, parsed.reservedSlot);
       if (parsed.teleport) Object.assign(BOSS_PHASE_CONFIG.teleport, parsed.teleport);
@@ -573,7 +796,7 @@ selectTab(1);
 selectTarget('sovereign');
 
 const unsavedGuard = (typeof UnsavedGuard !== 'undefined')
-  ? UnsavedGuard.watch(() => ({ boss: BOSS_PHASE_CONFIG, minibosses: COMPOSED_PHASE_DEFS }))
+  ? UnsavedGuard.watch(() => ({ boss: BOSS_PHASE_CONFIG, minibosses: COMPOSED_PHASE_DEFS, temporalWarden: twValues }))
   : null;
 </script>
 </body>

@@ -1,6 +1,6 @@
 # Cutscene Step Editor — Plan (proposal only, not built — added 2026-07-29)
 
-**Gap this closes**: `Plans/room_scene_editor_plan.md` only places *where* a cutscene
+**Gap this closes**: `Plans/archive/room_scene_editor_plan.md` only places *where* a cutscene
 triggers in a room — the cutscene's actual *content* (the `wait`/`text`/`cameraPan`/
 `choice` step list) is still 100% hand-written JS in `game/cutscene.js`, with zero
 visual tooling. Only 3 cutscenes exist today, so this hasn't been painful yet, but per
@@ -138,7 +138,7 @@ on this same live iframe.
   in §3 as new `call` patterns show up in practice, rather than trying to anticipate
   every possible one up front.
 - **Explicitly out of scope**: this tool doesn't decide *where* a cutscene triggers in
-  the world — that's `Plans/room_scene_editor_plan.md`'s `cutsceneTriggers[]` job (§4
+  the world — that's `Plans/archive/room_scene_editor_plan.md`'s `cutsceneTriggers[]` job (§4
   of that doc). The two tools are complementary: this one authors *what* a cutscene
   key contains, that one places *where* a key fires.
 

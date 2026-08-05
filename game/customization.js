@@ -1,5 +1,5 @@
 // Customization catalog (idle anims / taunts / fashion looks) — Page 3 of
-// the multi-page Inventory (Plans/inventory_redesign.md). Starts EMPTY on
+// the multi-page Inventory (Plans/archive/inventory_redesign.md). Starts EMPTY on
 // purpose: editor/inventory_editor.html is the only place that adds
 // entries, same localStorage-override pattern game_hud_menus.js's
 // HUD_LAYOUT uses — the editor writes a full catalog array to
@@ -14,7 +14,7 @@ const COSMETICS_CATALOG_KEY = 'stillpoint_cosmetics_catalog_v1';
 let COSMETICS_CATALOG = [];
 
 function loadCosmeticsCatalog() {
-  const parsed = readOverrideJSON(COSMETICS_CATALOG_KEY);
+  const parsed = readOverrideJSON(COSMETICS_CATALOG_KEY, OverrideShape.array);
   if (Array.isArray(parsed)) COSMETICS_CATALOG = parsed;
 }
 loadCosmeticsCatalog();

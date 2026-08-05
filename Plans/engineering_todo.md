@@ -11,7 +11,12 @@ such instead of included as a build task.
 Sources this consolidates (read those for full detail — this is a punch
 list, not a replacement): `production_workflow_and_tool_gaps.md`,
 `dev_tools_roadmap_status.md`, `roadmap.md`'s tail entries,
-`enemy_attack_vocabulary_plan.md`, `room_verification_tool_plan.md`.
+`enemy_attack_vocabulary_plan.md`, `room_verification_tool_plan.md`,
+`archive/session_priorities.md` (retired 2026-08-03 — 5 of 8 items were
+done, its bot-walker item was already a duplicate of #2 below, its audio-
+rework item is superseded by the real recorded-music/sample system that
+now exists; the one genuinely un-tracked item, a formal profiling pass,
+is folded into #3 below).
 
 ## 1. Custom art/animation system (this session's thread)
 
@@ -48,7 +53,7 @@ list, not a replacement): `production_workflow_and_tool_gaps.md`,
   entry the way Player/Boss/Enemies/Child do. Low priority — the deep-link
   path already covers the primary workflow.
 - **`decorationSprites[]` scattered-decal layer** (room_scene_editor
-  addendum, `Plans/room_scene_editor_plan.md` §1) — many small
+  addendum, `Plans/archive/room_scene_editor_plan.md` §1) — many small
   non-colliding placed sprites (rubble, clutter), separate from the
   full-bleed `backdropLayers[]`. Spec'd, not built.
 - **Live camera-bounds overlay** in `room_scene_editor.html`'s preview
@@ -101,6 +106,12 @@ list, not a replacement): `production_workflow_and_tool_gaps.md`,
 - Reversal's Sword-Clash interrupt-punish check
   (`enemy_attack_vocabulary_plan.md`'s one remaining unbuilt piece — almost
   everything else in that doc is done).
+- **Formal profiling pass** (from `archive/session_priorities.md` #6, never
+  done): record a full playthrough of Crag (all 4 rooms) in Chrome/Firefox
+  DevTools, identify actual frame-drop culprits (physics loop, draw calls,
+  particle spawning), and optimize the top 2-3 bottlenecks. `hitstop`/
+  `screenShake` exist and are used, but nobody has actually profiled this
+  game — everything above is feel/API cleanup, not measured performance work.
 
 ## 4. Iteration-friction cleanup (`dev_tools_roadmap_status.md` Phase 3)
 
@@ -462,11 +473,28 @@ session (see "Fixed" below); the rest is a ranked backlog.
   `ComposedEnemy` framework — reimplements damage/movement/hitbox/
   telegraph logic from scratch instead of extending the data-driven
   system ~25 other enemy types already share.
-- **`Boss.takeDamage` (`boss.js:444`) has no flash/invincibility/hitstun
-  at all** — just decrements health and pushes a floating-text popup.
-  Every other enemy type gets hit-flash feedback; the boss doesn't. Worth
-  confirming whether that's intentional (unflinching-boss design) or a
-  gap — flagging, not assuming either way.
+- ~~`Boss.takeDamage` (`boss.js:444`) has no flash/invincibility/hitstun
+  at all~~ — **partially fixed 2026-08-03, rest deliberately left alone.**
+  The hit-flash half was a real, safe gap: added `this.flashTimer = 0` (ctor),
+  set to 8 on a real (non-shield-blocked) hit in `takeDamage()`, ticked down
+  unconditionally at the top of `update()` (even through the stun-gate, so a
+  hit landing right before a parry-stun doesn't leave it stuck on), and
+  applied as a white tint in `draw()`'s fallback (non-`ANIM_DEFS`) body-color
+  branch — same convention `enemy.js`'s `flashTimer` family already uses
+  (only the fallback draw path gets the tint; when an authored `ANIM_DEFS`
+  key exists and `animator.draw()` runs instead, flash isn't visually
+  applied there either, matching the same not-yet-built gap other enemies
+  already have). **Invincibility/hitstun was deliberately not added** —
+  unlike the flash, that's a real combat-balance change: the boss has active
+  states (`lunging`, dash chains, `beam_channel`, phase transitions) a
+  post-hit stun could interrupt mid-animation, which most final-boss designs
+  in this genre intentionally avoid (an "unflinching until staggered"
+  boss is a legitimate, common choice, and `ColossusCore`'s own analogous
+  hit only nudges `attackCooldown` by a minimum, not a hard state-halting
+  stun). This genuinely reads as intentional rather than an oversight, but
+  it's a design call for you to make, not one this pass should guess at —
+  flagging with the flash fix already in, not implementing
+  invincibility/hitstun without a decision.
 - ~~`game/game.js` (5,967 lines) is confirmed dead code~~ — **resolved**:
   it's now `game/archive/game.js` (`git status` shows a staged rename,
   `game/game.js` → `game/archive/game.js`, done outside any tracked
@@ -492,16 +520,17 @@ session (see "Fixed" below); the rest is a ranked backlog.
   `minibossRegistry.js`, `roomImageStore.js`). Not necessarily wrong
   (`game/` may be intended as "shared code," not strictly "shipped code")
   but worth confirming that's the intended convention.
-- No image ever reaches `assets/` — `anim_editor.html`'s `uploadImage()`
-  and `room_scene_editor.js`'s image upload both store to IndexedDB
-  (`AnimImageStore`/`RoomImageStore`) or inline as a `data:` URL, never as
-  a file on disk. `assets/` currently only holds audio. If images should
-  persist as real project files, the File System Access API (Chrome/Edge
-  only, no new tooling needed) is the lowest-friction fix; a download-
-  button-then-manual-move flow works everywhere but requires a manual
-  step; a small local Node write-endpoint is most robust but means
-  editors can no longer just be opened via `file://`. Not implemented —
-  needs a decision on which tradeoff to take.
+- ~~No image ever reaches `assets/`~~ — **stale claim, checked
+  2026-08-03: already built.** `editor/save-server.js`'s `/save-art-image`
+  route (added 2026-08-03, own header comment explains the shape) writes a
+  real PNG under `assets/art/anim/` or `assets/art/rooms/` (timestamped
+  `.bak` on overwrite), and both `anim_editor.html` and
+  `room_scene_editor.js` already call it to promote a working-draft image
+  (an inline `data:` URL or an `AnimImageStore`/`RoomImageStore` IndexedDB
+  id) to a checked-in file — the small local-Node-write-endpoint option
+  this item used to list as one tradeoff among three is the one that got
+  built. Requires running via `node editor/save-server.js` (won't work
+  opened via `file://`), same caveat as the other save-server routes.
 - **`gameState`'s hand-rolled FSM has non-atomic transitions, patched by
   comments rather than structure.** Two confirmed real instances, both
   already correctly fixed today (not live bugs, an architectural risk
@@ -568,7 +597,16 @@ blob silently produces `undefined` in whatever `applyXOverrides()` reads
 it, with no error anywhere. Lower priority than the linter duplication; a
 lightweight fix (a per-key expected-shape check inside each
 `applyXOverrides()`, or one small shared validator) rather than a
-rearchitecture — not yet built.
+rearchitecture — **fixed 2026-08-03**: `readOverrideJSON(key, validateShape)`
+now takes an optional `(parsed) => boolean` shape check (`overrideStore.js`'s
+new `OverrideShape.object`/`OverrideShape.array` cover the two shapes every
+caller actually expects); a failing check logs a `console.warn` naming the
+key and falls back to `null` (built-in defaults) instead of letting the
+malformed shape flow into the caller's merge. Wired into all 11 call sites.
+Still only a top-level shape check (object vs. array), not per-field
+validation — a renamed nested field inside a validly-shaped object still
+silently reads as `undefined` downstream; flagging that narrower remainder
+rather than treating this as fully closed.
 
 **Second round of the same external review (2026-08-02), 4 more claims —
 checked before any were acted on, per the user's ask "have these been
@@ -598,11 +636,12 @@ fixed, if not can we fix them":**
   `boss`, `AREAS`, ...) — wrapping those in an IIFE would require
   deliberately exposing every one of those as a getter/setter on a
   namespace object, i.e. it's the same scope as the "no module system"
-  item already flagged above, not a separate smaller fix. **Not fixed,
-  and not attempted** — the only genuinely safe, small piece (writing the
-  convention down as a one-paragraph rule so it reads as intentional
-  instead of accidental) is worth doing; actually converting more files to
-  the IIFE pattern is not, without deciding on the module-system question
+  item already flagged above, not a separate smaller fix. **The prose
+  write-up is now done (2026-08-03)** — `CLAUDE.md`'s Architecture map has
+  a "Module convention: IIFE vs. bare top-level code" subsection naming the
+  three real patterns and the test for which one a new file should use.
+  Actually converting existing files between patterns is still not
+  attempted, on purpose, without deciding on the module-system question
   first.
 - **"Editors read runtime internals directly (`AREAS` etc., no stable
   interface)"** — true (verified: `debug_v1.html`, `debug_v2.html`,
@@ -658,3 +697,69 @@ IIFE-vs-bare convention in prose (not a code change) and, optionally, the
 ~4-line `loadSettings()` dedup — everything else in this batch is the same
 "ask before big refactors" module-system question already flagged, not
 four new independent fixes.
+
+## 8. Editor suite gaps found 2026-08-03 (persistence, testing, integration)
+
+Found while reviewing `Plans/plotline_editor_plan.md` — these are broader
+than that one plan (they apply to the editor suite as a whole) so they live
+here instead, per this doc's own scope note.
+
+- **Persistence is inconsistent across the whole suite, and this is
+  under-documented.** Checked `editor/save-server.js` directly rather than
+  trusting CLAUDE.md's summary: it has exactly two live disk-write routes
+  (`/save-hud-layout`, `/save-inventory-layout`, both patching an existing
+  `const X = {...}` block) plus `/save-art-image` (binary PNG write, well
+  input-validated — category allowlist, filename regex, PNG-data-URL check,
+  no path-traversal issue found). Every other content-editing tool —
+  `levelEditor.html`, `room_scene_editor.html`, `cutscene_editor.html`,
+  `combo_editor.html`, `anim_editor.html` — uses the manual copy-paste
+  "Export JSON to textarea" flow, not a live save route. This means "save
+  straight to source" reads as the general pattern in CLAUDE.md's dev-tool
+  section but is actually two tools out of ~13. Worth either (a) extending
+  live-save to the rest, since `editor/exportPanel.js` already shows the
+  shared-shell pattern that made HUD/inventory's version practical, or (b)
+  at minimum correcting the doc language so a future session doesn't assume
+  a route exists that doesn't. `Plans/plotline_editor_plan.md`'s four new
+  routes ran into this directly — see its own "save-server.js has no code
+  path for creating a new file" gap.
+- **`save-server.js`'s patch logic has no automated test.** `patchLayoutBlock()`
+  is a regex-based line patcher (`KEY_LINE_RE`) — exactly the class of code
+  that silently corrupts a file on an input shape nobody tested (a value
+  containing an unescaped newline, a key whose serialized form spans past
+  one line, a decl block with nested braces at the same indent depth as a
+  top-level key). It's currently verified only by hand (save, then diff).
+  A small Node smoke test (feed it a few known-tricky layout shapes,
+  assert the patched output round-trips) would catch a regression before
+  it corrupts `game_hud_menus.js`/`game/inventory_ui.js` for real, not
+  after.
+- **No CI or pre-commit hook runs any of the existing validators.**
+  `validateAreaGraph()` (on `index.html` load), `roomVerify.js` (via
+  `room_verify.html`/`Plans/room_verify_cli.js`), and `debug_v1.html`'s
+  R01–R11 all exist and are genuinely useful, but every one of them is
+  "run manually when you remember to." Given how much linting
+  infrastructure already exists in this repo, the gap isn't "we need more
+  linters," it's "nothing forces the ones we have to actually run." A
+  `package.json` script wiring `node Plans/room_verify_cli.js` (already a
+  standalone Node CLI, zero new code needed) into a git pre-commit hook
+  would close this cheaply for the one check that's already fully
+  headless; `debug_v1.html`'s browser-dependent checks can't be CI'd
+  without a headless-browser runner, which is a bigger ask and not
+  proposed here.
+- **`dev_hub.html` has no entry point for `plotline_editor.html`.**
+  Confirmed by grep — zero references to "plotline" anywhere in
+  `editor/dev_hub.html` today. When the plotline editor is actually built,
+  it needs a `dev_hub.html` sidebar entry (per its existing
+  Level Design/Combat & Enemies/Systems/QA grouping — this tool doesn't
+  cleanly fit any of the four, which is itself worth a decision: new
+  "Narrative" group, or folded into "Systems") and arguably a new metric
+  in the Project Progress dashboard (quest/dialogue/vision authored-vs-
+  planned counts, alongside its existing room-design-score and
+  enemy/miniboss-roster counts from `game/minibossRegistry.js`) — the
+  dashboard's whole premise is "derived, not hand-tracked" state, and a
+  narrative system with zero visibility there would be the one content
+  category the dashboard doesn't cover.
+- **No accessibility pass on any editor tool** (keyboard-only operation,
+  focus order, screen-reader labeling). Low priority — these are internal
+  single-developer tools, not player-facing — but worth a one-line
+  acknowledgment rather than silence, since it's a real gap if the
+  toolchain is ever handed to a second person.

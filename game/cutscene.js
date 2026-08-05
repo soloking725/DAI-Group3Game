@@ -173,7 +173,7 @@ function materializeCallSteps(steps) {
 }
 
 function applyCutsceneOverrides() {
-  const overrides = readOverrideJSON(CUTSCENE_OVERRIDES_KEY);
+  const overrides = readOverrideJSON(CUTSCENE_OVERRIDES_KEY, OverrideShape.object);
   if (!overrides) return;
   for (const key in overrides) {
     materializeCallSteps(overrides[key].steps);

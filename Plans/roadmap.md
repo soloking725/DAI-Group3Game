@@ -2010,7 +2010,7 @@ the Child, and 4 new editors (2026-07-16, same day as Phase 16)
 Phase 16 follow-up section above)
 ────────────────────────────────────────────────────────────────────────
 The single largest batch of new systems yet — user green-lit "everything we
-just planned" (Plans/child_companion_system_plan.md,
+just planned" (Plans/archive/child_companion_system_plan.md,
 combat_ai_overhaul_plan.md, healing_items_plan.md, animation_editor_plan.md).
 Verified via `node --check` on every script + a Node VM smoke test that
 loads all 15 scripts in index.html's order and exercises each new system
@@ -2082,7 +2082,7 @@ companion, player, game):
     entry to Echo Bridge part 1 — it's the wiring template for the real
     Child scenes.
 [x] game/animdata.js + editor/anim_editor.html — the full animation/hitbox
-    system from Plans/animation_editor_plan.md, BOTH parts: ANIM_DEFS
+    system from Plans/archive/animation_editor_plan.md, BOTH parts: ANIM_DEFS
     frame timelines (duration, procedural pose OR uploaded drawing as a
     data-URL image, hurtbox, damage hitboxes, cancelableFrom combo
     windows), Animator playback class (world-space hitbox/hurtbox
@@ -2462,7 +2462,7 @@ future work should still update the relevant Phase section AND this file.
     Reversal still needs the Sword-Clash interrupt-and-punish resolution
     (attack-hitbox-vs-telegraph-window check on the player side) — see that
     doc's own tail for the exact remaining scope.
-[x] Animation editor bridge (`Plans/animation_editor_plan.md`, 2026-07-20) —
+[x] Animation editor bridge (`Plans/archive/animation_editor_plan.md`, 2026-07-20) —
     `ComposedEnemy` (enemy.js) and `Boss` (boss.js) both bridged onto
     `animdata.js`'s `Animator`/`ANIM_DEFS`, same additive/fallback pattern as
     the player bridge; raster per-frame image uploads (`frame.image`) are
@@ -2666,7 +2666,7 @@ Mobility/evasion pass + a real defense-verb bug (2026-07-24, same day)
 ═══════════════════════════════════════════════════════════════════════════
 Boss buildout — Mirror King + Fractured Sovereign's Guard (2026-07-26)
 ═══════════════════════════════════════════════════════════════════════════
-Continues `Plans/continue_boss_buildout_prompt.md`'s roadmap (itself
+Continues `Plans/archive/continue_boss_buildout_prompt.md`'s roadmap (itself
 continuing the architecture-proving batch that fixed the miniboss spawn bug
 and built the generic phase system + The Conduit). Two more of the 12
 remaining fights, following the doc's "cheapest/most-proven-pattern first,
@@ -2764,7 +2764,7 @@ since the phase system was first built for The Conduit:
     `TheStationmaster`) — Timeline Crossroads' miniboss (proposed name,
     not locked per `lore.md`'s 2026-07-22 entry, which replaced the earlier
     "Crystalline Warden"/"human but airborne" placeholder summary in
-    `Plans/continue_boss_buildout_prompt.md` with a fuller spec once
+    `Plans/archive/continue_boss_buildout_prompt.md` with a fuller spec once
     `expansion.md`'s Phase 4 table was actually read this session). Story
     doc (#4.11): phase 1 fights via brainwashed-prisoner adds (killable by
     his own attacks too — needs no special code, they're just as
@@ -2800,7 +2800,7 @@ since the phase system was first built for The Conduit:
     rather than reading as fully immune; confirm both defeats grant +1 Max
     Health (or whatever `game.js`'s generic defeat block already grants —
     neither def overrides it) and persist through save/reload.
-[ ] 8 fights remain (of the original 12 in `Plans/continue_boss_buildout_prompt.md`'s
+[ ] 8 fights remain (of the original 12 in `Plans/archive/continue_boss_buildout_prompt.md`'s
     table, 4 now built): Quantum Pursuer (`abyss_guardian`, needs a real
     new delayed-player-shadow mechanic), Temporal Warden (`chrono_ally`,
     needs a new precog-dodge defense concept), Sovereign (moveset
@@ -3062,7 +3062,7 @@ approved.
     confirm debris projectiles connect, confirm the boss is fully immune to
     knockback/juggling throughout, confirm leaving the room mid-fight and
     re-entering resets gravity cleanly back to `'down'`.
-[ ] **10 of the 12 fights from `Plans/continue_boss_buildout_prompt.md`'s
+[ ] **10 of the 12 fights from `Plans/archive/continue_boss_buildout_prompt.md`'s
     original table are now built** (`colossus_core`/Crag Warden predates
     this batch and doesn't count toward the 12, but is included in the 10
     `MINIBOSS_CLASSES` entries above). 2 remain, both architecturally
@@ -3894,7 +3894,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     and full built-enemy (19)/built-miniboss (14) roster references plus
     current pip-economy counts. `CLAUDE.md`'s doc list updated to
     point at it.
-[x] **`Plans/room_scene_editor_plan.md` added** (planning only, not built):
+[x] **`Plans/archive/room_scene_editor_plan.md` added** (planning only, not built):
     a proposed room "look" editor — background PNG/parallax layers (new
     capability; every room's backdrop is 100% procedural canvas primitives
     today, see `drawAreaBackdrop()`), the previously-planned
@@ -3934,7 +3934,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     manual follow-up to the bot walker's automated report, not a
     replacement for it — reachable from either report's per-room rows, and
     eventually from the Project Progress Dashboard below too.
-[x] **`Plans/project_progress_dashboard_plan.md` added**: plans extending
+[x] **`Plans/archive/project_progress_dashboard_plan.md` added**: plans extending
     `dev_hub.html`'s existing (thin) `renderStats()`/`runAllValidations()`
     panels into a full "what's left" dashboard — room design-state, all 3
     pip types placed-vs-target, enemy/miniboss roster coverage, and
@@ -3947,7 +3947,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     reach `MINIBOSS_CLASSES`) and recommends extracting
     `room_progress.js`'s scoring function into a shared file both it and
     the dashboard include, instead of two copies drifting apart.
-[x] **`Plans/cutscene_editor_plan.md` added** (direct request, planning
+[x] **`Plans/archive/cutscene_editor_plan.md` added** (direct request, planning
     only): a structured list-and-form editor over `cutscene.js`'s already-
     fully-specified `CUTSCENES` step format — deliberately not a timeline/
     node-graph UI (researched how other engines handle branching
@@ -4006,7 +4006,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     real bugs, on a region already noted above as live-verified. This is
     the reason Component 2's dynamic bot walker remains valuable future
     work rather than redundant with Component 1.
-[x] **`Plans/project_progress_dashboard_plan.md` — v1 built** (extends
+[x] **`Plans/archive/project_progress_dashboard_plan.md` — v1 built** (extends
     `dev_hub.html`, no new tool, per the plan's own §0 framing). Prerequisite
     refactor from the plan's §2 done first: `room_progress.js`'s `analyze()`
     scoring logic extracted into a shared, pure `game/roomDesignScore.js`
@@ -4056,7 +4056,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     started+designed, 24 SHELL) and match. **v2 (per-room drill-down with
     Spawn-button links, the "suggested next" heuristic line) not built** —
     deferred per the plan's own scope staging.
-[x] **`Plans/room_scene_editor_plan.md` — v1 built, 2026-07-29.** New
+[x] **`Plans/archive/room_scene_editor_plan.md` — v1 built, 2026-07-29.** New
     `editor/room_scene_editor.html`, registered in `dev_hub.html`'s Level
     Design group. Confirmed two open questions with the user before
     building (the plan's §7): fold the never-built `level_designer.html`'s
@@ -4108,7 +4108,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     read-through of the live-mutation data flow; a first real editing
     session should confirm the srcdoc sandbox behaves the same way it
     already does for `debug_v1.html` in this environment.
-[x] **`Plans/room_scene_editor_plan.md` — v2 (cutsceneTriggers[]) built,
+[x] **`Plans/archive/room_scene_editor_plan.md` — v2 (cutsceneTriggers[]) built,
     same session, 2026-07-29.** `area.cutsceneTriggers[]` is now a real,
     data-driven replacement for what used to only be hardcoded `if`
     conditions in `game_update.js`/`game_entities.js` for "does a plot
@@ -4162,7 +4162,7 @@ Phase 28 — Pip vision modes: overlay/cutscene/none, editor support (2026-07-29
     point a `sampleId` field at, so that item needs new audio assets
     sourced first, which is a content task, not a code continuation of
     this one.
-[x] **`Plans/cutscene_editor_plan.md` — v1 built, 2026-07-30.** A structured
+[x] **`Plans/archive/cutscene_editor_plan.md` — v1 built, 2026-07-30.** A structured
     list-and-form editor (`editor/cutscene_editor.html` +
     `cutscene_editor.js`) over `cutscene.js`'s `CUTSCENES` step format —
     deliberately not a timeline/node-graph UI, per the plan's own research
@@ -4503,3 +4503,518 @@ state as `cutsceneTriggers` was when it first shipped. Verified with
 `node --check` on all 4 touched files (`game/audio.js`, `game/game_update.js`,
 `editor/room_scene_editor.js`, plus a JSON-validity check where relevant) —
 no browser testing, per this repo's standing rule.
+
+### Unified Editor IDE — Milestone 1, Electron packaging shell (2026-08-04)
+
+Per `Plans/unified_editor_ide_plan.md` (wrapper choice updated same day
+from an initial NW.js lean to Electron, after identifying that NW.js's
+default ambient Node access in iframes was a real risk to
+`debug_v1.html`/`debug_v2.html`'s iframe+`eval` test harness — Electron's
+default `contextIsolation: true`/`nodeIntegration: false` avoids that
+question entirely). First `package.json` this repo has ever had (`npm
+init`, `electron` added as the only dependency, `npm --version` confirmed
+10.9.8 already installed). `editor_shell/main.js` opens `editor/
+dev_hub.html` in a `BrowserWindow` — `npm start` launches it. Zero edits
+to any of the 26 `editor/*.html` files, per the plan's Milestone 1 scope.
+
+**Verified 2026-08-04** (user ran it): `debug_v1.html` R01-R09/R11 passed
+inside the packaged window (R10 failed identically across all rooms with
+full health — a pre-existing check quirk, not an Electron regression,
+worth its own look later); `debug_v2.html` ran all 102 checks with the
+same pass/fail split a plain-browser run would show (88 pass/7 warn/6
+fail/1 skip — e.g. C16 tether-cancel, A13 Stillpoint timescale, A19 Limit
+Break unreachable — all pre-existing gameplay bugs, unrelated to
+packaging). The one thing this milestone couldn't guarantee from reading
+code — the iframe+`eval` harness surviving Electron's `contextIsolation`
+— held up.
+
+Also added this session, still Milestone 1 scope: `editor_shell/main.js`
+now intercepts every `target="_blank"` tool link
+(`setWindowOpenHandler` → `loadURL` in place) so the whole 26-tool suite
+opens in one window instead of a new native window per click, plus a
+`Navigate` menu (Back/Forward/Home/Reload/DevTools) since Electron's
+`BrowserWindow` has no built-in back button.
+
+### Unified Editor IDE — Milestone 2 (in progress), AST-based save engine (2026-08-04)
+
+The doc's "What it does NOT buy" section originally scoped the
+AREAS/CUTSCENES comment-preservation problem as unsolved — it's now
+solved. `editor_shell/constPatcher.js` (`recast` + `@babel/parser`, both
+added as dependencies) patches a target `const`'s value via AST
+manipulation instead of `save-server.js`'s old regex line-patching:
+`syncTopLevelObjectKeys` (whole flat object, add/update/remove keys — the
+AST equivalent of the old `patchLayoutBlock`) and `patchPathInFile`
+(replaces one nested value at a dot/bracket path, e.g.
+`spawn_area_1.name` inside `AREAS`, touching nothing else in the file).
+**Verified against a copy of the real `game/area.js`**: patching one
+room's `name` and one platform's `h` left all 201 comments in the file
+byte-identical, changed exactly the 2 touched lines, valid syntax after.
+Also verified against `game/inventory_ui.js` (which has internal
+comments `patchLayoutBlock` never had to deal with): key update + new-key
+append via `syncTopLevelObjectKeys` left all 83 comments intact.
+
+`editor_shell/targets.js` is the renderer-facing allowlist (mirrors
+`save-server.js`'s old `LAYOUTS` registry) — renderers pass a symbolic id
+like `'hudLayout'`, never a raw path, so a typo or bad input can't be
+pointed at an arbitrary file. `editor_shell/ipcHandlers.js` +
+`editor_shell/preload.js` expose this over `window.stillpointAPI`
+(`contextBridge`, no direct `fs` in any renderer) — every write still
+makes a timestamped `.bak` first, same as `save-server.js` always did.
+Also ported `save-art-image` and `apply-audio-pick` from
+`save-server.js` verbatim (binary file writes, no AST involved).
+
+**Wired so far**: `hud_editor.html`/`inventory_editor.html`'s
+`saveToFile()` now call `window.stillpointAPI.syncTopLevelKeys` when
+present, falling back to the old `fetch('http://localhost:8787/...')`
+path otherwise — both editors keep working in a plain browser tab with
+`save-server.js` running, per the plan's open question 3 (don't force a
+hard cutover). Verified both files' inline `<script>` blocks still parse
+(`new Function(...)` per block) after the edit.
+
+**Update, same day — wired up through 8 of the 26 tools.** Every write
+below verified by patching a scratch copy of the real file (never the
+live repo file directly) and checking: comment count before/after,
+`node --check` syntax validity, and the specific field actually changed —
+plus a `new Function(...)`-per-`<script>`-block parse check on every
+edited HTML/JS file.
+
+- **`levelEditor.html` → `AREAS`** (`areas` target, path mode): new
+  "Write to area.js" button patches only `AREAS[area.id]`, reusing the
+  page's own `jsLit()` serializer (unquoted keys/single quotes, matching
+  the file's hand-written style) so output formatting stays consistent.
+  **Caught a real bug while testing**: the first test call passed
+  `allowCreate` as a bare `true` instead of `{ allowCreate: true }` and
+  errored immediately — a test-script mistake, not a bug in the shipped
+  IPC chain (`preload.js`→`ipcHandlers.js` already wrapped it correctly),
+  but exactly the kind of mismatch this verification step exists to catch
+  before it reaches a real file. Verified: update existing room + append
+  a brand-new room both work, 201/201 comments preserved either way.
+- **`anim_editor.html` → `ANIM_DEFS`** (`animDefs` target, path mode):
+  "Write this animation to animdata.js" patches one animation key.
+  202/202 comments preserved on update + new-key append. Also ported
+  `saveImageAsFile()`'s art-image save off `fetch('...8787...')` onto
+  `stillpointAPI.saveArtImage` (falls back to the old route otherwise).
+- **`boss_phase_editor.html` → `BOSS_PHASE_CONFIG`** (`bossPhaseConfig`
+  target, **whole mode** — verified zero comments inside this const, so a
+  full replace is safe, unlike every other target here): "Write to
+  boss.js" button, Sovereign only (miniboss phase defs live elsewhere,
+  not wired). New `stillpoint:writeWhole` IPC channel added for this mode.
+- **`room_scene_editor.js` → `REGION_STYLES`** (`regionStyles` target,
+  path mode) **and** four per-room fields on `AREAS[area.id]`
+  (`backdropLayers`/`hideProceduralBackdrop`/`cutsceneTriggers`/
+  `audioZones`, patched individually against the existing `areas`
+  target): one "Write to area.js/game_entities.js" button does both.
+  Verified against real files: 201/201 `area.js` comments and 402/402
+  `game_entities.js` comments preserved, all 4 new fields correctly
+  nested inside the right room (none of the 73 rooms had any of these 4
+  fields yet, so every write in the test exercised the `allowCreate`
+  append path, not just update). Also ported the art-image save here too.
+- **`cutscene_editor.js` → `CUTSCENES`** (`cutscenes` target, path mode):
+  "Write to cutscene.js" reuses the page's own `stepsToJs()` serializer
+  rather than `JSON.stringify` — required, since a `call` step's
+  `_callCode` field must land as a real executable function expression,
+  not a quoted string (`JSON.stringify` would have silently broken every
+  `call` step on write). Verified this specifically: a `call` step round-
+  tripped as real code, 119/119 comments preserved, new cutscene append
+  works too.
+- **`combo_editor.html` → `COMBO_DEFS`** (`comboDefs` target, **new
+  `arrayByKey` mode**): `COMBO_DEFS` is an array, not an object — the
+  first target that needed this. Added
+  `constPatcher.js`'s `patchArrayElementByKey()`, addressing elements by
+  their stable `id` field rather than array index (index shifts whenever
+  an earlier combo is added/removed/reordered — not a safe address).
+  "Write this combo to combo.js" patches just the selected combo.
+  Verified: updating `tether_slam`'s reward and appending a brand-new
+  combo both work, ordering preserved, and — correctly, not a bug —
+  replacing a combo's own element loses *that combo's own* inline step
+  comments (57→55) while every other combo's comments survive untouched;
+  same documented tradeoff as any other whole-element replacement here.
+- **`audio_ab_tester.html`**: `applyAudioPick()` now calls
+  `stillpointAPI.applyAudioPick` when available (the IPC channel already
+  existed from the initial port; it just wasn't connected client-side
+  yet).
+
+**Still not wired**: `QUESTS`/`VISIONS`/`NPC_DIALOGUE`/`STORY_FLAG_META`
+(deliberately — CLAUDE.md flags these four as still-unwired,
+pre-content infrastructure per `plotline_editor_plan.md` §5; disk-save
+would be ahead of where that feature actually is). `enemy_designer.html`
+also deliberately left unwired — its own code comment says its defs are
+"ad-hoc (no fixed registry like ENEMY_REGISTRY)"; there's no real disk
+target for it, "Export JSON" is already its correct end state, not a gap.
+
+Also decided this session: the game (`index.html`) will get its own
+Electron desktop wrap too, targeting a Steam release — reversing this
+doc's earlier Tauri lean for the *game specifically*, since Steamworks
+integration tooling (achievements, cloud saves) is far more mature on
+Electron. This is scoped as a separate plan doc
+(`Plans/steam_desktop_build_plan.md`, not yet written), deliberately kept
+out of `unified_editor_ide_plan.md` — same "different priorities, don't
+conflate" reasoning the doc already applies to editor vs. game wrapper
+choices.
+
+### Unified Editor IDE — `enemy_editor.html` wiring, patrol range, save-server audit (2026-08-04)
+
+**`enemy_editor.html` → `enemy.js` per-stat constants** (new `enemyStatVar`
+target, new **`rawVar`** patch mode — the fifth mode, alongside sync/path/
+whole/arrayByKey). Enemy stats aren't a single data const at all — each is
+a plain top-level scalar (`const LANCER_HEALTH = 10;`). The investigation
+that mattered here: **several enemy TYPES share the exact same backing
+variable** — `ENEMY_ATTACK_COOLDOWN` alone backs 7 different enemies'
+attack cooldowns (fractured/stutterer/null_sentinel/mirror_sprite/
+echo_stalker/anchor_wraith/deflector_drone). A naive per-enemy write would
+have silently changed enemies the user wasn't even looking at. Fixed by
+computing the full sibling map at load time (`SHARED_VAR_SIBLINGS`) and
+requiring explicit confirmation naming every affected sibling before any
+write — the same safety property, reused, not a one-off. `targets.js`'s
+`enemyStatVar.allowedVars` is an explicit allowlist (renderer names a
+variable, main process checks it against the list) so the renderer still
+can't point a write at an arbitrary global.
+
+**Patrol Range added to `enemy.js` for real** (user request — it was
+previously flagged as "not backed by any real constant"). Added
+`ENEMY_PATROL_RANGE` (120, the pre-existing shared default — backs
+fractured/stutterer/void_lancer/null_sentinel/mirror_sprite/echo_stalker,
+all `ground_chase`/base-movement types) plus three real per-type
+overrides matching what `enemy_editor.html`'s `ENEMY_STAT_SOURCE` already
+claimed but never actually applied: `SENTINEL_PATROL_RANGE` (150),
+`ANCHOR_WRAITH_PATROL_RANGE` (0), `DEFLECTOR_PATROL_RANGE` (0). **Worth
+knowing**: the latter three have zero observable gameplay effect —
+checked `MOVEMENT_BEHAVIORS.hover` and confirmed it never reads
+`patrolRange` at all, so Crystal Sentinel/Anchor Wraith/Deflector Drone's
+actual behavior is unchanged; only the `ground_chase`/base-movement types
+respond to it live. `enemy_editor.html`'s UI says this explicitly rather
+than implying the write does something it doesn't. `ComposedEnemy`'s
+`stats` API already documented `patrolRange` as an expected field (a
+comment predating this session) — this filled in an already-planned gap,
+not new plumbing.
+
+**Shared NaN/Infinity guard added**: raw `<input type="number">` fields
+feeding straight into `JSON.stringify` before a disk write is a real risk
+— `JSON.stringify(NaN)` silently becomes `null`, so a garbled input field
+could corrupt a real game constant with no error at all. New
+`game/writeGuard.js` (`findNonFiniteNumber(val)`, walks nested
+objects/arrays and returns the exact bad path or `null`) is now called
+before every write path built this session — level/anim/boss-phase/
+room-scene/cutscene/combo/enemy editors all refuse to write and name the
+specific bad field instead of silently corrupting data. Verified the
+guard function itself against nested NaN/Infinity/all-valid/non-number
+cases.
+
+**Confirmed `anim_editor.html` works with the OS file picker (Finder on
+macOS)**: it loads images via a plain `<input type="file" accept="image/*">`
++ `FileReader`, no custom drag-and-drop code. Electron's
+`contextIsolation`/`nodeIntegration` settings only gate Node API access
+from renderer JS — standard DOM/File APIs (native file dialogs included)
+are unaffected, so this behaves identically to a normal browser tab.
+Nothing needed fixing here.
+
+**Save-server debug, done thoroughly rather than just by reading code**:
+actually launched `editor/save-server.js` as a live process and hit its
+real HTTP endpoints — server boots clean, serves editor/game pages (200),
+handles OPTIONS/404 correctly. Confirmed the file itself was never
+touched by any change this session (`find -newer` against a file created
+at session start came back empty) — the browser-fallback path every
+wired editor keeps is running the exact same code that worked before any
+of this. Confirmed all 5 fallback `fetch('http://localhost:8787/...')`
+URLs left in the editors match the server's live route list exactly.
+Did NOT POST a real save through it — it writes straight to the live
+target file with no scratch-copy option, and that would have been an
+unrequested live change, not a test.
+
+**Then, per user request, verified the actual save logic end-to-end
+against the REAL repo files** (not scratch copies) — one round-trip per
+patch mode (sync/hudLayout, path/areas, whole/bossPhaseConfig,
+arrayByKey/comboDefs, rawVar/enemyStatVar): snapshot original content →
+call the exact production function `ipcHandlers.js` calls → confirm the
+write landed → restore the exact original content → verify byte-for-byte
+restoration. All 5 passed and all 5 restored cleanly; confirmed
+afterward via `git status` (no diff beyond each file's pre-existing
+state), a repo-wide grep for test markers (none leaked), and a check for
+stray `.bak` files (none left behind). This is the strongest verification
+short of clicking the actual buttons in the packaged app — which remains
+genuinely unverified, per this repo's standing no-browser-testing rule
+(restated again this session when asked directly to test the GUI).
+**Next step is on the user**: run `npm start`, click "Write to disk" in
+any wired editor for real, confirm it works.
+
+**Update, 2026-08-04 — user confirmed the click-through worked.** Ran
+`npm start`, used a wired editor's "Write to disk" button for real, no
+issues. This closes the one gap the previous entry called out as
+genuinely unverified.
+
+### Unified Editor IDE — `asset_browser.html` wired (2026-08-04)
+
+Read the actual file before wiring it — the plan doc's original framing
+("the tool that benefits most from real filesystem browsing instead of
+`<input type=file>`") turned out to be wrong. `asset_browser.html` isn't
+a file browser at all: it's a read-only viewer over a JSON index
+(produced by `node editor/asset_index.js --json`) of identifier
+references across `game/`+`editor/` (audio sample/music keys, area ids,
+anim keys, combo ids, ability keys), paired with `rename_asset.js`, a
+project-wide rename CLI (rewrites every quoted reference, offers a
+`git mv` for the backing asset file on `--write`). The page's own hint
+text already says "this page never writes to disk itself," and
+`rename_asset.js`'s header frames the same thing — intentional, not an
+oversight.
+
+Given that, wired only the part that's unambiguously safe: a new
+"Generate index" button (`editor_shell/ipcHandlers.js`'s
+`stillpoint:generateAssetIndex`, `execFileSync('node', ['asset_index.js',
+'--json'])`, no AST) replaces the old manual "run in a terminal, save the
+output, then `<input type=file>`-load it" round trip. Read-only, same as
+the script itself. **Deliberately left `rename_asset.js`'s `--write` mode
+unautomated** — running an arbitrary project-wide rewrite plus `git mv`
+from a one-click GUI button is a materially bigger trust jump than any
+const-value patch built so far, and would have overridden an existing,
+explicit design decision in the tool rather than filled a gap. Flagged
+this rather than assuming; "copy rename cmd" (manual, paste into a
+terminal yourself) is unchanged. Verified the new IPC call headlessly
+against the real repo — correctly returned all 6 namespaces.
+
+### Plotline Editor v1 — flag graph + visions + quests + dialogue (2026-08-03)
+
+Built `editor/plotline_editor.html`/`.js`, the tool designed in
+`Plans/plotline_editor_plan.md` — one shell, five tabs (Flag Graph /
+Visions / Quests / Dialogue / Export). Covers the plan's build order §1–§4
+as **tooling**; the plan's §5 (wiring the pacifist NPC's actual content and
+the `companionRestricted` region field) is deliberately still open — this is
+infra, same "built but not content-populated" state `cutsceneTriggers`/
+`audioZones` shipped in.
+
+Three narrative data files created as bare-top-level `const` + `window`/
+`module.exports` mirrors (per CLAUDE.md's IIFE-vs-bare convention, so game
+code can later read them directly and Node CLIs can require them):
+`game/visions.js` (`VISIONS`), `game/quests.js` (`QUESTS`),
+`game/npcDialogue.js` (`NPC_DIALOGUE`), plus the sidecar
+`game/storyFlagMeta.js` (`STORY_FLAG_META`, descriptions only — never the
+flags themselves). **None are wired into `index.html` yet** — runtime is
+unchanged; the game does not consume them until the plan's content/wiring
+phase. The editor loads them via its own `<script>` tags the same way
+`cutscene_editor.html` reads the live `CUTSCENES`.
+
+`game/plotlineVerify.js` — the plan's recommended single shared analyzer
+(`PlotlineVerify.analyze()`/`.verify()`), UMD-ish dual export like
+`roomVerify.js`/`minibossRegistry.js`. Statically reads the four narrative
+sources as **plain data** (never executes any `call`/`fn`), extracts every
+flag write/read, builds the directed dependency graph, and runs the three
+audits the plan's review section called for: DFS **cycle detection**
+(white/gray/black three-colour) for softlock deadlocks, **dead-flag** audit
+(written-never-read — downgraded to `info` when only cutscenes write it,
+since cutscene reads live in game code not data), and **unwritten-flag**
+audit (required-by-a-gate-but-never-set → `error`, that gate can never
+open). The Flag Graph tab is the force-directed dynamic layout the plan
+asked for (canvas spring sim, drag-to-pin, colour by writer source), with
+the audit output shown as a clickable typed issue list — same
+`RoomVerify`-style issue shape so a future `debug_v1.html` R-check can call
+the identical function (plan's "debug tool integration" gap — the shared
+function exists; the debug wiring itself is the still-open half).
+
+Persistence follows the **dominant** editor pattern (levelEditor/cutscene/
+combo), not new `save-server.js` routes: four `localStorage` override keys
+(`stillpoint_{visions,quests,npc_dialogue,flag_meta}_overrides_v1`) for
+in-tool continuity + paste-ready JS export per file for the repo commit.
+This sidesteps the plan's own finding that `save-server.js` has no
+create-a-new-file code path — the export/copy-paste flow needs none. Undo/
+redo via the shared `game/undoHistory.js` (one snapshot bundling all four
+working objects + selections), `UnsavedGuard` watch, `DevContext` logging,
+`design-system.css` throughout — all per the editor conventions.
+
+`editor/dev_hub.html` updated: the Plotline Editor is now a live sidebar
+entry under Level Design (was briefly a "planned" doc link), and its four
+override keys are registered in the Live Overrides panel so stale plotline
+overrides are visible/clearable there like the other tools'. Verified with
+`node --check` on all six new JS files and a Node smoke-test of
+`PlotlineVerify.analyze()` against a crafted dataset (cycle, unwritten gate,
+dead flag, cutscene-only writer, healthy chain — all classified correctly).
+No browser testing, per this repo's standing rule.
+
+### boss_phase_editor.html — miniboss disk-write parity, Phase 1 of `Plans/boss_phase_editor_universal_plan.md` (2026-08-04)
+
+Architecture audit first: `boss_phase_editor.html` was already less
+Sovereign-only than assumed — it already had a target dropdown covering
+the Sovereign plus all 12 `ComposedEnemy`-based minibosses
+(`COMPOSED_PHASE_DEFS` in `game/enemy.js`), with a generic phase-card UI
+for the miniboss branch already handling variable-length phase arrays.
+The actual gap was narrower: miniboss edits only ever saved to
+`localStorage` (`ENEMY_PHASE_OVERRIDES_KEY`) — `writeFileBtn` was
+hard-blocked for every non-Sovereign target, so tuning didn't survive a
+fresh profile/browser. Full audit + remaining phases (bespoke-class
+minibosses `ColossusCore`/`TemporalWarden` have zero config surface at
+all; base-stat editing overlap with `enemy_designer.html`) written up in
+`Plans/boss_phase_editor_universal_plan.md`.
+
+Fixed the disk-write gap: 12 new `minibossPhases_<id>` entries added to
+`editor_shell/targets.js` (`mode: 'path'`, `game/enemy.js`, one per
+`*_DEF` const — `CONDUIT_DEF`, `MIRROR_KING_DEF`, `GRAVITON_GUARD_DEF`,
+etc.), patching only each def's `.phases` sub-key since — unlike
+`BOSS_PHASE_CONFIG`, which was already verified comment-free and safe for
+`mode: 'whole'` — these defs carry hand-written design comments elsewhere
+in the same object (e.g. `GRAVITON_GUARD_DEF`'s block/shield-combo note)
+that a whole-object replace would destroy. No `ipcHandlers.js`/
+`preload.js` changes needed — `stillpointAPI.patchPath()` was already a
+generic route, it just had no registered targets pointing at
+`game/enemy.js` defs yet. `boss_phase_editor.html`'s `writeFileBtn`
+handler now branches by target (Sovereign → `writeWhole`, miniboss →
+`patchPath` via a new `MINIBOSS_WRITE_TARGETS` id map), button label
+dropped "Sovereign only," and the same `findNonFiniteNumber()` write
+guard now covers miniboss phase data too.
+
+Verified via a scratchpad dry run against a throwaway copy of
+`game/enemy.js` (never the real file): patched
+`GRAVITON_GUARD_DEF.phases` and diffed — only the `phases` array changed,
+every comment and every other def byte-identical; confirmed all 12 new
+target `declName`s exist as real top-level consts in `game/enemy.js`.
+**Not yet exercised through the actual Electron app UI** (this repo's
+CLAUDE.md hard-bans self-testing in a browser/preview) — next step is on
+the user: `npm start` → Boss Phase Editor → pick a miniboss → edit a
+phase → "Write to source file" → confirm the disk write and `.bak` file.
+Phases 2 (bespoke minibosses) and 3 (base-stat editing overlap) are still
+open, gated on user decisions per the plan doc.
+
+### Unified Editor IDE — Milestone 3, real tabs + shared DevContext (2026-08-04)
+
+Per `Plans/unified_editor_ide_plan.md`, built after the user asked for it
+directly. Two changes, both scoped to what the doc's migration-order
+bullet actually named (not the doc's broader "open-ended UI project"
+framing — panels/split-view stayed out of scope for this round):
+
+- **Real tabs.** New `editor_shell/tabManager.js`: one `WebContentsView`
+  per tab (same `webPreferences` every tool page already had —
+  `contextIsolation: true`, `nodeIntegration: false`,
+  `editor_shell/preload.js`), layered onto `win.contentView` below a new
+  40px strip. The window's own page is now `editor_shell/shell.html` (tab
+  strip: title/close per tab, `+`, back/forward/home/reload) with its own
+  narrower `editor_shell/shell-preload.js` (`shellAPI`, tab control only —
+  no save-target access). `setWindowOpenHandler` now opens tool links as
+  new tabs instead of navigating the current one away (replaces Milestone
+  1's window-navigates-in-place behavior). App menu updated: File (New
+  Tab/Close Tab) and Navigate (Back/Forward/Home/Reload, Next/Prev Tab,
+  DevTools), all operating on the active tab.
+- **`DevContext` as real shared state.** New
+  `editor_shell/devContextStore.js`: the main process now holds the one
+  authoritative copy, persisted to disk in `app.getPath('userData')`
+  (not localStorage — survives cache clears, no per-origin/quota
+  dependency), pushed live to every open tab via a new `devcontext:changed`
+  IPC broadcast on every `get`/`set`/`log` (new `stillpoint:devContext*`
+  channels in `ipcHandlers.js` + `preload.js`). `game/devContext.js` kept
+  its exact synchronous `get()`/`set()`/`log()`/`recent()` surface — the
+  ~22 editor files calling it needed zero changes — but now reconciles
+  with the Electron copy when present and dispatches a
+  `devcontext:changed` `CustomEvent` other pages can listen for;
+  `dev_hub.html`'s sidebar/activity feed does. Outside Electron (a tool
+  opened in a plain browser tab against `save-server.js`, still fully
+  supported), this falls back to the original localStorage +
+  `storage`-event behavior, byte-for-byte unchanged.
+
+Verified via `node --check` on every new/changed file and by
+cross-checking every Electron API used (`WebContentsView`,
+`BrowserWindow.contentView`, `.children`/`addChildView`/`removeChildView`,
+`WebContents.navigationHistory`) against this repo's installed
+`electron@43.2.0` type definitions to confirm they exist with the
+signatures used. **Not yet exercised through the actual app UI** (same
+standing no-browser-testing rule as every other editor-tooling entry in
+this log) — the plan doc's own "Manual test checklist" section has the
+exact steps, most importantly re-running `debug_v1.html`/`debug_v2.html`
+inside a tab to confirm their iframe+`eval` harness still passes now that
+they run inside a `WebContentsView` rather than the window's root
+`webContents` (expected to be a non-issue since `webPreferences` didn't
+change, but worth the same explicit re-check Milestone 1 did rather than
+assuming it).
+
+### boss_phase_editor.html — the two bespoke minibosses, Phase 2 of `Plans/boss_phase_editor_universal_plan.md` (2026-08-04)
+
+Followed Phase 1's disk-write parity work. The two remaining uncovered
+minibosses, `ColossusCore` and `TemporalWarden`, are hand-written classes
+with no `.phases`/`.attacks` data surface at all — closing that gap needed
+a per-boss judgment call, not just editor plumbing, so each got its own
+scoped research pass before any code changed. Researching `TemporalWarden`
+specifically surfaced something worth flagging on its own: its rewind and
+Stillpoint-resistance mechanics are documented, twice independently (in
+`game/enemy.js`'s own comment and in `Plans/enemy_system_plan.md`), as a
+deliberate one-off "not a template to repeat elsewhere" — generalizing
+either onto `ComposedEnemy` would mean building new shared engine
+infrastructure specifically to reverse that stated decision, so the user
+was asked directly rather than defaulting into it.
+
+**User's call, a genuine split**: `ColossusCore` → full `ComposedEnemy`
+migration (Option B). `TemporalWarden` → stays bespoke, gets a narrow
+numeric-tuning surface instead (Option C).
+
+**`ColossusCore`** (`game/enemy.js`) — bespoke class replaced in place
+with `COLOSSUS_CORE_DEF` + a slim `class ColossusCore extends
+ComposedEnemy`. Needed two small, generic, backward-compatible additions
+to the shared vocabulary (zero effect on any entity that doesn't set
+them): a new `MOVEMENT_BEHAVIORS.ground_hold` type (hold position, only
+approach past a distance threshold, decelerate to a stop — confirmed
+`ground_chase`'s patrol fallback couldn't substitute, it oscillates around
+a center rather than standing still), and optional `hitboxOffsetX`/
+`hitboxOffsetY` params on `melee_swing` (default `0`/`4`, exactly
+preserving every existing user's behavior) so the overhead swing's hitbox
+can sit higher/further forward than that type's default low-slash offset.
+Everything else — the heavy-attack-only damage gate, per-frame facing
+tracking (the original never locks facing mid-attack, unlike
+`ComposedEnemy`'s base behavior), one shared cooldown across both attacks
+instead of independent per-attack cooldowns, and the hand-painted crack/
+molten-core/telegraph visuals — is a subclass-local override, the same
+`super.x() + custom logic` pattern `QuantumPursuer`/`ElectromagneticGolem`
+already use elsewhere in this file, not new shared engine surface. Traced
+the original state machine carefully for the cooldown values specifically
+(its own `attackCooldown` field was always shorter than, and thus made
+irrelevant by, the post-attack idle-state wait that actually gated
+recovery — copying the field's numbers directly would have been a subtle
+fidelity bug). Two accepted, documented behavior deltas kept as-is rather
+than chased down with more engine work (verify by feel during
+playtesting): `dash_charge`'s hitbox is the whole enemy body per that
+attack type's generic convention, not the original's narrower forward
+sliver; a charge that clips a wall zeroes velocity generically rather than
+instantly aborting back to idle. Wired into `COMPOSED_PHASE_DEFS`/
+`editor_shell/targets.js` (`minibossPhases_colossus_core`)/
+`boss_phase_editor.html`'s `MINIBOSS_WRITE_TARGETS` exactly like the other
+12 — Phase 1's machinery covers any id present in `COMPOSED_PHASE_DEFS`
+automatically, no editor-side special-casing needed for Colossus itself.
+The class's own `extends ComposedEnemy` meant it had to physically move in
+the file, from before `ComposedEnemy`'s declaration to after it (JS class
+declarations aren't hoisted) — caught by `node --check` immediately.
+
+**`TemporalWarden`** (`game/enemy.js`) — mechanics untouched, per the
+"stays bespoke" call above. Its previously-inline magic numbers (chrono
+bolt telegraph/cooldown/speed/damage, kite distance/deadzone/speed) were
+named as 7 new top-level consts alongside the 6 that already existed
+(`TEMPORAL_WARDEN_HEALTH`, rewind-cycle timing, Stillpoint-resistance
+ramp) — pure extraction, zero behavior change. `boss_phase_editor.html`
+gained a third UI branch (`#bespokeUI`) alongside the existing Sovereign/
+generic-miniboss ones: 13 grouped number inputs, disk-write via a new
+`temporalWardenStatVar` `rawVar` target (`editor_shell/targets.js`) — the
+exact pattern `enemy_editor.html` already uses for other enemies' stat
+consts via `writeNamedVar`. Deliberately no localStorage live-preview
+button for this branch (confirmed by reading `enemy_editor.html`'s actual
+save path first, not assumed): `rawVar`-backed consts have no runtime
+override-application mechanism in this codebase, in this tool or that one
+— disk-write is genuinely the only persistence path available, so the UI
+doesn't pretend otherwise. Caught a real bug during implementation: reading
+a `const`-declared global as `window.VAR_NAME` silently returns `undefined`
+in a classic (non-module) `<script>` — only `var`/function declarations
+become `window` properties, `const`/`let` don't, even though the same
+identifiers are directly readable as bare references from a later
+`<script>` tag in the same document (confirmed against this exact file's
+own pre-existing `BOSS_PHASE_CONFIG` references). Fixed with an explicit
+`twCurrentValue()` switch over the known var names rather than dynamic
+`window[...]` lookup or an `eval`.
+
+Verified via scratchpad-copy dry runs (never the real file, per this
+repo's standing rule): `patchPathInFile` for `COLOSSUS_CORE_DEF.phases`
+and `patchConstInFile` for two `TEMPORAL_WARDEN_*` consts, both diffed
+clean (only the intended value changed, every comment/other field
+byte-identical) and both patched copies passed `node --check`. All new
+decl/const names confirmed present as real top-level declarations;
+`boss_phase_editor.html`'s embedded `<script>` extracted and syntax-checked
+directly; confirmed every `#bespokeUI` input id matches `TW_VAR_MAP`
+exactly. **Not exercised through the actual Electron app UI or in a real
+fight** (this repo's CLAUDE.md hard-bans browser/preview self-testing) —
+next step is on the user: `npm start` → spawn/fight Colossus Core (via
+`enemy_test.html` or a real run of Crag of the Colossus) to confirm the
+two attacks still feel right, and confirm `boss_phase_editor.html` lists
+and can disk-write both Colossus Core (full phase/attack editing) and
+Temporal Warden (numeric tuning branch). Phase 3 (the `enemy_designer.html`
+base-stat editing overlap) is still open, per
+`Plans/boss_phase_editor_universal_plan.md`.

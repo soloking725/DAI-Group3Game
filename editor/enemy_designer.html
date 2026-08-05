@@ -500,6 +500,31 @@ function freshDef() {
 let def = freshDef();
 let currentEnemy = null;
 
+// ─── Deep-link resume (2026-08-04) — dev_hub.html's ?enemy= param, same
+// contextKey pattern enemy_editor.html already supports. Enemy Designer
+// defs are ad-hoc (no fixed registry like ENEMY_REGISTRY), so resuming
+// needs its own small localStorage-backed dict of "defs seen this session"
+// — every action that already calls DevContext.set({currentEnemyId})
+// (test arena / export / load) also persists into it via
+// persistDefForResume(), so opening the hub link after any of those
+// resumes the exact same def instead of always starting from freshDef().
+const ENEMY_DESIGNER_DEFS_KEY = 'stillpoint_enemy_designer_defs_v1';
+function persistDefForResume() {
+  try {
+    const all = JSON.parse(localStorage.getItem(ENEMY_DESIGNER_DEFS_KEY) || '{}');
+    all[def.id] = def;
+    localStorage.setItem(ENEMY_DESIGNER_DEFS_KEY, JSON.stringify(all));
+  } catch (e) { /* storage unavailable/full — deep-link resume just won't have this one */ }
+}
+(function applyDeepLink() {
+  const wantId = new URLSearchParams(location.search).get('enemy');
+  if (!wantId) return;
+  try {
+    const all = JSON.parse(localStorage.getItem(ENEMY_DESIGNER_DEFS_KEY) || '{}');
+    if (all[wantId]) def = all[wantId]; // already normalized — it was saved from a live `def` by persistDefForResume()
+  } catch (e) { /* storage unavailable — falls through to the freshDef() already assigned above */ }
+})();
+
 // ─── Canvas sizing (same override enemy_test.html uses) ───
 window.addEventListener('resize', fitCanvasToStage);
 fitCanvasToStage();
@@ -994,6 +1019,7 @@ document.getElementById('respawnBtn').addEventListener('click', respawn);
 document.getElementById('testArenaBtn').addEventListener('click', () => {
   localStorage.setItem('stillpoint_enemy_designer_test', JSON.stringify({ def }));
   window.open('enemy_test.html', '_blank');
+  persistDefForResume();
   if (typeof DevContext !== 'undefined') {
     DevContext.set({ currentEnemyId: def.id });
     DevContext.log('Enemy Designer', 'Sent to Test Bench', def.id);
@@ -1003,6 +1029,7 @@ document.getElementById('testArenaBtn').addEventListener('click', () => {
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   document.getElementById('exp-out').value = JSON.stringify(def, null, 2);
+  persistDefForResume();
   if (typeof DevContext !== 'undefined') {
     DevContext.set({ currentEnemyId: def.id });
     DevContext.log('Enemy Designer', 'Exported def', def.id);
@@ -1047,6 +1074,7 @@ document.getElementById('loadBtn').addEventListener('click', () => {
     def.stats.height = def.stats.height || 28;
     def.stats.shield = def.stats.shield || null;
     refreshUIFromDef();
+    persistDefForResume();
     if (typeof DevContext !== 'undefined') {
       DevContext.set({ currentEnemyId: def.id });
       DevContext.log('Enemy Designer', 'Loaded def', def.id);

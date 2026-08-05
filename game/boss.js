@@ -106,7 +106,7 @@ function resolveWeightedAttackName(attacks, r) {
 // per-phase-number), never a wholesale replace of BOSS_PHASE_CONFIG.
 const BOSS_CONFIG_OVERRIDES_KEY = 'stillpoint_boss_phase_overrides_v1';
 function applyBossConfigOverrides() {
-  const overrides = readOverrideJSON(BOSS_CONFIG_OVERRIDES_KEY);
+  const overrides = readOverrideJSON(BOSS_CONFIG_OVERRIDES_KEY, OverrideShape.object);
   if (!overrides) return;
   if (overrides.phaseThresholds) BOSS_PHASE_CONFIG.phaseThresholds = overrides.phaseThresholds;
   if (overrides.reservedSlot) Object.assign(BOSS_PHASE_CONFIG.reservedSlot, overrides.reservedSlot);
@@ -144,6 +144,7 @@ class Boss {
     this.currentAttack = null;
     this.telegraph = null;
     this.hitEffects = [];
+    this.flashTimer = 0;
 
     // Consecutive hit tracking (for punish burst)
     this.consecutiveHits = 0;
@@ -462,6 +463,7 @@ class Boss {
       }
     }
     this.health -= amount;
+    this.flashTimer = 8; // matches ComposedEnemy's default flash duration
     this.hitEffects.push({
       x: this.x + this.width / 2 + (Math.random() - 0.5) * 20,
       y: this.y - 10,
@@ -490,6 +492,11 @@ class Boss {
 
     // ── Time scale (must be defined before stun check below) ─────────────
     const _globalTS = (typeof gameTimeScale !== 'undefined') ? gameTimeScale : 1.0;
+
+    // Hit-flash — unscaled and ticks even while stunned/dead-gated above,
+    // same convention every other enemy's flashTimer uses (see enemy.js),
+    // so a hit landing right before a stun doesn't leave the flash stuck on.
+    if (this.flashTimer > 0) this.flashTimer--;
 
     // Stunned by parry — skip all actions
     if (this.stunTimer > 0) {
@@ -1355,7 +1362,7 @@ class Boss {
     if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
       this.animator.draw(ctx);
     } else {
-      const bodyColor = this.phase === 3 ? '#f87171' : this.phase === 2 ? '#c084fc' : '#8b5cf6';
+      const bodyColor = this.flashTimer > 0 ? '#ffffff' : this.phase === 3 ? '#f87171' : this.phase === 2 ? '#c084fc' : '#8b5cf6';
       ctx.fillStyle = bodyColor;
       ctx.fillRect(this.x + 4, this.y + 4 + idleBob, this.width - 8, this.height - 8);
 

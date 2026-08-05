@@ -1,8 +1,14 @@
-# Movement Feel — "late Celeste" speed & fluidity (proposal, not started)
+# Movement Feel — "late Celeste" speed & fluidity (partially built)
 
-Status: design proposal only (2026-07-13). No code changed. Written in response to a
-direct request to plan toward faster, more fluid player movement (and enemies that match
-that pace), referencing Celeste's late-game/B-side movement feel as the target.
+Status: design proposal from 2026-07-13; **lever 2 (directional dash) is now built** —
+updated 2026-08-03. `player.js`'s `getDashDirection()` (line ~292) implements exactly the
+gated design this doc's §2 anticipated: 8-way dash (regular Dash *and* Phase Dash both,
+read from held move/aim keys) unlocks at Phase Dash Lv1+ via the ability-leveling system,
+falling back to the old facing-only horizontal dash below that tier or with no directional
+input held — this is roadmap 1.9's ability-upgrade-shop framing, not the unconditional/
+free version. **Lever 1 (dash refill on landing) is still NOT built** — no
+landing-triggered `dashCooldown = 0` reset found in `player.js`; only the existing
+chain-decay/timer logic exists. This remains the single biggest open lever below.
 
 ## Where the game already is (read from the actual code, not guessed)
 
@@ -52,7 +58,11 @@ main problem; availability/chainability of dash is.
    *air* chaining (dash → dash → dash without touching ground) so that system still means
    something — this only removes the "wait out a timer while standing still" case, which
    is the part that reads as unresponsive rather than deliberate.
-2. **Directional dash** (regular Dash — Shift/X — not Phase Dash, see note below). Right
+2. **Directional dash — BUILT (2026-08-03), gated behind Phase Dash Lv1+, applies to
+   both regular Dash and Phase Dash** (see the updated status note above — this
+   superseded the "not touching Phase Dash" framing this section originally proposed;
+   the shipped version matches the ability-leveling design instead). Original proposal
+   text kept below for context. Right
    now `usePhaseDash`-style horizontal-only logic also governs the regular dash:
    `this.vx = this.facing * DASH_SPEED * ...` always fires horizontally regardless of
    held direction. Change: at the moment Dash is pressed, read held movement keys

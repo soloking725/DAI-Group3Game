@@ -5119,7 +5119,7 @@ const AREAS = {
 // post-override AREAS so a bad saved room still gets caught).
 const AREA_OVERRIDES_KEY = 'stillpoint_area_overrides_v1';
 (function applyAreaOverrides() {
-  const overrides = readOverrideJSON(AREA_OVERRIDES_KEY);
+  const overrides = readOverrideJSON(AREA_OVERRIDES_KEY, OverrideShape.object);
   if (!overrides) return;
   for (const id in overrides) AREAS[id] = overrides[id];
 })();

@@ -1,5 +1,14 @@
 # Enemy System — Composable Modules Plan (2026-07-15)
 
+**Doc-currency note (2026-08-03):** re-checked against code — Phase A's
+registries (`ATTACK_BEHAVIORS`/`COUNTER_EFFECTS`/`ON_DEATH_EFFECTS` in
+`enemy.js`) are still live and load-bearing; `enemy_attack_vocabulary_plan.md`
+builds its newer attack-verb layer directly on top of them. This doc wasn't
+in `CLAUDE.md`'s pointer list despite being current architecture — now added.
+Everything below marked **Plan — Phase B** is backlog/wishlist, not active
+planning — cross-check against `expansion.md`'s roster before assuming any
+of it is scheduled.
+
 ## Status: Phase A is BUILT (2026-07-15), not yet human-playtested
 
 Per the standing `CLAUDE.md` rule, this was built without opening a

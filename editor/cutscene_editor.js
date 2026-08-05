@@ -1,4 +1,4 @@
-// Cutscene Step Editor — Plans/cutscene_editor_plan.md v1 (2026-07-30).
+// Cutscene Step Editor — Plans/archive/cutscene_editor_plan.md v1 (2026-07-30).
 // A structured list-and-form editor over cutscene.js's already-fully-specified
 // CUTSCENES step format (wait/text/cameraPan/cameraReturn/movePlayer/setFlag/
 // call/choice) — deliberately NOT a timeline/node-graph UI, per the plan's
@@ -729,6 +729,71 @@ document.getElementById('preview-choice-b').addEventListener('click', () => {
   renderPreviewStep();
 });
 
+// ── Live preview — boots the real game in a sandboxed iframe and runs the
+// working (possibly unsaved) step list through the actual playCutscene()
+// engine, so camera pans/call-step side effects/timing are the REAL thing,
+// not the mocked walkthrough above. Complements it rather than replacing
+// it — the mocked one is instant and needs no boot, this one is for
+// verifying the runtime behavior actually works. Same fetch+srcdoc+rewrite
+// technique as room_scene_editor.js's loadSandboxFor()/refreshPreview().
+let liveWin = null;
+let livePreviewGeneration = 0;
+
+async function loadLiveSandbox() {
+  const iframe = document.getElementById('live-sandbox');
+  const html = await fetch('../index.html').then((r) => r.text());
+  const rebased = html.replace(/src="game\//g, 'src="../game/');
+  // enemy_test_arena is the same flat, isolated dev room ability_tester.html/
+  // companion_test.html boot into — a neutral stage so the cutscene's own
+  // cameraPan/movePlayer steps are the only camera motion visible.
+  const patch = `<script>window.__editorSpawnRoom = 'enemy_test_arena';<\/script>`;
+  const patched = rebased.replace('<script src="../game/audio.js">', patch + '<script src="../game/audio.js">');
+  return new Promise((resolve, reject) => {
+    iframe.onload = () => resolve(iframe);
+    iframe.onerror = reject;
+    iframe.srcdoc = patched;
+  });
+}
+
+async function openLivePreview() {
+  if (!selectedKey) return;
+  const gen = ++livePreviewGeneration;
+  const statusEl = document.getElementById('live-preview-status');
+  document.getElementById('live-preview-overlay').classList.add('open');
+  liveWin = null;
+  statusEl.textContent = 'booting…';
+  try {
+    const iframe = await loadLiveSandbox();
+    await new Promise((r) => setTimeout(r, 350)); // let applyDevSpawnOverride()/init() settle, same delay room_scene_editor.js uses
+    if (gen !== livePreviewGeneration) return; // closed/reopened before boot finished
+    liveWin = iframe.contentWindow;
+    // Preview safety, same reasoning as room_scene_editor.js's
+    // applyPreviewSafety(): this is for testing cutscene CONTENT, not
+    // combat — a `call` step that spawns something shouldn't be able to
+    // end the session mid-story-test.
+    if (liveWin.player) liveWin.player.invincibleTimer = 999999;
+    // Push the working (possibly unsaved) cutscene data into the sandbox so
+    // Play tests exactly what's on screen right now, not the last save.
+    if (liveWin.CUTSCENES) Object.assign(liveWin.CUTSCENES, clone(workingCutscenes));
+    if (typeof liveWin.playCutscene === 'function') {
+      liveWin.playCutscene(selectedKey);
+      statusEl.textContent = 'playing "' + selectedKey + '"';
+    } else {
+      statusEl.textContent = 'error: playCutscene() not found in sandbox';
+    }
+  } catch (e) {
+    if (gen !== livePreviewGeneration) return;
+    statusEl.textContent = 'failed to load: ' + e.message;
+  }
+}
+function closeLivePreview() {
+  livePreviewGeneration++; // invalidate any in-flight boot so a stale one can't resolve into a closed overlay
+  document.getElementById('live-preview-overlay').classList.remove('open');
+  liveWin = null;
+}
+document.getElementById('live-preview-btn').addEventListener('click', openLivePreview);
+document.getElementById('live-preview-close').addEventListener('click', closeLivePreview);
+
 // ── Export / Save ────────────────────────────────────────────────────────
 function stepsToJs(steps, indent) {
   const pad = '  '.repeat(indent);
@@ -764,6 +829,38 @@ document.getElementById('save-live-btn').addEventListener('click', () => {
     document.getElementById('live-status').innerHTML = `<span class="ok">✓ Saved ${Object.keys(overrides).length} cutscene(s) to the Live override. index.html and other tools will pick these up on next load.</span>`;
   } catch (e) {
     document.getElementById('live-status').innerHTML = `<span class="bad">✗ Failed to save: ${e.message}</span>`;
+  }
+});
+
+// ─── WRITE TO cutscene.js (Electron only) — patches only
+// CUTSCENES[selectedKey] via the AST-based patcher, so every other
+// cutscene's data and hand-written comments are left untouched. Reuses
+// stepsToJs() (same serializer "Export Paste-Ready JS" uses) rather than
+// JSON.stringify, since `call` steps carry a raw `_callCode` function
+// expression that must land as real executable JS, not a quoted string.
+document.getElementById('write-file-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('live-status');
+  if (!selectedKey) { statusEl.innerHTML = '<span class="bad">✗ Select a cutscene first.</span>'; return; }
+  if (!window.stillpointAPI) {
+    statusEl.innerHTML = '<span class="bad">✗ Only available in the unified editor desktop app (npm start) — not in a plain browser tab.</span>';
+    return;
+  }
+  const steps = currentSteps();
+  const badPath = findNonFiniteNumber(steps);
+  if (badPath) {
+    statusEl.innerHTML = `<span class="bad">✗ Refusing to write: "${badPath}" is not a valid number. Fix the input field(s) and try again.</span>`;
+    return;
+  }
+  if (!confirm(`Write cutscene "${selectedKey}" to game/cutscene.js on disk? (a .bak is made first)`)) return;
+
+  try {
+    const valueSource = `{\n  steps: [\n${stepsToJs(steps, 2)}\n  ],\n}`;
+    const data = await window.stillpointAPI.patchPath('cutscenes', selectedKey, valueSource, true);
+    statusEl.innerHTML = `<span class="ok">✓ Saved! Written to game/cutscene.js. Backup: ${data.backup}</span>`;
+    if (typeof DevContext !== 'undefined') DevContext.log('Cutscene Editor', 'Wrote cutscene to disk', selectedKey);
+    if (unsavedGuard) unsavedGuard.checkpoint();
+  } catch (e) {
+    statusEl.innerHTML = `<span class="bad">✗ Could not write to disk: ${e.message}</span>`;
   }
 });
 

@@ -528,7 +528,7 @@ function draw() {
 
   // ── Inventory screen (2026-08-01 multi-page redesign) ────────────────────
   // Drawing moved to inventory_ui.js's drawInventoryScreen() — see
-  // Plans/inventory_redesign.md. Kept as a one-line dispatch here so this
+  // Plans/archive/inventory_redesign.md. Kept as a one-line dispatch here so this
   // file doesn't also own 4 pages' worth of canvas drawing.
   if (gameState === 'inventory') {
     drawInventoryScreen(ctx);

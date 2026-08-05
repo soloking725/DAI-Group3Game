@@ -39,7 +39,7 @@ hand-copying into a room; read the source):
 | `lore.md` | Full narrative: the Sovereign, every miniboss's tragedy/moral-axis writeup, per-region "Hunt" thread, lore-pip visual-effect table |
 | `expansion.md` | Mechanical effect per region, full 26+2+7 enemy roster, hazard/puzzle-room ideas (§3.16/3.17), miniboss movesets (Phase 4 table) |
 | `story.md` | Plot beats tied to specific rooms (Echo Bridge, Timeline Crossroads, Void Tether, the three endings, Sovereign postgame) |
-| `Plans/animation_editor_plan.md` | How `editor/anim_editor.html` and the `ANIM_DEFS` data model work |
+| `Plans/archive/animation_editor_plan.md` | How `editor/anim_editor.html` and the `ANIM_DEFS` data model work |
 | `Plans/cave_design_plan.md` | Cave-floor/no-fall-death aesthetic philosophy (superseded for region-specific look by `REGION_STYLES` in `game_entities.js`, still right for general cave-floor logic) |
 | `Plans/room_verification_tool_plan.md` | The reachability/safety linter design (`debug_v1.html`'s R09-R11 checks are the current down-payment on it) |
 | **This doc** | Per-region "everything in one place" reference for the actual room-design pass — pip/enemy/plot content, cross-linked to all of the above |
@@ -235,7 +235,7 @@ confirms this is deliberate, not a gap).
 
 ## 4. Anim editor workflow (`editor/anim_editor.html`)
 
-Full mechanism in `Plans/animation_editor_plan.md` — this is just the checklist for
+Full mechanism in `Plans/archive/animation_editor_plan.md` — this is just the checklist for
 using it while doing the room-design pass:
 
 1. **Nothing has hand-drawn art yet.** Every entity (player, all 19 enemies, all 14

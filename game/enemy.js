@@ -4,6 +4,7 @@ const ENEMY_SPEED = 1.5;
 const ENEMY_HEALTH = 6;
 const ENEMY_DAMAGE = 1;
 const ENEMY_ATTACK_RANGE = 40;
+const ENEMY_PATROL_RANGE = 120;
 
 // ── Player-outgoing melee knockback (2026-07-20) ────────────────────────────
 // Base per-hit knockback magnitude, keyed by swing direction — was three
@@ -32,7 +33,7 @@ const PATROL_SPEED = 0.7;             // slow wander speed, independent of chase
 const PATROL_IDLE_FRAMES = 30;        // frames to stand still after losing the player, before patrol resumes
 
 // ── AI reaction tuning (2026-07-16 combat overhaul — see
-// Plans/combat_ai_overhaul_plan.md §B) ───────────────────────────────────────
+// Plans/archive/combat_ai_overhaul_plan.md §B) ───────────────────────────────────────
 // Notice delay: an enemy that first spots the player holds an "alert" beat
 // (eye-glow ramp, no movement change) before actually engaging — enemies
 // should *react* to seeing you, not *know* the instant you cross a radius.
@@ -124,7 +125,7 @@ class Enemy {
     this.hitStun = 0;          // frames of hit stun remaining
     this.juggling = false;     // airborne combo state
     this.patrolCenter = x;
-    this.patrolRange = 120;
+    this.patrolRange = ENEMY_PATROL_RANGE;
     this.patrolDir = -1;   // patrol's own direction state — never read/written by chase code
     this.idleTimer = 0;    // frames left to stand still after losing the player, before patrol resumes
     this.aware = false;    // hysteresis flag — see canSeePlayer()
@@ -726,7 +727,7 @@ class Enemy {
         if (!this.grounded) this.juggling = true;
       }
     }
-    if (this.health <= 0) this.dead = true;
+    if (this.health <= 0) { this.health = 0; this.dead = true; this.deathTimer = 0; }
   }
 
   draw(ctx) {
@@ -891,6 +892,7 @@ const SENTINEL_PHASE_INTERVAL = 60; // ~1s per state at 60fps
 const WRAITH_FIELD_RADIUS = 120;
 const WRAITH_DRIFT_SPEED = 0.8;
 const ANCHOR_WRAITH_HEALTH = 4; // low relative to other enemies, per expansion.md — meant to be killed before it matters, not fought head-on
+const ANCHOR_WRAITH_PATROL_RANGE = 0; // hover movement never reads patrolRange — no gameplay effect, kept for consistency/future use
 
 
 // ── Deflector Drone (expansion.md 2.3 #31) — Shard Shot counter ────────────
@@ -901,6 +903,7 @@ const ANCHOR_WRAITH_HEALTH = 4; // low relative to other enemies, per expansion.
 // Phase-Dash counters above are).
 const DEFLECTOR_HOVER_SPEED = 0.5;
 const DEFLECTOR_HEALTH = 5;
+const DEFLECTOR_PATROL_RANGE = 0; // hover movement never reads patrolRange — no gameplay effect, kept for consistency/future use
 
 
 // ── Mirror Sprite (expansion.md §2, enemy #22) — Mirror Veil flavor enemy ──
@@ -1064,6 +1067,7 @@ const SENTINEL_HEALTH = 10;
 const SENTINEL_SHIELD_HP = 2;
 const SENTINEL_SPEED = 1.2;
 const SENTINEL_ATTACK_COOLDOWN = 90;
+const SENTINEL_PATROL_RANGE = 150; // hover movement never reads patrolRange — no gameplay effect, kept for consistency/future use
 
 // ComposedEnemy migration (2026-07-24, user request: "add crystal sentinel to
 // composed enemy so that all enemies are composed"). Def + class now live
@@ -1083,381 +1087,6 @@ const BLITZ_DAMAGE = 1;
 const BLITZ_WINDUP_FRAMES = 14; // very short – you MUST predict
 const BLITZ_ATTACK_COOLDOWN = 35;
 const BLITZ_DETECT_RANGE = 300;
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Colossus Core — Crag of the Colossus miniboss (crag_warden). A rock-shelled
-// construct that only Charged (heavy) attacks can damage — a normal hit
-// bounces off with a spark, exactly like the region's destructible rubble
-// walls. Single telegraphed charge attack, no phases — reskin of "The
-// Fractured Sovereign's Guard" (expansion.md 4.1), chosen because it's the most
-// "basic, no ability required beyond Charged Attack" fight on the miniboss
-// roster, which fits a region's first miniboss. Reward: +1 Max Health,
-// applied by game.js when `defeatedMinibosses['colossus_core']` flips true.
-// ─────────────────────────────────────────────────────────────────────────────
-const COLOSSUS_HEALTH = 20;
-const COLOSSUS_SPEED = 4.2; // bumped alongside the larger body (2026-07-27) — a bigger Colossus covering ground at the old speed read as sluggish
-const COLOSSUS_DAMAGE = 2;
-// Swing range/reach scale off `width`/`height` below — this is just the
-// distance threshold that decides "close enough to swing instead of
-// charging," not a hitbox size.
-const COLOSSUS_SWING_RANGE = 150;
-
-class ColossusCore {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    // A little larger than a big human-scale fighter (this game's player is
-    // 24x32; a broad-shouldered human-proportioned brawler would sit around
-    // 36-44 tall at this scale) — Colossus Core is meant to read as a
-    // towering golem well past that, not just a slightly bigger person.
-    this.width = 84;
-    this.height = 92;
-    this.vx = 0;
-    this.vy = 0;
-    this.health = COLOSSUS_HEALTH;
-    this.maxHealth = COLOSSUS_HEALTH;
-    this.facing = -1;
-    this.dead = false;
-    this.deathTimer = 0;
-    this.grounded = false;
-    this.flashTimer = 0;
-    this.bounceFlash = 0; // brief white flash when a NON-heavy hit bounces off (no damage)
-    this.state = 'idle';  // idle -> telegraph -> charging -> idle, or idle -> swing_telegraph -> swinging -> idle
-    this.stateTimer = 90;
-    this.attackCooldown = 0;
-    this.stunTimer = 0; // parry stun
-    this.displayName = 'Crag Warden'; // game.js's generic defeat notification reads this
-
-    // Visual/hitbox bridge to game/animdata.js (2026-07-27) — additive, same
-    // fallback rule as Boss/ComposedEnemy: an authored `colossus_<state>` key
-    // (editor/anim_editor.html) overrides the procedural body art AND the
-    // hardcoded hitbox rects below; nothing authored means zero behavior
-    // change. `this.state` is already attack-specific here (charging vs
-    // swinging are two different states), unlike Boss, so it doubles as the
-    // per-attack key with no extra `_activeAttack` field needed.
-    this.animator = new Animator(this);
-    this._animKey = null;
-  }
-
-  getBounds() { return { x: this.x, y: this.y, width: this.width, height: this.height }; }
-
-  animStateKey() {
-    if (this.dead) return 'colossus_dead';
-    return `colossus_${this.state}`;
-  }
-
-  // Whether a hit actually connects for life-steal/fracture-gain purposes —
-  // queried by game.js's generalized miniboss combat block instead of
-  // hardcoding "only heavy" to this one class. Matches takeDamage()'s own
-  // isHeavy gate exactly, so a non-heavy hit still bounces (no damage) but
-  // is also correctly reported as not having connected.
-  willConnect(isHeavy) { return !!isHeavy; }
-
-  getAttackHitbox() {
-    // Anim-driven path (2026-07-27) — mirrors Boss's getAttackHitbox() bridge
-    // exactly. `this._animKey` was already set to this tick's correct value
-    // by update() before game.js calls this.
-    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
-      const hitboxes = this.animator.currentHitboxes();
-      if (hitboxes.length === 0) return null;
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const hb of hitboxes) {
-        minX = Math.min(minX, hb.x); minY = Math.min(minY, hb.y);
-        maxX = Math.max(maxX, hb.x + hb.width); maxY = Math.max(maxY, hb.y + hb.height);
-      }
-      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-    }
-
-    if (this.state === 'charging') {
-      return {
-        x: this.facing === 1 ? this.x + this.width : this.x - 26,
-        y: this.y + 10,
-        width: 26,
-        height: this.height - 20,
-      };
-    }
-    // Swing — a wide overhead haymaker, reaching further out than the
-    // charge's contact poke and covering more vertical space (it's meant to
-    // threaten a player standing right next to the Colossus, not just
-    // whoever's directly in its charge lane).
-    if (this.state === 'swinging') {
-      return {
-        x: this.facing === 1 ? this.x + this.width - 10 : this.x - 46,
-        y: this.y - 10,
-        width: 56,
-        height: this.height * 0.7,
-      };
-    }
-    return null;
-  }
-
-  // Distinct feel per attack (game.js's generic miniboss combat block reads
-  // this if present, falling back to flat COLOSSUS_DAMAGE otherwise): the
-  // charge is a persistent shove down its charge lane, the swing is a single
-  // big haymaker that launches the player up and away instead.
-  getAttackDamageAndKnockback() {
-    // Anim-driven path — same authored-frame source as getAttackHitbox()
-    // above; first authored hitbox on the frame wins, falls through below
-    // when unauthored.
-    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
-      const hitboxes = this.animator.currentHitboxes();
-      if (hitboxes.length > 0) {
-        const hb = hitboxes[0];
-        return { damage: hb.damage, knockback: { vx: hb.knockbackX, vy: hb.knockbackY, hitStun: hb.hitStun } };
-      }
-    }
-
-    if (this.state === 'swinging') {
-      return { damage: COLOSSUS_DAMAGE, knockback: { vx: 5, vy: -9, hitStun: 18 } };
-    }
-    return { damage: COLOSSUS_DAMAGE, knockback: { vx: 6, vy: -2, hitStun: 14 } };
-  }
-
-  // `isHeavy` — only a Charged Attack can damage the core; a normal hit
-  // bounces off (visual/audio feedback only, no health loss, no hitstun).
-  // This mirrors the destructible-wall rule elsewhere in the region: some
-  // things only yield to force.
-  takeDamage(amount, fromX, attackDir, isHeavy) {
-    if (this.dead) return;
-    if (!isHeavy) {
-      this.bounceFlash = 8;
-      if (typeof SFX !== 'undefined') SFX.shardHit();
-      return;
-    }
-    this.health -= amount;
-    this.flashTimer = 8;
-    this.attackCooldown = Math.max(this.attackCooldown, 30);
-    if (fromX !== undefined) this.vx = (this.x > fromX ? 1 : -1) * 2;
-    if (this.health <= 0) { this.health = 0; this.dead = true; this.deathTimer = 0; }
-  }
-
-  update(player, bounds, echoes) {
-    const _ts = (typeof gameTimeScale !== 'undefined' && !isNaN(gameTimeScale)) ? gameTimeScale : 1.0;
-    if (this.dead) { this.deathTimer++; return; }
-
-    if (this.stunTimer > 0) {
-      this.stunTimer -= _ts;
-      this.flashTimer = Math.max(0, this.flashTimer - 1);
-      return;
-    }
-
-    const area = getCurrentArea();
-    this.facing = player.x > this.x ? 1 : -1;
-    this.flashTimer = Math.max(0, this.flashTimer - 1);
-    this.bounceFlash = Math.max(0, this.bounceFlash - 1);
-    if (this.attackCooldown > 0) this.attackCooldown -= _ts;
-    if (this.attackCooldown < 0) this.attackCooldown = 0;
-    this.stateTimer -= _ts;
-
-    const dist = Math.abs((player.x + player.width / 2) - (this.x + this.width / 2));
-
-    switch (this.state) {
-      case 'idle':
-        // Close in at a slow walk while out of charge range instead of
-        // just standing still waiting for the player to wander closer —
-        // a stationary Colossus reads as passive/static; this keeps it
-        // actually hunting between charges.
-        if (dist >= 500 && this.grounded) {
-          this.vx = this.facing * (COLOSSUS_SPEED * 0.3);
-        } else {
-          this.vx *= 0.85;
-        }
-        if (this.stateTimer <= 0) {
-          if (this.attackCooldown <= 0 && dist < COLOSSUS_SWING_RANGE && this.grounded) {
-            // Close enough to just swing — no reason to back off and charge
-            // when the player is already standing right next to it.
-            this.state = 'swing_telegraph';
-            this.stateTimer = 26; // shorter, punchier windup than the charge
-            this.vx = 0;
-            if (typeof SFX !== 'undefined') SFX.enemyTelegraphHeavy();
-          } else if (this.attackCooldown <= 0 && dist < 500 && this.grounded) {
-            this.state = 'telegraph';
-            this.stateTimer = 40; // visible windup before the charge — see draw()
-            this.vx = 0;
-            if (typeof SFX !== 'undefined') SFX.enemyTelegraphHeavy();
-          } else {
-            this.stateTimer = 30; // keep re-checking
-          }
-        }
-        break;
-      case 'telegraph':
-        this.vx = 0;
-        if (this.stateTimer <= 0) {
-          this.state = 'charging';
-          this.stateTimer = 50;
-          this.vx = this.facing * COLOSSUS_SPEED;
-        }
-        break;
-      case 'charging':
-        if (this.stateTimer <= 0) {
-          this.state = 'idle';
-          this.stateTimer = 70;
-          this.vx = 0;
-          this.attackCooldown = 60;
-        }
-        break;
-      case 'swing_telegraph':
-        this.vx = 0;
-        this.facing = player.x > this.x ? 1 : -1; // keep tracking right up to the swing itself — no free dodge by circling during the windup
-        if (this.stateTimer <= 0) {
-          this.state = 'swinging';
-          this.stateTimer = 16;
-          if (typeof screenShake !== 'undefined') {
-            screenShake = Math.max(screenShake, 14);
-            screenShakeIntensity = Math.max(screenShakeIntensity, 6);
-          }
-          if (typeof SFX !== 'undefined') SFX.enemyHeavyLand ? SFX.enemyHeavyLand() : SFX.enemyTelegraphHeavy();
-        }
-        break;
-      case 'swinging':
-        if (this.stateTimer <= 0) {
-          this.state = 'idle';
-          this.stateTimer = 60;
-          this.attackCooldown = 45; // shorter recovery than the charge — a swing doesn't send it careening off, less to punish
-        }
-        break;
-    }
-
-    this.grounded = false;
-    applyRoomGravity(this, _ts);
-    this.y += this.vy * _ts;
-    this.x += this.vx * _ts;
-    const phys = resolveEnemyPhysics(this, bounds, _ts); // shared resolver — see physics.js
-
-    // Hitting a wall (or the arena bound) ends a charge early instead of
-    // clipping out of bounds / grinding along the obstacle.
-    if (this.state === 'charging' &&
-        (phys.wallNormal !== 0 || phys.bounced ||
-         this.x <= bounds.left || this.x + this.width >= bounds.right)) {
-      this.state = 'idle'; this.stateTimer = 70; this.attackCooldown = 60; this.vx = 0;
-    }
-
-    // Visual/hitbox bridge (see animStateKey()'s comment above). Frame
-    // events support cameraShake/sfx only — no spawnProjectile, ColossusCore
-    // has no ranged attack to author toward.
-    this._animKey = this.animStateKey();
-    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
-      this.animator.play(this._animKey);
-      this.animator.update(_ts);
-      for (const ev of this.animator.consumeFrameEvents()) {
-        if (ev.type === 'cameraShake') {
-          if (typeof screenShake !== 'undefined') {
-            screenShake = Math.max(screenShake, ev.shake ?? 10);
-            screenShakeIntensity = Math.max(screenShakeIntensity, ev.intensity ?? 5);
-          }
-        } else if (ev.type === 'sfx') {
-          if (typeof SFX !== 'undefined' && typeof SFX[ev.name] === 'function') SFX[ev.name]();
-        }
-      }
-    }
-  }
-
-  draw(ctx) {
-    if (this.dead) {
-      ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / 30);
-    }
-
-    const cx = this.x + this.width / 2;
-    const cy = this.y + this.height / 2;
-    const healthFrac = this.health / this.maxHealth;
-
-    // Body/core/eye — visual bridge to game/animdata.js. Additive: falls
-    // back to the original procedural body exactly as before when no
-    // `colossus_<state>` key is authored. Everything below (telegraph
-    // rings, swing flash, health bar) still draws regardless, same
-    // "overlays are separate from body art" rule Boss/ComposedEnemy use.
-    if (typeof ANIM_DEFS !== 'undefined' && ANIM_DEFS[this._animKey]) {
-      this.animator.draw(ctx);
-    } else {
-      // Body — rust/stone shell, cracks appear as health drops
-      ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : this.bounceFlash > 0 ? '#fbbf24' : '#c2703d';
-      ctx.fillRect(this.x, this.y, this.width, this.height);
-      ctx.strokeStyle = '#7a4322';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(this.x, this.y, this.width, this.height);
-      ctx.lineWidth = 1;
-
-      // Crack overlay — more cracks the lower the health
-      const crackCount = Math.round((1 - healthFrac) * 6);
-      ctx.strokeStyle = 'rgba(10, 5, 3, 0.6)';
-      for (let i = 0; i < crackCount; i++) {
-        const seed = i * 37.13 + Math.floor(this.x); // stable per-instance, not per-frame random
-        const sx = this.x + 8 + (seed % (this.width - 16));
-        const sy = this.y + 8 + ((seed * 1.7) % (this.height - 16));
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + 8 - (seed % 16), sy + 10 - (seed % 20));
-        ctx.stroke();
-      }
-
-      // Molten core, visible through the shell — glows brighter as it takes damage
-      ctx.fillStyle = `rgba(251, 146, 60, ${0.3 + (1 - healthFrac) * 0.5})`;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 10 + (1 - healthFrac) * 6, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Eye
-      ctx.fillStyle = '#0a0a0f';
-      const eyeX = this.facing === 1 ? this.x + this.width - 20 : this.x + 12;
-      ctx.fillRect(eyeX, this.y + 14, 10, 8);
-    }
-
-    // Telegraph — expanding ring + "!" before the charge
-    if (this.state === 'telegraph') {
-      const progress = 1 - this.stateTimer / 40;
-      const ringRadius = 16 + progress * 36;
-      ctx.strokeStyle = `rgba(255, 120, 40, ${0.3 + progress * 0.5})`;
-      ctx.lineWidth = 3 - progress;
-      ctx.beginPath();
-      ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.lineWidth = 1;
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = `bold ${12 + Math.round(progress * 4)}px monospace`;
-      ctx.textAlign = 'center';
-      ctx.fillText('!', cx, this.y - 8);
-      ctx.textAlign = 'left';
-    }
-
-    // Charge tell — motion streaks behind it
-    if (this.state === 'charging') {
-      ctx.fillStyle = 'rgba(217, 119, 87, 0.4)';
-      const trailX = this.facing === 1 ? this.x - 20 : this.x + this.width;
-      ctx.fillRect(trailX, this.y + 10, 20, this.height - 20);
-    }
-
-    // Swing telegraph — a raised, glowing overhead arc on the swinging side
-    if (this.state === 'swing_telegraph') {
-      const progress = 1 - this.stateTimer / 26;
-      const armX = this.facing === 1 ? this.x + this.width : this.x;
-      ctx.strokeStyle = `rgba(255, 160, 60, ${0.35 + progress * 0.5})`;
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(armX, this.y, 20 + progress * 26, Math.PI * 1.1, Math.PI * 1.9);
-      ctx.stroke();
-      ctx.lineWidth = 1;
-    }
-
-    // Swing itself — a bright, wide sweep flash where the haymaker lands
-    if (this.state === 'swinging') {
-      const hb = this.getAttackHitbox();
-      if (hb) {
-        ctx.fillStyle = `rgba(255, 200, 120, ${0.5 * (this.stateTimer / 16)})`;
-        ctx.fillRect(hb.x, hb.y, hb.width, hb.height);
-      }
-    }
-
-    // Health bar
-    const barW = 70;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(cx - barW / 2, this.y - 20, barW, 6);
-    ctx.fillStyle = '#fb923c';
-    ctx.fillRect(cx - barW / 2, this.y - 20, barW * healthFrac, 6);
-
-    ctx.globalAlpha = 1;
-  }
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ComposedEnemy — data-driven enemy for no-code authoring (roadmap.md 2.8's
@@ -1621,6 +1250,26 @@ const MOVEMENT_BEHAVIORS = {
     run(enemy) { enemy.vx = 0; enemy.vy = 0; },
   },
 
+  // Stands its ground; only lumbers toward the player once they're beyond
+  // `approachRange`, decelerating back to a stop otherwise (`vx *= decel`).
+  // No patrol, no detect-range gating (reads raw distance unconditionally,
+  // not `sight.inRange`) — for heavy melee bosses that hold position
+  // rather than chase or patrol (Colossus Core migration, 2026-08-04).
+  // `ground_chase`'s patrol fallback doesn't substitute: it oscillates
+  // around a center rather than standing still.
+  ground_hold: {
+    params: { approachRange: 500, approachSpeed: 1.2, decel: 0.85 },
+    run(enemy, player, bounds, _ts, sight) {
+      const p = enemy.movement;
+      const dist = Math.abs(sight.dx);
+      if (dist >= p.approachRange && enemy.grounded) {
+        enemy.vx = Math.sign(sight.dx) * p.approachSpeed;
+      } else {
+        enemy.vx *= p.decel;
+      }
+    },
+  },
+
   // Blinks near/behind the player, either on a fixed interval or the instant
   // the player's Phase Dash ends (Echo Stalker style). Doesn't chase on foot.
   teleport_blink: {
@@ -1686,13 +1335,19 @@ const MOVEMENT_BEHAVIORS = {
 //       getHitbox(enemy, atkDef)                 — melee-style hitbox while active, or null
 const ATTACK_BEHAVIORS = {
   melee_swing: {
+    // hitboxOffsetX/Y (2026-08-04, Colossus Core migration) — optional,
+    // default to the original fixed `+0`/`+4` so every existing user of
+    // this attack type is unaffected. Lets a bigger/differently-shaped
+    // swinger (an overhead haymaker, say) reach further forward or higher
+    // than the standard low-slash offset.
     params: { range: 40, windupFrames: 28, activeFrames: 15, cooldown: 90, damage: 1,
-              hitboxWidth: 30, hitboxHeight: 24, knockbackX: 5, knockbackY: -4, knockbackHitStun: 10 },
+              hitboxWidth: 30, hitboxHeight: 24, hitboxOffsetX: 0, hitboxOffsetY: 4,
+              knockbackX: 5, knockbackY: -4, knockbackHitStun: 10 },
     getHitbox(enemy, atkDef) {
       if (!enemy.attacking) return null;
       return {
-        x: enemy.facing === 1 ? enemy.x + enemy.width : enemy.x - atkDef.hitboxWidth,
-        y: enemy.y + 4, width: atkDef.hitboxWidth, height: atkDef.hitboxHeight,
+        x: (enemy.facing === 1 ? enemy.x + enemy.width : enemy.x - atkDef.hitboxWidth) + atkDef.hitboxOffsetX * enemy.facing,
+        y: enemy.y + atkDef.hitboxOffsetY, width: atkDef.hitboxWidth, height: atkDef.hitboxHeight,
       };
     },
   },
@@ -2419,7 +2074,7 @@ class ComposedEnemy extends Enemy {
     if (def.stats?.height) this.height = def.stats.height;
     this.maxHealth = def.stats?.health ?? 4;
     this.health = this.maxHealth;
-    this.patrolRange = def.stats?.patrolRange ?? 120;
+    this.patrolRange = def.stats?.patrolRange ?? ENEMY_PATROL_RANGE;
     this.patrolCenter = x;
     this.verticalBand = def.stats?.verticalBand ?? null;
     this.ignoreVertical = !!def.stats?.ignoreVertical;
@@ -3733,7 +3388,7 @@ const CRYSTAL_SENTINEL_DEF = {
   // ENEMY_DAMAGE, kept as-is rather than silently rebalanced.
   attacks: [{ type: 'ranged_projectile', range: 400, windupFrames: 35, activeFrames: 20, cooldown: SENTINEL_ATTACK_COOLDOWN,
               damage: 12, projectileSpeed: 3.5, pattern: 'homing', homingDuration: 120, color: '#2dd4bf' }],
-  stats: { health: SENTINEL_HEALTH, width: 32, height: 40, ignoreVertical: true,
+  stats: { health: SENTINEL_HEALTH, width: 32, height: 40, ignoreVertical: true, patrolRange: SENTINEL_PATROL_RANGE,
            shield: { hp: SENTINEL_SHIELD_HP, breakDuration: 90, regenInterval: 180 } },
 };
 
@@ -3807,7 +3462,7 @@ const ANCHOR_WRAITH_DEF = {
   movement: { type: 'hover', mode: 'approach', speed: WRAITH_DRIFT_SPEED },
   attacks: [], // no melee of its own — the field is the whole point, same as the original
   counters: [{ ability: 'phase_dash', effect: 'cancel_and_damage', radius: WRAITH_FIELD_RADIUS, damage: 1 }],
-  stats: { health: ANCHOR_WRAITH_HEALTH, ignoreVertical: true },
+  stats: { health: ANCHOR_WRAITH_HEALTH, ignoreVertical: true, patrolRange: ANCHOR_WRAITH_PATROL_RANGE },
 };
 
 // ComposedEnemy migration (2026-07-20) — hover's 'approach' mode is exactly
@@ -3826,7 +3481,7 @@ const DEFLECTOR_DRONE_DEF = {
   movement: { type: 'hover', mode: 'maintain_distance', speed: DEFLECTOR_HOVER_SPEED, idealDistance: 150, bobAmplitude: 12, bobSpeed: 0.03 },
   attacks: [{ type: 'shield_reflect' }],
   counters: [{ ability: 'shard_shot', effect: 'reflect' }],
-  stats: { health: DEFLECTOR_HEALTH, ignoreVertical: true },
+  stats: { health: DEFLECTOR_HEALTH, ignoreVertical: true, patrolRange: DEFLECTOR_PATROL_RANGE },
 };
 
 // ComposedEnemy migration (2026-07-20) — shield_reflect + the shard_shot/
@@ -3982,6 +3637,212 @@ class FracturedKnight extends ComposedEnemy {
   constructor(x, y) { super(x, y, FRACTURED_KNIGHT_DEF); }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Colossus Core — Crag of the Colossus miniboss (crag_warden). A rock-shelled
+// construct that only Charged (heavy) attacks can damage — a normal hit
+// bounces off with a spark, exactly like the region's destructible rubble
+// walls. Two distance-gated attacks (overhead swing up close, charge at
+// range), no phases — reskin of "The Fractured Sovereign's Guard"
+// (expansion.md 4.1), chosen because it's the most "basic, no ability
+// required beyond Charged Attack" fight on the miniboss roster, which fits
+// a region's first miniboss. Reward: +1 Max Health, applied by game.js when
+// `defeatedMinibosses['colossus_core']` flips true.
+//
+// Migrated onto ComposedEnemy 2026-08-04 (Plans/boss_phase_editor_universal_
+// plan.md Phase 2) so it's fully editable via boss_phase_editor.html like
+// the other 12 minibosses. The migration needed two small, generic
+// additions (both backward compatible, zero effect on any other entity
+// that doesn't set them): the `ground_hold` movement type (MOVEMENT_
+// BEHAVIORS, above) for its "hold position, only lumber in past 500px"
+// idle, and `hitboxOffsetX`/`hitboxOffsetY` on `melee_swing` so its
+// overhead-swing hitbox can sit higher/further forward than that attack
+// type's default low-slash offset. Everything else (the heavy-only damage
+// gate, the per-frame facing tracking that never locks during windup, the
+// single shared cooldown across both attacks, the hand-painted crack/
+// molten-core/telegraph visuals) is kept local to this subclass via
+// override — same "super() + custom logic" pattern QuantumPursuer/
+// ElectromagneticGolem already use elsewhere in this file, not new shared
+// engine surface.
+//
+// Two accepted, documented behavior deltas from the original bespoke
+// class (verify by feel during playtesting, not fixed here):
+// - `dash_charge`'s hitbox is the whole enemy body (the shared attack
+//   type's generic convention) rather than the original's narrower
+//   forward-projecting sliver — arguably reads better anyway ("a charging
+//   boulder is dangerous all over").
+// - A charge that clips a wall zeroes velocity generically (ComposedEnemy's
+//   shared physics tail) rather than fully aborting back to idle
+//   instantly like the original did — the attack still runs its remaining
+//   active frames out in place against the wall before recovering.
+// ─────────────────────────────────────────────────────────────────────────────
+const COLOSSUS_HEALTH = 20;
+const COLOSSUS_SPEED = 4.2; // bumped alongside the larger body (2026-07-27) — a bigger Colossus covering ground at the old speed read as sluggish
+const COLOSSUS_DAMAGE = 2;
+// Swing range/reach scale off `width`/`height` below — this is just the
+// distance threshold that decides "close enough to swing instead of
+// charging," not a hitbox size.
+const COLOSSUS_SWING_RANGE = 150;
+
+const COLOSSUS_CORE_DEF = {
+  id: 'colossus_core',
+  displayName: 'Crag Warden',
+  color: '#c2703d',
+  movement: { type: 'ground_hold', approachRange: 500, approachSpeed: COLOSSUS_SPEED * 0.3, decel: 0.85 },
+  attacks: [
+    // Overhead swing — close range, punchier windup/recovery than the charge.
+    { type: 'melee_swing', range: COLOSSUS_SWING_RANGE, minRange: 0,
+      windupFrames: 26, activeFrames: 16, cooldown: 60,
+      hitboxWidth: 56, hitboxHeight: 64, hitboxOffsetX: -10, hitboxOffsetY: -10,
+      damage: COLOSSUS_DAMAGE, knockbackX: 5, knockbackY: -9, knockbackHitStun: 18 },
+    // Charge — everything past swing range out to 500px.
+    { type: 'dash_charge', range: 500, minRange: COLOSSUS_SWING_RANGE,
+      windupFrames: 40, activeFrames: 50, cooldown: 70,
+      chargeSpeed: COLOSSUS_SPEED,
+      damage: COLOSSUS_DAMAGE, knockbackX: 6, knockbackY: -2, knockbackHitStun: 14 },
+  ],
+  // 'range': non-overlapping [minRange,range] windows above reproduce the
+  // original's exact "swing if dist<150, else charge if dist<500" priority
+  // as a deterministic distance switch.
+  attackSelection: 'range',
+  // ignoreVertical: original never checked vertical alignment for either
+  // attack or its idle approach — pure horizontal distance throughout.
+  stats: { health: COLOSSUS_HEALTH, width: 84, height: 92, ignoreVertical: true },
+  phases: [], // original has no escalation — starts empty, editable going forward
+};
+
+class ColossusCore extends ComposedEnemy {
+  constructor(x, y) {
+    super(x, y, COLOSSUS_CORE_DEF);
+    this.bounceFlash = 0; // brief white/amber flash when a non-heavy hit bounces off (no damage)
+  }
+
+  // `isHeavy` — only a Charged Attack can damage the core; a normal hit
+  // bounces off (visual/audio feedback only, no health loss, no hitstun).
+  // Kept local to this subclass (not added to ComposedEnemy.takeDamage()
+  // itself) so it can't affect any of the other ComposedEnemy-based
+  // entities that don't opt in.
+  takeDamage(amount, fromX, attackDir, isHeavy) {
+    if (this.dead) return;
+    if (!isHeavy) {
+      this.bounceFlash = 8;
+      if (typeof SFX !== 'undefined') SFX.shardHit();
+      return;
+    }
+    super.takeDamage(amount, fromX, attackDir);
+    if (this.dead) return;
+    // Original forces at least a 30-frame gap after landing a hit,
+    // regardless of state — a small punish window.
+    for (let i = 0; i < this._attackCooldowns.length; i++) {
+      this._attackCooldowns[i] = Math.max(this._attackCooldowns[i], 30);
+    }
+  }
+
+  // Whether a hit actually connects for life-steal/fracture-gain purposes —
+  // queried by game_update.js's generalized miniboss combat block. Matches
+  // takeDamage()'s own isHeavy gate exactly, so a non-heavy hit still
+  // bounces (no damage) but is also correctly reported as not connected.
+  willConnect(isHeavy) { return !!isHeavy; }
+
+  update(player, bounds, echoes, allies) {
+    const wasActiveIdx = this._activeAttack;
+    super.update(player, bounds, echoes, allies);
+    if (this.dead) return;
+
+    // Original ColossusCore has ONE shared cooldown gate across both
+    // attacks (60f after charge's idle-recovery wait, 45f after swing's —
+    // both far longer than the class's own now-irrelevant `attackCooldown`
+    // field, which always expired first). ComposedEnemy tracks cooldowns
+    // per-attack independently, so top up every other attack's cooldown
+    // whenever one just ended, reproducing the same effective shared
+    // recovery window regardless of how many attacks this def ends up with.
+    if (wasActiveIdx !== null && this._activeAttack === null) {
+      const endedCooldown = this._attackCooldowns[wasActiveIdx];
+      for (let i = 0; i < this._attackCooldowns.length; i++) {
+        if (i !== wasActiveIdx) this._attackCooldowns[i] = Math.max(this._attackCooldowns[i], endedCooldown);
+      }
+    }
+
+    // Always track facing toward the player, every frame, every state —
+    // the original never locks facing during windup/attack (ComposedEnemy's
+    // base behavior does, to prevent "free dodges" on other enemies; this
+    // boss's original shipped behavior never had that protection, so this
+    // is a faithful port of its actual behavior, not a new design choice).
+    this.facing = player.x > this.x ? 1 : -1;
+
+    if (this.bounceFlash > 0) this.bounceFlash -= 1;
+  }
+
+  draw(ctx) {
+    super.draw(ctx);
+    if (this.dead) return; // death-fade already applied by super; no decorative overlays over a fading corpse
+
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
+    const healthFrac = this.health / this.maxHealth;
+
+    // Crack overlay — more cracks the lower the health.
+    const crackCount = Math.round((1 - healthFrac) * 6);
+    ctx.strokeStyle = 'rgba(10, 5, 3, 0.6)';
+    for (let i = 0; i < crackCount; i++) {
+      const seed = i * 37.13 + Math.floor(this.x); // stable per-instance, not per-frame random
+      const sx = this.x + 8 + (seed % (this.width - 16));
+      const sy = this.y + 8 + ((seed * 1.7) % (this.height - 16));
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + 8 - (seed % 16), sy + 10 - (seed % 20));
+      ctx.stroke();
+    }
+
+    // Molten core, visible through the shell — glows brighter as it takes damage.
+    ctx.fillStyle = `rgba(251, 146, 60, ${0.3 + (1 - healthFrac) * 0.5})`;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 10 + (1 - healthFrac) * 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bounce flash — a non-heavy hit bounced off with zero damage.
+    if (this.bounceFlash > 0) {
+      ctx.fillStyle = `rgba(251, 191, 36, ${this.bounceFlash / 8})`;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+
+    const activeType = this._activeAttack !== null ? this.attacks[this._activeAttack].type : null;
+
+    // Charge tell — motion streaks behind it.
+    if (activeType === 'dash_charge' && this.attacking) {
+      ctx.fillStyle = 'rgba(217, 119, 87, 0.4)';
+      const trailX = this.facing === 1 ? this.x - 20 : this.x + this.width;
+      ctx.fillRect(trailX, this.y + 10, 20, this.height - 20);
+    }
+
+    // Swing telegraph — a raised, glowing overhead arc on the swinging
+    // side. (Charge's telegraph relies on ComposedEnemy's own generic
+    // expanding-ring-plus-"!" windup indicator, drawn by super.draw()
+    // above — this custom arc exists specifically so the swing reads as
+    // visually distinct from that generic ring.)
+    if (activeType === 'melee_swing' && this.windingUp) {
+      const atkDef = this.attacks[this._activeAttack];
+      const progress = 1 - this.windUpTimer / (atkDef.windupFrames ?? 26);
+      const armX = this.facing === 1 ? this.x + this.width : this.x;
+      ctx.strokeStyle = `rgba(255, 160, 60, ${0.35 + progress * 0.5})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(armX, this.y, 20 + progress * 26, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+
+    // Swing itself — a bright, wide sweep flash where the haymaker lands.
+    if (activeType === 'melee_swing' && this.attacking) {
+      const atkDef = this.attacks[this._activeAttack];
+      const hb = ATTACK_BEHAVIORS.melee_swing.getHitbox(this, atkDef);
+      if (hb) {
+        ctx.fillStyle = `rgba(255, 200, 120, ${0.5 * (this.attackTimer / (atkDef.activeFrames ?? 16))})`;
+        ctx.fillRect(hb.x, hb.y, hb.width, hb.height);
+      }
+    }
+  }
+}
+
 // The Conduit — Static Field miniboss (`static_guardian`). A human scientist
 // who creates the world's weaponry/electronics; her tell is electricity, not
 // scale. First real usage of the generic phase system (see _applyPhase()):
@@ -4018,7 +3879,7 @@ class TheConduit extends ComposedEnemy {
 // (lore.md): a section chief who duplicates himself and enforces a vain
 // hierarchy over his own copies. The story doc's literal "swarm of self/
 // player/projectile copies" (expansion.md Phase 4 #4.1) is scoped down per
-// the boss-buildout plan's own outline (`Plans/continue_boss_buildout_prompt.md`)
+// the boss-buildout plan's own outline (`Plans/archive/continue_boss_buildout_prompt.md`)
 // — no new clone-entity engine work this pass — so the mirror theme reads
 // through existing mechanics instead: counter_stance turns a landed player
 // swing back on them (a literal mirrored hit), a spread ranged_projectile
@@ -4497,6 +4358,18 @@ const TEMPORAL_WARDEN_FLASH_WINDOW = 90;     // ~1.5s visible "interrupt me now"
 const TEMPORAL_WARDEN_INTERRUPT_DAMAGE = 4;  // damage needed during the flash window to cancel the rewind
 const TEMPORAL_WARDEN_RESIST_CAP = 0.3;      // 30% max slow resistance — same ceiling expansion.md names for the generic "soft" version
 const TEMPORAL_WARDEN_RESIST_STILLPOINT_USES = 3; // Stillpoint activations against him before resistance starts ramping in
+// Named out of their previous inline literals 2026-08-04 (Plans/boss_phase_
+// editor_universal_plan.md Phase 2) — zero behavior change, purely so these
+// are addressable by editor_shell/targets.js's `temporalWardenStatVar`
+// rawVar target (boss_phase_editor.html's bespoke tuning branch), the same
+// pattern enemy_editor.html already uses for other enemies' stat consts.
+const TEMPORAL_WARDEN_BOLT_TELEGRAPH_FRAMES = 34;
+const TEMPORAL_WARDEN_BOLT_COOLDOWN = 100;
+const TEMPORAL_WARDEN_BOLT_SPEED = 3;
+const TEMPORAL_WARDEN_BOLT_DAMAGE = 1;
+const TEMPORAL_WARDEN_KITE_DISTANCE = 240;   // preferred distance he holds from the player
+const TEMPORAL_WARDEN_KITE_DEADZONE = 40;    // +/- band around the preferred distance before he moves
+const TEMPORAL_WARDEN_KITE_SPEED = 1.0;
 class TemporalWarden {
   constructor(x, y) {
     this.x = x;
@@ -4608,23 +4481,23 @@ class TemporalWarden {
     if (this.telegraph) {
       this.telegraph.timer -= myTS;
       if (this.telegraph.timer <= 0) {
-        ComposedEnemy.fireProjectiles(this, player, { projectileSpeed: 3, pattern: 'straight', damage: 1, color: '#67e8f9' });
+        ComposedEnemy.fireProjectiles(this, player, { projectileSpeed: TEMPORAL_WARDEN_BOLT_SPEED, pattern: 'straight', damage: TEMPORAL_WARDEN_BOLT_DAMAGE, color: '#67e8f9' });
         this.telegraph = null;
-        this.attackCooldown = 100;
+        this.attackCooldown = TEMPORAL_WARDEN_BOLT_COOLDOWN;
       }
     } else if (this.attackCooldown > 0) {
       this.attackCooldown -= myTS;
     } else {
-      this.telegraph = { timer: 34, duration: 34 };
+      this.telegraph = { timer: TEMPORAL_WARDEN_BOLT_TELEGRAPH_FRAMES, duration: TEMPORAL_WARDEN_BOLT_TELEGRAPH_FRAMES };
     }
 
     // Floats — no gravity, gentle bob, holds a preferred distance rather
     // than closing in (a cautious kiter, matching "holds back").
-    const preferredDist = 240;
+    const preferredDist = TEMPORAL_WARDEN_KITE_DISTANCE;
     const dx = (player.x + player.width / 2) - (this.x + this.width / 2);
     const dist = Math.abs(dx);
-    if (dist > preferredDist + 40) this.vx = Math.sign(dx) * 1.0;
-    else if (dist < preferredDist - 40) this.vx = -Math.sign(dx) * 1.0;
+    if (dist > preferredDist + TEMPORAL_WARDEN_KITE_DEADZONE) this.vx = Math.sign(dx) * TEMPORAL_WARDEN_KITE_SPEED;
+    else if (dist < preferredDist - TEMPORAL_WARDEN_KITE_DEADZONE) this.vx = -Math.sign(dx) * TEMPORAL_WARDEN_KITE_SPEED;
     else this.vx *= 0.9;
     this.x += this.vx * myTS;
     if (bounds) this.x = Math.max(bounds.left, Math.min(this.x, bounds.right - this.width));
@@ -4981,6 +4854,7 @@ const ENEMY_REGISTRY = {
 // (ColossusCore, ElectromagneticGolem's underlying class if any, etc.) have
 // no `def.phases` and are intentionally absent here.
 const COMPOSED_PHASE_DEFS = {
+  colossus_core: COLOSSUS_CORE_DEF,
   static_guardian: CONDUIT_DEF,
   hollow_guardian: MIRROR_KING_DEF,
   graviton_sentinel: GRAVITON_GUARD_DEF,
@@ -5003,7 +4877,7 @@ const COMPOSED_PHASE_DEFS = {
 // index would silently keep stale entries).
 const ENEMY_PHASE_OVERRIDES_KEY = 'stillpoint_enemy_phase_overrides_v1';
 function applyEnemyPhaseOverrides() {
-  const overrides = readOverrideJSON(ENEMY_PHASE_OVERRIDES_KEY);
+  const overrides = readOverrideJSON(ENEMY_PHASE_OVERRIDES_KEY, OverrideShape.object);
   if (!overrides) return;
   for (const id in overrides) {
     if (COMPOSED_PHASE_DEFS[id]) COMPOSED_PHASE_DEFS[id].phases = overrides[id];
@@ -5024,16 +4898,20 @@ if (typeof window !== 'undefined') {
   window.ENEMY_HEALTH = ENEMY_HEALTH;
   window.ENEMY_ATTACK_COOLDOWN = ENEMY_ATTACK_COOLDOWN;
   window.ENEMY_SPEED = ENEMY_SPEED;
+  window.ENEMY_PATROL_RANGE = ENEMY_PATROL_RANGE;
   window.LANCER_HEALTH = LANCER_HEALTH;
   window.LANCER_SPEED = LANCER_SPEED;
   window.LANCER_CHARGE_COOLDOWN = LANCER_CHARGE_COOLDOWN;
   window.SENTINEL_HEALTH = SENTINEL_HEALTH;
   window.SENTINEL_SPEED = SENTINEL_SPEED;
   window.SENTINEL_ATTACK_COOLDOWN = SENTINEL_ATTACK_COOLDOWN;
+  window.SENTINEL_PATROL_RANGE = SENTINEL_PATROL_RANGE;
   window.ANCHOR_WRAITH_HEALTH = ANCHOR_WRAITH_HEALTH;
   window.WRAITH_DRIFT_SPEED = WRAITH_DRIFT_SPEED;
+  window.ANCHOR_WRAITH_PATROL_RANGE = ANCHOR_WRAITH_PATROL_RANGE;
   window.DEFLECTOR_HEALTH = DEFLECTOR_HEALTH;
   window.DEFLECTOR_HOVER_SPEED = DEFLECTOR_HOVER_SPEED;
+  window.DEFLECTOR_PATROL_RANGE = DEFLECTOR_PATROL_RANGE;
   window.SPRITE_HEALTH = SPRITE_HEALTH;
   window.STALKER_HEALTH = STALKER_HEALTH;
 }

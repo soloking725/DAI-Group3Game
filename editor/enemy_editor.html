@@ -97,6 +97,8 @@ button.reset:hover{background:var(--danger-dim)}
   <h2>Export</h2>
   <button id="exportBtn">⬇ Save JSON</button>
   <textarea id="exp-out" readonly placeholder="Press Save JSON to generate an overrides block..."></textarea>
+  <button id="writeFileBtn">💽 Write stats to enemy.js (Electron app only)</button>
+  <p class="note" id="writeFileNote" style="font-size:10px; opacity:0.7;">Note: Patrol Range has no observable effect on Crystal Sentinel/Anchor Wraith/Deflector Drone — their hover movement never reads it, so their constants exist for consistency/future use only, not current behavior.</p>
 </div>
 
 <script src="../game/overrideStore.js"></script>
@@ -110,15 +112,15 @@ button.reset:hover{background:var(--danger-dim)}
 // its real ENEMY_HEALTH was 6 — this can't drift out of sync anymore since
 // it's the same numbers enemy.js itself uses.
 const ENEMY_STAT_SOURCE = {
-  fractured:        { name: 'Fractured',        color: '#f87171', health: 'ENEMY_HEALTH',         attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
-  stutterer:        { name: 'Stutterer',        color: '#a78bfa', health: 'ENEMY_HEALTH',         attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
-  crystal_sentinel: { name: 'Crystal Sentinel', color: '#2dd4bf', health: 'SENTINEL_HEALTH',       attackCooldown: 'SENTINEL_ATTACK_COOLDOWN', speed: 'SENTINEL_SPEED',   patrolRange: 150 },
-  void_lancer:      { name: 'Void Lancer',      color: '#7c3aed', health: 'LANCER_HEALTH',        attackCooldown: 'LANCER_CHARGE_COOLDOWN', speed: 'LANCER_SPEED',       patrolRange: 120 },
-  null_sentinel:    { name: 'Null Sentinel',    color: '#e0d4ff', health: 'ENEMY_HEALTH',         attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
-  anchor_wraith:    { name: 'Anchor Wraith',    color: '#818cf8', health: 'ANCHOR_WRAITH_HEALTH', attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'WRAITH_DRIFT_SPEED',  patrolRange: 0 },
-  deflector_drone:  { name: 'Deflector Drone',  color: '#67e8f9', health: 'DEFLECTOR_HEALTH',     attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'DEFLECTOR_HOVER_SPEED', patrolRange: 0 },
-  mirror_sprite:    { name: 'Mirror Sprite',    color: '#c084fc', health: 'SPRITE_HEALTH',        attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
-  echo_stalker:     { name: 'Echo Stalker',     color: '#7c3aed', health: 'STALKER_HEALTH',       attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 120 },
+  fractured:        { name: 'Fractured',        color: '#f87171', health: 'ENEMY_HEALTH',         attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 'ENEMY_PATROL_RANGE' },
+  stutterer:        { name: 'Stutterer',        color: '#a78bfa', health: 'ENEMY_HEALTH',         attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 'ENEMY_PATROL_RANGE' },
+  crystal_sentinel: { name: 'Crystal Sentinel', color: '#2dd4bf', health: 'SENTINEL_HEALTH',       attackCooldown: 'SENTINEL_ATTACK_COOLDOWN', speed: 'SENTINEL_SPEED',   patrolRange: 'SENTINEL_PATROL_RANGE' },
+  void_lancer:      { name: 'Void Lancer',      color: '#7c3aed', health: 'LANCER_HEALTH',        attackCooldown: 'LANCER_CHARGE_COOLDOWN', speed: 'LANCER_SPEED',       patrolRange: 'ENEMY_PATROL_RANGE' },
+  null_sentinel:    { name: 'Null Sentinel',    color: '#e0d4ff', health: 'ENEMY_HEALTH',         attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 'ENEMY_PATROL_RANGE' },
+  anchor_wraith:    { name: 'Anchor Wraith',    color: '#818cf8', health: 'ANCHOR_WRAITH_HEALTH', attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'WRAITH_DRIFT_SPEED',  patrolRange: 'ANCHOR_WRAITH_PATROL_RANGE' },
+  deflector_drone:  { name: 'Deflector Drone',  color: '#67e8f9', health: 'DEFLECTOR_HEALTH',     attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'DEFLECTOR_HOVER_SPEED', patrolRange: 'DEFLECTOR_PATROL_RANGE' },
+  mirror_sprite:    { name: 'Mirror Sprite',    color: '#c084fc', health: 'SPRITE_HEALTH',        attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 'ENEMY_PATROL_RANGE' },
+  echo_stalker:     { name: 'Echo Stalker',     color: '#7c3aed', health: 'STALKER_HEALTH',       attackCooldown: 'ENEMY_ATTACK_COOLDOWN', speed: 'ENEMY_SPEED',         patrolRange: 'ENEMY_PATROL_RANGE' },
 };
 
 const ENEMY_DEFAULTS = {};
@@ -130,8 +132,23 @@ for (const id in ENEMY_STAT_SOURCE) {
     health: window[src.health],
     attackCooldown: window[src.attackCooldown],
     speed: window[src.speed],
-    patrolRange: src.patrolRange,
+    patrolRange: window[src.patrolRange],
   };
+}
+
+// Several enemy TYPES share the exact same backing variable in enemy.js
+// (e.g. ENEMY_ATTACK_COOLDOWN backs fractured/stutterer/null_sentinel/
+// mirror_sprite/echo_stalker/anchor_wraith/deflector_drone all at once) —
+// writing a "per-enemy" stat to disk actually changes every sibling that
+// shares it. Built once, at load, so "Write to enemy.js" can warn with
+// the exact affected list instead of silently changing enemies the user
+// wasn't looking at.
+const SHARED_VAR_SIBLINGS = {}; // varName -> [enemyId, ...]
+for (const field of ['health', 'attackCooldown', 'speed', 'patrolRange']) {
+  for (const id in ENEMY_STAT_SOURCE) {
+    const varName = ENEMY_STAT_SOURCE[id][field];
+    (SHARED_VAR_SIBLINGS[varName] ||= []).push(id);
+  }
 }
 
 const enemySelect = document.getElementById('enemySelect');
@@ -228,6 +245,57 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   const json = JSON.stringify(data, null, 2);
   document.getElementById('exp-out').value = json;
   if (typeof DevContext !== 'undefined') DevContext.log('Enemy Editor', 'Exported overrides', enemySelect.value);
+});
+
+// ─── WRITE STATS TO enemy.js (Electron only) — each of health/
+// attackCooldown/speed is a plain top-level scalar const, patched via
+// writeNamedVar (raw-var mode, allowlisted in editor_shell/targets.js).
+// Before writing anything, checks whether the backing variable is shared
+// with other enemy types and requires the user to explicitly confirm
+// with the full sibling list named — a silent write here would change
+// enemies the user isn't even looking at.
+document.getElementById('writeFileBtn').addEventListener('click', async () => {
+  if (!window.stillpointAPI) return alert('Only available in the unified editor desktop app (npm start) — not in a plain browser tab.');
+
+  const id = enemySelect.value;
+  const src = ENEMY_STAT_SOURCE[id];
+  const writes = [
+    { field: 'health', varName: src.health, value: Number(statHealth.value) },
+    { field: 'attackCooldown', varName: src.attackCooldown, value: Number(statAttackCooldown.value) },
+    { field: 'speed', varName: src.speed, value: Number(statSpeed.value) },
+    { field: 'patrolRange', varName: src.patrolRange, value: Number(statPatrolRange.value) },
+  ];
+
+  const invalid = writes.filter((w) => !Number.isFinite(w.value));
+  if (invalid.length) {
+    return alert(`Refusing to write: ${invalid.map((w) => w.field).join(', ')} is not a valid number. Fix the input field(s) and try again.`);
+  }
+
+  const warnings = writes
+    .map((w) => {
+      const siblings = SHARED_VAR_SIBLINGS[w.varName].filter((sid) => sid !== id);
+      if (!siblings.length) return null;
+      const names = siblings.map((sid) => ENEMY_STAT_SOURCE[sid].name).join(', ');
+      return `"${w.field}" is shared with: ${names} (they will ALL change to ${w.value})`;
+    })
+    .filter(Boolean);
+
+  const msg = `Write ${ENEMY_STAT_SOURCE[id].name}'s stats to game/enemy.js on disk?\n\n`
+    + (warnings.length ? `⚠️ ${warnings.join('\n⚠️ ')}\n\n` : '')
+    + `A .bak is made first for each changed value.`;
+  if (!confirm(msg)) return;
+
+  try {
+    const backups = new Set();
+    for (const w of writes) {
+      const data = await window.stillpointAPI.writeNamedVar('enemyStatVar', w.varName, String(w.value));
+      backups.add(data.backup);
+    }
+    alert(`✅ Saved! Written to game/enemy.js. Backup(s): ${[...backups].join(', ')}\n\nReload this page to see updated defaults reflected everywhere (including any sibling enemies that shared a variable).`);
+    if (typeof DevContext !== 'undefined') DevContext.log('Enemy Editor', 'Wrote stats to disk', id);
+  } catch (e) {
+    alert(`❌ Could not write to disk: ${e.message}`);
+  }
 });
 
 // Deep link from dev_hub.html (?enemy=<id>).
