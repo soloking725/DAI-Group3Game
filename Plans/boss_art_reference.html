@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — Boss &amp; Player Art Reference</title>
+<link rel="stylesheet" href="../styles/design-system.css">
+<style>
+  body {
+    background: var(--bg-deep);
+    color: var(--fg);
+    font-family: var(--font-ui);
+    line-height: 1.6;
+    margin: 0;
+    display: flex;
+  }
+  a { color: var(--info); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-family: var(--font-mono);
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.9em;
+    color: var(--info);
+  }
+  hr { border: none; border-top: 1px solid var(--border); margin: var(--space-8) 0; }
+
+  /* ---- Sidebar nav ---- */
+  nav.sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 260px;
+    flex: 0 0 260px;
+    overflow-y: auto;
+    padding: var(--space-5);
+    border-right: 1px solid var(--border);
+    background: var(--bg-panel);
+  }
+  nav.sidebar h4 {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 11px;
+    color: var(--fg-muted);
+    margin: var(--space-5) 0 var(--space-2);
+  }
+  nav.sidebar h4:first-child { margin-top: 0; }
+  nav.sidebar a {
+    display: block;
+    color: var(--fg-subtle);
+    font-size: 13px;
+    padding: 3px 0;
+  }
+  nav.sidebar a:hover { color: var(--fg); text-decoration: none; }
+
+  main {
+    flex: 1;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: var(--space-8) var(--space-6) 120px;
+    min-width: 0;
+  }
+
+  h1 { font-size: 26px; letter-spacing: -0.01em; }
+  h2 {
+    font-size: 20px;
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--border);
+    scroll-margin-top: var(--space-4);
+  }
+  h3 { font-size: 15px; color: var(--accent-bright); scroll-margin-top: var(--space-4); }
+  p { color: var(--fg-subtle); }
+  strong { color: var(--fg); }
+
+  ol.toc { columns: 2; column-gap: var(--space-6); list-style: decimal; padding-left: 1.2em; }
+  ol.toc li { break-inside: avoid; margin-bottom: 4px; }
+  ul { padding-left: 1.3em; color: var(--fg-subtle); }
+  ul li { margin-bottom: 4px; }
+
+  .table-wrap { overflow-x: auto; margin: var(--space-3) 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th { background: var(--surface); color: var(--fg-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:last-child td { border-bottom: none; }
+
+  /* ---- Advice section (new content, visually distinct) ---- */
+  .advice {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-card);
+  }
+  .advice h2 { border-top: none; margin-top: 0; padding-top: 0; }
+  .advice h3 { color: var(--fg); font-size: 16px; margin-top: var(--space-6); }
+  .advice-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--space-4);
+    margin: var(--space-4) 0;
+  }
+  .advice-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+  }
+  .advice-card h4 {
+    margin: 0 0 var(--space-2);
+    font-size: 13px;
+    color: var(--info);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .advice-card p, .advice-card li { font-size: 13px; margin: 0; }
+  .callout {
+    background: var(--info-dim);
+    border: 1px solid var(--info-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    margin: var(--space-4) 0;
+    font-size: 14px;
+  }
+  .callout strong { color: var(--info); }
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding-left: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 40px;
+    margin-bottom: var(--space-4);
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0; top: 0;
+    width: 26px; height: 26px;
+    background: var(--accent-dim);
+    color: var(--fg);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .steps li strong { display: block; margin-bottom: 2px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    background: var(--teal-dim);
+    color: var(--teal);
+    border: 1px solid var(--teal-border);
+    margin-left: 6px;
+  }
+
+  @media (max-width: 900px) {
+    body { display: block; }
+    nav.sidebar { position: static; width: auto; height: auto; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <h4>Start Here</h4>
+  <a href="#sketching-advice">Sketching &amp; Animation Advice</a>
+  <a href="#region-room-reference">Regions &amp; Rooms ↓</a>
+  <a href="#stillpoint-boss-miniboss-art-reference">Boss/Enemy Reference ↓</a>
+  <h4>Regions &amp; Rooms</h4>
+  <a href="#1-origin-spine">1. Origin Spine</a>
+  <a href="#2-mirror-veil">2. Mirror Veil</a>
+  <a href="#3-event-horizon">3. Event Horizon</a>
+  <a href="#4-chrono-space-rift">4. Chrono-Space Rift</a>
+  <a href="#5-graviton-core">5. Graviton Core</a>
+  <a href="#6-the-inverted-spire">6. The Inverted Spire</a>
+  <a href="#7-the-observatory">7. The Observatory</a>
+  <a href="#8-the-void-expanse">8. The Void Expanse</a>
+  <a href="#9-warp-gate-nexus">9. Warp Gate Nexus</a>
+  <a href="#10-the-polar-shift">10. The Polar Shift</a>
+  <a href="#11-paradox-engine">11. Paradox Engine</a>
+  <a href="#12-static-field">12. Static Field</a>
+  <a href="#13-timeline-crossroads">13. Timeline Crossroads</a>
+  <a href="#14-echoing-abyss">14. Echoing Abyss</a>
+  <a href="#15-crag-of-the-colossus">15. Crag of the Colossus</a>
+  <a href="#16-pacifist-enclave">16. Pacifist Enclave</a>
+  <a href="#17-sovereigns-army-reserve">17. Sovereign's Army Reserve</a>
+  <a href="#18-connective-rooms">18. Connective Rooms</a>
+  <a href="#19-sovereigns-observatory">19. Sovereign's Observatory</a>
+  <a href="#20-sovereigns-throne-boss-arena">20. Sovereign's Throne</a>
+  <h4>Bosses &amp; Minibosses</h4>
+  <a href="#1-the-fractured-sovereign-final-boss">1. The Fractured Sovereign</a>
+  <a href="#2-colossus-core-crag-warden">2. Colossus Core / Crag Warden</a>
+  <a href="#3-the-conduit">3. The Conduit</a>
+  <a href="#4-the-mirror-king">4. The Mirror King</a>
+  <a href="#5-graviton-guard-sovereigns-guard">5. Graviton Guard</a>
+  <a href="#6-the-assembler">6. The Assembler</a>
+  <a href="#7-the-stationmaster">7. The Stationmaster</a>
+  <a href="#8-quantum-pursuer">8. Quantum Pursuer</a>
+  <a href="#9-warden-hollow-duo-fight">9. Warden &amp; Hollow</a>
+  <a href="#10-electromagnetic-golem">10. Electromagnetic Golem</a>
+  <a href="#11-gravity-collapse-core-horizon-core">11. Horizon Core</a>
+  <a href="#12-temporal-warden">12. Temporal Warden</a>
+  <a href="#13-the-undertow">13. The Undertow</a>
+  <a href="#14-the-child-antechamber">14. The Child</a>
+  <a href="#15-abandoned-shell">15. Abandoned Shell</a>
+  <a href="#16-the-player">16. The Player</a>
+  <a href="#17-stutterer-common-enemy">17. Stutterer</a>
+  <a href="#18-stillpoint-revenant-common-enemy">18. Stillpoint Revenant</a>
+  <a href="#general-art-notes">General Art Notes</a>
+</nav>
+
+<main>
+
+<h1>Stillpoint — Art &amp; World Reference</h1>
+<p>Everything in one place for drawing this game's cast and understanding
+where they live: how to approach sprite/animation work as a beginner, what
+every region looks/sounds/feels like and what's dangerous in it, and the
+full boss/miniboss/player art breakdown.</p>
+
+<section class="advice" id="sketching-advice">
+<h2>Sketching &amp; Animation Advice for Beginners</h2>
+<p>You said you've never made game animation before and normally only draw
+black-and-white — good news: that's a perfectly fine, even advantageous,
+place to start. Game sprite work leans on readability far more than on
+rendering, and B&amp;W/grayscale is how most professionals block out a
+character before color ever enters the picture.</p>
+
+<div class="callout">
+<strong>Yes, sketch first — don't feel behind for it.</strong> Silhouette
+and pose readability (can you tell what's happening at a glance, mid-swing,
+at actual game size?) is the entire job at this stage. Color is a separate,
+later pass — it can even be done by someone else, or added as a flat tint
+over your linework once the motion reads correctly. Don't let "I can't
+color" block you from starting.
+</div>
+
+<h3>The core workflow (how professional 2D animators actually work)</h3>
+<ol class="steps">
+<li><strong>Thumbnail the key poses first, not the in-betweens.</strong>
+Pick the 2-3 poses that tell the whole story of a move — for a melee
+swing: anticipation (wind-up), contact (the hit), and follow-through.
+Sketch these tiny and rough before anything else. If the silhouette
+doesn't read at thumbnail size, it won't read in-game either.</li>
+<li><strong>Draw in silhouette / solid black first.</strong> Fill your
+sketch as a solid black shape and squint at it (or shrink it way down).
+If you can still tell the pose and the weapon direction from the
+silhouette alone, the pose is doing its job. This is the single most
+common professional trick for readability and it costs nothing extra —
+you're already drawing in B&amp;W.</li>
+<li><strong>Exaggerate more than feels natural.</strong> Game sprites are
+usually viewed small and fast, mid-combat. A windup that looks
+"reasonable" at full size usually reads as nothing happening once it's
+28-48px tall on screen. Push the anticipation pose further back, the
+contact pose further extended, than your instinct says to.</li>
+<li><strong>Use the 12 principles of animation as a checklist, not a
+rulebook.</strong> The two that matter most for a first sprite: <em>squash
+and stretch</em> (a body that never deforms reads as stiff/robotic) and
+<em>anticipation</em> (a wind-up before the real motion — this repo's own
+bosses use a literal glowing-circle "telegraph" before every attack for
+exactly this reason, see the Common Visual Language notes near the bottom
+of this page).</li>
+<li><strong>Animate on 2s, or even 3s, as a beginner.</strong> "On 2s" means
+one drawing covers 2 frames of screen time instead of 1 — half the
+drawings, and it's the industry-standard economy setting even for
+professional 2D games, not a beginner shortcut you'll need to "graduate"
+from. Most of this game's attacks are already scoped in short frame
+counts (see the per-attack "Telegraph (X frames)" / "Active (X frames)"
+numbers throughout this doc) — that maps directly onto a handful of
+hand-drawn key poses per attack, not a full frame-by-frame animation.</li>
+<li><strong>Color and shading are a separate, later pass.</strong> A
+completely standard order: (1) rough thumbnail sketch → (2) clean
+silhouette/line pose → (3) flat color fill (no shading) → (4) optional
+simple shading (one highlight, one shadow tone). You can stop at step 3
+and still have a usable game sprite — flat-color pixel/vector art is a
+legitimate, common style, not an unfinished one.</li>
+</ol>
+
+<h3>What actually matters for THIS game specifically</h3>
+<div class="advice-grid">
+<div class="advice-card">
+<h4>Telegraph readability</h4>
+<p>Every boss/enemy attack in this game has a distinct wind-up ("telegraph")
+before it becomes dangerous — a growing glow, an arrow, a charging circle.
+When sketching an attack pose, draw the <em>telegraph</em> pose and the
+<em>active-hit</em> pose as two clearly different silhouettes. That
+contrast is the actual gameplay-readable signal, more than color ever is.</p>
+</div>
+<div class="advice-card">
+<h4>Size discipline</h4>
+<p>Sprites here are small — the player is 24×32px, a normal enemy ~28×28px,
+even the final boss is only 48×56px (see the Size Reference table at the
+bottom of this page). Sketch at a size close to that early, or at least
+check your sketch shrunk down, so you're not designing detail that
+disappears at game scale.</p>
+</div>
+<div class="advice-card">
+<h4>Keyframes over full animation</h4>
+<p>This doc breaks every attack into named beats (Telegraph → Active →
+Recovery/Stagger). You don't need to draw every frame — draw one clean
+pose per beat first. That's already usable in <code>anim_editor.html</code>,
+which lets you drag-resize hitboxes and set per-frame durations around
+whatever poses you provide.</p>
+</div>
+<div class="advice-card">
+<h4>Grayscale value, not color, sells motion</h4>
+<p>Squash/stretch, motion lines, and value contrast (a lighter flash frame
+on hit-contact) read clearly in pure black-and-white. The existing code
+already does a lot of the "juice" with color overlays and particles (see
+Common Visual Language below) — your sketch's job is just a clear,
+readable pose underneath that.</p>
+</div>
+</div>
+
+<h3>If you want a next step beyond pencil-and-paper</h3>
+<p>Free/cheap tools built specifically for this kind of small-sprite,
+frame-based work (not general illustration software): <strong>Aseprite</strong>
+(paid, industry-standard for pixel/game sprites, has onion-skinning built
+in) or <strong>Piskel</strong> (free, browser-based, good enough for a first
+pass). Either works fine directly off a scanned/photographed pencil
+sketch — trace over it at low opacity rather than trying to draw pixel-perfect
+from scratch immediately.</p>
+
+<div class="callout">
+<strong>Bottom line:</strong> sketching in black-and-white right now is not
+a workaround — it's step one of the normal process, and it's the step
+where the actual design work (does this pose read? does this attack look
+different from that attack?) happens. Coloring is a later, separable
+concern. Bring sketches for the poses/beats below and they're immediately
+useful even with zero color.
+</div>
+</section>
+
+<hr>
+
+<h2 id="region-room-reference">Region &amp; Room Reference</h2>
+<p>A single reachable-and-readable reference for every region and room in the game — what it looks like, sounds like, and what's dangerous about it. Pulled from <code>Plans/regions.md</code>, <code>Plans/lore.md</code>, <code>Plans/expansion.md</code>, <code>Plans/story.md</code>, <code>Plans/floor_plan.md</code>, <code>game/audio.js</code>, and <code>game/game_entities.js</code> (<code>REGION_STYLES</code>) — not invented. Where a category has no source material, it says "not specified" rather than guessing.</p>
+<p><strong>Deliberately excluded</strong>: Sovereign Room 1–4 — the postgame arc's own placeholder rooms (<code>story.md</code> §9), which have door topology only and no room-by-room content designed yet, so there isn't anything real to describe. <strong>Sovereign's Observatory and the Boss Arena (Sovereign's Throne) are included below</strong> (<a href="#19-sovereigns-observatory">§19</a>, <a href="#20-sovereigns-throne-boss-arena">§20</a>) since both have real, sourced design material. Everything else, including side-branches and the origin spine, is here.</p>
+<p>Room lists below are pulled straight from <code>floor_plan.md</code>'s mermaid graph (the topology source of truth) — room names, order, and any inline notes (what unlocks there, entry requirements) are copied from its node labels.</p>
+<hr>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol class="toc">
+<li><a href="#1-origin-spine">Origin Spine (Fracture / Echo Bridge / Crystal Cavern / The Vault / Antechamber)</a></li>
+<li><a href="#2-mirror-veil">Mirror Veil</a></li>
+<li><a href="#3-event-horizon">Event Horizon</a></li>
+<li><a href="#4-chrono-space-rift">Chrono-Space Rift</a></li>
+<li><a href="#5-graviton-core">Graviton Core</a></li>
+<li><a href="#6-the-inverted-spire">The Inverted Spire</a></li>
+<li><a href="#7-the-observatory">The Observatory</a></li>
+<li><a href="#8-the-void-expanse">The Void Expanse</a></li>
+<li><a href="#9-warp-gate-nexus">Warp Gate Nexus</a></li>
+<li><a href="#10-the-polar-shift">The Polar Shift</a></li>
+<li><a href="#11-paradox-engine">Paradox Engine</a></li>
+<li><a href="#12-static-field">Static Field</a></li>
+<li><a href="#13-timeline-crossroads">Timeline Crossroads</a></li>
+<li><a href="#14-echoing-abyss">Echoing Abyss</a></li>
+<li><a href="#15-crag-of-the-colossus">Crag of the Colossus</a></li>
+<li><a href="#16-pacifist-enclave">Pacifist Enclave</a></li>
+<li><a href="#17-sovereigns-army-reserve">Sovereign's Army Reserve</a></li>
+<li><a href="#18-connective-rooms">Mirror Corridor &amp; Puppet Strings (connective rooms)</a></li>
+<li><a href="#19-sovereigns-observatory">Sovereign's Observatory</a></li>
+<li><a href="#20-sovereigns-throne-boss-arena">Sovereign's Throne (Boss Arena)</a></li>
+</ol>
+<hr>
+<h2 id="1-origin-spine">1. Origin Spine</h2>
+<p><em>(The Fracture, Echo Bridge, Crystal Cavern, Upper Ruins, The Vault, The Rift, The Antechamber, Hollow Core, Tutorial/Spawn)</em></p>
+<h3 id="rooms-in-graph-order">Rooms (in graph order)</h3>
+<ul>
+<li><strong>Spawn Area</strong> — 1 cosmetic upgrade. One-way to Tutorial Area.</li>
+<li><strong>Tutorial Area</strong> — one-way to The Fracture, part 1.</li>
+<li><strong>The Fracture, part 1</strong> — fast travel node. Branches to part 2, part 3, and Crag Entrance (requires Phase Dash).</li>
+<li><strong>The Fracture, part 3</strong> — branches to part 4, and (Void Tether required) to Chrono-Space Rift, Echo.</li>
+<li><strong>The Fracture, part 2</strong> — branches to Mirror Veil, Gate.</li>
+<li><strong>The Fracture, part 4</strong> — leads to Echo Bridge, part 1.</li>
+<li><strong>Echo Bridge, part 1</strong> — meet the Child (mandatory, +1 max health). On first entry, mandatory detour to Echo Bridge, Prison. Branches to Crystal Cavern, Upper Ruins, Timeline X Roads Room 1, and (once the prison sequence ends) The Void Expanse Room 1 and (Void Tether path) Observatory Room 2.</li>
+<li><strong>Echo Bridge, Prison</strong> — 1 cosmetic upgrade. No way back to X Roads Room 1 — only forward to Timeline X Roads Room 2.</li>
+<li><strong>Crystal Cavern</strong> — unlocks Shard Shot (needed to leave). Entry requires the Child choice resolved. Branches to Timeline X Roads Room 1, Echoing Abyss Room 1 (requires Phase Dash), and (Void Tether path) Timeline X Roads Room 3.</li>
+<li><strong>Upper Ruins</strong> — branches to Pacifist Region.</li>
+<li><strong>The Vault, Room 1</strong> — fast travel node. Branches to Polar Shift Room 1, The Vault Room 2, Graviton Core Room 1, The Rift.</li>
+<li><strong>The Vault, Room 2</strong> — 1 Lore Pip. Leads to The Rift.</li>
+<li><strong>The Rift</strong> — entry requires Stillpoint + child_choice_resolved + Phase Dash. 1 lore pip. Branches to Polar Shift Room 1 and The Antechamber.</li>
+<li><strong>The Antechamber</strong> — branches to Hollow Core and (one-way, requires Phase Dash) back to Spawn Area, closing the loop into the Tutorial Area's Final Boss Fight room.</li>
+<li><strong>Hollow Core</strong> — 1 lore pip.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>Not visually specified per-room beyond the game's general dark violet/teal palette; no dedicated <code>REGION_STYLES</code> decoration exists for the spine.</p>
+<h3 id="music">Music</h3>
+<ul>
+<li>The Fracture (all 4 parts) shares <strong><code>chrono_fracture.ogg</code></strong> ("Transmission," Dark Sci-Fi Audio Pack, SRG774, CC0) with Chrono-Space Rift — described as looping/temporal, ties to the loop-reset ending.</li>
+<li>The Vault shares <strong><code>vault_void_expanse.ogg</code></strong> ("The Depths of Hell," Joth, CC0) with Hollow Core, The Rift, and The Void Expanse — described as heavy, isolating, "closing in on the end."</li>
+<li>Crystal Cavern has no separately-listed track; falls back to the default hub music unless mapped elsewhere.</li>
+</ul>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified as region-unique — standard platform/enemy encounters.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Shard Shot is granted at Crystal Cavern (its own wall puzzle needs the ability in-room to solve). The Vault holds a Fracture Pip at its altar and is the spine's central hub, with four planned exits.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>The Fracture is a war-memorial mural/mystery whose meaning only lands at the ending — a single point of light on a silhouetted skyline, cracking outward, later recontextualized as the exact shape of the loop's reset. The Vault is where a hooded silhouette (implied to be the player's own past self) pocketed one Stillpoint shard from a table before armored figures seized the rest — "the one Stillpoint that was stolen back from her."</p>
+<hr>
+<h2 id="2-mirror-veil">2. Mirror Veil</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Mirror Veil, Gate</strong> — fast travel node.</li>
+<li><strong>Mirror Veil, Reflection</strong> — 1 Lore Pip. Leads to Mirror Veil, Hollow.</li>
+<li><strong>Mirror Veil, Hollow</strong> — miniboss (The Mirror King). Leads to Mirror Veil, Sanctum.</li>
+<li><strong>Mirror Veil, Sanctum</strong> — unlocks Phase Dash. Leads to Mirror Corridor.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>Background is inverted — an upside-down reflection world; secret paths exist only in the reflected version of a room, never the "real" one. Built visual effect (<code>REGION_STYLES.mirror_veil</code>; primary <code>#c084fc</code> / secondary <code>#7c3aed</code> / glow <code>#e9d5ff</code>): a horizontal "reflection seam" line at mid-room height with a scattered diamond motif, plus faint upside-down platform ghosts.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>mirror_veil.ogg</code></strong> — "Sector" (Dark Sci-Fi Audio Pack, SRG774, CC0).</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified — no dedicated hazard note exists yet in the design docs; flagged as worth inventing something tied to "only the reflection is real."</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Grants <strong>Phase Dash</strong>. Planned home of <strong>Mirror Step</strong> (new ability, proposed, not built) and the <strong>Null Sentinel</strong> enemy (a Phase Dash counter).</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>Was a mid-tier command wing under section chief "The Mirror King," who duplicated himself for weapons research and enforced a strict original-vs-copy hierarchy out of vanity. The Sovereign's search-light, refracted through thousands of mirrors, produced false positives here — the one region that actively defeats her hunting method rather than just going unchecked.</p>
+<hr>
+<h2 id="3-event-horizon">3. Event Horizon</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Event Horizon, Gate</strong> — fast travel node. Leads to Event Horizon, Pull.</li>
+<li><strong>Event Horizon, Pull</strong> — branches to Echo Bridge Prison and Event Horizon, Drift.</li>
+<li><strong>Event Horizon, Drift</strong> — 1 Lore Pip. Leads to Event Horizon, Core.</li>
+<li><strong>Event Horizon, Core</strong> — miniboss (Gravity Collapse Core / Horizon Core). Leads to The Inverted Spire.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>The edge of a black hole. Built visual effect (<code>REGION_STYLES.event_horizon</code>; primary <code>#818cf8</code> / secondary <code>#4338ca</code> / glow <code>#c7d2fe</code>): a radial gravitational-pull vignette anchored off-screen left, slow-pulsing concentric event-horizon rings, inward-curving lensing glows on platform corners.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>event_horizon.ogg</code></strong> — "Pulse" (Dark Sci-Fi Audio Pack, SRG774, CC0).</p>
+<h3 id="hazards">Hazards</h3>
+<p>A constant leftward gravitational pull — platforming against a steady lateral force, not just gaps. Design intent: gravity-relative spikes, harmless on the current "floor" side but lethal on whichever side becomes "down" after a Graviton Surge flip.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>No ability granted here. Enemies: Gravity Scavengers, Gravity Wells.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>Not a command wing but a gravitic-material extraction mine feeding the war effort — containment failed late in the war, and it's still a self-collapsing singularity "extracting" debris and people who worked it. No malice, just an operation that outlived its chain of command. The Sovereign's search-probes sent in were pulled into the collapse; their beacon lights still fall, transmitting "searching," never "clear."</p>
+<hr>
+<h2 id="4-chrono-space-rift">4. Chrono-Space Rift</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Chrono-Space Rift, Gate</strong> — fast travel node.</li>
+<li><strong>Chrono-Space Rift, Loop, Part 1</strong> — 1 cosmetic upgrade.</li>
+<li><strong>Chrono-Space Rift, Loop, Part 2</strong> — 1 Lore Pip.</li>
+<li><strong>Chrono-Space Rift, Echo</strong> — requires Void Tether to enter from The Fracture.</li>
+<li><strong>Chrono-Space Rift, Sanctum</strong> — miniboss ("Ally" — the Temporal Warden). Unlocks Stillpoint. 1 Fracture Pip.</li>
+<li>One-way teleports connect Sanctum ↔ Echoing Abyss, and Loop Part 1 ↔ (Void Tether path) the Void Expanse's Paradox Engine teleport gate.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>A looping room — exit one side, reappear on the other. Built visual effect (<code>REGION_STYLES.chrono_rift</code>; primary <code>#a78bfa</code> / secondary <code>#6d28d9</code> / glow <code>#ddd6fe</code>): a slow-rotating clock-face "ghost" of spokes from a fixed hub, tick marks along platform tops like a timeline ruler.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>chrono_fracture.ogg</code></strong> — "Transmission" (Dark Sci-Fi Audio Pack, SRG774, CC0), shared with The Fracture — looping/temporal, ties to the loop-reset ending.</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified beyond the wrap-around mechanic itself.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Grants <strong>Stillpoint</strong> (Sanctum). Enemies: Phase Mages, Shard Spitters, Stillpoint Revenants.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>Home of the monastic order that hid the player's Stillpoint from the Sovereign. Its eldest keeper (the Temporal Warden) rewinds his own death forever, guilt-driven, sparing his true strength — a small mortal rehearsal of the game's endgame identity-loop reveal. This is the one region the Sovereign would search personally if she could, since the stolen Stillpoint is hidden here, but the Warden's own time-loop reads as noise to her perception.</p>
+<hr>
+<h2 id="5-graviton-core">5. Graviton Core</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Graviton Core, Room 1</strong> — entry requires Shard Shot.</li>
+<li><strong>Graviton Core, Room 2</strong> — entry requires Shard Shot. Unlocks Graviton Surge. 1 Fracture Pip.</li>
+<li><strong>Graviton Core, Room 3</strong> — entry requires Shard Shot. Miniboss (Graviton Guard). 1 Lore Pip. Branches to The Vault, Sovereign's Army Reserve, and The Inverted Spire.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>A gravity-flipping facility — no built <code>REGION_STYLES</code> visual entry yet.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>graviton_static.ogg</code></strong> — "Infestation in the Control Room" (Joth, CC0), shared with Static Field — oppressive, mechanical, glitchy/corrupting.</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified beyond the gravity-flip levers/puzzle mechanic.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Grants <strong>Graviton Surge</strong> (Room 2). Home of the <strong>Gravity Anchor</strong> enemy (a Graviton Surge counter). Room 3 branches off into Sovereign's Army Reserve.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>Guarded personally by an elite Sovereign soldier (the Graviton Guard) still holding the outpost, waiting for orders that stopped coming. This is the one place her command structure never fully died — the closest thing to her actual current reach outside the throne room.</p>
+<hr>
+<h2 id="6-the-inverted-spire">6. The Inverted Spire</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Inverted Spire</strong> — single room, entry requires Graviton Surge. 1 Lore Pip. Leads back into Timeline Crossroads.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>Gravity permanently inverted the instant you enter — "up" and "down" are swapped for the whole room.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>observatory_spire.ogg</code></strong> — "Airy" (Dark Sci-Fi Audio Pack, SRG774, CC0), shared with The Observatory — floaty, vertiginous, vast.</p>
+<h3 id="hazards">Hazards</h3>
+<p>Design intent: gravity-relative spikes, shared with Event Horizon's hazard concept.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>No ability granted. No miniboss (deliberate).</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>A Sovereign relay tower built to keep Graviton Core in contact with command — took a direct hit and inverted permanently. Its beacon never lost power and is still broadcasting orders into a command structure that no longer exists.</p>
+<hr>
+<h2 id="7-the-observatory">7. The Observatory</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>The Observatory, Room 1</strong> — entry requires Charged Attack.</li>
+<li><strong>Observatory, Room 2</strong> — entry requires Graviton Surge. 1 Lore Pip.</li>
+<li><strong>Observatory, Room 3</strong> — leads to the region's capstone room, Sovereign's Observatory (<a href="#19-sovereigns-observatory">§19</a>).</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>Low gravity — floaty jumps, long hang time, heavy verticality.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>observatory_spire.ogg</code></strong> — "Airy," shared with The Inverted Spire — floaty, vertiginous, vast.</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified — no dedicated hazard note exists yet; the design docs suggest one keyed specifically to the low-gravity feel.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>No ability granted directly by these three rooms. No miniboss (deliberate).</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>A literal Sovereign watch-post — she has a perception sense for hidden or anomalous things, and stood here to use it. Low gravity is what let her perception reach as far as it needed to — "verticality as a literal metaphor for oversight."</p>
+<hr>
+<h2 id="8-the-void-expanse">8. The Void Expanse</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>The Void Expanse, Room 1</strong> — 1 Lore Pip, 1 cosmetic upgrade. Branches to Chrono-Space Rift Loop Part 1 and Void Expanse Room 2.</li>
+<li><strong>The Void Expanse, Room 2</strong> — requires Shard Shot. Branches to a one-way teleport toward Paradox Engine and to Warp Gate Nexus Room 1.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>No solid ground at all — every platform is a moving "time-stopped debris" chunk; timing, not positioning, is the whole puzzle.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>vault_void_expanse.ogg</code></strong> — "The Depths of Hell" (Joth, CC0), shared with The Vault/Hollow Core/The Rift — heavy, isolating, "closing in on the end." Miniboss theme: <strong><code>boss_void_expanse.ogg</code></strong> — "Dark Ambience Loop" (Iwan "qubodup" Gabovitch, CC-BY 3.0, attribution required) — chosen specifically as an actual ambience loop matching the fight's void-chase tone.</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not a generic hazard layer — the no-solid-ground/moving-debris mechanic itself IS the hazard and the puzzle.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Completes <strong>Void Tether</strong> (full range, no charge limit) if already granted from Timeline Crossroads.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>Not a mine, command wing, or barracks — the single most damaged site in the shelter, took the worst of late-stage weapons testing and never stopped showing it. The miniboss, The Undertow, is a scientist's child obsessed with darkness, now merged with it — steals what people hold dearest (already took the Temporal Warden's love; will take the player's companion if brought here). Deliberately left off the sympathetic/cruel moral axis — genuinely ambiguous.</p>
+<hr>
+<h2 id="9-warp-gate-nexus">9. Warp Gate Nexus</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Warp Gate Nexus, Room 1</strong> — the hub room.</li>
+<li><strong>Warp Gate Nexus, Room 2</strong> — miniboss (Warden &amp; Hollow duo). 1 Lore Pip. One-way warp gate onward to The Inverted Spire.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>A teleporter hub — a central room branching into 3–4 small self-contained challenge vaults (per <code>regions.md</code>'s estimate; only 2 rooms currently in the floor-plan graph).</p>
+<h3 id="music">Music</h3>
+<p><strong><code>hub_living.ogg</code></strong> — "Heavenly Loop" (isaiah658, CC0) — the same warm, calm bed used across all living/hub areas (Spawn, Tutorial, Sanctums).</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Intended to grant <strong>Blink</strong> (not yet built). Note: <code>expansion.md</code>'s "opens after collecting 3 Keystones" concept is a literal key mechanic that conflicts with the project's no-lock-and-key rule — flagged as an unresolved design conflict, not something to build against as written.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>Guarded by two gatekeepers, Warden &amp; Hollow, stationed as a deliberate pair so neither has a blind spot — testing travelers before letting them through. Travelers stopped coming; the stand-down order never arrived, so they're still testing everyone who walks in ("their shift never technically ended"). Read as faithful and dutiful, not cruel — their test-and-clear protocol is a small, mundane ancestor of what the Sovereign now does full-time.</p>
+<hr>
+<h2 id="10-the-polar-shift">10. The Polar Shift</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Polar Shift, Room 1</strong> — fast travel node. +1 max health.</li>
+<li><strong>Polar Shift, Room 2</strong> — miniboss (Electromagnetic Golem). 1 Lore Pip. One-way exit into Paradox Engine.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>Magnetic walls — blue push, red pull. Traversal is bouncing between magnetic surfaces like a pinball, not jumping.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>polar_paradox.ogg</code></strong> — "Urgent" (Dark Sci-Fi Audio Pack, SRG774, CC0), shared with Paradox Engine — driving, urgent, magnetic push/pull and chase tension.</p>
+<h3 id="hazards">Hazards</h3>
+<p>Design intent: magnetic walls damage on contact only while charged the <em>opposite</em> polarity to the player's last-touched wall — the traversal itself becomes the hazard.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>No ability granted. Home of the <strong>Anchor Wraith</strong> and <strong>Deflector Drone</strong> enemies.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>A remote mining wing outside the Sovereign's routine oversight; its crew built a magnetic automaton (the Electromagnetic Golem) to defend tunnels from collapses and scavengers. An unnamed scientist still directs the golem personally and actively jams outside communication — sabotage, not desperation, hence evil-by-choice. The one region where the "hunt" evidence is <em>absence of a search at all</em> — this crew solved its own problems and never drew Sovereign attention.</p>
+<hr>
+<h2 id="11-paradox-engine">11. Paradox Engine</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Paradox Engine, Room 1</strong> — entered via a one-way teleport gate from The Void Expanse; also receives Polar Shift's one-way exit.</li>
+<li><strong>Paradox Engine, Room 2</strong> — miniboss (The Assembler). Entry requires Shard Shot. 1 Lore Pip. Leads to a teleport toward Upper Ruins and to Static Field, Room 1.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>A chase zone — a giant machine actively hunts the player through a maze while normal enemies still need fighting.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>polar_paradox.ogg</code></strong> — "Urgent," shared with The Polar Shift — driving, urgent, chase tension. Miniboss theme: <strong><code>boss_assembler.ogg</code></strong> — "Caustic Chip" (Jan125, CC-BY 4.0, attribution required).</p>
+<h3 id="hazards">Hazards</h3>
+<p>The chase-beam itself (unbuilt) is meant to double as the region's hazard — no separate generic hazard layer intended.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>No ability granted. Home of the <strong>Deflector Drone</strong>, <strong>Absorber Husk</strong>, and a planned but unbuilt <strong>Debris Construct</strong> (inert scrap that self-assembles when the player nears, telegraphed).</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>Not an abandoned automaton — the creator herself is still here, actively maintaining every warp field and portal gate; whether she's trapped by her own usefulness or never questioned it is left deliberately open. Drops a real, functional Warp Key (postgame utility) on defeat.</p>
+<hr>
+<h2 id="12-static-field">12. Static Field</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Static Field, Room 1</strong> — branches to Static Field Room 2, a one-way teleport to The Void Expanse Room 2, and a one-way teleport to Graviton Core.</li>
+<li><strong>Static Field, Room 2</strong> — new miniboss (The Conduit). Entry requires Phase Dash. 1 Fracture Pip. Leads to The Rift and the one-way teleport to Graviton Core.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>Electromagnetic arcs chain across the room; touching the floor zaps you upward — you must stay airborne. Also corrupts the player's map overlay while inside (and briefly after) — a presentational glitch only; the underlying discovered-room data is never actually altered.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>graviton_static.ogg</code></strong> — "Infestation in the Control Room" (Joth, CC0), shared with Graviton Core — oppressive, mechanical, glitchy/corrupting.</p>
+<h3 id="hazards">Hazards</h3>
+<p>The floor-zaps-upward mechanic itself IS the region's hazard — no separate generic hazard layer needed.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Guards this region's Fracture Pip (Room 2). The intended ability grant is <strong>Overcharge</strong>, but this is the one region whose promised ability isn't wired to any room yet. Home of the <strong>Anchor Wraith</strong> enemy.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>A self-sufficient utility wing that tapped raw electrical discharge for power via a grounding construct meant to bleed dangerous current safely into the earth. The creator/scientist ("The Conduit") is still here and working, fighting with raw electricity; her second phase weaponizes the electroweak interaction, slowly decaying the player over time. The map corruption here scrambled the Sovereign's own tracking data too — accidental sabotage, like Mirror Veil's mirrors.</p>
+<hr>
+<h2 id="13-timeline-crossroads">13. Timeline Crossroads</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Timeline X Roads, Room 1</strong> — fast travel node.</li>
+<li><strong>Timeline X Roads, Room 2</strong> — unlocks Void Tether if you give up the Child (permanent either way). Locked by Echo Bridge part 1. Unlocks <code>child_choice_resolved</code>. Miniboss (The Stationmaster). 1 Lore Pip.</li>
+<li><strong>Timeline X Roads, Room 3</strong> — reached via Crystal Cavern (Void Tether path). Leads to Chrono-Space Rift Gate and The Forge (entry requires Stillpoint, 1 Fracture Pip).</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>Two overlapping time states — Past (crumbling) and Present (safe); enemies and hazards phase in and out, only vulnerable/visible when "Present" (golden tint).</p>
+<h3 id="music">Music</h3>
+<p><strong><code>timeline_crossroads.ogg</code></strong> — "The Surreal Truth" (Joth, CC0) — past/ present overlap, ghostly. Miniboss theme: <strong><code>boss_timeline_crossroads.ogg</code></strong> — "Chuggin' Through Columbia (Looping)" (Eric Matyas, CC-BY 3.0, attribution required — no CC0 "trains/industrial transit" track was found).</p>
+<h3 id="hazards">Hazards</h3>
+<p>Design intent: hazards that only exist in one time-state, reusing the gold-tint = Present visual language.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Grants a real, working (but limited) <strong>Void Tether</strong> immediately, via The Stationmaster fight, conditional on leaving the Child. Also the site of the Child-choice cutscene beat and the Puppet Strings/Tether Region branch (see <a href="#18-connective-rooms">§18</a>).</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>The miniboss (proposed name "The Stationmaster") is one of the scientists who ordered the child's creation and wanted her to fail. Controls internal transit routes, runs the Echo Bridge prison, and has the player arrested when found with the Child — a real staged plot beat. Also stole the Void Tether from the Void Expanse's own guardian. Fights with trains, locomotives, and brainwashed prisoners.</p>
+<hr>
+<h2 id="14-echoing-abyss">14. Echoing Abyss</h2>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Echoing Abyss, Room 1</strong> — fast travel node. Entry requires Phase Dash.</li>
+<li><strong>Echoing Abyss, Room 2</strong> — miniboss (Quantum Pursuer). 1 Lore Pip.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>A "mirror floor" — your own dashes and attacks leave lingering echoes (2s) that double as real platforms.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>echoing_abyss.ogg</code></strong> — "Cage of the Cryptid" (Joth, CC0) — the closest available CC0 fit for "intimate, sad, unresolved" (flagged as an imperfect placeholder). Miniboss theme: <strong><code>boss_quantum_pursuer.ogg</code></strong> — "Sinister Abode" (Zane Little Music, CC0).</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified beyond the echo/platform mechanic itself.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>No ability granted directly. Has the game's one-way shortcut back to Crystal Cavern (origin spine), gated on Stillpoint.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>The miniboss (Quantum Pursuer) used the shelter's lower-class citizens as experimental soul-fodder to fuel her own ascent — exploitation, not grief, hence evil-by-choice. Releases a delayed half-second shadow of the player's own soul. Several of the region's echo-copies are unmistakably the Sovereign's own search personnel, still searching, permanently — also flagged as the closest-region metaphor for the game's endgame identity-loop reveal.</p>
+<hr>
+<h2 id="15-crag-of-the-colossus">15. Crag of the Colossus</h2>
+<p><em>(Built side-branch — narratively independent of the 13 spacetime regions and the Sovereign's story, though intended as mandatory content via a still-unbuilt wall gate.)</em></p>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Crag Entrance</strong> — fast travel node. Requires Phase Dash to enter.</li>
+<li><strong>Crag Breach, part 1</strong></li>
+<li><strong>Crag Altar</strong> — unlocks Charged Attack. The floor collapses and you must fight the Crag Warden.</li>
+<li><strong>Crag Warden</strong> — miniboss. 1 Lore Pip. Leads back to Echo Bridge, part 1.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>The deliberate odd one out — a rust/warm-stone palette against the game's cool violet/teal (<code>#d97757</code> / <code>#c2703d</code> / <code>#fb923c</code>).</p>
+<h3 id="music">Music</h3>
+<p><strong><code>crag.ogg</code></strong> — "Final Captain's Log" (Joth, CC0), flagged as an imperfect placeholder (no ideal CC0 fit for "rocky, primal, collapsing" was found). Miniboss theme: <strong><code>boss_crag_warden.ogg</code></strong> — "Hard Battle 1" (MintoDog, CC0), a unique track.</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified beyond standard combat encounters; the redesigned <code>crag_entrance</code> room has a jump-crossable floor rift and a raised cave ledge.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Grants <strong>Charged Attack</strong> (Crag Altar) — intended to be mandatory, but the wall-gate that would enforce that is still unbuilt.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>The Crag Warden, ruthless head of the mining operation here, fused himself with the crag's own "heart of crystal" tech for total control — it worked too well, giving him permanent super armor. Quotes: <em>"The crag does not yield to a light hand. Strike as though you mean to end something."</em> / <em>"Something split this stone in one blow."</em> / <em>"We gave the crag a heart of crystal so it would remember how to stand. It remembers too well."</em></p>
+<hr>
+<h2 id="16-pacifist-enclave">16. Pacifist Enclave</h2>
+<p><em>(Optional side-branch off Upper Ruins — explicitly not under Sovereign rule.)</em></p>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Pacifist Region</strong> — single node in the current graph (design intent</li>
+</ul>
+<p>is 5 minigames within it, per <code>regions.md</code>).</p>
+<h3 id="ambience">Ambience</h3>
+<p>Not specified visually.</p>
+<h3 id="music">Music</h3>
+<p>Not specified — no dedicated track referenced in <code>audio.js</code>/CREDITS.md.</p>
+<h3 id="hazards">Hazards</h3>
+<p>None specified — designed as explicitly peaceful content.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Peaceful play unlocks 5 minigames leading to 1 Lore Pip. Fighting even once forfeits the reward permanently — an irreversible, consent-gated choice (see <code>CLAUDE.md</code>'s design-decisions list). Placed early (off Upper Ruins) so the "the world can still be kind if you are" beat lands before the player's been ground down by 10+ regions of hostility.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>A ward for shelter staff discarded as no-longer-useful — injured, aged, retired weapons workers. One resident offers the player a place to sleep (the first real home-base beat) and can teach a skill over repeat visits; a romance track is possible. Mid-to-late game, a miniboss takes him as leverage.</p>
+<hr>
+<h2 id="17-sovereigns-army-reserve">17. Sovereign's Army Reserve</h2>
+<p><em>(Optional side-branch off Graviton Core, Room 3 — genuinely skippable, bonus-only reward.)</em></p>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Sovereign's Army Reserve</strong> — locked by 4 Fracture Pips and 10 Lore</li>
+</ul>
+<p>Pips. Leads to...</p>
+<ul>
+<li><strong>Try-out region</strong> — where the Level 4 Limit Break unlock happens.</li>
+</ul>
+<h3 id="ambience">Ambience</h3>
+<p>Not specified visually.</p>
+<h3 id="music">Music</h3>
+<p>Treated as a horde encounter — uses <strong><code>miniboss_a</code></strong>, "Hard Boss Battle 1" (MintoDog, CC0), a "miniboss-tier martial track."</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified — the horde gauntlet itself is the content.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>An extremely difficult horde gauntlet, mixed ranged/melee, cleared in sequence. Dead-ends into the Limit Breaker Trial — a 4th ability-upgrade tier beyond the standard 3 (not yet finalized).</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>Not individual characters — the same guard cloned over and over, frozen in time many loops ago by a much earlier Sovereign; "no will left but to fight," closer to a hazard than characters. Placed here specifically because Graviton Core is the one region confirmed still under live contact with the Sovereign's command structure — the only place an active "reserve" of her soldiers makes in-fiction sense.</p>
+<hr>
+<h2 id="18-connective-rooms">18. Connective Rooms</h2>
+<p><em>(Cross-link content added specifically to fix the world graph's tree-vs-web problem — spatially between two regions, not "owned" by either.)</em></p>
+<h3 id="mirror-corridor">Mirror Corridor</h3>
+<p>Connects Mirror Veil, Sanctum → Event Horizon, Gate. Entry requires <code>child_choice_resolved</code>. Reinstated by <code>floor_plan.md</code> as real playable content after being cut and flagged as a gap in <code>regions.md</code> — the flagship fix for the game's "tree, not web" connectivity problem. No ambience/music/hazard details specified yet beyond that it's real content, not just a bare door.</p>
+<h3 id="puppet-strings-tether-region-part-1-2">Puppet Strings / Tether Region (Part 1 &amp; 2)</h3>
+<p>Branches off Timeline X Roads, Room 2. Both parts locked by Void Tether. Part 2 grants +1 max health and leads back to Timeline X Roads, Room 2. A dead-end optional vault, not a cross-region link. No ambience/music/hazard details specified.</p>
+<hr>
+<h2 id="19-sovereigns-observatory">19. Sovereign's Observatory</h2>
+<p><em>(The Observatory region's capstone room — not a 14th region, the deepest room of <a href="#7-the-observatory">§7</a>. Reached after Observatory Room 3.)</em></p>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>Sovereign's Observatory</strong> — entry requires Graviton Surge. 1 Lore Pip.</li>
+</ul>
+<p>Unlocks fast travel. Leads onward into The Void Expanse, Room 1.</p>
+<h3 id="ambience">Ambience</h3>
+<p>Low gravity, same as the rest of The Observatory — floaty, verticality as the whole point, not just this room's decoration.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>observatory_spire.ogg</code></strong> — "Airy" (Dark Sci-Fi Audio Pack, SRG774, CC0) — confirmed directly in <code>game/audio.js</code>'s <code>AREA_MUSIC_MAP</code> (<code>sovereign_observatory: 'observatory_spire'</code>), the same track as the rest of the Observatory/Inverted Spire cluster — floaty, vertiginous, vast.</p>
+<h3 id="hazards">Hazards</h3>
+<p>Not specified beyond the region's general low-gravity platforming.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>Grants nothing directly, but is a fast-travel unlock — this room's real reward is access, not a kit piece.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>This is the same vantage point the Sovereign used, in the game's present — literally what the region's name describes: she has a form of perception that senses hidden/anomalous things, and stood here to use it, watching the shelter for exactly the kind of anomaly she couldn't otherwise see coming. She isn't watching the whole shelter from it anymore; she's watching for the one anomaly (the child) that was always outside her frame — which is why finding this room lands as more than a fast-travel unlock, it's arriving at the seat of the hunt itself. Its lore-pip visual (<code>lore_so1</code>, a plot-critical cutscene, not a passive overlay): <em>"The Sovereign's silhouette alone in a vast chamber ringed floor-to-ceiling with identical watching apertures, all turned outward except one — small, at the room's exact center, turned inward on herself — and she has not noticed it's there."</em></p>
+<hr>
+<h2 id="20-sovereigns-throne-boss-arena">20. Sovereign's Throne (Boss Arena)</h2>
+<p><em>(The final area — <code>boss_arena</code> in <code>game/area.js</code>, reached via The Antechamber. Deliberately never connects directly from any of the 13 regions — <code>expansion.md</code>'s "final boss placement rule": no region, built or planned, leads straight into the Antechamber or Boss Arena, so the Sovereign stays the true end of the critical path regardless of how much side content the world grows.)</em></p>
+<h3 id="rooms">Rooms</h3>
+<ul>
+<li><strong>The Antechamber</strong> — the room immediately before the boss fight; also</li>
+</ul>
+<p>branches to Hollow Core and, one-way (requires Phase Dash), loops back to the Spawn Area / Tutorial Area's Final Boss Fight room — the spatial loop that ties the game's ending back to its own opening (<code>roadmap.md</code> 6.7).</p>
+<ul>
+<li><strong>Tutorial Area, Final Boss Fight</strong> (internally <code>tutorial_final</code> /</li>
+</ul>
+<p><code>boss_arena</code>) — the arena itself, where the Fractured Sovereign fight happens (full moveset/phase breakdown already covered in <a href="#1-the-fractured-sovereign-final-boss">§1</a> of the boss art reference above).</p>
+<h3 id="ambience">Ambience</h3>
+<p>Not decoratively specified beyond the game's general dark violet/teal palette — no <code>REGION_STYLES</code> entry exists for it (unlike the built regions), since its identity is carried by the boss fight itself, not environmental tinting.</p>
+<h3 id="music">Music</h3>
+<p><strong><code>final_boss.ogg</code></strong> — "Epic Boss Battle [Seamlessly Looping]" (Juhani Junkala, via SubspaceAudio's "400 Indie Game Music Loops," CC0) — confirmed in <code>game/audio.js</code> (<code>tutorial_final: 'final_boss'</code>). Chosen deliberately as "the best fit for fighting your own future self," per <code>CREDITS.md</code>.</p>
+<h3 id="hazards">Hazards</h3>
+<p>Roadmap flags the arena's current build as a known weak point, not a finished design: <code>boss_arena</code> is presently a flat 900px sealed room (one ground lane + 3 small platforms, all roughly the same height band) — not much room for the boss or the player to use space meaningfully. The planned fix (<code>roadmap.md</code> 3.7, not yet built) is real verticality — at least 2-3 distinct height tiers the boss can occupy or leap between, with her kit actually using them (e.g. a Phase 2 teleport-to-a-platform before summoning enemies, a Phase 3 leaping slam from a high platform) — so players track her in two dimensions, not just left/right.</p>
+<h3 id="abilities-mechanics">Abilities / mechanics</h3>
+<p>No ability granted. This is the fight against <strong>The Fractured Sovereign</strong> — see <a href="#1-the-fractured-sovereign-final-boss">§1</a> above for her complete phase/attack/visual breakdown; not repeated here to avoid duplicating that section.</p>
+<h3 id="lore-flavor">Lore flavor</h3>
+<p>She is the player's own future self — same core ability kit minus Graviton Surge, plus a corrupted Void Tether that pulls her toward the player instead of the reverse. The Antechamber leading into this fight carries its own lore beat: the Sovereign's silhouette standing over a fragment of a broken map, one hand slowly closing over a region with no light left in it — searching (<code>lore_ac1</code>) — followed by the game's clearest statement of the hunt itself: a small silhouette (the child) slipping between two of her searching light-beams untouched, the beams sweeping back and missing her by inches, again (<code>lore_ac2</code>). Hollow Core, branching off this same room, is described elsewhere as her true prison — a vast cavity at the world's own spatial center, walls lined with every fused Stillpoint she ever took, and one socket at the center, dark, empty, sized for exactly one more.</p>
+<hr>
+<h2 id="sources">Sources</h2>
+<p><code>Plans/regions.md</code>, <code>Plans/lore.md</code>, <code>Plans/expansion.md</code>, <code>Plans/story.md</code>, <code>Plans/floor_plan.md</code>, <code>game/audio.js</code>, <code>game/game_entities.js</code> (<code>REGION_STYLES</code>), <code>assets/audio/music/CREDITS.md</code>. Where the source docs themselves flag something as unbuilt, a placeholder, or not yet decided, that flag is carried over here rather than smoothed away.</p>
+<h2 id="stillpoint-boss-miniboss-art-reference">STILLPOINT — Boss &amp; Miniboss Art Reference</h2>
+<p>A complete visual-design reference for drawing every boss and miniboss: what they look like, how they move, every attack and its animation beats. Organized per-character so you can work through them one at a time.</p>
+<hr>
+<h2 id="table-of-contents">TABLE OF CONTENTS</h2>
+<ol class="toc">
+<li><a href="#1-the-fractured-sovereign-final-boss">The Fractured Sovereign (Final Boss)</a></li>
+<li><a href="#2-colossus-core-crag-warden">Colossus Core / Crag Warden</a></li>
+<li><a href="#3-the-conduit">The Conduit</a></li>
+<li><a href="#4-the-mirror-king">The Mirror King</a></li>
+<li><a href="#5-graviton-guard-sovereigns-guard">Graviton Guard (Sovereign's Guard)</a></li>
+<li><a href="#6-the-assembler">The Assembler</a></li>
+<li><a href="#7-the-stationmaster">The Stationmaster</a></li>
+<li><a href="#8-quantum-pursuer">Quantum Pursuer</a></li>
+<li><a href="#9-warden-hollow-duo-fight">Warden &amp; Hollow (duo)</a></li>
+<li><a href="#10-electromagnetic-golem">Electromagnetic Golem</a></li>
+<li><a href="#11-gravity-collapse-core-horizon-core">Gravity Collapse Core (Horizon Core)</a></li>
+<li><a href="#12-temporal-warden">Temporal Warden</a></li>
+<li><a href="#13-the-undertow">The Undertow</a></li>
+<li><a href="#14-the-child-antechamber">The Child (Antechamber)</a></li>
+<li><a href="#15-abandoned-shell">Abandoned Shell</a></li>
+<li><a href="#16-the-player">The Player</a></li>
+<li><a href="#17-stutterer-common-enemy">Stutterer (Common Enemy)</a></li>
+<li><a href="#18-stillpoint-revenant-common-enemy">Stillpoint Revenant (Common Enemy)</a></li>
+</ol>
+<hr>
+<h2 id="1-the-fractured-sovereign-final-boss">1. THE FRACTURED SOVEREIGN (Final Boss)</h2>
+<p><strong>ID:</strong> <code>boss</code> (class <code>Boss</code> in <code>game/boss.js</code>) <strong>Region:</strong> Sovereign's Throne (final area) <strong>Size:</strong> 48 × 56 px — larger than the player (24×32) but not massive <strong>Color palette:</strong> Phase 1 violet (<code>#8b5cf6</code>), Phase 2 purple (<code>#c084fc</code>), Phase 3 red (<code>#f87171</code>). Inner core always pale lavender (<code>#e0d4ff</code>). Eyes red (<code>#ff3333</code>) normally, white during lunge/teleport. <strong>Lore:</strong> She IS the player from the future — same ability kit minus Graviton Surge, plus a corrupted Void Tether that pulls HER to you instead.</p>
+<h3 id="visual-states">Visual States</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>State</th><th>What it looks like</th></tr></thead>
+<tbody>
+<tr><td><strong>Idle</strong></td><td>Gentle floating bob (2px sine wave). Drifts toward/away from player to hold ~220px preferred distance.</td></tr>
+<tr><td><strong>Entering</strong></td><td>Descends into arena, settles at ground level.</td></tr>
+<tr><td><strong>Recovering</strong></td><td>Breathing bob (5px sine). Invulnerable, flashing opacity.</td></tr>
+<tr><td><strong>Phase transition</strong></td><td>Opacity flickers (every 6 frames), "PHASE II/III" text floats up. Phase 3: red aura expands, quote appears: <em>"You think stillness belongs to you?"</em></td></tr>
+<tr><td><strong>Staggered</strong></td><td>Sliding to a stop (velocity × 0.85 decay). Vulnerable window — this is when the player attacks.</td></tr>
+<tr><td><strong>Teleporting</strong></td><td>Vanishes (goes offscreen), vortex rings spin at departure point (3 concentric arcs, alternating rotation). Reappears at random arena position with a 15-frame flash.</td></tr>
+<tr><td><strong>Lunging</strong></td><td>Fast horizontal surge at vx=11. White eyes. 3 trailing afterimages in red, fading. Motion blur effect.</td></tr>
+<tr><td><strong>Dead</strong></td><td>Body fragments scatter outward in a radial burst (12 pieces spinning), fade to transparent over 60 frames.</td></tr>
+</tbody></table></div>
+<h3 id="phase-3-persistent-visuals">Phase 3 Persistent Visuals</h3>
+<ul>
+<li><strong>Damage aura:</strong> Pulsing red circle (radius ~100px, <code>rgba(248,113,113)</code>) around her at all times. Deals tick damage if player stands within 150px.</li>
+<li><strong>Stillpoint immunity shimmer:</strong> Faint red outline rectangle (2px stroke, sine-pulsing opacity) around her body at all times in Phase 3.</li>
+<li><strong>Boss Stillpoint activation:</strong> Larger pulsing red ring (radius ~140px, 4px stroke) when she casts her own Stillpoint.</li>
+</ul>
+<h3 id="shield-phase-2">Shield (Phase 2+)</h3>
+<p>A vertical cyan bar (<code>#67e8f9</code>) on whichever side she faces. 12px wide, extends 4px above and below her body. Pulses with a sine glow. Blocks frontal damage (2 hits to break). When broken, "SHIELD BROKEN" text in teal.</p>
+<h3 id="attacks-full-breakdown">Attacks — Full Breakdown</h3>
+<h4 id="melee-swing-all-phases">MELEE SWING (All Phases)</h4>
+<p><strong>Telegraph (14 frames):</strong> A glowing violet circle grows at the strike point — forward (in front of her), up (above), or down (below), depending on where the player is relative to her center. She picks the direction based on player position (±40px vertical threshold).</p>
+<ul>
+<li>Forward: circle at <code>facing × 40px</code> offset, radius grows from 14 to 38</li>
+<li>Up: circle 40px above her center</li>
+<li>Down: circle 40px below her center</li>
+</ul>
+<p><strong>Active hit (10 frames):</strong></p>
+<ul>
+<li>Forward hitbox: 86 × 50 px rectangle, extends from her front edge</li>
+<li>Up hitbox: (width+20) × 64 px rectangle, 60px above her top</li>
+<li>Down hitbox: (width+20) × 64 px rectangle, starting at her bottom edge</li>
+</ul>
+<p><strong>Damage:</strong> 1, moderate knockback (vx 5-7, vy -4 to -8) <strong>Cooldown:</strong> 55 frames Phase 1, 30 frames Phase 2+ <strong>Recovery:</strong> 12-frame delay then 28-frame stagger (punish window)</p>
+<h4 id="charged-heavy-phase-2-only-or-as-retaliation-to-5-consecutive-hits">CHARGED HEAVY (Phase 2+ only, or as retaliation to 5+ consecutive hits)</h4>
+<p><strong>Telegraph (40 frames):</strong> Red escalating glow circle centered on her. Starts at radius 20, grows to 80. Pulsing brightness. "HEAVY" text appears at 75% charge. She tracks the player's horizontal position during windup (slow drift at 1.4-2.0 speed).</p>
+<p><strong>Active hit (14 frames):</strong> Massive 120 × 76 px rectangle extending from her front. She dips up 15px and slams back down (7-frame dip animation). Screen shake (intensity 8, duration 16).</p>
+<p><strong>Damage:</strong> 2, HUGE knockback (vx 18, vy -9, hitStun 22) — meant to send the player flying into the arena wall. <strong>Cooldown:</strong> 80 frames Phase 2, 55 frames Phase 3</p>
+<h4 id="dash-chain-phase-2">DASH-CHAIN (Phase 2+)</h4>
+<p><strong>Telegraph (26 frames):</strong> Red horizontal arrow growing from her side in the dash direction. Arrow length grows from 80 to 200px. Arrow has a triangular head. "DASH" text appears at 75%.</p>
+<p><strong>Active:</strong> She slides across the arena at vx=11. Her body IS the hitbox. Bounces off walls up to 2 more times (3 legs total), reversing direction each time. Each chained leg has a shorter timer (24 frames vs 34 first leg).</p>
+<p><strong>Damage:</strong> 1, knockback vx 10, vy -5, hitStun 12 <strong>End:</strong> Enters stagger state for 35 frames after the chain ends.</p>
+<h4 id="phase-dash-defensive-all-phases">PHASE DASH (Defensive — All Phases)</h4>
+<p>No telegraph. Instant burst away from the player at vx=13. 13 frames of invincibility (flickering opacity). 16 frames total. No stagger after — she returns to idle quickly (25 frames). This is an escape tool, not an attack.</p>
+<h4 id="wall-burst-phase-2">WALL BURST (Phase 2+)</h4>
+<p>Only fires when she's near an arena wall (within 60px of either edge). She launches away from the wall at vx=11 in a vertical arc (30px peak height over 20 frames, sine curve). 10 frames of invincibility. Wall jump SFX.</p>
+<h4 id="shard-shot-all-phases">SHARD SHOT (All Phases)</h4>
+<p><strong>Telegraph (22 frames):</strong> Small cyan circle (<code>#67e8f9</code>) growing at her center, radius 8 to 14.</p>
+<p><strong>Fires:</strong> One aimed projectile (12×12 px orb) toward the player at speed 5. Projectile color: pale violet (<code>#c4b5fd</code>), drawn as a filled circle.</p>
+<p><strong>Damage:</strong> 1, knockback vx 4, vy -3 <strong>Cooldown:</strong> 90 frames Phase 1, 55 frames Phase 2+</p>
+<h4 id="beam-channel-phase-2">BEAM CHANNEL (Phase 2+)</h4>
+<p><strong>Telegraph (45 frames):</strong> Red rectangle extending from her front side, growing wider (60 → 160px). "BEAM" text above her. Red with sine-pulsing alpha.</p>
+<p><strong>Active (90 frames):</strong> Continuous red beam (700px long, body-height + 8px tall) extending from her front. Bright red outer layer, paler inner core. She tracks the player horizontally. Deals 1 damage every 6 frames on contact.</p>
+<p><strong>End:</strong> 32-frame stagger.</p>
+<h4 id="reversed-void-tether-phase-2">REVERSED VOID TETHER (Phase 2+)</h4>
+<p><strong>Telegraph (35 frames):</strong> A dashed red line (<code>#f87171</code>) connecting her center to the player's center. Line gets thicker and more opaque as it charges. "TETHER" text appears at 70%. This is RED, not the player's teal — corrupted version.</p>
+<p><strong>Active:</strong> She accelerates toward the player (starts at 35% of max speed, ramps up to full speed 9 over time). Her body is the hitbox during travel.</p>
+<p><strong>Damage on arrival:</strong> 2, knockback vx 14, vy -8, hitStun 18 <strong>End:</strong> 30-frame stagger at player's position.</p>
+<h4 id="boss-stillpoint-phase-3-only-centerpiece-move">BOSS STILLPOINT (Phase 3 Only — Centerpiece Move)</h4>
+<p><strong>Telegraph (55 frames):</strong> Golden ring expanding outward from her center (<code>#fbbf24</code> stroke), radius grows to 120px × progress. Sine-pulsing opacity.</p>
+<p><strong>Activation:</strong> Burst of particles — 18 red + 12 golden. Major screen shake (30 intensity). Quote: <em>"You think stillness belongs to you?"</em>. Activates her own Stillpoint: the entire game slows down (player, all enemies, all projectiles) for 150 frames (~2.5s). She herself is IMMUNE to her own slow. 420-frame cooldown.</p>
+<p><strong>Visual while active:</strong> Large pulsing red ring (140px radius, 4px stroke) around her, on top of the persistent Phase 3 aura.</p>
+<h4 id="teleport-phase-2-12-chance-per-attack-pick">TELEPORT (Phase 2+, 12% chance per attack pick)</h4>
+<p>She vanishes (moves offscreen). Vortex rings spin at departure. After 15 frames, reappears at a random arena position with a 15-frame white flash.</p>
+<h4 id="summon-phase-2-periodic">SUMMON (Phase 2+, periodic)</h4>
+<p>Signals game to spawn small enemies at arena edges. No visual telegraph from her — the enemies just appear at x=60 and x=740.</p>
+<h3 id="precognition-system-all-phases">Precognition System (All Phases)</h3>
+<p>When the player commits to a move (charging heavy attack, holding Stillpoint, aiming Shard Shot, or attacking), she reads it:</p>
+<ul>
+<li><strong>Phase 1:</strong> Text popup "I SEE IT COMING" (blue <code>#93c5fd</code>). Responds with a reposition (Phase Dash or Lunge), not a counter-attack. Phase 1 is about feeling outread, not outfought.</li>
+<li><strong>Phase 2+:</strong> Text popup "READ." (blue). Responds with a real counter-attack matched to what was read (heavy → Dash-Chain, Stillpoint → Lunge, Shard → Phase Dash, attack → Melee Swing).</li>
+</ul>
+<h3 id="adaptation-system">Adaptation System</h3>
+<p>After 6 total hits, "— ADAPTING —" text in lavender. She biases future attack selection toward countering whatever the player uses most (melee vs. ranged). After 5 consecutive hits in Phase 2+: "ENOUGH" text in gold, immediately fires a Charged Heavy.</p>
+<hr>
+<h2 id="2-colossus-core-crag-warden">2. COLOSSUS CORE / CRAG WARDEN</h2>
+<p><strong>ID:</strong> <code>colossus_core</code> (class <code>ColossusCore</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Crag of the Colossus <strong>Size:</strong> 84 × 92 px — towering, well past human scale <strong>Color:</strong> Procedural body (orange-brown rocky) <strong>Lore:</strong> A massive stone/crystal golem. Only Heavy Attacks damage it — normal hits bounce off.</p>
+<h3 id="visual-states">Visual States</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>State</th><th>What it looks like</th></tr></thead>
+<tbody>
+<tr><td><strong>Idle</strong></td><td>Slow walk toward player when distant (30% speed). Stationary when close.</td></tr>
+<tr><td><strong>Telegraph (charge)</strong></td><td>Stands still, 40-frame windup. Visible power-up.</td></tr>
+<tr><td><strong>Charging</strong></td><td>Barrels forward at speed 4.2. Body leading edge is the hitbox.</td></tr>
+<tr><td><strong>Swing telegraph</strong></td><td>26-frame windup, shorter/punchier than charge.</td></tr>
+<tr><td><strong>Swinging</strong></td><td>Overhead haymaker — wide arc.</td></tr>
+<tr><td><strong>Stun (parry)</strong></td><td>Frozen, flashing.</td></tr>
+<tr><td><strong>Bounce flash</strong></td><td>Brief white flash (8 frames) when a non-heavy hit bounces off harmlessly.</td></tr>
+<tr><td><strong>Dead</strong></td><td>Death timer increments (handled by game).</td></tr>
+</tbody></table></div>
+<h3 id="attacks">Attacks</h3>
+<h4 id="charge">CHARGE</h4>
+<p><strong>Telegraph (40 frames):</strong> Stands still, heavy telegraph SFX. <strong>Active (50 frames):</strong> Charges at speed 4.2 in facing direction. Front-edge hitbox (26px wide, body height - 20px). <strong>Damage:</strong> 2, knockback vx 6, vy -2, hitStun 14 <strong>Recovery:</strong> Returns to idle, 70-frame wait + 60-frame attack cooldown.</p>
+<h4 id="overhead-swing">OVERHEAD SWING</h4>
+<p><strong>Triggers when:</strong> Player is within 150px (too close to bother charging). <strong>Telegraph (26 frames):</strong> Shorter windup. <strong>Active:</strong> Wide haymaker — hitbox 56px wide extending from front, 70% of body height, starts 10px above top edge. Reaches further and covers more vertical space than the charge. <strong>Damage:</strong> 2, knockback vx 5, vy -9, hitStun 18 (big upward launch) <strong>Recovery:</strong> 60-frame cooldown.</p>
+<h3 id="key-design-note">Key Design Note</h3>
+<p>Normal hits show a bounce flash + SFX but deal zero damage. Only Heavy Attacks (charged attacks) work. This is the core mechanic — you must commit to slow, heavy swings against a fast, aggressive enemy.</p>
+<hr>
+<h2 id="3-the-conduit">3. THE CONDUIT</h2>
+<p><strong>ID:</strong> <code>static_guardian</code> (class <code>TheConduit</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Static Field <strong>Color:</strong> <code>#6558F5</code> (electric indigo-violet) <strong>Size:</strong> Default ComposedEnemy size <strong>Lore:</strong> A human scientist who creates the world's weaponry and electronics. Her tell is electricity, not scale — she's human-sized, not a golem. <strong>Health:</strong> 26, knockback resistance 0.2</p>
+<h3 id="movement">Movement</h3>
+<p>Ground chase at speed 1.4, patrols at 0.6. Aggressive positioning.</p>
+<h3 id="attacks">Attacks</h3>
+<h4 id="homing-electric-bolt">HOMING ELECTRIC BOLT</h4>
+<p><strong>Range:</strong> 380px, <strong>Windup:</strong> 30 frames, <strong>Active:</strong> 18 frames Single homing projectile, pale indigo (<code>#a5b4fc</code>), speed 4, homes for 40 frames <strong>Damage:</strong> 1, <strong>Cooldown:</strong> 90 frames <strong>SFX:</strong> Electric ability sound</p>
+<h4 id="electric-spread">ELECTRIC SPREAD</h4>
+<p><strong>Range:</strong> 300px, <strong>Windup:</strong> 34 frames, <strong>Active:</strong> 18 frames 3 projectiles in a 40° spread, indigo (<code>#6558F5</code>), speed 3.5 <strong>Damage:</strong> 1, <strong>Cooldown:</strong> 130 frames <strong>SFX:</strong> Electric ability sound</p>
+<h3 id="phase-2-50-hp">Phase 2 (≤50% HP)</h3>
+<ul>
+<li>Speed × 1.25, damage × 1.2, cooldowns × 0.85</li>
+<li>Gains <strong>electroweak decay DoT:</strong> every hit inflicts a damage-over-time effect (1 damage per tick, 45-frame tick interval, 150-frame total duration)</li>
+</ul>
+<p><strong>Visual concept:</strong> A human-scale scientist wreathed in electricity. Not physically imposing — dangerous because of her technology. Phase 2 she's angrier, faster, and her hits leave a lingering electric burn.</p>
+<hr>
+<h2 id="4-the-mirror-king">4. THE MIRROR KING</h2>
+<p><strong>ID:</strong> <code>hollow_guardian</code> (class <code>MirrorKing</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Mirror Veil <strong>Color:</strong> <code>#c084fc</code> (soft purple) <strong>Size:</strong> Default ComposedEnemy size <strong>Lore:</strong> Evil-by-choice section chief who duplicates himself. Vain, elusive. NOT knockback-resistant (hard punishes work). <strong>Health:</strong> 30</p>
+<h3 id="attacks">Attacks</h3>
+<h4 id="melee-swing">MELEE SWING</h4>
+<p>Standard melee attack. <strong>Damage:</strong> 2 <strong>Cooldown:</strong> 100 frames</p>
+<h4 id="spread-projectile-represents-duplicated-shard-volleys">SPREAD PROJECTILE (represents duplicated shard volleys)</h4>
+<p><strong>Range:</strong> 340px detection <strong>Windup:</strong> 32 frames <strong>Active:</strong> 16 frames — fires 4 projectiles in a 50° spread fan <strong>Projectile color:</strong> Purple (<code>#c084fc</code>) <strong>Speed:</strong> 3.5 <strong>Damage:</strong> 1 <strong>Cooldown:</strong> 120 frames</p>
+<h4 id="counter-stance-the-mirror-reflects-your-swing-back-at-you">COUNTER STANCE (the "mirror" — reflects your swing back at you)</h4>
+<p><strong>Range:</strong> 60px <strong>Windup:</strong> 18 frames <strong>Active window:</strong> 26 frames — if the player hits him during this, the damage is reflected back <strong>Counter damage:</strong> 2, knockback vx 6, vy -5, hitStun 14 <strong>Cooldown:</strong> 160 frames</p>
+<h3 id="defense">Defense</h3>
+<p><strong>Dodge:</strong> 35% chance to dodge when player swings nearby (90px range), 16 i-frames, 150-frame cooldown.</p>
+<h3 id="phase-2-50-hp">Phase 2 (≤50% HP)</h3>
+<ul>
+<li>Speed × 1.25, cooldowns × 0.8, damage × 1.15</li>
+<li>Spread shot upgrades: 6 projectiles, 70° angle (wider, denser fan)</li>
+</ul>
+<p><strong>Visual concept:</strong> His "copies stop protecting him" — the coy counter-play drops for a faster, harder, more direct assault.</p>
+<hr>
+<h2 id="5-graviton-guard-sovereigns-guard">5. GRAVITON GUARD (Sovereign's Guard)</h2>
+<p><strong>ID:</strong> <code>graviton_sentinel</code> (class <code>GravitonGuard</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Graviton Core <strong>Color:</strong> <code>#94a3b8</code> (steel gray) <strong>Size:</strong> 34 × 46 px (bigger than a normal enemy) <strong>Lore:</strong> Sympathetic — loyal guard with no one left to be loyal to. Shield-based fighter. <strong>Health:</strong> 34</p>
+<h3 id="attacks">Attacks</h3>
+<h4 id="shield-bash-dash_charge">SHIELD BASH (dash_charge)</h4>
+<p><strong>Range:</strong> 260px <strong>Windup:</strong> 32 frames <strong>Active:</strong> 20 frames — charges at speed 8 <strong>Damage:</strong> 3, knockback vx 7, vy -5, hitStun 16 <strong>Cooldown:</strong> 140 frames</p>
+<h4 id="melee-swing">MELEE SWING</h4>
+<p><strong>Damage:</strong> 2 <strong>Cooldown:</strong> 90 frames</p>
+<h3 id="defense">Defense</h3>
+<p><strong>Block:</strong> 55% chance to raise guard when player swings (100px range), holds for 32 frames, 120-frame cooldown. <strong>Shield HP:</strong> 10 — a separate breakable shield pool. When broken, 100 frames of vulnerability before it regenerates (200-frame regen interval).</p>
+<h3 id="phase-2-50-hp-shield-breaks-harder-hits">Phase 2 (≤50% HP) — Shield breaks, harder hits</h3>
+<ul>
+<li>Speed × 1.15, knockback resistance × 1.4</li>
+<li>Dash charge gets heavier knockback: vx 11, vy -8, hitStun 22</li>
+<li>Gains <strong>arc projectile</strong> (ceiling rubble): range 320, windup 28 frames, speed 3, damage 2, gray color (<code>#78716c</code>), arcing trajectory</li>
+</ul>
+<hr>
+<h2 id="6-the-assembler">6. THE ASSEMBLER</h2>
+<p><strong>ID:</strong> <code>paradox_engine</code> (class <code>TheAssembler</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Paradox Engine <strong>Color:</strong> <code>#fb923c</code> (orange) <strong>Size:</strong> Default <strong>Lore:</strong> Open moral axis — the creator herself, still maintaining every warp field. Uses portals. <strong>Health:</strong> 32, slight knockback resistance (0.15)</p>
+<h3 id="movement-portal-blink">Movement: Portal Blink</h3>
+<p>Teleports to behind the player every 150 frames (Phase 1) / 70 frames (Phase 2). Blink distance 90px / 140px. Uses portal SFX, not personal teleport.</p>
+<h3 id="attacks">Attacks</h3>
+<h4 id="slam-dash_charge">SLAM (dash_charge)</h4>
+<p><strong>Range:</strong> 260px, <strong>Windup:</strong> 26 frames, <strong>Active:</strong> 18 frames <strong>Charge speed:</strong> 9 <strong>Damage:</strong> 2, knockback vx 6, vy -5, hitStun 14</p>
+<h4 id="shockwave-360-spread">SHOCKWAVE (360° spread)</h4>
+<p><strong>Range:</strong> 260px, <strong>Windup:</strong> 30 frames, <strong>Active:</strong> 10 frames Fires <strong>8 projectiles</strong> in a full <strong>360° spread</strong> — a radial burst <strong>Color:</strong> Orange (<code>#fb923c</code>), <strong>Speed:</strong> 3.5, <strong>Damage:</strong> 1</p>
+<h4 id="tracking-beam">TRACKING BEAM</h4>
+<p><strong>Range:</strong> 420px, <strong>Windup:</strong> 40 frames, <strong>Active:</strong> 40 frames Continuous beam, 14px wide, tracks the player <strong>Damage:</strong> 1 per tick (14-frame tick cooldown)</p>
+<h3 id="phase-2-50-hp">Phase 2 (≤50% HP)</h3>
+<ul>
+<li>Blink interval halved (70 frames), distance nearly doubled (140px), cooldown halved (35 frames)</li>
+<li>Cooldowns × 0.85, damage × 1.15</li>
+</ul>
+<hr>
+<h2 id="7-the-stationmaster">7. THE STATIONMASTER</h2>
+<p><strong>ID:</strong> <code>timeline_keeper</code> (class <code>TheStationmaster</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Timeline Crossroads <strong>Color:</strong> <code>#fbbf24</code> (gold/amber) <strong>Size:</strong> Default <strong>Lore:</strong> Evil-by-choice scientist who ordered the child's creation. Runs the shelter's transit and a prison. Fights with brainwashed prisoners and "locomotives." <strong>Health:</strong> 30, slight knockback resistance (0.15)</p>
+<h3 id="phase-1-ground-prisoners">Phase 1: Ground + Prisoners</h3>
+<p>Starts with <strong>3 brainwashed prisoners</strong> (weak adds: 3 HP each, gray <code>#a8a29e</code>, basic melee, speed 1.0). They fight alongside him.</p>
+<h4 id="locomotive-sweep-dash_charge">LOCOMOTIVE SWEEP (dash_charge)</h4>
+<p>The signature attack — represented as a very fast, long-range charge. <strong>Range:</strong> 500px, <strong>Windup:</strong> 40 frames, <strong>Active:</strong> 14 frames <strong>Charge speed:</strong> 13 (fastest in the game) <strong>Damage:</strong> 3, knockback vx 8, vy -5, hitStun 18 <strong>SFX:</strong> Train sweep sound</p>
+<h4 id="melee-swing">MELEE SWING</h4>
+<p><strong>Damage:</strong> 2, <strong>Cooldown:</strong> 100 frames</p>
+<h3 id="phase-2-50-hp-takes-to-the-air">Phase 2 (≤50% HP): Takes to the air</h3>
+<ul>
+<li><strong>Movement switches to hover</strong> (maintain distance at 220px, bobbing amplitude 14px)</li>
+<li>Knockback resistance × 4 (absorbs huge knockback but keeps flying)</li>
+<li>Dash charge becomes aerial</li>
+<li>Dash charge knockback upgrades: vx 9, vy -6, hitStun 20</li>
+</ul>
+<p><strong>Visual concept:</strong> Phase 1 is a ground brawler hiding behind his prisoners. Phase 2 he takes flight himself — now he's the locomotive, swooping across the arena.</p>
+<hr>
+<h2 id="8-quantum-pursuer">8. QUANTUM PURSUER</h2>
+<p><strong>ID:</strong> <code>abyss_guardian</code> (class <code>QuantumPursuer</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Echoing Abyss <strong>Color:</strong> <code>#f472b6</code> (pink) <strong>Size:</strong> Default <strong>Lore:</strong> Evil-by-choice. Releases a delayed shadow of the player's soul. <strong>Health:</strong> 26</p>
+<h3 id="unique-mechanic-the-shadow">Unique Mechanic: THE SHADOW</h3>
+<p>A translucent pink copy of the PLAYER that follows the player's own movements on a 0.5-second delay (30 frames). It traces exactly where the player was half a second ago. If the player touches their own shadow, they take 1 damage (60-frame hit cooldown). Forces constant movement — you can never stand still.</p>
+<p><strong>Shadow visual:</strong> Player's silhouette at 35% opacity, filled with the Pursuer's pink color.</p>
+<h3 id="attacks">Attacks</h3>
+<h4 id="homing-bolt-phase-1">HOMING BOLT (Phase 1)</h4>
+<p><strong>Range:</strong> 420px, <strong>Windup:</strong> 45 frames, <strong>Active:</strong> 20 frames Single homing projectile, pink (<code>#f472b6</code>), speed 4, homes for 50 frames <strong>Damage:</strong> 2</p>
+<h3 id="phase-2-50-hp">Phase 2 (≤50% HP)</h3>
+<ul>
+<li>Knockback resistance jumps from near-zero to 0.5 (huge increase)</li>
+<li>Attack becomes a <strong>3-shot spread</strong> (30° angle) at longer range (520px), faster cooldown (100 frames)</li>
+</ul>
+<p><strong>Visual concept:</strong> Phase 1 is a squishy ranged caster you can bully with knockback while dodging the shadow. Phase 2 he's "soul-charged" — harder to push around and carpets the arena with projectiles.</p>
+<hr>
+<h2 id="9-warden-hollow-duo-fight">9. WARDEN &amp; HOLLOW (Duo Fight)</h2>
+<p><strong>Region:</strong> Warp Gate Nexus <strong>Lore:</strong> Sympathetic — dutiful gatekeepers whose shift never ended. A reactive counter-pair that forces toolkit-switching.</p>
+<h3 id="warden-primary-tracked-as-the-miniboss">WARDEN (Primary — tracked as the miniboss)</h3>
+<p><strong>ID:</strong> <code>warp_guardian</code> <strong>Color:</strong> <code>#94a3b8</code> (steel gray) <strong>Health:</strong> 20</p>
+<p><strong>Attacks:</strong> NONE. Warden has no offensive attacks. <strong>Defense:</strong> <strong>Guaranteed block</strong> — 100% chance to raise guard on player swing (100px range), 30-frame guard, 110-frame cooldown.</p>
+<p><strong>Strategy:</strong> You can't melee the Warden. Use Shard Shot or Phase Dash.</p>
+<h3 id="hollow-add-spawns-alongside-warden">HOLLOW (Add — spawns alongside Warden)</h3>
+<p><strong>ID:</strong> <code>warp_guardian_hollow</code> <strong>Color:</strong> <code>#38bdf8</code> (sky blue) <strong>Health:</strong> 16</p>
+<p><strong>Attacks:</strong> NONE. Hollow also has no offensive attacks. <strong>Defense:</strong> <strong>Guaranteed ranged dodge</strong> — 90% chance to dodge any Shard Shot within 260px range, 20 i-frames, 80-frame cooldown.</p>
+<p><strong>Strategy:</strong> You can't shoot Hollow. Must use melee.</p>
+<p><strong>The puzzle:</strong> Melee Hollow (the ranged-dodger), shoot Warden (the melee-blocker). Forces the player to switch tools constantly.</p>
+<hr>
+<h2 id="10-electromagnetic-golem">10. ELECTROMAGNETIC GOLEM</h2>
+<p><strong>ID:</strong> <code>polar_guardian</code> (class <code>ElectromagneticGolem</code> in <code>game/enemy.js</code>) <strong>Region:</strong> The Polar Shift <strong>Color:</strong> <code>#f7e600</code> (electric yellow) <strong>Size:</strong> 72 × 84 px — LARGE machine <strong>Lore:</strong> Directed by an unnamed evil scientist. Magnetizes the room's platforms. <strong>Health:</strong> 24 (deliberately low for its size)</p>
+<h3 id="attacks">Attacks</h3>
+<h4 id="melee-swing">MELEE SWING</h4>
+<p><strong>Damage:</strong> 2, heavy knockback: vx 9, vy -7, hitStun 20</p>
+<h4 id="charge-dash_charge">CHARGE (dash_charge)</h4>
+<p><strong>Range:</strong> 300px, <strong>Windup:</strong> 34 frames, <strong>Active:</strong> 20 frames <strong>Charge speed:</strong> 8 <strong>Damage:</strong> 3, knockback vx 10, vy -6, hitStun 22</p>
+<h3 id="unique-mechanic-magnetize">Unique Mechanic: MAGNETIZE</h3>
+<p>On a timer (220 frames Phase 1, 140 frames Phase 2), charges all <code>magnetizable</code> platforms in the room to a random polarity (positive or negative). Burst of yellow particles when activated.</p>
+<ul>
+<li><strong>Phase 1:</strong> Platforms get a charge (push/pull the player). Player's own charge is only set if they touch a counterplay platform — the tension is picking up a charge voluntarily.</li>
+<li><strong>Phase 2 (≤50% HP):</strong> Force-sets the player's charge to the OPPOSITE of the surfaces, guaranteeing a hard pull-in. This IS an attack — "charge-reversal slam."</li>
+</ul>
+<p><strong>Visual concept:</strong> A giant yellow/gold machine that periodically electrifies the room's surfaces. Weak to projectiles, no shield. The room itself is the weapon.</p>
+<hr>
+<h2 id="11-gravity-collapse-core-horizon-core">11. GRAVITY COLLAPSE CORE (Horizon Core)</h2>
+<p><strong>ID:</strong> <code>horizon_core</code> (class <code>HorizonCore</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Event Horizon <strong>Color:</strong> <code>#818cf8</code> (indigo) <strong>Size:</strong> 80 × 64 px — massive flying construct <strong>Lore:</strong> Not a person — a runaway mining extraction accident. Changes room gravity. <strong>Health:</strong> 30, <strong>fully knockback immune</strong> from frame 1</p>
+<h3 id="movement">Movement</h3>
+<p>Hovers, maintains 260px distance, bobs gently (16px amplitude). Immune to its own gravity shifts (it flies).</p>
+<h3 id="attacks">Attacks</h3>
+<h4 id="debris-projectile">DEBRIS PROJECTILE</h4>
+<p><strong>Range:</strong> infinite, <strong>Windup:</strong> 34 frames, <strong>Active:</strong> 16 frames Straight-line projectile, indigo (<code>#818cf8</code>), speed 4 <strong>Damage:</strong> 2</p>
+<h4 id="gravity-flip">GRAVITY FLIP</h4>
+<p>Changes the room's gravity direction to one of 4 directions (up/down/left/right). The player, all ground enemies, everything is affected — except the Core itself.</p>
+<h3 id="phase-2-50-hp">Phase 2 (≤50% HP)</h3>
+<ul>
+<li>Cooldowns × 0.8, damage × 1.15</li>
+<li>Same attacks, just denser/faster — "denser hazard layering"</li>
+</ul>
+<p><strong>Visual concept:</strong> A massive indigo construct floating serenely above the chaos it causes. The player is being tossed around by gravity while dodging debris.</p>
+<hr>
+<h2 id="12-temporal-warden">12. TEMPORAL WARDEN</h2>
+<p><strong>ID:</strong> <code>chrono_ally</code> (class <code>TemporalWarden</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Chrono-Space Rift <strong>Color:</strong> Dark violet body (<code>#2e2a4a</code>), cyan accents (<code>#67e8f9</code>) <strong>Size:</strong> 32 × 40 px <strong>Lore:</strong> Sympathetic — a time mage who holds back out of guilt. Restrained offense throughout. <strong>Health:</strong> 26</p>
+<h3 id="visual-design">Visual Design</h3>
+<ul>
+<li><strong>Body:</strong> Triangular robed silhouette — hooded time-mage shape (top vertex at head, wide base at feet)</li>
+<li><strong>Hourglass core:</strong> Small cyan circle at chest level, fills up as the rewind cycle progresses</li>
+<li><strong>Eyes:</strong> Two small rectangles, cyan normally, white during the rewind-flash window</li>
+<li><strong>Flash ring:</strong> Pulsing cyan circle (3px stroke) around him during the interrupt window</li>
+</ul>
+<h3 id="movement">Movement</h3>
+<p>Floats — no gravity, gentle sine-wave bob. Kites at 240px preferred distance (backs away if player gets close, drifts in if too far). NOT aggressive.</p>
+<h3 id="attack-chrono-bolt">Attack: CHRONO BOLT</h3>
+<p><strong>Telegraph (34 frames):</strong> Small cyan glow growing at his center (radius 6→14). Fires a single slow projectile (speed 3, straight line, cyan <code>#67e8f9</code>). <strong>Damage:</strong> 1 <strong>Cooldown:</strong> 100 frames</p>
+<p>That's it — one slow, telegraphed projectile. He's deliberately weak offensively.</p>
+<h3 id="core-mechanic-health-rewind">Core Mechanic: HEALTH REWIND</h3>
+<p>Every ~10 seconds (600 frames), he attempts to rewind all damage taken during that cycle.</p>
+<p><strong>The cycle:</strong></p>
+<ol class="toc">
+<li>Timer counts down from 600 to 0</li>
+<li>At 90 frames remaining (~1.5s before rewind), the <strong>flash window</strong> starts:</li>
+<li>Pulsing cyan ring around him</li>
+<li>Eyes turn white</li>
+<li>Cyan particles burst</li>
+<li>If the player deals <strong>4+ damage during the flash window</strong>, the rewind is INTERRUPTED (gold particles, damage sticks)</li>
+<li>If NOT interrupted, he heals back to his HP at the cycle's start (cyan particles, screen shake)</li>
+<li>Cycle resets</li>
+</ol>
+<p><strong>Visual tell design:</strong> The hourglass core filling up IS the countdown. The pulsing ring + white eyes IS the "hit me NOW" tell.</p>
+<h3 id="stillpoint-resistance">Stillpoint Resistance</h3>
+<p>The ONE non-boss enemy with partial Stillpoint resistance. Ramps in after the player uses Stillpoint 3+ times against him specifically. Caps at 30% resistance (not immunity). Narratively justified as foreshadowing — he's a time mage.</p>
+<h3 id="reward-on-defeat">Reward on Defeat</h3>
+<p>+1 Stillpoint lifesteal (not the usual +1 Max Health).</p>
+<hr>
+<h2 id="13-the-undertow">13. THE UNDERTOW</h2>
+<p><strong>ID:</strong> <code>void_expanse_boss</code> (class <code>Undertow</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Void Expanse <strong>Color:</strong> <code>#1a0b2e</code> (near-black deep purple) <strong>Size:</strong> Default <strong>Lore:</strong> Child of a scientist obsessed with darkness, merged with the void. Steals what people hold dearest. <strong>Health:</strong> 30, slight knockback resistance (0.15)</p>
+<h3 id="movement-portal-blink">Movement: Portal Blink</h3>
+<p>Teleports on interval (160 frames Phase 1, 90 frames Phase 2). Blink distance 200px/260px. Portal SFX. A chase/pressure fight.</p>
+<h3 id="attacks">Attacks</h3>
+<h4 id="homing-bolt">HOMING BOLT</h4>
+<p><strong>Range:</strong> 380px, <strong>Windup:</strong> 32 frames, <strong>Active:</strong> 18 frames Single homing projectile, dark purple (<code>#4c1d95</code>), speed 4, homes for 45 frames <strong>Damage:</strong> 2</p>
+<h4 id="gravity-well-the-stealing-attack">GRAVITY WELL (the "stealing" attack)</h4>
+<p><strong>Range:</strong> 260px, <strong>Windup:</strong> 40 frames, <strong>Active:</strong> 20 frames Spawns a gravity well projectile — <strong>zero damage</strong>, but pulls the player toward it (radius 110px, pull strength 0.22). Near-black color (<code>#0f0620</code>). Void pull SFX. <strong>Phase 2:</strong> Radius increases to 150px, pull strength to 0.32.</p>
+<h4 id="spread-shot">SPREAD SHOT</h4>
+<p><strong>Range:</strong> 340px, <strong>Windup:</strong> 30 frames, <strong>Active:</strong> 16 frames 5 projectiles in a 60° spread, dark violet (<code>#6d28d9</code>), speed 3.5 <strong>Damage:</strong> 1</p>
+<h3 id="phase-2-50-hp">Phase 2 (≤50% HP)</h3>
+<ul>
+<li>Blink faster/further, cooldowns × 0.8, damage × 1.15</li>
+<li>Gravity well becomes stronger and wider</li>
+</ul>
+<p><strong>Visual concept:</strong> A dark, near-invisible figure that teleports around the arena, pulling you into void wells while pelting you with dark projectiles. The fight is about staying mobile and not getting sucked in.</p>
+<hr>
+<h2 id="14-the-child-antechamber">14. THE CHILD (Antechamber)</h2>
+<p><strong>ID:</strong> <code>antechamber_child</code> (class <code>TheChild</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Antechamber <strong>Color:</strong> <code>#e2b8a3</code> (warm skin tone) <strong>Size:</strong> Default <strong>Lore:</strong> The player's companion, grown up among escaped prisoners after separation. Fights with scavenged weapons (tasers, flamethrowers, bombs, guns). This fight REPLACES the Abandoned Shell as the consequence of losing the child. Triggers the Absorb/Spare choice on defeat. <strong>Health:</strong> 22, slight knockback resistance (0.1)</p>
+<h3 id="attacks-scavenged-weapons">Attacks (Scavenged Weapons)</h3>
+<h4 id="gun">GUN</h4>
+<p>Ranged projectile (uses the WarScavenger gun preset — check <code>GUN_NORMAL</code>/<code>GUN_STRONG</code> constants in enemy.js for exact stats).</p>
+<h4 id="taser">TASER</h4>
+<p>Close-range shock weapon (uses <code>TASER_NORMAL</code>/<code>TASER_STRONG</code> presets).</p>
+<h4 id="flamethrower">FLAMETHROWER</h4>
+<p>Cone/stream attack (uses <code>FLAMETHROWER_NORMAL</code>/<code>FLAMETHROWER_STRONG</code> presets).</p>
+<h4 id="scavenged-bomb-mine-pattern">SCAVENGED BOMB (mine pattern)</h4>
+<p><strong>Range:</strong> 300px, <strong>Windup:</strong> 45 frames Throws a mine that arms after 60 frames, then detonates in a 70px radius <strong>Damage:</strong> 2, color amber (<code>#f59e0b</code>)</p>
+<h3 id="regen">Regen</h3>
+<p>Heals 1 HP every 150 frames unless hit within the last 120 frames.</p>
+<h3 id="three-phases">Three Phases</h3>
+<p><strong>Phase 1 (100%–66% HP):</strong> Fights alone with normal weapons.</p>
+<p><strong>Phase 2 (66%–33% HP):</strong> Calls <strong>2 brainwashed prisoners</strong> (same weak adds as the Stationmaster's — 3 HP each, gray, basic melee).</p>
+<p><strong>Phase 3 (≤33% HP):</strong> Rage-boosted.</p>
+<ul>
+<li>Speed × 1.3, cooldowns × 0.7, damage × 1.3</li>
+<li>All weapons upgrade to their STRONG variants (faster, harder-hitting)</li>
+</ul>
+<p><strong>Visual concept:</strong> A tragic fight — this is your former companion, now hostile, using improvised weapons. The three phases mirror the Stationmaster fight (prisoners are literally the same people).</p>
+<hr>
+<h2 id="15-abandoned-shell">15. ABANDONED SHELL</h2>
+<p><strong>ID:</strong> <code>abandoned_shell</code> (class <code>AbandonedShell</code> in <code>game/enemy.js</code>) <strong>Region:</strong> Hollow Core <strong>Color:</strong> <code>#dc2626</code> (red) <strong>Size:</strong> Default <strong>Lore:</strong> A ghostly, red-eyed boss that copies your moves. HP ~48 (60% of the Sovereign's 80). Fights every playthrough unconditionally. <strong>Health:</strong> 48, knockback resistance 0.15</p>
+<h3 id="movement">Movement</h3>
+<p>Ground chase at speed 1.3, can jump. Patrols at 0.6. Aggressive and mobile.</p>
+<h3 id="attacks-mirrors-of-the-players-own-kit">Attacks (mirrors of the player's own kit)</h3>
+<h4 id="melee-swing-mirrors-players-basic-attack">MELEE SWING (mirrors player's basic attack)</h4>
+<p><strong>Damage:</strong> 2, <strong>Cooldown:</strong> 90 frames</p>
+<h4 id="dash-charge-mirrors-phase-dash">DASH CHARGE (mirrors Phase Dash)</h4>
+<p><strong>Range:</strong> 300px, <strong>Windup:</strong> 20 frames (fast!), <strong>Active:</strong> 16 frames <strong>Charge speed:</strong> 12 <strong>Damage:</strong> 2, knockback vx 6, vy -5, hitStun 14</p>
+<h4 id="ranged-projectile-mirrors-shard-shot">RANGED PROJECTILE (mirrors Shard Shot)</h4>
+<p><strong>Range:</strong> 360px, <strong>Windup:</strong> 28 frames, <strong>Active:</strong> 14 frames Single straight-line projectile, red (<code>#f87171</code>), speed 5 <strong>Damage:</strong> 1</p>
+<h3 id="phase-2-50-hp">Phase 2 (≤50% HP)</h3>
+<ul>
+<li>Speed × 1.2, cooldowns × 0.8, damage × 1.15</li>
+<li>Same attacks, faster and harder</li>
+</ul>
+<p><strong>Visual concept:</strong> A red-eyed echo of the player. Everything it does should look like a corrupted/twisted version of the player's own moveset. It's fast, aggressive, and hits hard — a mirror match.</p>
+<hr>
+<h2 id="16-the-player">16. THE PLAYER</h2>
+<p><strong>Class:</strong> <code>Player</code> in <code>game/player.js</code>. Draw math for attacks/abilities lives in <code>game/attackVFX.js</code> (kept separate so <code>anim_editor.html</code> and <code>animdata.js</code>'s <code>POSE_RENDERERS</code> can reuse the exact same shapes/hitboxes). <strong>Size:</strong> 24 × 32 px normal, 16 px tall while ducking (<code>normalHeight</code>/<code>duckHeight</code>). <strong>Lore:</strong> She's also the Fractured Sovereign's "past self" — worth keeping a visual thread between the two (see §1's palette: the Sovereign's violet <code>#8b5cf6</code>/lavender core <code>#e0d4ff</code> echoes the player's own violet/lavender below, deliberately).</p>
+<h3 id="base-body">Base Body</h3>
+<ul>
+<li><strong>Fill:</strong> <code>#c4b5fd</code> (light violet) normally, swaps to <code>#a5f3fc</code> (cyan) for the entire duration Stillpoint is active — this is the primary "is Stillpoint on" read for the player's own body, separate from the halo effect below.</li>
+<li><strong>Chest core:</strong> small 8×8 glowing square at <code>x+8, y+12</code>. <code>rgba(224,215,255, 0.55)</code> normal, <code>rgba(103,232,249, 0.95)</code> during Stillpoint (brighter + cyan).</li>
+<li><strong>Eyes:</strong> <code>#0a0a0f</code> (near-black), 6×6px square, offset to whichever side she's facing (<code>x+14</code> facing right / <code>x+4</code> facing left).</li>
+<li><strong>Hurt/invincibility:</strong> no color change — flickers by skipping the draw call every other 4-frame window while <code>invincibleTimer &gt; 0</code>.</li>
+<li><strong>Squash/stretch (pure transform, not animator-driven):</strong> airborne stretch scales with <code>|vy|</code>, a landing squash on touchdown, ducking adds a 1.15× horizontal stretch.</li>
+</ul>
+<h3 id="movementability-vfx">Movement/Ability VFX</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Effect</th><th>Visual</th></tr></thead>
+<tbody>
+<tr><td><strong>Dash trail</strong></td><td>Color interpolates violet→cyan by combo-chain tier: <code>rgb(196,181,253)</code> at tier 0 → <code>rgb(103,232,249)</code> at max tier. Max-chain trail adds <code>rgba(103,232,249,0.6)</code> sparkles.</td></tr>
+<tr><td><strong>Phase Dash</strong></td><td>Solid <code>#a78bfa</code> afterimage ghosts + a soft <code>rgba(196,181,253,0.18)</code> halo trailing behind.</td></tr>
+<tr><td><strong>Wall-slide</strong></td><td>Radial gradient glow <code>rgba(196,181,253, pulse)</code> → transparent against the wall, plus <code>rgba(203,245,255, pulse×0.6)</code> sparkles.</td></tr>
+<tr><td><strong>Echo (Phase Dash afterimage/decoy)</strong></td><td>Body <code>#c4b5fd</code>, distraction-radius ring <code>rgba(196,181,253, alpha×0.3)</code>, swing arc <code>rgba(196,181,253, 0.9×t)</code>.</td></tr>
+<tr><td><strong>Stillpoint halo</strong></td><td>Fill <code>rgba(103,232,249, 0.12×pulse)</code>, stroke <code>rgba(103,232,249, 0.55×pulse)</code> — expanding/contracting ring, distinct from the body-color swap above.</td></tr>
+<tr><td><strong>Shard Shot aim line</strong></td><td>Dotted amber <code>#fbbf24</code> line with a matching glow, shown while aiming.</td></tr>
+<tr><td><strong>Shard Shot Lv3 beam</strong></td><td>Upgraded aim becomes a solid beam, <code>rgba(103,232,249, 0.85×pulse)</code> with a <code>#67e8f9</code> cyan glow — same cyan family as Stillpoint, visually ties the two abilities together.</td></tr>
+<tr><td><strong>Graviton Surge</strong></td><td>Pink/magenta <code>rgba(244,114,182, alpha)</code> — a radial pull-field plus a solid core ball. The one ability that breaks from the violet/cyan palette entirely (deliberately reads as a "foreign," heavier force).</td></tr>
+<tr><td><strong>Limit Break aura</strong></td><td>Blue: fill <code>rgba(59,130,246, 0.22×pulse)</code>, stroke <code>rgba(96,165,250, 0.8×pulse)</code> — the other palette-breaking effect, signals "temporary overdrive" rather than a core kit ability.</td></tr>
+<tr><td><strong>Heavy-attack charge glow</strong></td><td>Amber <code>rgba(251,146,60, alpha)</code>, expanding halo + ring while charging a heavy swing.</td></tr>
+</tbody></table></div>
+<h3 id="attack-swings-melee">Attack Swings (Melee)</h3>
+<p>Attack slash VFX for every direction share one look: white/near-white strokes <code>rgba(255,248,255, alpha)</code> fading through secondary lines in <code>rgba(224,215,255,...)</code> / <code>rgba(196,181,253,...)</code>, plus a bright white flash burst <code>rgba(255,250,255, alpha)</code> at the swing's midpoint frame.</p>
+<p>Hitbox sizes (from <code>attackVFX.js</code>):</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Attack</th><th>Size (w×h)</th><th>Damage</th><th>Duration</th></tr></thead>
+<tbody>
+<tr><td>Forward</td><td>58 × 28</td><td>1</td><td>12 frames (<code>ATTACK_VFX_FRAME_COUNT</code>)</td></tr>
+<tr><td>Up</td><td>30 × 36</td><td>1</td><td>12 frames</td></tr>
+<tr><td>Down</td><td>40 × 24</td><td>1</td><td>12 frames</td></tr>
+<tr><td>Heavy Forward</td><td>44 × 50</td><td>2 (<code>HEAVY_DAMAGE</code>)</td><td>16 frames (+4 heavy extra)</td></tr>
+</tbody></table></div>
+<p>Cooldown between swings: 18 frames. Heavy knockback multiplier: ×2.5.</p>
+<h3 id="anim-editor-state-whats-authored-vs-still-on-legacy-fallback">Anim-Editor State — what's authored vs. still on legacy fallback</h3>
+<p>Two parallel animator systems exist (<code>animKeyForAttack()</code> for swings, <code>playerBodyStateKey()</code> for movement pose, plus independent overlay keys for abilities), but <strong>only two keys have real <code>ANIM_DEFS</code> entries in <code>game/animdata.js</code> right now</strong>:</p>
+<ul>
+<li><code>player_attack_forward</code> — 3 frames (3f/5f/4f), pose <code>attack_swing</code> dir <code>forward</code>, hitbox lands on frame 2 (<code>{x:24,y:6,w:58,h:28}</code>), frame 3 is cancelable into a combo follow-up.</li>
+<li><code>player_attack_up</code> — same 3-frame shape, hitbox <code>{x:-5,y:-28,w:40,h:36, noMirror:true}</code>.</li>
+</ul>
+<p><strong>Everything else below still renders through the old hardcoded <code>drawPlayerBody()</code>/<code>drawAttackVFX()</code> code path, not <code>anim_editor.html</code>-authored frames — these are the open slots to fill in:</strong></p>
+<ul>
+<li><code>player_attack_down</code> (no entry yet)</li>
+<li>Heavy variants of all three directions (<code>player_attack_forward_heavy</code>, etc. — no entries yet)</li>
+<li>Body/movement poses: <code>player_idle</code>, <code>player_run</code>, <code>player_jump</code>, <code>player_fall</code>, <code>player_duck</code>, <code>player_wallslide</code>, <code>player_phasedash</code>, <code>player_dash_chain1/2/3</code> (none authored)</li>
+<li>Overlay poses: <code>player_stillpoint</code>, <code>player_shardshot_aim</code>, <code>player_shardshot_beam</code>, <code>player_gravball</code> (none authored)</li>
+</ul>
+<p>(<code>editor/anim_editor.html</code>'s "Companion" category is for the Child, §14 — not the player. There is no equivalent player category label yet; player keys are added by their raw key name via the <code>?anim=</code> deep link.)</p>
+<hr>
+<h2 id="17-stutterer-common-enemy">17. STUTTERER (Common Enemy)</h2>
+<p><strong>ID:</strong> <code>stutterer</code> (class <code>Stutterer extends ComposedEnemy</code> in <code>game/enemy.js</code>) <strong>Size:</strong> 28 × 28 px (default <code>ComposedEnemy</code> size, no override) <strong>Color:</strong> <code>#a78bfa</code> (violet) <strong>Health:</strong> 6 <strong>Placement:</strong> the single most-placed enemy type in <code>area.js</code> (37 placements) — this is the one players will see the most, by a wide margin. <strong>Concept:</strong> a stuttering, glitchy melee enemy that repeatedly blinks itself directly behind the player rather than walking — closes distance in bursts, not a chase.</p>
+<h3 id="movement-blink">Movement — Blink</h3>
+<p>Every 120 frames, teleports to land 110px behind the player's current facing direction (grounded — falls/rests on the floor between blinks, doesn't fly). Each blink:</p>
+<ul>
+<li>Leaves a <strong>fading decoy</strong> at the departure point: same violet <code>#a78bfa</code> fill, fades out over 60 frames.</li>
+<li><strong>Flash</strong> on arrival: visibility toggles on/off for 15 frames (a stutter/glitch flicker, matching the name).</li>
+<li><strong>Particle burst:</strong> 6 violet particles at the arrival point.</li>
+</ul>
+<h3 id="attack-melee-swing">Attack — MELEE SWING</h3>
+<p><strong>Range:</strong> 100px, <strong>Windup:</strong> 28 frames, <strong>Active:</strong> 20 frames <strong>Hitbox:</strong> 30 × 24, positioned at the enemy's leading edge <strong>Damage:</strong> 1, knockback vx 5, vy -4, hitStun 10 <strong>Cooldown:</strong> 120 frames</p>
+<p>No counters, no defense verbs, no shield/regen — a straightforward, low-HP swarm-style threat whose entire identity is the teleport-blink movement.</p>
+<h3 id="generic-composedenemy-visuals-shared-with-18-and-most-non-boss-enemies">Generic ComposedEnemy Visuals (shared with §18 and most non-boss enemies)</h3>
+<p>Since it doesn't override <code>draw()</code>, it renders through the shared <code>ComposedEnemy.draw()</code> path:</p>
+<ul>
+<li><strong>Body:</strong> plain filled rectangle in <code>this.color</code> (<code>#a78bfa</code>), EXCEPT: white <code>#ffffff</code> for the first 6 frames after taking a hit (flash), amber <code>#fbbf24</code> while winding up an attack.</li>
+<li><strong>Eyes:</strong> <code>#0a0a0f</code>, 8×6px, offset to facing side.</li>
+<li><strong>Windup telegraph:</strong> expanding orange ring <code>rgba(255,120,40, 0.3 + progress×0.5)</code> plus a bold amber <code>!</code> above its head.</li>
+<li><strong>Active-hitbox outline:</strong> <code>rgba(255,200,100,0.6)</code> stroke while the swing is live.</li>
+<li><strong>Death fade:</strong> alpha ramps 1→0 over 20 frames.</li>
+</ul>
+<p><strong>Attacks still to design/fill in:</strong> currently only the one melee swing — no ranged option, no secondary "stutter" attack variant despite the glitch-blink identity. Worth deciding whether the visual glitch-flicker should extend into the attack windup itself (e.g., the <code>!</code> telegraph double-flickering) to sell "stutter" as a combat trait, not just a movement trait.</p>
+<hr>
+<h2 id="18-stillpoint-revenant-common-enemy">18. STILLPOINT REVENANT (Common Enemy)</h2>
+<p><strong>ID:</strong> <code>stillpoint_revenant</code> (class <code>StillpointRevenant extends ComposedEnemy</code> in <code>game/enemy.js</code>) <strong>Size:</strong> 28 × 28 px (default, no override) <strong>Color:</strong> <code>#818cf8</code> (indigo/periwinkle) <strong>Health:</strong> 7 <strong>Placement:</strong> second most-placed enemy type in <code>area.js</code> (32 placements) — the other enemy nearly every player will fight repeatedly. <strong>Concept:</strong> the first (and currently only) enemy anywhere in the codebase built specifically to counter the player's Stillpoint ability directly, rather than just being slowed by it like everything else.</p>
+<h3 id="movement-ground-chase">Movement — Ground Chase</h3>
+<p>Standard ground chase, but deliberately slower than the <code>ground_chase</code> default: speed 1.1 (vs. default 1.5), patrol speed 0.5 (vs. default 0.7). Chases when the player is in sight range along its facing direction; patrols between a fixed range otherwise. Stops at ledges — doesn't jump.</p>
+<h3 id="attack-melee-swing">Attack — MELEE SWING</h3>
+<p>Uses the shared <code>melee_swing</code> defaults: <strong>range</strong> 40px, <strong>windup</strong> 28 frames, <strong>active</strong> 15 frames, <strong>hitbox</strong> 30 × 24, <strong>knockback</strong> vx 5, vy -4, hitStun 10. <strong>Damage:</strong> 1, <strong>Cooldown:</strong> 100 frames</p>
+<h3 id="signature-mechanic-stillpoint-counter">Signature Mechanic — STILLPOINT COUNTER</h3>
+<p><code>counters: [{ ability: 'stillpoint', effect: 'cancel', radius: 100 }]</code>. While the player has Stillpoint active and stands within 100px of this enemy's center, it force-cancels the player's Stillpoint outright (plays the Stillpoint-end SFX) — described in its own code comment as "emits a slow bubble that cancels your Stillpoint if you stand inside it."</p>
+<p><strong>No visual indicator currently exists for the 100px counter radius itself</strong> — this is the biggest open art gap on this enemy. The only visual tell it has is the shared amber windup ring/<code>!</code> telegraph, which is for its <em>melee attack</em>, not its passive Stillpoint-cancel field. Needs its own persistent visual (a faint indigo bubble/ring at the 100px radius, pulsing or flickering when the counter is armed vs. triggered) so players can actually read "I'm inside its cancel field" before losing Stillpoint.</p>
+<h3 id="generic-composedenemy-visuals-shared-with-17">Generic ComposedEnemy Visuals (shared with §17)</h3>
+<p>Same shared <code>ComposedEnemy.draw()</code> path as Stutterer — plain <code>#818cf8</code> fill rectangle, white hit-flash, amber windup color/ring/<code>!</code>, <code>#0a0a0f</code> eyes, orange telegraph ring, death fade over 20 frames. No <code>ANIM_DEFS</code> entry exists for it either, so it's 100% on the legacy generic draw path — a candidate for a bespoke pose set given how often players will see it.</p>
+<p><strong>Attacks still to design/fill in:</strong> only the one melee swing exists in code. Given its identity is entirely about the Stillpoint-cancel field, consider whether it needs any active attack at all beyond "punish for standing near it," versus adding a second ranged/pulse attack that reinforces the "stillness enforcer" theme (e.g., a short-range shockwave on top of the passive cancel).</p>
+<hr>
+<h2 id="general-art-notes">GENERAL ART NOTES</h2>
+<h3 id="anim-key-convention">Anim Key Convention</h3>
+<p>Every boss/miniboss has animation keys for the anim editor (<code>editor/anim_editor.html</code>):</p>
+<ul>
+<li>Boss: <code>boss_idle</code>, <code>boss_melee</code>, <code>boss_heavy</code>, <code>boss_charging</code>, <code>boss_dead</code>, <code>boss_active_melee_forward</code>, etc.</li>
+<li>Colossus: <code>colossus_idle</code>, <code>colossus_telegraph</code>, <code>colossus_charging</code>, <code>colossus_swinging</code>, <code>colossus_dead</code></li>
+<li>Temporal Warden: <code>temporal_warden_idle</code>, <code>temporal_warden_flash</code>, <code>temporal_warden_telegraph</code>, <code>temporal_warden_dead</code></li>
+<li>All ComposedEnemy minibosses: use the generic composed-enemy anim bridge</li>
+<li>Player: only <code>player_attack_forward</code> and <code>player_attack_up</code> are authored; every other key (<code>player_attack_down</code>, all <code>_heavy</code> variants, all body/movement/overlay keys) is still on the legacy hardcoded draw path — see §16 for the full open list</li>
+<li>Stutterer / Stillpoint Revenant (and most regular <code>ComposedEnemy</code> types): no <code>ANIM_DEFS</code> entries at all yet — render entirely through the generic composed-enemy draw bridge described in §17/§18</li>
+</ul>
+<h3 id="common-visual-language">Common Visual Language</h3>
+<ul>
+<li><strong>Telegraph = growing glow/circle</strong> (the player needs to see it winding up)</li>
+<li><strong>Active hitbox = the actual weapon art</strong> (sword slash, charge body, beam line)</li>
+<li><strong>Stagger = vulnerable pose</strong> (the player's punish window)</li>
+<li><strong>Flash = hit confirmation</strong> (white flash for 8 frames on damage taken)</li>
+<li><strong>Invulnerability = flickering opacity</strong> (sine-wave alpha)</li>
+<li><strong>Phase transition = dramatic pause</strong> (90 frames, text popup, invulnerable flash)</li>
+</ul>
+<h3 id="size-reference">Size Reference</h3>
+<ul>
+<li>Player: 24 × 32 px</li>
+<li>Normal enemy: ~28 × 28 px</li>
+<li>ComposedEnemy miniboss: varies, most default size</li>
+<li>Graviton Guard: 34 × 46</li>
+<li>Electromagnetic Golem: 72 × 84</li>
+<li>Horizon Core: 80 × 64</li>
+<li>Colossus Core: 84 × 92</li>
+<li>The Sovereign: 48 × 56</li>
+<li>Stutterer / Stillpoint Revenant: 28 × 28 (default enemy size, no override)</li>
+</ul>
+</main>
+</body>
+</html>

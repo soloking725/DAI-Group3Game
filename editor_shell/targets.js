@@ -136,6 +136,23 @@ const TARGETS = {
       'SPRITE_HEALTH', 'STALKER_HEALTH',
     ],
   },
+  composedEnemyDefNew: {
+    // enemy_designer.html composes brand-new ComposedEnemy defs from
+    // scratch (no "load an existing enemy" feature exists) — this target
+    // only ever APPENDS a new `const <ID>_DEF = {...};` to enemy.js, never
+    // overwrites one of the existing hand-tuned _DEF consts. That's
+    // deliberate: several existing defs reference other named tunables
+    // (e.g. `speed: LANCER_SPEED`) that enemy_editor.html's `enemyStatVar`
+    // target writes to independently — a whole-object overwrite from this
+    // designer would silently replace those references with hardcoded
+    // literals and sever that link. Appending a new, never-before-seen
+    // const name carries none of that risk. Note this only persists the
+    // *data* — wiring a new class + spawn-registry entry for it is still
+    // manual, same as before.
+    mode: 'appendConst',
+    targetFile: path.join(REPO_ROOT, 'game', 'enemy.js'),
+    varNamePattern: /^[A-Z][A-Z0-9_]*_DEF$/,
+  },
 };
 
 module.exports = { REPO_ROOT, TARGETS };

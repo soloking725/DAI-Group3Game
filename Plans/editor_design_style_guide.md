@@ -156,3 +156,11 @@ Pilot file (proves no functionality lost): `editor/room_verify.html`.
 Full rollout status tracked in this session's task list / `roadmap.md` —
 see there for which of the ~21 files are done vs. pending as of the last
 session that touched this doc.
+
+As of 2026-08-05: 26 of 26 `editor/*.html` files link the stylesheet.
+`editor/asset_browser.html` was the last holdout (a later, small file that
+never got swept in) — migrated per the checklist above (link added first
+in `<head>`, `ds-root ds-ambient` body + 3 blobs, `ds-btn`/`ds-input`
+classes on its button/inputs, hardcoded colors in its internal `<style>`
+block replaced with tokens). No ids/classes touched by its `<script>`
+changed, so no JS changes were needed.

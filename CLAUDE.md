@@ -137,7 +137,7 @@ Other design docs, read as needed for their specific topic:
   currently unexposed in any editor). Has open questions (phase-tied
   variation, accessibility toggle) to answer before implementing.
 - `Plans/unified_editor_ide_plan.md` — **Milestones 1-3 built 2026-08-04**.
-  `npm start` opens the whole 26-tool `editor/`
+  `npm start` opens the whole 27-tool `editor/`
   suite as one Electron window (`editor_shell/`) instead of a browser tab
   + `save-server.js` process per tool — user-verified against the real
   debug harnesses (`debug_v1.html`/`debug_v2.html` both pass unchanged
@@ -220,7 +220,7 @@ Other design docs, read as needed for their specific topic:
   `editor/` tools (companion to `Plans/archive/editor_redesign.md`'s
   original brief, archived 2026-08-03 — read the style guide, not the
   brief, before touching editor files). Read before touching any
-  `editor/*.html` file — 24 of 25 tools already use
+  `editor/*.html` file — 25 of 26 tools already use
   `styles/design-system.css`; keep new/edited tools consistent with it.
 - `Plans/archive/session_priorities.md` — an old (2026-07-12) session task docket,
   mostly consumed (5 of 8 items done). Genuinely still open: #3 (bot-walker,
@@ -540,10 +540,16 @@ caveat each — full build history is in `Plans/roadmap.md`, not here.
 - **`enemy_editor.html`** — tunes numeric stats/loadout for any built enemy
   class with a live preview, hands off to `enemy_test.html` to spawn/fight
   it. Doesn't edit AI/behavior logic itself — non-coder safe.
-- **`worldmap.html`** — REMOVED 2026-07-26: its one-room-per-grid-cell
-  premise never held (col/row is region-level, not per-room-unique — 22 of
-  35 occupied cells had 2+ rooms stacked). `Plans/regions.md` +
-  `graph_analyzer.html`/`levelEditor.html` are the right tools instead.
+- **`world_map_editor.html`** — force-directed visual world-topology tool.
+  Reads live from `AREAS` on every load, runs a spring simulation (rooms
+  repel, `connections[]` attract, region-centroid pull keeps clusters
+  together). Semantic zoom: region blobs at overview, room boxes at mid,
+  full detail (gates, types, anchors) when zoomed in. Drag-to-pin rooms
+  (persisted in `localStorage`), click-to-inspect (sidebar detail + nav),
+  region filters, "Export MAP_LAYOUT" generates a paste-ready
+  `MAP_LAYOUT_SVG` for `map.js`. Replaces the deleted `worldmap.html`
+  (col/row grid, structurally couldn't handle 2+ rooms per cell) and the
+  Whimsical→`parse_worldmap_svg.js`→hand-paste pipeline.
 - **`anim_editor.html`** — frame-strip animation/hitbox editor over
   `game/animdata.js`'s `ANIM_DEFS` — durations, drag-resize hitboxes,
   per-frame image upload, cancelableFrom combo windows, onion skin, `?anim=`

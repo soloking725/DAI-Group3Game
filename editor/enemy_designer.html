@@ -164,9 +164,14 @@
   <button class="primary" id="testArenaBtn">▶ Test in Full Arena (enemy_test.html)</button>
   <button id="exportBtn">⬇ Export JSON</button>
   <button id="loadBtn">⬆ Load JSON (paste below, then click)</button>
+  <button class="primary" id="saveToDiskBtn">💾 Save New Def to enemy.js</button>
   <textarea id="exp-out" placeholder="Export prints here. To load: paste a def JSON here, then click Load JSON."></textarea>
   <p class="note">The exported block goes straight into <code>area.js</code>:
     <code>{ type: 'composed', x: 900, y: 460, def: &lt;paste&gt; }</code> inside any room's <code>enemies: []</code>.</p>
+  <p class="note">"Save New Def" (desktop app only, <code>npm start</code>) appends this def to <code>game/enemy.js</code> as a new
+    <code>&lt;ID&gt;_DEF</code> const, keyed off "Name / id" above — so it stops living only in this tab's memory. It only ever
+    <b>appends</b>, never overwrites an existing const, so it's safe to use even while editing something new. It does NOT create
+    a class or wire spawn placement — you still need <code>enemy_test.html</code>/hand-editing for that part.</p>
 </div>
 
 <!-- ─── Real game scripts — same as enemy_test.html ─────────────────────── -->
@@ -1053,6 +1058,32 @@ function refreshUIFromDef() {
   renderDefenseFields(); renderOnDeathFields();
   respawn();
 }
+
+// Derives a `const NAME_DEF = ...;` name from the current "Name / id" field
+// (e.g. "swamp lurker" -> "SWAMP_LURKER_DEF"), matching the naming style of
+// every hand-authored enemy in enemy.js.
+function defConstNameFromId(id) {
+  const slug = String(id || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return slug ? `${slug}_DEF` : null;
+}
+
+document.getElementById('saveToDiskBtn').addEventListener('click', async () => {
+  if (!window.stillpointAPI) return alert('Only available in the unified editor desktop app (npm start) — not in a plain browser tab.');
+
+  const constName = defConstNameFromId(def.id);
+  if (!constName) return alert('Give this enemy a "Name / id" first.');
+
+  if (!confirm(`Append "const ${constName} = ..." to game/enemy.js?\n\nThis only ADDS a new const — it will refuse if "${constName}" already exists, and never touches any existing enemy def. A .bak is made first.`)) return;
+
+  try {
+    const valueSource = JSON.stringify(def, null, 2);
+    const data = await window.stillpointAPI.appendNamedConst('composedEnemyDefNew', constName, valueSource);
+    alert(`✅ Saved! Appended "${constName}" to game/enemy.js. Backup: ${data.backup}\n\nIt's not spawned anywhere yet — place it via a room's enemies:[] in levelEditor.html/area.js ({ type: 'composed', def: ${constName} }), same as before.`);
+    if (typeof DevContext !== 'undefined') DevContext.log('Enemy Designer', 'Appended new def to disk', constName);
+  } catch (e) {
+    alert(`❌ Could not write to disk: ${e.message}`);
+  }
+});
 
 document.getElementById('loadBtn').addEventListener('click', () => {
   try {

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { REPO_ROOT, TARGETS } = require('./targets');
-const { patchPathInFile, syncTopLevelObjectKeys, patchConstInFile, patchArrayElementByKey, readConstSourceFromFile } = require('./constPatcher');
+const { patchPathInFile, syncTopLevelObjectKeys, patchConstInFile, patchArrayElementByKey, readConstSourceFromFile, appendConstToFile } = require('./constPatcher');
 const devContextStore = require('./devContextStore');
 
 function backup(targetFile) {
@@ -86,6 +86,18 @@ function registerIpcHandlers() {
 
     const backupPath = backup(target.targetFile);
     patchConstInFile(target.targetFile, varName, valueSource);
+    return { ok: true, backup: backupPath };
+  });
+
+  ipcMain.handle('stillpoint:appendNamedConst', (event, { targetId, varName, valueSource }) => {
+    const target = resolveTarget(targetId);
+    if (target.mode !== 'appendConst') throw new Error(`Target "${targetId}" is not an "appendConst"-mode target`);
+    if (target.varNamePattern && !target.varNamePattern.test(varName)) {
+      throw new Error(`"${varName}" doesn't match the required naming pattern for "${targetId}" (${target.varNamePattern})`);
+    }
+
+    const backupPath = backup(target.targetFile);
+    appendConstToFile(target.targetFile, varName, valueSource);
     return { ok: true, backup: backupPath };
   });
 

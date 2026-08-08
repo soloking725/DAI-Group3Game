@@ -5018,3 +5018,163 @@ and can disk-write both Colossus Core (full phase/attack editing) and
 Temporal Warden (numeric tuning branch). Phase 3 (the `enemy_designer.html`
 base-stat editing overlap) is still open, per
 `Plans/boss_phase_editor_universal_plan.md`.
+
+### editor/asset_browser.html — design-system.css rollout, last file (2026-08-05)
+
+Closed out `Plans/editor_design_style_guide.md`'s rollout: all 26
+`editor/*.html` files now link `styles/design-system.css`
+(`asset_browser.html` was the one holdout, added later than the original
+sweep). Migrated per the doc's own checklist — stylesheet linked first in
+`<head>`, `ds-root ds-ambient` body + the three ambient blobs, `ds-btn`/
+`ds-input` classes on its button and inputs, hardcoded hex colors in its
+internal `<style>` block replaced with tokens. No `id`s renamed, no
+`<script>` changes needed (its JS never touches CSS classes beyond
+`disabled`/`textContent`). Not browser-verified per this repo's standing
+rule — worth a quick visual glance next time the app is open.
+
+### Boss.takeDamage — flash-only damage-immunity window (2026-08-05)
+
+Closes the "no invincibility/hitstun at all" gap flagged in
+`Plans/engineering_todo.md` §7, per an explicit user decision between three
+options (flash-only i-frames / real hitstun in safe states only / full
+stagger like other enemies) — user chose flash-only, no animation
+interrupt. `takeDamage()` (`game/boss.js:445`) now also gates on
+`this.flashTimer > 0`, reusing the existing 8-frame hit-flash timer as the
+immunity window rather than adding a new field. This does NOT solve
+single-swing multi-hit (already handled separately by
+`player.hitTargetsThisSwing`, `game_update.js:1750`) — it stops
+back-to-back *separate* hits (a fast combo's next swing, or a projectile
+landing moments after a melee hit) from all registering within the same
+fraction of a second. Deliberately leaves active states (`lunging`, dash
+chains, `beam_channel`, phase transitions) fully uninterruptible, exactly
+as before — no stagger/freeze added, per the user's call. Verified with
+`node --check` only; not exercised in a real fight (this repo's
+no-browser-testing rule) — next step is on the user: fight the Sovereign
+and confirm rapid combos no longer strip multiple health ticks in the same
+beat, and that nothing about active-attack feel changed.
+
+### Script-order safety net — boot check + static linter (2026-08-05)
+
+Mitigates (does not replace) the "no module system" gap in
+`Plans/engineering_todo.md` §7 — a full ES-module migration was discussed
+and deliberately not pursued (breaks `file://` opening, silently defeats
+the `var CONST_NAME`/`window.X =` live-tuning pattern
+`ability_tester.html`/`enemy_editor.html` depend on, needs rework of 233
+`typeof X !== 'undefined'` guards, needs separate handling for
+`debug_v1/v2.html`'s `srcdoc` injection and `save-server.js`'s Node `vm`
+sandboxes). Two small, purely additive tools instead, neither changing
+any existing file's behavior:
+
+- **`game/bootDependencyCheck.js`** — new IIFE, last `<script>` tag in
+  `index.html` (after `game_draw_loop.js`). A hand-curated list of 13
+  high-fanout "canary" globals (`AREAS`, `RoomVerify`, `readOverrideJSON`,
+  `ANIM_DEFS`, `abilityState`, `COMBO_DEFS`, `CUTSCENES`, `SFX`, `keys`,
+  `Player`, `Boss`, `ComposedEnemy`, `HUD_LAYOUT`) — not exhaustive
+  (`game_state.js` alone has 100+ top-level bindings; checking all would
+  be noise), just the ones that are either widely depended on or already
+  caused a real incident. Logs one specific `console.error` per missing
+  global naming the expected owner file, plus a pass/fail summary line —
+  same "clear console verdict on load" convention
+  `validateAreaGraph()`/`roomVerify.js`'s auto-run already use. Never
+  throws.
+- **`Plans/check_script_order.js`** — new Node CLI, same
+  header-comment/usage convention as `Plans/room_verify_cli.js`
+  (`node Plans/check_script_order.js [--full]`, exit `0`/`1`). Uses
+  `recast` + its bundled `ast-types` (both already `package.json`
+  dependencies via `editor_shell/constPatcher.js` — no new dependency
+  added) to parse every `game/*.js` file and, per HTML file that loads a
+  subset of them, check that no file references a name before the file
+  declaring it has loaded — among files that page actually loads (a
+  consumed name whose owner isn't loaded by that page at all is correctly
+  not flagged; many editor tools intentionally load only a subset, e.g.
+  `room_verify.html` never loads `boss.js`).
+
+**A real false-positive flood surfaced mid-build, not just noise to
+calibrate away — reshaped the tool's actual scope.** The first working
+version flagged 84 "violations" in `index.html` alone and similar counts
+across most editors — all of them bogus. The cause: a reference to
+another file's global *inside an ordinary function or class-method body*
+(e.g. `physics.js`'s `resolveEntityCollision()` touching `miniboss`,
+declared in `game_state.js` which loads later) isn't actually
+load-order-sensitive at all, since that function only runs later, during
+gameplay, by which point every `<script>` tag has already finished
+loading regardless of what order they were declared in. Only code that
+executes **immediately** when its `<script>` tag runs — top-level
+statements, and IIFEs (a real, already-documented convention in this
+codebase, see `CLAUDE.md`'s "Module convention" section) — is genuinely
+order-sensitive. Fixed with `isImmediatelyExecuting()`: walks from an
+identifier up to `Program`, returning false the moment it crosses a
+function/method boundary that isn't itself directly invoked where it's
+written (an IIFE). After this fix, all 22 audited HTML files (`index.html`
++ 15 editor tools with hand-listed `game/*.js` subsets — `debug_v1/
+v2.html` clone `index.html`'s own tags via fetch+regex rather than
+hand-listing, so checking `index.html` already covers them) report clean.
+
+**Verified this wasn't just "stopped flagging anything" — confirmed
+real detection still works**: isolated `area.js`'s analysis directly and
+confirmed it correctly sees `readOverrideJSON`/`OverrideShape` (from its
+`applyAreaOverrides()` IIFE) as genuine immediate cross-file consumes of
+`overrideStore.js` — the exact real historical incident
+(`Plans/engineering_todo.md` §7, duplication item 10's tail) — currently
+satisfied only because `overrideStore.js` happens to load first. Then ran
+a real negative test: backed up the live `index.html`, deliberately moved
+`area.js`'s tag before `overrideStore.js`'s (recreating that exact
+historical bug), reran the linter, confirmed it correctly flagged both
+`readOverrideJSON` and `OverrideShape` as violations, then restored
+`index.html` from the backup and diffed byte-for-byte to confirm an exact
+restore before moving on.
+
+**Explicitly out of scope, not done**: wiring either tool into an actual
+git pre-commit hook (`Plans/engineering_todo.md` §8 already names this
+gap; not touching `.git/hooks` without being asked directly, per this
+repo's git safety rules) and the full ES-module migration itself (still
+just discussed, not pursued). Verified via `node --check` on both new
+files and the negative-test run above; per this repo's no-browser-testing
+rule, Component A's actual console output was not observed by this
+session — next step for the user: load the game normally and confirm
+`[boot-check] OK — 13/13 core globals present` appears with no errors.
+
+### World Map Editor (2026-08-05)
+
+[x] `editor/world_map_editor.html` — force-directed visual world-topology
+tool, replacing the deleted `worldmap.html` (col/row grid, 2026-07-26) and
+complementing the static `MAP_LAYOUT_SVG` positions in `game/map.js`.
+
+**What it does**: reads every room from `AREAS` on load (no stale
+snapshots), builds a node/edge graph, and runs a force-directed spring
+simulation (repulsion between all rooms, spring attraction along
+`connections[]` edges, weak region-centroid pull to keep regions clustered).
+Seeded from `MAP_LAYOUT_SVG` positions where available, falls back to
+col/row for rooms without an entry.
+
+**Semantic zoom** (three tiers, continuous opacity transitions):
+- Zoomed out (< 0.4×): colored convex-hull region blobs with region names
+- Mid-zoom (0.4–1.2×): room boxes with truncated labels, connection lines
+- Zoomed in (> 1.2×): full labels, door direction arrows, ability-gate
+  badges, room-type icons (boss/miniboss), anchor pips, pin indicators
+
+**Interactions**: scroll-wheel zoom-to-cursor, drag-pan on empty space,
+drag-to-pin rooms (persisted to `localStorage` as
+`stillpoint_worldmap_pins_v1` — only pinned overrides stored, not all 73
+positions), double-click to unpin, click to select (populates sidebar with
+room detail + clickable connection list), keyboard shortcuts (Home/0 fit,
++/- zoom, Escape deselect, Delete unpin). Region filter toggles in sidebar.
+
+**Export**: "Export MAP_LAYOUT" button generates a paste-ready
+`MAP_LAYOUT_SVG` object (normalized 0–1000 coordinate space) matching the
+format `game/map.js` already consumes — closes the external-tool roundtrip
+(no more Whimsical → `parse_worldmap_svg.js` → hand-paste pipeline needed).
+
+**Why prior attempts failed and how this fixes it**:
+- `worldmap.html` used col/row grid, but col/row is region-level — 22 of
+  35 occupied cells had 2+ rooms stacked. Force-directed layout has no grid
+  cells; rooms mutually repel and can never overlap.
+- `MAP_LAYOUT_SVG` is a one-time Whimsical export, stale the moment rooms
+  change. This tool reads live from `AREAS` and can re-export on demand.
+- The in-game `map.js` has pan/zoom but minimum cell sizes still cause
+  crowding at 70+ rooms. Semantic zoom solves this: region blobs at
+  overview, full detail only when zoomed in.
+
+Adapted force simulation from `plotline_editor.js`'s proven Flag Graph
+engine (same repo, same spring sim architecture), with region-centroid pull
+added for this domain. Wired into `dev_hub.html` under Level Design group.

@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('stillpointAPI', {
     ipcRenderer.invoke('stillpoint:patchArrayElement', { targetId, idValue, valueSource, allowCreate }),
   writeNamedVar: (targetId, varName, valueSource) =>
     ipcRenderer.invoke('stillpoint:writeNamedVar', { targetId, varName, valueSource }),
+  appendNamedConst: (targetId, varName, valueSource) =>
+    ipcRenderer.invoke('stillpoint:appendNamedConst', { targetId, varName, valueSource }),
   generateAssetIndex: () =>
     ipcRenderer.invoke('stillpoint:generateAssetIndex'),
   readConst: (targetId) =>

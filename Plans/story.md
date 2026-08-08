@@ -344,6 +344,31 @@ postgame flavor (Protect/Spare vs. Train) now picks which of two real endings yo
 
 > **Radiant Mode** (1-hit death) unlocks after either Ending 2 or 3.
 
+**Draft idea — Construct as the Loop ending's Void Tether replacement
+(2026-08-05, not locked, kept alongside the other still-draft
+per-miniboss reflavors this ending's own row already flags as
+undecided):** raised in conversation as a candidate for this specific
+NG+ playthrough only, not the base game — the base kit already has 4
+abilities and adding a 5th ("place a breakable prison wall") was judged
+too much new surface for one ability slot in a first playthrough. Gating
+it to the Loop ending's child-perspective run instead sidesteps that:
+she gets Construct in place of Void Tether for this iteration, same
+"reflavored, not identical" treatment already planned for her other
+granted abilities (rapier instead of the base weapon, Stillpoint→rewind
+instead of slow). Open questions before this could be built, matching
+this section's own "draft ideas not yet finalized" framing: whether
+Construct fully replaces Void Tether's kit slot and keybind or sits
+alongside it; what the wall's HP/break conditions are as a *player*
+tool (the enemy-side version of the same mechanic — see
+`Plans/enemy_attack_vocabulary_plan.md`'s new Construct entry — is
+better-specified right now, since "trap the player" has a clearer
+single actor than "the player traps what, exactly"); and whether this
+needs its own narrative justification (why does the Loop-child have
+this and not Void Tether?) the way Void Tether's own grant is tied to
+a specific miniboss fight (§4 above). Not scoped for implementation —
+flagging as a real candidate so it isn't lost, same treatment the
+Warp Gate Nexus Keystone conflict gets in `engineering_todo.md` §6.
+
 **On Loop's corrected mechanism — pulled from §3's own Protect-path row, which already
 said "you die at the final boss," not a clean win:** this actually gives Loop the
 distinct, separate-from-the-other-two mechanism the endings needed. You fight the

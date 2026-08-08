@@ -443,7 +443,16 @@ class Boss {
   }
 
   takeDamage(amount, fromX, sourceType) {
-    if (this.dead || this.invulnerable || this.phaseDashInvuln > 0) return;
+    // flashTimer doubles as a short damage-immunity window (8 frames, same
+    // duration as the white hit-flash) — stops back-to-back separate hits
+    // (e.g. a fast combo's next swing, or a projectile landing right after
+    // a melee hit) from all registering within a fraction of a second.
+    // (Single-swing multi-hit is a separate, already-solved problem — see
+    // player.hitTargetsThisSwing in game_update.js.) Deliberately flash-only:
+    // no animation interrupt/stagger, so active states (lunging, dash
+    // chains, beam_channel, phase transitions) stay untouched, per the
+    // user's explicit call against a fuller hitstun.
+    if (this.dead || this.invulnerable || this.phaseDashInvuln > 0 || this.flashTimer > 0) return;
     // Track adaptation
     if (sourceType) this.notifyHit(sourceType);
     // Shield blocks frontal damage

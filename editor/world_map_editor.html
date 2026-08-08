@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stillpoint — World Map Editor</title>
+<link rel="stylesheet" href="../styles/design-system.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+#bar{display:flex;gap:8px;align-items:center;padding:7px 12px;flex-wrap:wrap}
+.sep{width:1px;height:20px;background:linear-gradient(var(--border) 0%,var(--border-hover) 50%,var(--border) 100%);flex-shrink:0}
+#zoom-label{font-family:var(--font-ui);font-size:11px;color:var(--fg-muted);min-width:56px;text-align:center}
+#room-count{font-family:var(--font-ui);font-size:10px;color:var(--fg-faint);margin-left:auto}
+
+#main{display:flex;flex:1;overflow:hidden}
+#canvas-wrap{flex:1;position:relative;overflow:hidden}
+#map-canvas{display:block;width:100%;height:100%;cursor:grab}
+
+#sidebar{width:300px;flex-shrink:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+#sidebar h3{font-family:var(--font-ui);font-size:9.5px;font-weight:600;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px}
+.detail-row{display:flex;gap:6px;font-size:11px;line-height:1.7;color:var(--fg-muted)}
+.detail-row .lbl{color:var(--fg-faint);min-width:60px;flex-shrink:0;text-align:right}
+.detail-row .val{color:var(--fg-subtle);word-break:break-all}
+.region-badge{display:inline-block;padding:1px 8px;border-radius:var(--radius-full);font-size:10px;font-family:var(--font-ui);border:1px solid}
+.conn-row{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:var(--radius-sm);font-size:10.5px;color:var(--fg-muted);cursor:pointer;transition:background var(--dur-fast) var(--ease-out-expo)}
+.conn-row:hover{background:var(--surface)}
+.conn-dir{font-weight:600;color:var(--fg-subtle);min-width:14px}
+.conn-req{font-size:9px;padding:1px 5px;border-radius:var(--radius-full);border:1px solid var(--warn-border);color:var(--warn);background:var(--warn-dim)}
+.conn-oneway{font-size:9px;color:var(--info)}
+
+#region-filters{display:flex;flex-wrap:wrap;gap:4px}
+.rf{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:var(--radius-full);font-size:10px;font-family:var(--font-ui);cursor:pointer;border:1px solid var(--border);color:var(--fg-muted);background:transparent;transition:background var(--dur-fast) var(--ease-out-expo),opacity var(--dur-fast) var(--ease-out-expo)}
+.rf:hover{background:var(--surface)}
+.rf.off{opacity:0.35}
+.rf .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+#export-area{width:100%;height:180px;font-family:var(--font-mono);font-size:10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg-subtle);padding:8px;resize:vertical}
+
+#no-selection{color:var(--fg-faint);font-size:11px;font-style:italic;padding:20px 0}
+</style>
+</head>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+
+<div id="bar" class="ds-topbar">
+  <a class="ds-back" href="dev_hub.html">&larr; Dev Hub</a>
+  <div class="sep"></div>
+  <h1>World Map</h1>
+  <div class="sep"></div>
+  <button class="ds-btn" id="btn-relayout" title="Reset all positions and re-run force layout">Re-layout</button>
+  <button class="ds-btn" id="btn-reset-pins" title="Clear all pinned positions">Reset Pins</button>
+  <button class="ds-btn" id="btn-fit" title="Fit all rooms in view (Home)">Fit View</button>
+  <div class="sep"></div>
+  <button class="ds-btn ds-btn-primary" id="btn-export">Export MAP_LAYOUT</button>
+  <span id="zoom-label">100%</span>
+  <span id="room-count"></span>
+</div>
+
+<div id="main">
+  <div id="canvas-wrap">
+    <canvas id="map-canvas"></canvas>
+  </div>
+  <div id="sidebar" class="ds-sidebar ds-scroll">
+    <div>
+      <h3>Room Detail</h3>
+      <div id="room-detail"><div id="no-selection">Click a room to inspect</div></div>
+    </div>
+    <div>
+      <h3>Region Filter</h3>
+      <div id="region-filters"></div>
+    </div>
+    <div>
+      <h3>Export</h3>
+      <textarea id="export-area" readonly placeholder="Click 'Export MAP_LAYOUT' to generate..."></textarea>
+    </div>
+  </div>
+</div>
+
+<script src="../game/area.js"></script>
+<script>
+'use strict';
+
+const REGION_COLORS = {
+  origin:       '#730FC3',
+  crag:         '#E8833A',
+  mirror_veil:  '#BD34D1',
+  event_horizon:'#1AAE9F',
+  chrono_rift:  '#207868',
+  timeline:     '#8E00FF',
+  abyss:        '#0CFFD3',
+  observatory:  '#F7C325',
+  void_expanse: '#E100BB',
+  graviton:     '#4BCA61',
+  paradox:      '#4BCA61',
+  polar:        '#F7E600',
+  static:       '#6558F5',
+  warp:         '#AC6363',
+  spire:        '#0088FF',
+  sovereign:    '#D3455B',
+  teleport:     '#788896',
+};
+
+function regionColor(r) { return REGION_COLORS[r] || '#888'; }
+
+// ---- Data extraction ----
+const nodes = [];
+const edges = [];
+const nodeById = {};
+const regionIndex = {};
+const regionVisible = {};
+
+function extractGraph() {
+  nodes.length = 0;
+  edges.length = 0;
+  for (const k in nodeById) delete nodeById[k];
+  for (const k in regionIndex) delete regionIndex[k];
+
+  for (const id in AREAS) {
+    const room = AREAS[id];
+    if (typeof room.col !== 'number' || typeof room.row !== 'number') continue;
+    const region = room.region || 'origin';
+    const n = {
+      id,
+      name: room.name || id,
+      region,
+      col: room.col,
+      row: room.row,
+      x: 0, y: 0,
+      vx: 0, vy: 0,
+      pinned: false,
+      roomType: room.roomType || (room.isBossArena ? 'boss' : 'room'),
+      abilityReward: room.abilityReward || null,
+      anchorCount: (room.anchors || []).length,
+      connections: room.connections || [],
+    };
+    nodeById[id] = n;
+    nodes.push(n);
+    if (!regionIndex[region]) { regionIndex[region] = []; regionVisible[region] = true; }
+    regionIndex[region].push(n);
+  }
+
+  const seen = new Set();
+  for (const n of nodes) {
+    for (const conn of n.connections) {
+      if (!nodeById[conn.to]) continue;
+      const key = [n.id, conn.to].sort().join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({
+        a: nodes.indexOf(n),
+        b: nodes.indexOf(nodeById[conn.to]),
+        direction: conn.direction,
+        requires: conn.requires,
+        oneWay: conn.oneWay,
+      });
+    }
+  }
+}
+
+// ---- Seed positions from MAP_LAYOUT_SVG or col/row ----
+const MAP_LAYOUT_SVG = {
+  the_fracture_part1:{x:30,y:136},the_fracture_part3:{x:-26,y:115},the_fracture_part2:{x:-3,y:266},
+  chrono_rift_gate:{x:-107,y:66},mirror_veil_reflection:{x:427,y:98},mirror_veil_sanctum:{x:382,y:164},
+  event_horizon_pull:{x:563,y:287},event_horizon_drift:{x:659,y:386},inverted_spire:{x:717,y:606},
+  event_horizon_core:{x:717,y:493},event_horizon_gate:{x:461,y:287},mirror_corridor:{x:382,y:287},
+  mirror_veil_hollow:{x:461,y:164},timeline_x_roads_room2:{x:356,y:526},timeline_x_roads_room1:{x:161,y:577},
+  puppet_strings_part2:{x:589,y:538},puppet_strings_part1:{x:589,y:461},mirror_veil_gate:{x:307,y:217},
+  echo_bridge_prison:{x:441,y:402},crystal_cavern:{x:142,y:478},observatory_room1:{x:-26,y:679},
+  observatory_room2:{x:-114,y:478},observatory_room3:{x:-257,y:480},void_expanse_room1:{x:-282,y:258},
+  sovereign_observatory:{x:-395,y:452},the_vault_room2:{x:143,y:861},antechamber:{x:-33,y:984},
+  hollow_core:{x:128,y:984},the_rift:{x:-96,y:861},graviton_core_room3:{x:515,y:843},
+  try_out_region:{x:971,y:979},sovereign_army_reserve:{x:681,y:979},graviton_core_room2:{x:565,y:695},
+  graviton_core_room1:{x:397,y:668},the_vault_room1:{x:63,y:767},the_forge:{x:143,y:668},
+  echo_bridge_part1:{x:-26,y:401},upper_ruins:{x:227,y:323},pacifist_region:{x:221,y:255},
+  tutorial_area:{x:16,y:16},spawn_area_1:{x:-70,y:16},crag_entrance:{x:132,y:146},crag_breach:{x:213,y:179},
+  crag_altar:{x:124,y:248},crag_warden:{x:124,y:344},sovereign_room1:{x:221,y:109},
+  chrono_rift_loop1:{x:-311,y:577},chrono_rift_echo:{x:-313,y:91},chrono_rift_loop2:{x:-526,y:289},
+  warp_gate_nexus_room1:{x:-55,y:274},one_way_warp_gate_to_inverted_spire:{x:-55,y:371},
+  one_way_teleport_gate_to_paradox_engine:{x:-42,y:170},sovereign_room2:{x:252,y:668},
+  echoing_abyss_room2:{x:15,y:515},echoing_abyss_room1:{x:11,y:472},sovereign_room3:{x:48,y:290},
+  static_field_room1:{x:-376,y:981},static_field_room2:{x:-272,y:981},paradox_engine_room2:{x:-376,y:871},
+  teleport_from_paradox_engine_to_upper_ruins_1:{x:173,y:260},paradox_engine_room1:{x:-479,y:826},
+  polar_shift_room1:{x:-311,y:710},polar_shift_room2:{x:-440,y:700},sovereign_room4:{x:-156,y:671},
+  the_fracture_part4:{x:54,y:232},timeline_x_roads_room3:{x:245,y:450},chrono_rift_sanctum:{x:161,y:284},
+  void_expanse_room2:{x:-214,y:382},warp_gate_nexus_room2:{x:202,y:417},spawn_area_2:{x:-33,y:900},
+  tutorial_final:{x:107,y:592},
+};
+
+function seedPositions() {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const id in MAP_LAYOUT_SVG) {
+    const p = MAP_LAYOUT_SVG[id];
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+  }
+  const spanX = Math.max(1, maxX - minX);
+  const spanY = Math.max(1, maxY - minY);
+
+  const W = 1200, H = 900;
+  const pad = 80;
+
+  for (const n of nodes) {
+    const svg = MAP_LAYOUT_SVG[n.id];
+    if (svg) {
+      n.x = pad + ((svg.x - minX) / spanX) * (W - pad * 2);
+      n.y = pad + ((svg.y - minY) / spanY) * (H - pad * 2);
+    } else {
+      n.x = pad + ((n.col + 3) / 10) * (W - pad * 2) + (Math.random() - 0.5) * 40;
+      n.y = pad + ((n.row + 1) / 8) * (H - pad * 2) + (Math.random() - 0.5) * 40;
+    }
+  }
+}
+
+// ---- Pin persistence ----
+const PIN_KEY = 'stillpoint_worldmap_pins_v1';
+
+function loadPins() {
+  try {
+    const data = JSON.parse(localStorage.getItem(PIN_KEY));
+    if (!data) return;
+    for (const id in data) {
+      const n = nodeById[id];
+      if (n) { n.x = data[id].x; n.y = data[id].y; n.pinned = true; }
+    }
+  } catch(e) {}
+}
+
+function savePins() {
+  const pins = {};
+  for (const n of nodes) {
+    if (n.pinned) pins[n.id] = { x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10 };
+  }
+  try { localStorage.setItem(PIN_KEY, JSON.stringify(pins)); } catch(e) {}
+}
+
+// ---- Force simulation ----
+const REPULSION = 14000;
+const SPRING_LEN = 110;
+const SPRING_K = 0.025;
+const CENTROID_PULL = 0.003;
+const CENTER_PULL = 0.001;
+const DAMPING = 0.78;
+const MAX_VEL = 6;
+
+let simTicks = 0;
+let simRAF = 0;
+let simRunning = false;
+
+function computeCentroids() {
+  const out = {};
+  for (const region in regionIndex) {
+    let sx = 0, sy = 0, c = 0;
+    for (const n of regionIndex[region]) { sx += n.x; sy += n.y; c++; }
+    if (c) out[region] = { x: sx / c, y: sy / c };
+  }
+  return out;
+}
+
+function stepForces() {
+  const N = nodes.length;
+  const centroids = computeCentroids();
+  let cx = 0, cy = 0;
+  for (const n of nodes) { cx += n.x; cy += n.y; }
+  cx /= N; cy /= N;
+
+  for (let i = 0; i < N; i++) {
+    const a = nodes[i];
+    if (a.pinned) continue;
+    let fx = 0, fy = 0;
+
+    for (let j = 0; j < N; j++) {
+      if (i === j) continue;
+      if (!regionVisible[nodes[j].region]) continue;
+      const b = nodes[j];
+      let dx = a.x - b.x, dy = a.y - b.y;
+      let d2 = dx * dx + dy * dy;
+      if (d2 < 1) { d2 = 1; dx = Math.random() - 0.5; dy = Math.random() - 0.5; }
+      const d = Math.sqrt(d2);
+      fx += (dx / d) * REPULSION / d2;
+      fy += (dy / d) * REPULSION / d2;
+    }
+
+    fx += (cx - a.x) * CENTER_PULL;
+    fy += (cy - a.y) * CENTER_PULL;
+
+    const cen = centroids[a.region];
+    if (cen) {
+      fx += (cen.x - a.x) * CENTROID_PULL;
+      fy += (cen.y - a.y) * CENTROID_PULL;
+    }
+
+    a.vx = (a.vx + fx) * DAMPING;
+    a.vy = (a.vy + fy) * DAMPING;
+  }
+
+  for (const e of edges) {
+    const a = nodes[e.a], b = nodes[e.b];
+    if (!regionVisible[a.region] && !regionVisible[b.region]) continue;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d = Math.sqrt(dx * dx + dy * dy) || 1;
+    const k = (d - SPRING_LEN) * SPRING_K;
+    const ux = dx / d, uy = dy / d;
+    if (!a.pinned) { a.vx += ux * k; a.vy += uy * k; }
+    if (!b.pinned) { b.vx -= ux * k; b.vy -= uy * k; }
+  }
+
+  for (const n of nodes) {
+    if (n.pinned) continue;
+    n.x += Math.max(-MAX_VEL, Math.min(MAX_VEL, n.vx));
+    n.y += Math.max(-MAX_VEL, Math.min(MAX_VEL, n.vy));
+  }
+}
+
+function startSim(ticks) {
+  simTicks = ticks || 300;
+  if (!simRunning) { simRunning = true; simRAF = requestAnimationFrame(simLoop); }
+}
+
+function simLoop() {
+  stepForces();
+  drawMap();
+  simTicks--;
+  if (simTicks > 0 || dragging) {
+    simRAF = requestAnimationFrame(simLoop);
+  } else {
+    simRunning = false;
+  }
+}
+
+// ---- Camera ----
+const cam = { zoom: 1, panX: 0, panY: 0 };
+
+function fitView() {
+  const canvas = document.getElementById('map-canvas');
+  if (!nodes.length) return;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const n of nodes) {
+    if (!regionVisible[n.region]) continue;
+    minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
+    minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
+  }
+  const pad = 60;
+  const spanX = maxX - minX + pad * 2;
+  const spanY = maxY - minY + pad * 2;
+  cam.zoom = Math.min(canvas.width / spanX, canvas.height / spanY, 3);
+  cam.panX = canvas.width / 2 - ((minX + maxX) / 2) * cam.zoom;
+  cam.panY = canvas.height / 2 - ((minY + maxY) / 2) * cam.zoom;
+  updateZoomLabel();
+}
+
+function worldFromScreen(sx, sy) {
+  return { x: (sx - cam.panX) / cam.zoom, y: (sy - cam.panY) / cam.zoom };
+}
+
+function screenFromWorld(wx, wy) {
+  return { x: wx * cam.zoom + cam.panX, y: wy * cam.zoom + cam.panY };
+}
+
+function updateZoomLabel() {
+  document.getElementById('zoom-label').textContent = Math.round(cam.zoom * 100) + '%';
+}
+
+// ---- Convex hull (Graham scan) ----
+function convexHull(pts) {
+  if (pts.length < 3) return pts.slice();
+  pts = pts.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (O, A, B) => (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+  const lower = [];
+  for (const p of pts) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+  const upper = [];
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+  lower.pop(); upper.pop();
+  return lower.concat(upper);
+}
+
+function expandHull(hull, pad) {
+  if (hull.length < 2) return hull.map(p => ({x: p.x, y: p.y}));
+  const out = [];
+  const N = hull.length;
+  for (let i = 0; i < N; i++) {
+    const prev = hull[(i - 1 + N) % N], cur = hull[i], next = hull[(i + 1) % N];
+    let nx = -(next.y - prev.y), ny = next.x - prev.x;
+    const len = Math.sqrt(nx * nx + ny * ny) || 1;
+    nx /= len; ny /= len;
+    out.push({ x: cur.x + nx * pad, y: cur.y + ny * pad });
+  }
+  return out;
+}
+
+// ---- Rendering ----
+function sizeCanvas() {
+  const canvas = document.getElementById('map-canvas');
+  const wrap = document.getElementById('canvas-wrap');
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h;
+  }
+}
+
+const ROOM_W = 32, ROOM_H = 24;
+
+function drawMap() {
+  const canvas = document.getElementById('map-canvas');
+  const ctx = canvas.getContext('2d');
+  const z = cam.zoom;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#050506';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.translate(cam.panX, cam.panY);
+  ctx.scale(z, z);
+
+  const blobOpacity = z < 0.4 ? 0.22 : z < 0.85 ? 0.22 * (1 - (z - 0.4) / 0.45) : 0;
+  const boxOpacity = z < 0.35 ? 0 : z < 0.55 ? (z - 0.35) / 0.2 : 1;
+  const detailOpacity = z < 1.0 ? 0 : z < 1.5 ? (z - 1.0) / 0.5 : 1;
+
+  // Region blobs
+  if (blobOpacity > 0.01) {
+    for (const region in regionIndex) {
+      if (!regionVisible[region]) continue;
+      const rNodes = regionIndex[region];
+      const col = regionColor(region);
+      const pts = rNodes.map(n => ({x: n.x, y: n.y}));
+
+      if (pts.length === 1) {
+        ctx.beginPath();
+        ctx.arc(pts[0].x, pts[0].y, 50, 0, Math.PI * 2);
+        ctx.fillStyle = hexAlpha(col, blobOpacity * 0.4);
+        ctx.fill();
+        ctx.strokeStyle = hexAlpha(col, blobOpacity * 0.7);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else if (pts.length === 2) {
+        ctx.beginPath();
+        const mx = (pts[0].x + pts[1].x) / 2, my = (pts[0].y + pts[1].y) / 2;
+        const d = Math.sqrt((pts[1].x - pts[0].x) ** 2 + (pts[1].y - pts[0].y) ** 2);
+        ctx.ellipse(mx, my, d / 2 + 30, 35, Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x), 0, Math.PI * 2);
+        ctx.fillStyle = hexAlpha(col, blobOpacity * 0.4);
+        ctx.fill();
+        ctx.strokeStyle = hexAlpha(col, blobOpacity * 0.7);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else {
+        const hull = convexHull(pts);
+        const expanded = expandHull(hull, 40);
+        ctx.beginPath();
+        drawRoundedPoly(ctx, expanded, 20);
+        ctx.fillStyle = hexAlpha(col, blobOpacity * 0.4);
+        ctx.fill();
+        ctx.strokeStyle = hexAlpha(col, blobOpacity * 0.7);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // Region label at centroid
+      const cen = computeCentroids()[region];
+      if (cen) {
+        const fontSize = Math.max(10, Math.min(16, 14 / Math.max(0.3, z)));
+        ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = hexAlpha(col, Math.min(1, blobOpacity * 2.5));
+        ctx.fillText(prettyRegion(region), cen.x, cen.y - (boxOpacity > 0.01 ? 0 : 0));
+      }
+    }
+  }
+
+  // Edges
+  ctx.lineWidth = 1;
+  for (const e of edges) {
+    const a = nodes[e.a], b = nodes[e.b];
+    if (!regionVisible[a.region] && !regionVisible[b.region]) continue;
+    const col = regionColor(a.region);
+    const edgeAlpha = z < 0.4 ? 0.06 : z < 0.8 ? 0.06 + (z - 0.4) * 0.25 : 0.16;
+    ctx.strokeStyle = hexAlpha(col, edgeAlpha);
+
+    if (e.oneWay) ctx.setLineDash([4, 4]); else ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Requires badge at detail zoom
+    if (detailOpacity > 0.01 && e.requires) {
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      ctx.font = `${Math.round(8 / Math.max(0.5, z))}px Inter, system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = hexAlpha('#fbbf24', detailOpacity * 0.9);
+      ctx.fillText(e.requires, mx, my - 6);
+    }
+  }
+
+  // Room boxes
+  if (boxOpacity > 0.01) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (const n of nodes) {
+      if (!regionVisible[n.region]) continue;
+      const col = regionColor(n.region);
+      const isSelected = n === selectedNode;
+      const rw = ROOM_W, rh = ROOM_H;
+
+      ctx.fillStyle = hexAlpha(col, boxOpacity * 0.12);
+      ctx.strokeStyle = isSelected ? '#fff' :
+        n.roomType === 'boss' ? '#f87171' :
+        n.roomType === 'miniboss' ? '#fb923c' :
+        hexAlpha(col, boxOpacity * 0.6);
+      ctx.lineWidth = isSelected ? 2 : 1;
+
+      roundRect(ctx, n.x - rw / 2, n.y - rh / 2, rw, rh, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Label
+      const labelSize = detailOpacity > 0.5 ? 9 : 7;
+      ctx.font = `${labelSize}px "JetBrains Mono", monospace`;
+      ctx.fillStyle = hexAlpha('#EDEDEF', boxOpacity * 0.8);
+      let label = n.name;
+      const maxLabelW = detailOpacity > 0.5 ? 120 : rw - 4;
+      while (ctx.measureText(label).width > maxLabelW && label.length > 4) {
+        label = label.slice(0, -2) + '…';
+      }
+      const labelY = detailOpacity > 0.5 ? n.y - rh / 2 - 8 : n.y + 1;
+      ctx.fillText(label, n.x, labelY);
+
+      // Detail icons
+      if (detailOpacity > 0.01) {
+        ctx.globalAlpha = detailOpacity;
+        if (n.roomType === 'boss' || n.roomType === 'miniboss') {
+          ctx.font = '10px monospace';
+          ctx.fillStyle = n.roomType === 'boss' ? '#f87171' : '#fb923c';
+          ctx.fillText(n.roomType === 'boss' ? '☠' : '⚔', n.x, n.y + 2);
+        }
+        if (n.anchorCount > 0) {
+          ctx.fillStyle = '#c4b5fd';
+          ctx.beginPath();
+          ctx.arc(n.x + rw / 2 - 5, n.y - rh / 2 + 5, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (n.abilityReward) {
+          ctx.font = '8px Inter, sans-serif';
+          ctx.fillStyle = '#67e8f9';
+          ctx.fillText(n.abilityReward, n.x, n.y + rh / 2 + 8);
+        }
+        if (n.pinned) {
+          ctx.font = '8px monospace';
+          ctx.fillStyle = '#fbbf24';
+          ctx.fillText('⊙', n.x + rw / 2 + 5, n.y - rh / 2);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
+function hexAlpha(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawRoundedPoly(ctx, pts, radius) {
+  if (pts.length < 3) { ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath(); return; }
+  const N = pts.length;
+  ctx.moveTo((pts[0].x + pts[1].x) / 2, (pts[0].y + pts[1].y) / 2);
+  for (let i = 0; i < N; i++) {
+    const cur = pts[i], next = pts[(i + 1) % N];
+    ctx.arcTo(next.x, next.y, pts[(i + 2) % N].x, pts[(i + 2) % N].y, radius);
+  }
+  ctx.closePath();
+}
+
+function prettyRegion(r) {
+  return r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ---- Interaction ----
+let dragging = null;
+let dragMoved = false;
+let panning = false;
+let panStart = { x: 0, y: 0 };
+let selectedNode = null;
+
+function nodeAtScreen(sx, sy) {
+  const w = worldFromScreen(sx, sy);
+  const hitR = Math.max(ROOM_W, ROOM_H) / 2 + 4;
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    if (!regionVisible[n.region]) continue;
+    if (Math.abs(w.x - n.x) < hitR && Math.abs(w.y - n.y) < hitR) return n;
+  }
+  return null;
+}
+
+function canvasXY(e) {
+  const canvas = document.getElementById('map-canvas');
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+}
+
+(function wireInput() {
+  const canvas = document.getElementById('map-canvas');
+
+  canvas.addEventListener('mousedown', (e) => {
+    const pos = canvasXY(e);
+    const hit = nodeAtScreen(pos.x, pos.y);
+    if (hit) {
+      dragging = hit;
+      dragMoved = false;
+      canvas.style.cursor = 'grabbing';
+      startSim(200);
+    } else {
+      panning = true;
+      panStart = { x: e.clientX, y: e.clientY };
+      canvas.style.cursor = 'grabbing';
+    }
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (dragging) {
+      const pos = canvasXY(e);
+      const w = worldFromScreen(pos.x, pos.y);
+      dragging.x = w.x;
+      dragging.y = w.y;
+      dragging.vx = 0;
+      dragging.vy = 0;
+      dragging.pinned = true;
+      dragMoved = true;
+      if (!simRunning) startSim(50);
+    } else if (panning) {
+      const dx = e.clientX - panStart.x;
+      const dy = e.clientY - panStart.y;
+      cam.panX += dx;
+      cam.panY += dy;
+      panStart = { x: e.clientX, y: e.clientY };
+      drawMap();
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (dragging) {
+      if (!dragMoved) {
+        selectNode(dragging);
+        dragging.pinned = false;
+      } else {
+        savePins();
+      }
+      dragging = null;
+      canvas.style.cursor = 'grab';
+      startSim(60);
+    }
+    if (panning) {
+      panning = false;
+      canvas.style.cursor = 'grab';
+    }
+  });
+
+  canvas.addEventListener('dblclick', (e) => {
+    const pos = canvasXY(e);
+    const hit = nodeAtScreen(pos.x, pos.y);
+    if (hit && hit.pinned) {
+      hit.pinned = false;
+      savePins();
+      startSim(100);
+    }
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const pos = canvasXY(e);
+    const before = worldFromScreen(pos.x, pos.y);
+    const factor = e.deltaY > 0 ? 0.92 : 1.08;
+    cam.zoom = Math.max(0.12, Math.min(5.0, cam.zoom * factor));
+    const after = worldFromScreen(pos.x, pos.y);
+    cam.panX += (after.x - before.x) * cam.zoom;
+    cam.panY += (after.y - before.y) * cam.zoom;
+    updateZoomLabel();
+    drawMap();
+  }, { passive: false });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+    if (e.key === 'Home' || e.key === '0') { fitView(); drawMap(); }
+    if (e.key === '=' || e.key === '+') { cam.zoom = Math.min(5, cam.zoom * 1.15); updateZoomLabel(); drawMap(); }
+    if (e.key === '-') { cam.zoom = Math.max(0.12, cam.zoom * 0.87); updateZoomLabel(); drawMap(); }
+    if (e.key === 'Escape') { selectNode(null); drawMap(); }
+    if (e.key === 'Delete' && selectedNode && selectedNode.pinned) {
+      selectedNode.pinned = false; savePins(); startSim(100);
+    }
+  });
+})();
+
+// ---- Selection / sidebar ----
+function selectNode(n) {
+  selectedNode = n;
+  renderDetail();
+}
+
+function renderDetail() {
+  const el = document.getElementById('room-detail');
+  if (!selectedNode) {
+    el.innerHTML = '<div id="no-selection">Click a room to inspect</div>';
+    return;
+  }
+  const n = selectedNode;
+  const col = regionColor(n.region);
+  let html = '';
+  html += `<div class="detail-row"><span class="lbl">Name</span><span class="val" style="color:var(--fg)">${esc(n.name)}</span></div>`;
+  html += `<div class="detail-row"><span class="lbl">ID</span><span class="val" style="font-family:var(--font-mono);font-size:10px">${esc(n.id)}</span></div>`;
+  html += `<div class="detail-row"><span class="lbl">Region</span><span class="val"><span class="region-badge" style="color:${col};border-color:${hexAlpha(col,0.4)};background:${hexAlpha(col,0.12)}">${prettyRegion(n.region)}</span></span></div>`;
+  html += `<div class="detail-row"><span class="lbl">Type</span><span class="val">${n.roomType}</span></div>`;
+  html += `<div class="detail-row"><span class="lbl">Position</span><span class="val" style="font-family:var(--font-mono);font-size:10px">${Math.round(n.x)}, ${Math.round(n.y)}</span></div>`;
+  html += `<div class="detail-row"><span class="lbl">Pinned</span><span class="val">${n.pinned ? 'Yes' : 'No'}</span></div>`;
+  if (n.abilityReward) html += `<div class="detail-row"><span class="lbl">Reward</span><span class="val" style="color:var(--info)">${esc(n.abilityReward)}</span></div>`;
+  if (n.anchorCount) html += `<div class="detail-row"><span class="lbl">Anchors</span><span class="val">${n.anchorCount}</span></div>`;
+
+  html += `<h3 style="margin-top:12px;font-family:var(--font-ui);font-size:9.5px;font-weight:600;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.08em">Connections</h3>`;
+  for (const c of n.connections) {
+    const target = nodeById[c.to];
+    const dirArrow = { north: '↑', south: '↓', east: '→', west: '←' }[c.direction] || '?';
+    html += `<div class="conn-row" data-goto="${esc(c.to)}">`;
+    html += `<span class="conn-dir">${dirArrow}</span>`;
+    html += `<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${target ? esc(target.name) : esc(c.to)}</span>`;
+    if (c.requires) html += `<span class="conn-req">${esc(c.requires)}</span>`;
+    if (c.oneWay) html += `<span class="conn-oneway">one-way</span>`;
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
+
+  el.querySelectorAll('.conn-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const target = nodeById[row.dataset.goto];
+      if (target) {
+        selectNode(target);
+        const s = screenFromWorld(target.x, target.y);
+        const canvas = document.getElementById('map-canvas');
+        cam.panX += canvas.width / 2 - s.x;
+        cam.panY += canvas.height / 2 - s.y;
+        drawMap();
+      }
+    });
+  });
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ---- Region filters ----
+function renderRegionFilters() {
+  const el = document.getElementById('region-filters');
+  const regions = Object.keys(regionIndex).sort();
+  el.innerHTML = regions.map(r => {
+    const col = regionColor(r);
+    const cls = regionVisible[r] ? 'rf' : 'rf off';
+    return `<button class="${cls}" data-region="${r}"><span class="dot" style="background:${col}"></span>${prettyRegion(r)}</button>`;
+  }).join('');
+
+  el.querySelectorAll('.rf').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = btn.dataset.region;
+      regionVisible[r] = !regionVisible[r];
+      btn.classList.toggle('off');
+      drawMap();
+    });
+  });
+}
+
+// ---- Export ----
+function generateExport() {
+  const lines = ['const MAP_LAYOUT_SVG = {'];
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const n of nodes) {
+    minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
+    minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
+  }
+  const spanX = Math.max(1, maxX - minX);
+  const spanY = Math.max(1, maxY - minY);
+
+  for (const n of nodes) {
+    const nx = Math.round(((n.x - minX) / spanX) * 1000);
+    const ny = Math.round(((n.y - minY) / spanY) * 1000);
+    lines.push(`  ${n.id}: { x: ${nx}, y: ${ny} },`);
+  }
+  lines.push('};');
+  return lines.join('\n');
+}
+
+// ---- Toolbar wiring ----
+document.getElementById('btn-relayout').addEventListener('click', () => {
+  for (const n of nodes) { n.pinned = false; n.vx = 0; n.vy = 0; }
+  seedPositions();
+  try { localStorage.removeItem(PIN_KEY); } catch(e) {}
+  startSim(400);
+});
+
+document.getElementById('btn-reset-pins').addEventListener('click', () => {
+  for (const n of nodes) { n.pinned = false; }
+  try { localStorage.removeItem(PIN_KEY); } catch(e) {}
+  startSim(200);
+});
+
+document.getElementById('btn-fit').addEventListener('click', () => { fitView(); drawMap(); });
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const text = generateExport();
+  document.getElementById('export-area').value = text;
+});
+
+// ---- Init ----
+function init() {
+  extractGraph();
+  sizeCanvas();
+  seedPositions();
+  loadPins();
+  renderRegionFilters();
+  document.getElementById('room-count').textContent =
+    nodes.length + ' rooms, ' + Object.keys(regionIndex).length + ' regions';
+  fitView();
+  startSim(350);
+}
+
+window.addEventListener('resize', () => { sizeCanvas(); fitView(); drawMap(); });
+init();
+</script>
+</body>
+</html>

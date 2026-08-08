@@ -495,6 +495,15 @@ session (see "Fixed" below); the rest is a ranked backlog.
   it's a design call for you to make, not one this pass should guess at —
   flagging with the flash fix already in, not implementing
   invincibility/hitstun without a decision.
+  **Resolved 2026-08-05**: asked directly, user chose flash-only i-frames
+  (no interrupt) over real hitstun-in-safe-states or a full stagger.
+  `takeDamage()` now also gates on `this.flashTimer > 0` — the existing
+  8-frame hit-flash timer doubles as the immunity window, no new field.
+  Stops back-to-back *separate* hits (fast combo's next swing, a projectile
+  landing right after a melee hit) from all registering within the same
+  beat; does not touch single-swing multi-hit (already solved by
+  `player.hitTargetsThisSwing`) and does not interrupt any active state —
+  exactly the scope asked for. See `Plans/roadmap.md`'s matching entry.
 - ~~`game/game.js` (5,967 lines) is confirmed dead code~~ — **resolved**:
   it's now `game/archive/game.js` (`git status` shows a staged rename,
   `game/game.js` → `game/archive/game.js`, done outside any tracked
@@ -565,6 +574,23 @@ session (see "Fixed" below); the rest is a ranked backlog.
   and the project's stated infra-vs-content priority (`CLAUDE.md`'s
   "Where this project is right now" section) should gate. Not scoped for
   implementation — flagging only.
+  **Mitigated, not resolved, 2026-08-05**: rather than the module-system
+  refactor, two small additive tools now catch a bad `<script>` order
+  without touching a single line of existing runtime behavior —
+  `game/bootDependencyCheck.js` (a runtime canary check, last tag loaded,
+  logs exactly what's missing instead of a cryptic mid-file
+  `ReferenceError`) and `Plans/check_script_order.js` (a static AST-based
+  linter, same family as `room_verify_cli.js`, checking `index.html` +
+  every editor tool that hand-lists its own `game/*.js` subset — 22 HTML
+  files audited, all clean). See `Plans/roadmap.md`'s matching entry for
+  the full build writeup, including a real false-positive-flood finding
+  mid-build (references inside ordinary function/method bodies aren't
+  load-order-sensitive at all, since those only run after boot completes
+  — only top-level statements and IIFEs are) that reshaped the linter's
+  actual scope. This does not replace a real module system — it only
+  catches bad ordering, not the other reasons one might eventually want
+  modules (unit-testability, explicit typed exports). Still not scoped
+  for implementation.
 
 **On an external architecture review (2026-08-02):** a review pass
 covering 8 claims was checked line-by-line against the live code before
@@ -722,6 +748,29 @@ here instead, per this doc's own scope note.
   a route exists that doesn't. `Plans/plotline_editor_plan.md`'s four new
   routes ran into this directly — see its own "save-server.js has no code
   path for creating a new file" gap.
+  **Stale as of 2026-08-05, re-checked against the live code.** This bullet
+  describes `save-server.js`'s reality as of 2026-08-03 — accurate then,
+  but `editor_shell/targets.js` (the Electron shell's AST patch engine,
+  Milestone 2, built 2026-08-04, i.e. *after* this was written) added live
+  disk-write targets for `AREAS`, `ANIM_DEFS`, `BOSS_PHASE_CONFIG` + all 12
+  miniboss phase defs, `TemporalWarden`'s stat consts, `REGION_STYLES`,
+  `CUTSCENES`, and `COMBO_DEFS`, on top of the original HUD/inventory
+  layouts. Verified live `stillpointAPI.patchPath`/`writeWhole` calls
+  actually exist in each corresponding editor's JS — `anim_editor.html`,
+  `boss_phase_editor.html`, `combo_editor.html`, `cutscene_editor.js`,
+  `enemy_editor.html`, `hud_editor.html`, `inventory_editor.html`,
+  `levelEditor.html`, `room_scene_editor.js` — every real content-authoring
+  editor in the suite now has live disk-write when run via `npm start`.
+  The manual "Export JSON to textarea" flow still present in several of
+  these is the deliberate fallback for when the tool is opened in a plain
+  browser tab with no `window.stillpointAPI` (`save-server.js`'s old HTTP
+  path), not a sign live-save is missing. What's genuinely still unwired,
+  by design, not oversight: `plotline_editor.html`'s 4 targets (`QUESTS`/
+  `VISIONS`/`NPC_DIALOGUE`/`STORY_FLAG_META` — pre-content infra, per
+  `CLAUDE.md`) and `enemy_designer.html` (no fixed registry to write into,
+  by its own design). Don't resurface "persistence is inconsistent" as a
+  suite-wide gap without checking `targets.js` first — the two remaining
+  cases above are the only real ones left.
 - **`save-server.js`'s patch logic has no automated test.** `patchLayoutBlock()`
   is a regex-based line patcher (`KEY_LINE_RE`) — exactly the class of code
   that silently corrupts a file on an input shape nobody tested (a value
@@ -745,6 +794,15 @@ here instead, per this doc's own scope note.
   headless; `debug_v1.html`'s browser-dependent checks can't be CI'd
   without a headless-browser runner, which is a bigger ask and not
   proposed here.
+  **One more headless CLI added to this same list, 2026-08-05**:
+  `Plans/check_script_order.js` (script load-order linter — see the "No
+  module system" bullet above and `Plans/roadmap.md`'s build entry). Exit
+  code `0`/`1` like `room_verify_cli.js`, so it's wireable into the same
+  future pre-commit hook this bullet already recommends — **the hook
+  itself was deliberately not wired as part of that build**, per this
+  repo's git safety rules (not touching `.git/hooks` without being asked
+  directly). The underlying gap this bullet describes is unchanged: still
+  nothing forces any of these validators to run.
 - **`dev_hub.html` has no entry point for `plotline_editor.html`.**
   Confirmed by grep — zero references to "plotline" anywhere in
   `editor/dev_hub.html` today. When the plotline editor is actually built,

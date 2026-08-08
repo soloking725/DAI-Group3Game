@@ -3,26 +3,30 @@
 <head>
 <meta charset="utf-8">
 <title>Asset Browser</title>
+<link rel="stylesheet" href="../styles/design-system.css">
 <style>
-  body { font: 13px/1.4 monospace; background: #0d0d12; color: #ddd; margin: 0; padding: 20px; }
-  h1 { font-size: 16px; margin: 0 0 4px; }
-  p.hint { color: #888; margin: 0 0 16px; }
+  body { font: 13px/1.4 var(--font-mono); padding: 20px; }
+  h1 { font-family: var(--font-ui); font-size: 16px; margin: 0 0 4px; }
+  p.hint { color: var(--fg-muted); margin: 0 0 16px; }
   input[type=file] { margin-bottom: 16px; }
   .ns { margin-bottom: 24px; }
-  .ns h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #9ad; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  .ns h2 { font-family: var(--font-ui); font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--info); border-bottom: 1px solid var(--border-hover); padding-bottom: 4px; }
   table { border-collapse: collapse; width: 100%; }
   td, th { text-align: left; padding: 2px 8px; }
-  tr:hover { background: #1a1a22; }
-  .refs { color: #6c6; text-align: right; }
-  .refs.zero { color: #c66; font-weight: bold; }
-  .files { color: #888; font-size: 12px; }
+  tr:hover { background: var(--surface-hover); }
+  .refs { color: var(--ok, #6c6); text-align: right; }
+  .refs.zero { color: var(--danger); font-weight: bold; }
+  .files { color: var(--fg-muted); font-size: 12px; }
   .filter { margin-bottom: 12px; }
-  input[type=text] { background: #1a1a22; border: 1px solid #333; color: #ddd; padding: 4px 8px; width: 300px; }
-  .cmd { background: #1a1a22; border: 1px solid #333; padding: 2px 6px; color: #fc9; cursor: pointer; }
-  .empty { color: #666; font-style: italic; }
+  .cmd { background: var(--bg-input, var(--surface)); border: 1px solid var(--border-hover); border-radius: var(--radius-sm); padding: 2px 6px; color: #fc9; cursor: pointer; }
+  .empty { color: var(--fg-faint); font-style: italic; }
 </style>
 </head>
-<body>
+<body class="ds-root ds-ambient">
+<div class="ds-blob ds-blob-a" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-b" aria-hidden="true"></div>
+<div class="ds-blob ds-blob-c" aria-hidden="true"></div>
+
 <h1>Stillpoint Asset Browser</h1>
 <p class="hint">
   Read-only viewer over an index produced by <code>node editor/asset_index.js --json</code>.
@@ -30,9 +34,9 @@
   <code>node editor/rename_asset.js &lt;namespace&gt; &lt;old&gt; &lt;new&gt; --write</code>
   (click a row's command to copy it) — this page never writes to disk itself.
 </p>
-<input type="file" id="fileInput" accept="application/json">
-<button id="generateBtn" class="cmd" style="margin-left:8px">⟳ Generate index (Electron app only)</button>
-<div class="filter"><input type="text" id="filterBox" placeholder="Filter keys..."></div>
+<input type="file" id="fileInput" accept="application/json" class="ds-input">
+<button id="generateBtn" class="ds-btn ds-btn-primary cmd" style="margin-left:8px">⟳ Generate index (Electron app only)</button>
+<div class="filter"><input type="text" id="filterBox" class="ds-input" placeholder="Filter keys..."></div>
 <div id="output"><p class="empty">No index loaded yet.</p></div>
 
 <script>

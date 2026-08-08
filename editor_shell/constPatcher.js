@@ -317,4 +317,30 @@ function patchArrayElementByKey(filePath, constName, idField, idValue, newValueS
   return output;
 }
 
-module.exports = { patchConstInFile, readConstSourceFromFile, patchPathInFile, syncTopLevelObjectKeys, patchArrayElementByKey };
+// Appends a brand-new top-level `const NAME = VALUE;` declaration at the end
+// of the file — for editors that compose new content (a new enemy def, etc.)
+// rather than edit an existing one. Refuses if NAME is already declared
+// anywhere in the file (existing hand-tuned defs often reference other named
+// consts, e.g. `speed: LANCER_SPEED` — overwriting one wholesale would
+// silently replace that reference with a literal number and break
+// enemy_editor.html's shared-variable stat editing for it; appending a new
+// name sidesteps that risk entirely instead of trying to detect it).
+function appendConstToFile(filePath, constName, newValueSource) {
+  const original = fs.readFileSync(filePath, 'utf8');
+  const ast = recast.parse(original, { parser: babelParser });
+
+  if (findTargetNode(ast, constName)) {
+    throw new Error(`"${constName}" already exists in ${filePath} — pick a different id, or edit the existing one by hand.`);
+  }
+
+  const declSource = `const ${constName} = ${newValueSource};\n`;
+  const newStatement = recast.parse(declSource, { parser: babelParser }).program.body[0];
+
+  ast.program.body.push(newStatement);
+
+  const output = recast.print(ast).code;
+  fs.writeFileSync(filePath, output, 'utf8');
+  return output;
+}
+
+module.exports = { patchConstInFile, readConstSourceFromFile, patchPathInFile, syncTopLevelObjectKeys, patchArrayElementByKey, appendConstToFile };

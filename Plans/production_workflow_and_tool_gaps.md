@@ -185,6 +185,30 @@ to the same tool, not a new one.
 
 ## 3. Real gaps — and which ones a tool can actually close
 
+**Stale as of 2026-08-05 — read this before the list below.** All three
+"closeable" items here have since resolved, in ways that contradict the
+priority order this section recommends:
+1. **The bot-walker was explicitly deprioritized by the user, 2026-08-02**
+   ("i don't care for the bot walker") — the opposite of this section's
+   "build this before doing the full 13-region hand-design pass" framing.
+   Only the static linter half (now `game/roomVerify.js`, covering all 71
+   rooms) is built; the dynamic bot-walker is not being pursued. Don't
+   resurface it as a recommendation without being asked again — see
+   `Plans/engineering_todo.md` §2.
+2. **The Project Progress Dashboard is built** — v1 (aggregate stats:
+   room design-state, Fracture Pip/enemy/miniboss roster counts, anim
+   coverage) lives on `dev_hub.html` today. Only v2 (per-room drill-down +
+   a "suggested next room" heuristic) remains open, per
+   `Plans/engineering_todo.md` §2.
+3. **`room_scene_editor.html` is built** — backdrop/parallax layers,
+   `REGION_STYLES` tuning, `cutsceneTriggers[]`, `audioZones[]`, all live
+   in the editor suite today (see `CLAUDE.md`'s dev-tooling section for
+   its current scope and remaining gaps).
+`Plans/engineering_todo.md` is the current source of truth for "what's
+actually still open" — this section is kept for its historical framing
+(why these were prioritized this way in 2026-07-29), not as a live task
+list.
+
 **Closeable with more tooling** (recommend building, in this priority order):
 
 1. **The room verification bot-walker** (`Plans/room_verification_tool_plan.md`,
@@ -272,6 +296,11 @@ verifying* that content, not the work of deciding what it is.
   solution, not an under-built one. No recommendation to adopt middleware.
 
 ## 5. Recommended order of work (adapted to this project's actual current state)
+
+**Stale note (2026-08-05):** step 5 below still frames the bot-walker as
+"once built" — per §3's correction above, it isn't being built. Read that
+step as "manual playthrough + `debug_v1.html`'s checks," full stop, not as
+a placeholder waiting on a future tool.
 
 Standard advice ("build all levels, then all art, then all combat, then narrative")
 doesn't fit well here, because unlike a from-scratch project, **this project's systems

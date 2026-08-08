@@ -1,4 +1,4 @@
-# Enemy Attack Vocabulary — Plan (partially built, see 2026-07-20 status update)
+# Enemy Attack Vocabulary — Plan (partially built, see 2026-07-20 and 2026-08-05 status updates)
 
 Status: **planning only**, 2026-07-20. Goal per user direction: give
 `ComposedEnemy` (enemy.js/area.js) a real vocabulary of attacks that punish
@@ -57,8 +57,9 @@ spamming it a real decision instead of a free action.
 | **Tiger Knee** (anti-air) | Ruin Stalker | Quick high-arcing swipe, only triggers vs. an airborne player | Stay grounded or dodge — direct counter-pressure to juggle/Reach-heavy play, good to build alongside Reach |
 | **Feint Cancel** (mix-up) | Phase Mage (**one enemy only**, see note) | Slow windup, cancels (blue flash), then fast 8f real slash | The windup is a lie — wait for the flash, don't parry early. Hard to telegraph fairly; restrict to a single "trickster" archetype so it doesn't read as unfair everywhere |
 | **Lingering Damage** (zone control) | Stillpoint Revenant | Leaves a damage trail for 2s as it moves | Can't stand still and combo — forces repositioning |
-| **Command Grab** *(new)* | TBD heavy enemy | Slow, clearly telegraphed, unblockable/unparryable throw | Answers "just parry/block everything" — only counter is movement, not defense |
-| **Hyper-armor Windup** *(new)* | Null-Gravity Brute, miniboss charges | Doesn't flinch on hit during windup; your combo doesn't interrupt it | Teaches "not every opening is safe to take" — complements Reversal, which teaches the opposite (sometimes stopping is right) |
+| **Command Grab** | TBD heavy enemy | Slow, clearly telegraphed, unblockable/unparryable throw | Answers "just parry/block everything" — only counter is movement, not defense |
+| **Hyper-armor Windup** | Null-Gravity Brute, miniboss charges | Doesn't flinch on hit during windup; your combo doesn't interrupt it | Teaches "not every opening is safe to take" — complements Reversal, which teaches the opposite (sometimes stopping is right) |
+| **Construct** *(new, 2026-08-05)* | TBD heavy/elite enemy | Telegraphs, then raises a solid breakable-wall prison around the player's position (short seal delay — dodge out before it closes). While sealed, walls act as real platforms (block movement, no direct damage). Breaks either by the player mashing attacks on it from inside, or a timer. On break/detonation: AoE pulse, damage scaled by where the player is at that moment — full damage if still sealed inside when the timer wins, a real but lesser tick if they broke out early but are still standing in the blast radius, nothing if they're clear | Two lessons in one attack: don't get caught flat-footed by the seal (dodge the telegraph), and don't just stand there once you're free (same "keep moving after" read as Afterimage Strike, deliberately parallel) |
 | **Adaptive Resist** *(new)* | TBD (elite-tier) | After 2-3 hits from the same direction in a row, briefly resists/reduces damage from that direction | Rewards the varied forward/up/down/Reach kit instead of one optimal button. Cheap: rolling last-N-hit-direction buffer + damage multiplier |
 | **Chip-Guard Block** *(new)* | A second, lighter blocker type | Blocks but takes reduced (not zero) damage, no knockback | Keeps pressure meaningful without every blocker being a Reversal/parry-bait clone — variety within "enemy that blocks" |
 
@@ -217,6 +218,30 @@ knockback) rather than needing a new state machine:
 Second pass (once the above are live and playtested): Ceiling Slam, Shield
 Slip, Command Grab, Hyper-armor Windup, then the projectile tiers.
 
-Not yet scoped into a build order: Mote Eater, Gravity Anchor, Feint
+**Status correction (2026-08-05, checked against the live code before
+writing anything here — this doc's status sections had gone stale):**
+three second-pass items are actually already built, undocumented in this
+plan until now: **Shield Slip** (`ATTACK_BEHAVIORS.shield_slip`,
+`game/enemy.js` — passive, 3 hits within a window drops the shield for a
+punish window, own flashing-red-outline tell distinct from the steady-bar
+"shield up" state), **Command Grab** (`ATTACK_BEHAVIORS.command_grab` —
+short 10f windup with its own orange flash + hitstop tell, holds/damages
+the player on a tick timer, throw knockback on release), and **generic
+Hyper-armor** (a `hyperArmor: true` flag any attack def can set, checked
+generically in `ComposedEnemy.takeDamage()` — not flinching/interrupting
+during windup/active frames — rather than a single named "Hyper-armor
+Windup" attack, it's an opt-in modifier any attack can carry, a more
+general version of what this table originally scoped). All three are
+exposed in `editor/enemy_designer.html`'s `ATTACK_UI`, so they're real,
+authorable content, not dead code. Still genuinely unbuilt: **Ceiling
+Slam**, **Gravity Anchor**, **Feint Cancel**, **Lingering Damage**,
+**Adaptive Resist**, **Chip-Guard Block**, and Reversal's own **Sword
+Clash** interrupt-and-punish resolution (§1's Status update above still
+correctly flags this one as missing) — don't assume any of these six are
+built without checking `game/enemy.js` first, the same way this
+correction did.
+
+Not yet scoped into a build order: Gravity Anchor, Feint
 Cancel, Lingering Damage, Adaptive Resist, Chip-Guard Block, Parry Frame,
-Gravity Well, Mine — all kept, just later.
+Gravity Well, Mine, Construct (new, see table above) — all kept, just
+later.
